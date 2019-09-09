@@ -1,0 +1,58 @@
+#pragma once
+#include "Base.h"
+
+#include "Extensions.h"
+
+#include <memory>
+
+class PhysicalDevice;
+
+class Instance final : public VulkanBase
+{
+public:
+	Instance();
+	~Instance() override;
+	
+	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName);
+
+	VKAPI_ATTR void VKAPI_CALL DestroyInstance(const VkAllocationCallbacks* pAllocator);
+
+	VKAPI_ATTR VkResult VKAPI_CALL EnumeratePhysicalDevices(uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices);
+
+	VKAPI_ATTR VkResult VKAPI_CALL EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties);
+	
+	VKAPI_ATTR void VKAPI_PTR DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator);
+	
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDisplayPlaneSurfaceKHR(const VkDisplaySurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); } 
+
+	VKAPI_ATTR VkResult VKAPI_PTR EnumeratePhysicalDeviceGroupsKHR(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties) { FATAL_ERROR(); } 
+
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugReportCallbackEXT(const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DestroyDebugReportCallbackEXT(VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DebugReportMessageEXT(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage) { FATAL_ERROR(); } 
+
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DestroyDebugUtilsMessengerEXT(VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR SubmitDebugUtilsMessageEXT(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) { FATAL_ERROR(); } 
+
+	VKAPI_ATTR VkResult VKAPI_PTR CreateHeadlessSurfaceEXT(const VkHeadlessSurfaceCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); } 
+
+	VKAPI_ATTR VkResult VKAPI_PTR CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
+
+	static VkResult Create(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance);
+
+	int getVersion() const { return version; }
+	const ExtensionGroup& getEnabledExtensions() const { return enabledExtensions; }
+
+private:
+	int version = VK_API_VERSION_1_0;
+	VkDebugUtilsMessengerCreateInfoEXT debug{};
+
+	std::unique_ptr<PhysicalDevice> physicalDevice;
+	ExtensionGroup enabledExtensions{};
+};
+
+VKAPI_ATTR VkResult VKAPI_CALL CreateInstance(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance);
+VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceExtensionProperties(const char* pLayerName, uint32_t* pPropertyCount, VkExtensionProperties* pProperties);
+VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceLayerProperties(uint32_t* pPropertyCount, VkLayerProperties* pProperties);
+VKAPI_ATTR VkResult VKAPI_CALL EnumerateInstanceVersion(uint32_t* pApiVersion);
