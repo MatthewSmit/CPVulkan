@@ -1,5 +1,7 @@
 #include "Fence.h"
 
+#include <Windows.h>
+
 #include <cassert>
 
 Fence::~Fence()

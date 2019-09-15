@@ -8,6 +8,8 @@ public:
 	
 	static VkResult Create(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout);
 
+	[[nodiscard]] const std::vector<VkDescriptorSetLayoutBinding>& getBindings() const { return bindings; }
+
 private:
 	std::vector<VkDescriptorSetLayoutBinding> bindings{};
 };

@@ -1,6 +1,8 @@
 #pragma once
 #include "Base.h"
 
+#include <Windows.h>
+
 class Image;
 
 class Swapchain final : public VulkanBase

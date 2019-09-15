@@ -3,6 +3,8 @@
 #include "Device.h"
 #include "Formats.h"
 
+#define NOMINMAX
+#include <Windows.h>
 #include <vulkan/vk_icd.h>
 
 #include <algorithm>
@@ -507,7 +509,7 @@ VkResult PhysicalDevice::GetSurfaceFormats(VkSurfaceKHR surface, uint32_t* pSurf
 			FATAL_ERROR();
 		}
 		
-		pSurfaceFormats->format = VK_FORMAT_R8G8B8A8_UNORM;
+		pSurfaceFormats->format = VK_FORMAT_B8G8R8A8_UNORM;
 		pSurfaceFormats->colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
 		*pSurfaceFormatCount = 1;
 	}

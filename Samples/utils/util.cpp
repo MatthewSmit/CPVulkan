@@ -33,6 +33,8 @@ samples utility functions
 #include <iostream>
 #include "util.hpp"
 
+#include <SPIRV/disassemble.h>
+
 #ifdef __ANDROID__
 // Android specific include files.
 #include <unordered_map>
@@ -61,7 +63,11 @@ using namespace std;
 
 #if !(defined(__ANDROID__) || defined(VK_USE_PLATFORM_METAL_EXT))
 // Android, iOS, and macOS: main() implemented externally to allow access to Objective-C components
-int main(int argc, char **argv) { return sample_main(argc, argv); }
+int main(int argc, char **argv)
+{
+	SetEnvironmentVariableA("VK_ICD_FILENAMES", "C:\\Work\\CPVulkan\\CPVulkan\\CPVulkan.json");
+	return sample_main(argc, argv);
+}
 #endif
 
 void extract_version(uint32_t version, uint32_t &major, uint32_t &minor, uint32_t &patch) {
@@ -533,6 +539,9 @@ bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshader, std
     }
     spirv.assign(module.cbegin(), module.cend());
 #endif
+	std::stringstream out{};
+	spv::Disassemble(out, spirv);
+	std::cout << out.str() << std::endl;
     return true;
 }
 

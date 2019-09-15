@@ -24,7 +24,7 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
 	VKAPI_ATTR void VKAPI_PTR UnmapMemory(VkDeviceMemory memory);
 	VKAPI_ATTR VkResult VKAPI_PTR FlushMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR InvalidateMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR InvalidateMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges);
 	VKAPI_ATTR void VKAPI_PTR GetDeviceMemoryCommitment(VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset);
 	VKAPI_ATTR VkResult VKAPI_PTR BindImageMemory(VkImage image, VkDeviceMemory memory, VkDeviceSize memoryOffset);

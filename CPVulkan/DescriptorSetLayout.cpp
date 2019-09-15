@@ -11,7 +11,7 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = *static_cast<const VkStructureType*>(next);
 		switch (type)
 		{
 		default:
@@ -24,11 +24,7 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 		FATAL_ERROR();
 	}
 
-	descriptorSetLayout->bindings = std::vector<VkDescriptorSetLayoutBinding>{pCreateInfo->bindingCount};
-	for (auto i = 0u; i < pCreateInfo->bindingCount; i++)
-	{
-		descriptorSetLayout->bindings[i] = pCreateInfo->pBindings[i];
-	}
+	descriptorSetLayout->bindings = ArrayToVector(pCreateInfo->bindingCount, pCreateInfo->pBindings);
 
 	*pSetLayout = reinterpret_cast<VkDescriptorSetLayout>(descriptorSetLayout);
 	return VK_SUCCESS;

@@ -9,11 +9,12 @@ public:
 
 	static VkResult Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 
-	uint32_t getWidth() const { return extent.width; }
-	uint32_t getHeight() const { return extent.height; }
-	uint32_t getDepth() const { return extent.depth; }
+	[[nodiscard]] VkFormat getFormat() const { return format; }
+	[[nodiscard]] uint32_t getWidth() const { return extent.width; }
+	[[nodiscard]] uint32_t getHeight() const { return extent.height; }
+	[[nodiscard]] uint32_t getDepth() const { return extent.depth; }
 	
-	void* getData() const { return data; }
+	[[nodiscard]] void* getData() const { return data; }
 
 private:
 	VkImageType imageType{};

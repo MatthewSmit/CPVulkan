@@ -1,8 +1,14 @@
 #pragma once
 #include "Base.h"
 
-#include <string>
+#include <array>
 
+namespace SPIRV
+{
+	class SPIRVModule;
+}
+
+class ShaderFunction;
 class ShaderModule;
 
 struct VertexInputState
@@ -77,14 +83,27 @@ struct DynamicState
 	std::vector<VkDynamicState> DynamicStates;
 };
 
+class ShaderFunction final
+{
+public:
+	ShaderFunction(ShaderModule* module, uint32_t stageIndex, const char* name);
+
+	const SPIRV::SPIRVModule* getModule() const { return module; }
+	const std::string& getName() const { return name; }
+
+private:
+	const SPIRV::SPIRVModule* module;
+	std::string name;
+};
+
 class Pipeline final : public VulkanBase
 {
 public:
-	~Pipeline() override = default;
+	~Pipeline() override;
 	
 	static VkResult Create(VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
-	[[nodiscard]] const std::pair<ShaderModule*, std::string>& getShaderStage(uint32_t index) const { return shaderStages[index]; }
+	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const { return shaderStages[index].get(); }
 	
 	[[nodiscard]] const VertexInputState& getVertexInputState() const { return vertexInputState; }
 	[[nodiscard]] const InputAssemblyState& getInputAssemblyState() const { return inputAssemblyState; }
@@ -97,15 +116,15 @@ public:
 	[[nodiscard]] const DynamicState& getDynamicState() const { return dynamicState; }
 
 private:
-	std::pair<ShaderModule*, std::string> shaderStages[6];
+	std::array<std::unique_ptr<ShaderFunction>, 6> shaderStages;
 	
-	VertexInputState vertexInputState;
-	InputAssemblyState inputAssemblyState;
-	TessellationState tessellationState;
-	ViewportState viewportState;
-	RasterizationState rasterizationState;
-	MultisampleState multisampleState;
-	DepthStencilState depthStencilState;
-	ColourBlendState colourBlendState;
-	DynamicState dynamicState;
+	VertexInputState vertexInputState{};
+	InputAssemblyState inputAssemblyState{};
+	TessellationState tessellationState{};
+	ViewportState viewportState{};
+	RasterizationState rasterizationState{};
+	MultisampleState multisampleState{};
+	DepthStencilState depthStencilState{};
+	ColourBlendState colourBlendState{};
+	DynamicState dynamicState{};
 };

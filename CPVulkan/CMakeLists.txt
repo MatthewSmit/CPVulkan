@@ -1,7 +1,5 @@
 ﻿cmake_minimum_required(VERSION 3.8)
 
-add_compile_options("/std:c++latest")
-
 find_package(glm CONFIG REQUIRED)
 
 add_library(CPVulkan SHARED
@@ -82,5 +80,5 @@ add_library(CPVulkan SHARED
 	"Swapchain.h"
 	)
 target_compile_definitions(CPVulkan PRIVATE VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR WIN32_LEAN_AND_MEAN)
-target_include_directories(CPVulkan PRIVATE "C:\\VulkanSDK\\1.1.114.0\\Include\\")
-target_link_libraries(CPVulkan glm)
+target_include_directories(CPVulkan PRIVATE "C:\\VulkanSDK\\1.1.121.0\\Include\\")
+target_link_libraries(CPVulkan PRIVATE glm SPIRVParser)

@@ -48,17 +48,17 @@ public:
 	VKAPI_ATTR void VKAPI_PTR CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageCopy* pRegions) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions);
 	VKAPI_ATTR void VKAPI_PTR UpdateBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize dataSize, const void* pData) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR FillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR ClearColorImage(VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR ClearColorImage(VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
 	VKAPI_ATTR void VKAPI_PTR ClearDepthStencilImage(VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR ClearAttachments(uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR ResolveImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve* pRegions) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SetEvent(VkEvent event, VkPipelineStageFlags stageMask) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR ResetEvent(VkEvent event, VkPipelineStageFlags stageMask) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR WaitEvents(uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR PipelineBarrier(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR PipelineBarrier(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers);
 	VKAPI_ATTR void VKAPI_PTR BeginQuery(VkQueryPool queryPool, uint32_t query, VkQueryControlFlags flags) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR EndQuery(VkQueryPool queryPool, uint32_t query) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) { FATAL_ERROR(); } 

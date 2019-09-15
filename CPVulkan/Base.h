@@ -1,11 +1,32 @@
 #pragma once
-#define NOMINMAX
-#undef CreateSemaphore
-#undef CreateEvent
-#include <vulkan/vulkan.h>
+#define VULKAN_H_ 1
+#include <vulkan/vk_platform.h>
+#include <vulkan/vulkan_core.h>
 
-#include <vector>
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+// #include <Windows.h>
+#ifndef DECLARE_HANDLE
+using HANDLE = void*;
+
+#define DECLARE_HANDLE(name) struct name##__; typedef struct name##__ *name
+DECLARE_HANDLE(HINSTANCE);
+DECLARE_HANDLE(HMONITOR);
+DECLARE_HANDLE(HWND);
+#undef DECLARE_HANDLE
+
+struct _SECURITY_ATTRIBUTES;
+using SECURITY_ATTRIBUTES = _SECURITY_ATTRIBUTES;
+
+using LPCWSTR = const wchar_t*;
+using PCWSTR = const wchar_t*;
+using DWORD = unsigned long;
+#endif
+
+#include <vulkan/vulkan_win32.h>
+#endif
+
 #include <functional>
+#include <vector>
 
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 
@@ -24,6 +45,9 @@ public:
 	VulkanBase(const VulkanBase&) = delete;
 	VulkanBase(VulkanBase&&) = delete;
 	virtual ~VulkanBase() = default;
+
+	VulkanBase& operator=(const VulkanBase&) = delete;
+	VulkanBase&& operator=(const VulkanBase&&) = delete;
 
 	template <typename T>
 	static T* Allocate(const VkAllocationCallbacks* pAllocator)

@@ -1,5 +1,7 @@
 #include "Pipeline.h"
 
+#include "ShaderModule.h"
+
 #include <cassert>
 
 static uint32_t GetStageIndex(VkShaderStageFlagBits stage)
@@ -296,6 +298,14 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 	};
 }
 
+ShaderFunction::ShaderFunction(ShaderModule* module, uint32_t stageIndex, const char* name)
+{
+	this->module = module->getModule();
+	this->name = name;
+}
+
+Pipeline::~Pipeline() = default;
+
 VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
@@ -350,7 +360,7 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 		}
 
 		const auto stageIndex = GetStageIndex(stage.stage);
-		pipeline->shaderStages[stageIndex] = std::make_pair(reinterpret_cast<ShaderModule*>(stage.module), std::string{stage.pName});
+		pipeline->shaderStages[stageIndex] = std::make_unique<ShaderFunction>(reinterpret_cast<ShaderModule*>(stage.module), stageIndex, stage.pName);
 	}
 
 	pipeline->vertexInputState = Parse(pCreateInfo->pVertexInputState);

@@ -116,39 +116,87 @@ static constexpr FormatInformation MakeFormatInformation(VkFormat format, bool i
 	};
 }
 
+static constexpr FormatInformation MakeFormatInformation(VkFormat format, bool isBlockCompressed, bool isMultiPlane, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
+                                                         uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset,
+                                                         uint32_t redPack, uint32_t greenPack, uint32_t bluePack, uint32_t alphaPack)
+{
+	const auto features = static_cast<VkFormatFeatureFlags>(VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
+		VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT |
+		VK_FORMAT_FEATURE_STORAGE_IMAGE_ATOMIC_BIT |
+		VK_FORMAT_FEATURE_UNIFORM_TEXEL_BUFFER_BIT |
+		VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_BIT |
+		VK_FORMAT_FEATURE_STORAGE_TEXEL_BUFFER_ATOMIC_BIT |
+		VK_FORMAT_FEATURE_VERTEX_BUFFER_BIT |
+		VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT |
+		VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BLEND_BIT |
+		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT |
+		VK_FORMAT_FEATURE_BLIT_SRC_BIT |
+		VK_FORMAT_FEATURE_BLIT_DST_BIT |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT |
+		VK_FORMAT_FEATURE_TRANSFER_SRC_BIT |
+		VK_FORMAT_FEATURE_TRANSFER_DST_BIT |
+		VK_FORMAT_FEATURE_MIDPOINT_CHROMA_SAMPLES_BIT |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_LINEAR_FILTER_BIT |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_SEPARATE_RECONSTRUCTION_FILTER_BIT |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_BIT |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_YCBCR_CONVERSION_CHROMA_RECONSTRUCTION_EXPLICIT_FORCEABLE_BIT |
+		VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_CUBIC_BIT_IMG |
+		VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_MINMAX_BIT_EXT |
+		VK_FORMAT_FEATURE_FRAGMENT_DENSITY_MAP_BIT_EXT);
+	return FormatInformation
+	{
+		format,
+		features | (isMultiPlane ? VK_FORMAT_FEATURE_DISJOINT_BIT : 0),
+		features | (isMultiPlane ? VK_FORMAT_FEATURE_DISJOINT_BIT : 0),
+		isBlockCompressed ? static_cast<VkFormatFeatureFlags>(0) : features,
+		totalSize,
+		elementSize,
+		baseType,
+		redOffset,
+		greenOffset,
+		blueOffset,
+		alphaOffset,
+		redPack,
+		greenPack,
+		bluePack,
+		alphaPack,
+	};
+}
+
 static constexpr FormatInformation formatInformation[]
 {
 	MakeFormatInformation(VK_FORMAT_UNDEFINED, false, false, 0),
-	MakeFormatInformation(VK_FORMAT_R4G4_UNORM_PACK8, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R4G4B4A4_UNORM_PACK16, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_B4G4R4A4_UNORM_PACK16, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R5G6B5_UNORM_PACK16, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_B5G6R5_UNORM_PACK16, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R5G5B5A1_UNORM_PACK16, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_B5G5R5A1_UNORM_PACK16, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_A1R5G5B5_UNORM_PACK16, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8_UNORM, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R8_SNORM, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R8_USCALED, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R8_SSCALED, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R8_UINT, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R8_SINT, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R8_SRGB, false, false, 1),
-	MakeFormatInformation(VK_FORMAT_R8G8_UNORM, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8G8_SNORM, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8G8_USCALED, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8G8_SSCALED, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8G8_UINT, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8G8_SINT, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8G8_SRGB, false, false, 2),
-	MakeFormatInformation(VK_FORMAT_R8G8B8_UNORM, false, false, 3),
-	MakeFormatInformation(VK_FORMAT_R8G8B8_SNORM, false, false, 3),
-	MakeFormatInformation(VK_FORMAT_R8G8B8_USCALED, false, false, 3),
-	MakeFormatInformation(VK_FORMAT_R8G8B8_SSCALED, false, false, 3),
-	MakeFormatInformation(VK_FORMAT_R8G8B8_UINT, false, false, 3),
-	MakeFormatInformation(VK_FORMAT_R8G8B8_SINT, false, false, 3),
-	MakeFormatInformation(VK_FORMAT_R8G8B8_SRGB, false, false, 3),
-	MakeFormatInformation(VK_FORMAT_B8G8R8_UNORM, false, false, 3),
+	MakeFormatInformation(VK_FORMAT_R4G4_UNORM_PACK8, false, false, 1, 0, BaseType::UNorm, 4, 0, 0, 0, 4, 4, 0, 0),
+	MakeFormatInformation(VK_FORMAT_R4G4B4A4_UNORM_PACK16, false, false, 2, 0, BaseType::UNorm, 12, 8, 4, 0, 4, 4, 4, 4),
+	MakeFormatInformation(VK_FORMAT_B4G4R4A4_UNORM_PACK16, false, false, 2, 0, BaseType::UNorm, 4, 8, 12, 0, 4, 4, 4, 4),
+	MakeFormatInformation(VK_FORMAT_R5G6B5_UNORM_PACK16, false, false, 2, 0, BaseType::UNorm, 11, 5, 0, 0, 5, 6, 5, 0),
+	MakeFormatInformation(VK_FORMAT_B5G6R5_UNORM_PACK16, false, false, 2, 0, BaseType::UNorm, 0, 5, 11, 0, 5, 6, 5, 0),
+	MakeFormatInformation(VK_FORMAT_R5G5B5A1_UNORM_PACK16, false, false, 2, 0, BaseType::UNorm, 11, 6, 1, 0, 5, 5, 5, 1),
+	MakeFormatInformation(VK_FORMAT_B5G5R5A1_UNORM_PACK16, false, false, 2, 0, BaseType::UNorm, 1, 6, 11, 0, 5, 5, 5, 1),
+	MakeFormatInformation(VK_FORMAT_A1R5G5B5_UNORM_PACK16, false, false, 2, 0, BaseType::UNorm, 10, 5, 0, 15, 5, 5, 5, 1),
+	MakeFormatInformation(VK_FORMAT_R8_UNORM, false, false, 1, 1, BaseType::UNorm, 0, -1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8_SNORM, false, false, 1, 1, BaseType::SNorm, 0, -1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8_USCALED, false, false, 1, 1, BaseType::UScaled, 0, -1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8_SSCALED, false, false, 1, 1, BaseType::SScaled, 0, -1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8_UINT, false, false, 1, 1, BaseType::UInt, 0, -1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8_SINT, false, false, 1, 1, BaseType::SInt, 0, -1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8_SRGB, false, false, 1, 1, BaseType::SRGB, 0, -1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8_UNORM, false, false, 2, 1, BaseType::UNorm, 0, 1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8_SNORM, false, false, 2, 1, BaseType::SNorm, 0, 1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8_USCALED, false, false, 2, 1, BaseType::UScaled, 0, 1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8_SSCALED, false, false, 2, 1, BaseType::SScaled, 0, 1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8_UINT, false, false, 2, 1, BaseType::UInt, 0, 1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8_SINT, false, false, 2, 1, BaseType::SInt, 0, 1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8_SRGB, false, false, 2, 1, BaseType::SRGB, 0, 1, -1, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8B8_UNORM, false, false, 3, 1, BaseType::UNorm, 0, 1, 2, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8B8_SNORM, false, false, 3, 1, BaseType::SNorm, 0, 1, 2, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8B8_USCALED, false, false, 3, 1, BaseType::UScaled, 0, 1, 2, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8B8_SSCALED, false, false, 3, 1, BaseType::SScaled, 0, 1, 2, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8B8_UINT, false, false, 3, 1, BaseType::UInt, 0, 1, 2, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8B8_SINT, false, false, 3, 1, BaseType::SInt, 0, 1, 2, -1),
+	MakeFormatInformation(VK_FORMAT_R8G8B8_SRGB, false, false, 3, 1, BaseType::SRGB, 0, 1, 2, -1),
+	MakeFormatInformation(VK_FORMAT_B8G8R8_UNORM, false, false, 3, 1, BaseType::UNorm, 2, 1, 0, -1),
 	MakeFormatInformation(VK_FORMAT_B8G8R8_SNORM, false, false, 3),
 	MakeFormatInformation(VK_FORMAT_B8G8R8_USCALED, false, false, 3),
 	MakeFormatInformation(VK_FORMAT_B8G8R8_SSCALED, false, false, 3),
@@ -162,7 +210,7 @@ static constexpr FormatInformation formatInformation[]
 	MakeFormatInformation(VK_FORMAT_R8G8B8A8_UINT, false, false, 4),
 	MakeFormatInformation(VK_FORMAT_R8G8B8A8_SINT, false, false, 4),
 	MakeFormatInformation(VK_FORMAT_R8G8B8A8_SRGB, false, false, 4),
-	MakeFormatInformation(VK_FORMAT_B8G8R8A8_UNORM, false, false, 4),
+	MakeFormatInformation(VK_FORMAT_B8G8R8A8_UNORM, false, false, 4, 1, BaseType::UNorm, 2, 1, 0, 3),
 	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SNORM, false, false, 4),
 	MakeFormatInformation(VK_FORMAT_B8G8R8A8_USCALED, false, false, 4),
 	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SSCALED, false, false, 4),

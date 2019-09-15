@@ -22,6 +22,7 @@
 #include "ShaderModule.h"
 #include "Swapchain.h"
 
+#include <Windows.h>
 #include <vulkan/vk_icd.h>
 #include <vulkan/vk_layer.h>
 
@@ -100,6 +101,11 @@ void Device::UnmapMemory(VkDeviceMemory memory)
 {
 }
 
+VkResult Device::InvalidateMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges)
+{
+	return VK_SUCCESS;
+}
+
 VkResult Device::BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset)
 {
 	return reinterpret_cast<Buffer*>(buffer)->BindMemory(memory, memoryOffset);
@@ -151,6 +157,8 @@ VkResult Device::WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBo
 	
 	return VK_SUCCESS;
 }
+
+#undef CreateSemaphore
 
 VkResult Device::CreateSemaphore(const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore)
 {
@@ -288,7 +296,7 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 
 	for (auto i = 0u; i < pAllocateInfo->descriptorSetCount; i++)
 	{
-		auto result = DescriptorSet::Create(pAllocateInfo->descriptorPool, pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
+		const auto result = DescriptorSet::Create(pAllocateInfo->descriptorPool, pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
 		if (result != VK_SUCCESS)
 		{
 			FATAL_ERROR();
@@ -326,7 +334,7 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 			}
 		}
 
-		// TODO
+		reinterpret_cast<DescriptorSet*>(descriptorWrite.dstSet)->Update(descriptorWrite);
 	}
 
 	for (auto i = 0u; i < descriptorCopyCount; i++)

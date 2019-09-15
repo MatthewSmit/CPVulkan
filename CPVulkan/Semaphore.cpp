@@ -1,5 +1,7 @@
 #include "Semaphore.h"
 
+#include <Windows.h>
+
 #include <cassert>
 
 Semaphore::~Semaphore()

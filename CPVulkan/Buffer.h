@@ -11,9 +11,11 @@ public:
 
 	static VkResult Create(const VkBufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer);
 
+	[[nodiscard]] uint8_t* getData() const { return data; }
+
 private:
 	VkBufferUsageFlags usage{};
 
-	void* data{};
+	uint8_t* data{};
 	uint64_t size{};
 };
