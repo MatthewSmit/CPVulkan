@@ -18,6 +18,8 @@
 #include <cassert>
 #include <stack>
 
+constexpr auto MAX_FRAGMENT_ATTACHMENTS = 4;
+
 class PipelineLayout;
 
 struct Variable
@@ -32,10 +34,7 @@ struct Variable
 		Matrix4x4Float,
 	} type;
 
-	Variable()
-	{
-		type = Type::Unknown;
-	}
+	Variable() = default;
 
 	Variable(uint8_t* pointer)
 	{
@@ -97,64 +96,64 @@ struct Variable
 		switch (type)
 		{
 		case Type::UniformBuffer:
-		{
-			auto columnMajor = false;
-			auto rowMajor = false;
-			auto offset = 0u;
-			auto matrixStride = 0u;
-			for (const auto& memberDecorate : buffer.type->getMemberDecorates())
 			{
-				if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationColMajor)
+				auto columnMajor = false;
+				auto rowMajor = false;
+				auto offset = 0u;
+				auto matrixStride = 0u;
+				for (const auto& memberDecorate : buffer.type->getMemberDecorates())
 				{
-					columnMajor = true;
+					if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationColMajor)
+					{
+						columnMajor = true;
+					}
+					else if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationRowMajor)
+					{
+						rowMajor = true;
+					}
+					else if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationOffset)
+					{
+						offset = memberDecorate.second->getLiteral(0);
+					}
+					else if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationMatrixStride)
+					{
+						matrixStride = memberDecorate.second->getLiteral(0);
+					}
 				}
-				else if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationRowMajor)
+
+				const auto memberType = buffer.type->getMemberType(index);
+				switch (memberType->getOpCode())
 				{
-					rowMajor = true;
-				}
-				else if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationOffset)
-				{
-					offset = memberDecorate.second->getLiteral(0);
-				}
-				else if (memberDecorate.first.first == index && memberDecorate.first.second == DecorationMatrixStride)
-				{
-					matrixStride = memberDecorate.second->getLiteral(0);
+				case OpTypeMatrix:
+					{
+						if ((columnMajor && rowMajor) || (!columnMajor && !rowMajor))
+						{
+							FATAL_ERROR();
+						}
+
+						if (rowMajor)
+						{
+							FATAL_ERROR();
+						}
+
+						if (matrixStride != 16)
+						{
+							FATAL_ERROR();
+						}
+
+						if (memberType->getMatrixColumnCount() != 4 || memberType->getMatrixRowCount() != 4)
+						{
+							FATAL_ERROR();
+						}
+
+						const auto data = reinterpret_cast<Buffer*>(buffer.info.buffer)->getData() + buffer.info.offset + offset;
+						return Variable(data);
+					}
+
+				default:
+					FATAL_ERROR();
 				}
 			}
-
-			const auto memberType = buffer.type->getMemberType(index);
-			switch (memberType->getOpCode())
-			{
-			case OpTypeMatrix:
-			{
-				if ((columnMajor && rowMajor) || (!columnMajor && !rowMajor))
-				{
-					FATAL_ERROR();
-				}
-
-				if (rowMajor)
-				{
-					FATAL_ERROR();
-				}
-
-				if (matrixStride != 16)
-				{
-					FATAL_ERROR();
-				}
-
-				if (memberType->getMatrixColumnCount() != 4 || memberType->getMatrixRowCount() != 4)
-				{
-					FATAL_ERROR();
-				}
-
-				const auto data = reinterpret_cast<Buffer*>(buffer.info.buffer)->getData() + buffer.info.offset + offset;
-				return Variable(data);
-			}
-
-			default:
-				FATAL_ERROR();
-			}
-		}
 
 		case Type::BuiltinBuffer:
 			return (*builtin.vector)[index];
@@ -243,11 +242,20 @@ struct ShaderState
 	std::vector<Variable> scratch;
 	std::vector<Variable> input;
 	std::array<std::vector<Variable>, MAX_DESCRIPTOR_SETS> uniforms;
-	std::vector<Variable>& output;
-	std::vector<Variable>& builtins;
+	std::vector<Variable>* output;
+	std::vector<Variable>* builtins;
 };
 
-template <typename Size>
+struct VertexOutput
+{
+	std::unique_ptr<uint8_t[]> data;
+	std::vector<std::vector<Variable>> outputs;
+	std::vector<std::vector<Variable>> builtins;
+	uint64_t variableStride;
+	uint64_t vertexStride;
+};
+
+template<typename Size>
 static void SetPixel(void* data, const FormatInformation& format, uint32_t x, uint32_t y, uint32_t z, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
@@ -273,7 +281,7 @@ static void SetPixel(void* data, const FormatInformation& format, uint32_t x, ui
 	if (format.AlphaOffset != -1) pixel[format.AlphaOffset] = static_cast<Size>(values[3]);
 }
 
-template <typename Size>
+template<typename Size>
 static void SetPackedPixel(void* data, const FormatInformation& format, uint32_t x, uint32_t y, uint32_t z, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
@@ -289,6 +297,32 @@ static void SetPackedPixel(void* data, const FormatInformation& format, uint32_t
 		static_cast<uint64_t>(x) * pixelSize);
 
 	*pixel = static_cast<Size>(values[0]);
+}
+
+template<typename Size>
+static void GetPixel(void* data, const FormatInformation& format, uint32_t x, uint32_t y, uint32_t z, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
+{
+	static_assert(std::numeric_limits<Size>::is_integer);
+	static_assert(!std::numeric_limits<Size>::is_signed);
+
+	if (format.ElementSize != sizeof(Size))
+	{
+		FATAL_ERROR();
+	}
+
+	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
+	const auto stride = width * pixelSize;
+	const auto pane = height * stride;
+
+	auto pixel = reinterpret_cast<Size*>(reinterpret_cast<uint8_t*>(data) +
+		static_cast<uint64_t>(z) * pane +
+		static_cast<uint64_t>(y) * stride +
+		static_cast<uint64_t>(x) * pixelSize);
+
+	if (format.RedOffset != -1) values[0] = static_cast<uint64_t>(pixel[format.RedOffset]);
+	if (format.GreenOffset != -1) values[1] = static_cast<uint64_t>(pixel[format.GreenOffset]);
+	if (format.BlueOffset != -1) values[2] = static_cast<uint64_t>(pixel[format.BlueOffset]);
+	if (format.AlphaOffset != -1) values[3] = static_cast<uint64_t>(pixel[format.AlphaOffset]);
 }
 
 static void SetPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y, uint32_t z, uint64_t values[4])
@@ -314,6 +348,40 @@ static void SetPixel(const FormatInformation& format, Image* image, uint32_t x, 
 		else if (format.ElementSize == 2)
 		{
 			SetPixel<uint16_t>(image->getData(), format, x, y, z, image->getWidth(), image->getHeight(), image->getDepth(), values);
+		}
+		else
+		{
+			FATAL_ERROR();
+		}
+	}
+	else
+	{
+		FATAL_ERROR();
+	}
+}
+
+template<typename T1, typename T2>
+static void Convert(const uint64_t source[4], T2 destination[4]);
+
+template<>
+static void Convert<uint16_t, float>(const uint64_t source[4], float destination[4])
+{
+	destination[0] = static_cast<float>(static_cast<uint16_t>(source[0])) / std::numeric_limits<uint16_t>::max();
+	destination[1] = static_cast<float>(static_cast<uint16_t>(source[1])) / std::numeric_limits<uint16_t>::max();
+	destination[2] = static_cast<float>(static_cast<uint16_t>(source[2])) / std::numeric_limits<uint16_t>::max();
+	destination[3] = static_cast<float>(static_cast<uint16_t>(source[3])) / std::numeric_limits<uint16_t>::max();
+}
+
+template<typename T>
+static void GetPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y, uint32_t z, T values[4])
+{
+	if (format.BaseType == BaseType::UNorm)
+	{
+		if (format.ElementSize == 2)
+		{
+			uint64_t rawValues[4];
+			GetPixel<uint16_t>(image->getData(), format, x, y, z, image->getWidth(), image->getHeight(), image->getDepth(), rawValues);
+			Convert<uint16_t, T>(rawValues, values);
 		}
 		else
 		{
@@ -511,7 +579,7 @@ static Variable LoadValue(ShaderState& state, SPIRV::SPIRVValue* value)
 									{
 										if (decorate.first.second == DecorationBuiltIn)
 										{
-											return Variable(&state.builtins, reinterpret_cast<SPIRV::SPIRVTypeStruct*>(type));
+											return Variable(state.builtins, reinterpret_cast<SPIRV::SPIRVTypeStruct*>(type));
 										}
 									}
 								}
@@ -523,7 +591,7 @@ static Variable LoadValue(ShaderState& state, SPIRV::SPIRVValue* value)
 				}
 
 				const auto location = *locationDecorate.begin();
-				return state.output[location];
+				return (*state.output)[location];
 			}
 			
 		case StorageClassUniform:
@@ -734,8 +802,6 @@ static std::array<std::vector<Variable>, MAX_DESCRIPTOR_SETS> LoadUniforms(Devic
 							}
 						}
 					}
-					
-					FATAL_ERROR();
 				}
 
 			found_variable:
@@ -747,58 +813,15 @@ static std::array<std::vector<Variable>, MAX_DESCRIPTOR_SETS> LoadUniforms(Devic
 	return results;
 }
 
-static bool EdgeFunction(const glm::vec4& a, const glm::vec4& b, const glm::vec2& c)
+static float EdgeFunction(const glm::vec4& a, const glm::vec4& b, const glm::vec2& c)
 {
-	return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x) >= 0;
+	return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 }
 
-static void Rasterization(Image* image, const std::vector<glm::vec4>& vectors)
-{
-	const VkClearColorValue input
-	{
-		{1, 0, 0, 1}
-	};
-	uint64_t values[4];
-	const auto format = GetFormatInformation(image->getFormat());
-	GetImageColour(values, format, input);
-	const auto halfPixel = glm::vec2(1.0f / image->getWidth(), 1.0f / image->getHeight()) * 0.5f;
-	
-	const auto numberTriangles = vectors.size() / 3;
-	for (auto i = 0u; i < numberTriangles; i++)
-	{
-		const auto& p0 = vectors[i * 3 + 0];
-		const auto& p1 = vectors[i * 3 + 1];
-		const auto& p2 = vectors[i * 3 + 2];
-		
-		for (auto y = 0u; y < image->getHeight(); y++)
-		{
-			const auto yf = (static_cast<float>(y) / image->getHeight() + halfPixel.y) * 2 - 1;
-			
-			for (auto x = 0u; x < image->getWidth(); x++)
-			{
-				const auto xf = (static_cast<float>(x) / image->getWidth() + halfPixel.x) * 2 - 1;
-				const auto p = glm::vec2(xf, yf);
-
-				const auto inside = EdgeFunction(p0, p1, p) && EdgeFunction(p1, p2, p) && EdgeFunction(p2, p0, p);
-				if (inside)
-				{
-					SetPixel(format, image, x, y, 0, values);
-				}
-			}
-		}
-	}
-}
-
-static void ProcessVertexShader(DeviceState* deviceState, uint32_t vertexCount)
+static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t vertexCount)
 {
 	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(0);
-	const auto& inputAssembly = deviceState->pipeline[0]->getInputAssemblyState();
 	const auto& vertexInput = deviceState->pipeline[0]->getVertexInputState();
-
-	if (inputAssembly.Topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-	{
-		FATAL_ERROR();
-	}
 	
 	const auto module = shaderStage->getModule();
 
@@ -819,48 +842,104 @@ static void ProcessVertexShader(DeviceState* deviceState, uint32_t vertexCount)
 		}
 	}
 
-	const auto variableStride = 256;
-	const auto vertexStride = (maxLocation + 1 + 1) * variableStride;
-	const auto rawData = std::unique_ptr<uint8_t[]>(new uint8_t[vertexCount * vertexStride]);
-	std::vector<std::vector<Variable>> outputs(vertexCount);
-	std::vector<std::vector<Variable>> builtins(vertexCount);
+	VertexOutput output
+	{
+		std::unique_ptr<uint8_t[]>(new uint8_t[vertexCount * (maxLocation + 1 + 1) * 256]),
+		std::vector<std::vector<Variable>>(vertexCount),
+		std::vector<std::vector<Variable>>(vertexCount),
+		256,
+		(maxLocation + 1 + 1) * 256,
+	};
 	for (auto i = 0u; i < vertexCount; i++)
 	{
-		auto ptr = rawData.get() + i * vertexStride;
-		outputs[i].resize(maxLocation + 1);
+		auto ptr = output.data.get() + i * output.vertexStride;
+		output.outputs[i].resize(maxLocation + 1);
 		for (auto j = 0u; j < maxLocation + 1; j++)
 		{
-			outputs[i][j] = Variable(ptr);
-			ptr += variableStride;
+			output.outputs[i][j] = Variable(ptr);
+			ptr += output.variableStride;
 		}
-		builtins[i].resize(1);
+		output.builtins[i].resize(1);
 		for (auto j = 0u; j < 1; j++)
 		{
-			builtins[i][j] = Variable(ptr);
-			ptr += variableStride;
+			output.builtins[i][j] = Variable(ptr);
+			ptr += output.variableStride;
 		}
 	}
-
+	
 	ShaderState state
 	{
 		std::vector<Variable>(128),
 		{},
 		LoadUniforms(deviceState, module),
-		outputs[0],
-		builtins[0]
+		nullptr,
+		nullptr
 	};
 	for (auto i = 0u; i < vertexCount; i++)
 	{
 		state.input = LoadVertexInput(i, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset);
-		state.output = outputs[i];
-		state.builtins = builtins[i];
-		InterpretShader(state, shaderStage->getModule(), SPIRV::SPIRVExecutionModelKind::ExecutionModelVertex, shaderStage->getName());;
+		state.output = &output.outputs[i];
+		state.builtins = &output.builtins[i];
+		InterpretShader(state, shaderStage->getModule(), SPIRV::SPIRVExecutionModelKind::ExecutionModelVertex, shaderStage->getName());
 	}
 
-	std::vector<glm::vec4> vertices(vertexCount);
-	for (auto i = 0u; i < vertexCount; i++)
+	return output;
+}
+
+static bool GetFragmentInput(std::vector<Variable>& fragmentInput, const std::vector<std::vector<Variable>>& vertexOutput, const std::vector<SPIRV::SPIRVType*>& types, std::vector<Variable>& storage,
+                             uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
+                             const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p, float& depth)
+{
+	const auto area = EdgeFunction(p0, p1, p2);
+	auto w0 = EdgeFunction(p1, p2, p);
+	auto w1 = EdgeFunction(p2, p0, p);
+	auto w2 = EdgeFunction(p0, p1, p);
+
+	if (w0 >= 0 && w1 >= 0 && w2 >= 0)
 	{
-		const auto ptr = rawData.get() + i * vertexStride + (vertexStride - variableStride);
+		w0 /= area;
+		w1 /= area;
+		w2 /= area;
+
+		depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
+
+		for (auto i = 0u; i < fragmentInput.size(); i++)
+		{
+			const auto v0 = vertexOutput[p0Index][i].Dereference(types[i]);
+			const auto v1 = vertexOutput[p1Index][i].Dereference(types[i]);
+			const auto v2 = vertexOutput[p2Index][i].Dereference(types[i]);
+			switch (v0.type)
+			{
+			case Variable::Type::Vector4Float:
+				storage[i] = v0.f32.v4 * w0 + v1.f32.v4 * w1 + v2.f32.v4 * w2;
+				fragmentInput[i] = Variable(reinterpret_cast<uint8_t*>(&storage[i].f32.v4));
+				break;
+			default:
+				FATAL_ERROR();
+			}
+		}
+		
+		return true;
+	}
+
+	return false;
+}
+
+static float GetDepthPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y)
+{
+	float values[4];
+	GetPixel(format, image, x, y, 0, values);
+	return values[0];
+}
+
+static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& output)
+{
+	const auto& inputAssembly = deviceState->pipeline[0]->getInputAssemblyState();
+
+	std::vector<glm::vec4> vertices(output.outputs.size());
+	for (auto i = 0u; i < output.outputs.size(); i++)
+	{
+		const auto ptr = output.data.get() + i * output.vertexStride + (output.vertexStride - output.variableStride);
 		vertices[i] = *reinterpret_cast<const glm::vec4*>(ptr);
 		vertices[i] = vertices[i] / vertices[i].w;
 	}
@@ -870,12 +949,139 @@ static void ProcessVertexShader(DeviceState* deviceState, uint32_t vertexCount)
 		FATAL_ERROR();
 	}
 
-	Rasterization(deviceState->framebuffer->getAttachments()[0]->getImage(), vertices);
+	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_ATTACHMENTS};
+	std::pair<VkAttachmentDescription, Image*> depthImage;
+
+	for (auto i = 0; i < deviceState->renderPass->getSubpasses()[0].ColourAttachments.size(); i++)
+	{
+		const auto attachmentIndex = deviceState->renderPass->getSubpasses()[0].ColourAttachments[i].attachment;
+		const auto& attachment = deviceState->renderPass->getAttachments()[attachmentIndex];
+		images[i] = std::make_pair(attachment, deviceState->framebuffer->getAttachments()[attachmentIndex]->getImage());
+	}
+
+	if (deviceState->renderPass->getSubpasses()[0].DepthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
+	{
+		const auto attachmentIndex = deviceState->renderPass->getSubpasses()[0].DepthStencilAttachment.attachment;
+		const auto& attachment = deviceState->renderPass->getAttachments()[attachmentIndex];
+		depthImage = std::make_pair(attachment, deviceState->framebuffer->getAttachments()[attachmentIndex]->getImage());
+	}
+	const auto& depthFormat = GetFormatInformation(depthImage.first.format);
+
+	const auto image = images[0].second;
+	const auto halfPixel = glm::vec2(1.0f / image->getWidth(), 1.0f / image->getHeight()) * 0.5f;
+
+	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(4);
+
+	const auto module = shaderStage->getModule();
+
+	std::vector<Variable> outputStorage{MAX_FRAGMENT_ATTACHMENTS};
+	std::vector<Variable> outputs{MAX_FRAGMENT_ATTACHMENTS};
+	for (auto i = 0u; i < MAX_FRAGMENT_ATTACHMENTS; i++)
+	{
+		outputs[i] = Variable(reinterpret_cast<uint8_t*>(&outputStorage[i].f32.v4));
+	}
+	std::vector<Variable> builtins{};
+	std::vector<SPIRV::SPIRVType*> inputTypes(output.outputs[0].size());
+
+	for (auto i = 0u; i < module->getNumVariables(); i++)
+	{
+		const auto variable = module->getVariable(i);
+		if (variable->getStorageClass() == StorageClassInput)
+		{
+			const auto locationDecorate = variable->getDecorate(DecorationLocation);
+			if (locationDecorate.size() != 1)
+			{
+				FATAL_ERROR();
+			}
+
+			const auto location = *locationDecorate.begin();
+			const auto type = variable->getType()->getPointerElementType();
+			inputTypes[location] = type;
+		}
+	}
+	
+	ShaderState state
+	{
+		std::vector<Variable>(128),
+		std::vector<Variable>(output.outputs[0].size()),
+		LoadUniforms(deviceState, module),
+		&outputs,
+		&builtins
+	};
+
+	std::vector<Variable> storage(output.outputs[0].size());
+	const auto numberTriangles = vertices.size() / 3;
+	for (auto i = 0u; i < numberTriangles; i++)
+	{
+		const auto& p0 = vertices[i * 3 + 2];
+		const auto& p1 = vertices[i * 3 + 1];
+		const auto& p2 = vertices[i * 3 + 0];
+
+		for (auto y = 0u; y < image->getHeight(); y++)
+		{
+			const auto yf = (static_cast<float>(y) / image->getHeight() + halfPixel.y) * 2 - 1;
+
+			for (auto x = 0u; x < image->getWidth(); x++)
+			{
+				const auto xf = (static_cast<float>(x) / image->getWidth() + halfPixel.x) * 2 - 1;
+				const auto p = glm::vec2(xf, yf);
+
+				float depth;
+				if (GetFragmentInput(state.input, output.outputs, inputTypes, storage, i * 3 + 0, i * 3 + 1, i * 3 + 2, p0, p1, p2, p, depth))
+				{
+					const auto currentDepth = GetDepthPixel(depthFormat, depthImage.second, x, y);
+					if (currentDepth <= depth)
+					{
+						continue;
+					}
+					
+					InterpretShader(state, shaderStage->getModule(), SPIRV::SPIRVExecutionModelKind::ExecutionModelFragment, shaderStage->getName());
+					uint64_t values[4];
+					for (auto j = 0; j < MAX_FRAGMENT_ATTACHMENTS; j++)
+					{
+						if (images[j].second)
+						{
+							const VkClearColorValue input
+							{
+								{outputStorage[j].f32.v4.r, outputStorage[j].f32.v4.g, outputStorage[j].f32.v4.b, outputStorage[j].f32.v4.a}
+							};
+							const auto& format = GetFormatInformation(images[j].first.format);
+							GetImageColour(values, format, input);
+							SetPixel(format, images[j].second, x, y, 0, values);
+						}
+					}
+					const VkClearColorValue input
+					{
+						{depth, 0, 0, 0}
+					};
+					GetImageColour(values, depthFormat, input);
+					SetPixel(depthFormat, depthImage.second, x, y, 0, values);
+				}
+			}
+		}
+	}
 }
 
 static void Draw(DeviceState* deviceState, uint32_t vertexCount)
 {
-	ProcessVertexShader(deviceState, vertexCount);
+	const auto vertexOutput = ProcessVertexShader(deviceState, vertexCount);
+
+	if (deviceState->pipeline[0]->getShaderStage(1) != nullptr)
+	{
+		FATAL_ERROR();
+	}
+
+	if (deviceState->pipeline[0]->getShaderStage(2) != nullptr)
+	{
+		FATAL_ERROR();
+	}
+
+	if (deviceState->pipeline[0]->getShaderStage(3) != nullptr)
+	{
+		FATAL_ERROR();
+	}
+	
+	ProcessFragmentShader(deviceState, vertexOutput);
 }
 
 class Command
