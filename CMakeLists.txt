@@ -1,6 +1,6 @@
 ﻿cmake_minimum_required(VERSION 3.8)
 
-if(MSVC)
+if(WIN32)
     add_compile_options("/std:c++latest")
 else()
     add_compile_options("-std=c++2a")
@@ -15,6 +15,6 @@ endif()
 project("CPVulkan")
 
 add_subdirectory("SPIRVParser")
-add_subdirectory("SPIRVToLLVM")
+#add_subdirectory("SPIRVToLLVM")
 add_subdirectory("CPVulkan")
 add_subdirectory("Samples")
