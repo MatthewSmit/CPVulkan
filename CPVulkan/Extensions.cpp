@@ -875,16 +875,17 @@ ExtensionGroup& GetInitialExtensions()
 				VkBool32           shaderFloat16;
 				VkBool32           shaderInt8;
 			} VkPhysicalDeviceFloat16Int8FeaturesKHR;
-
-
-
-#define VK_KHR_16bit_storage 1
-#define VK_KHR_16BIT_STORAGE_SPEC_VERSION 1
-#define VK_KHR_16BIT_STORAGE_EXTENSION_NAME "VK_KHR_16bit_storage"
-			typedef VkPhysicalDevice16BitStorageFeatures VkPhysicalDevice16BitStorageFeaturesKHR;
-
-
-
+#endif
+#if defined(VK_KHR_16bit_storage)
+			{
+				VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+				VK_KHR_16BIT_STORAGE_SPEC_VERSION,
+				false,
+				{
+				}
+			},
+#endif
+#ifdef XXX
 #define VK_KHR_incremental_present 1
 #define VK_KHR_INCREMENTAL_PRESENT_SPEC_VERSION 1
 #define VK_KHR_INCREMENTAL_PRESENT_EXTENSION_NAME "VK_KHR_incremental_present"
@@ -1368,49 +1369,19 @@ ExtensionGroup& GetInitialExtensions()
 				uint32_t           viewFormatCount;
 				const VkFormat* pViewFormats;
 			} VkImageFormatListCreateInfoKHR;
-
-
-
-#define VK_KHR_sampler_ycbcr_conversion 1
-			typedef VkSamplerYcbcrConversion VkSamplerYcbcrConversionKHR;
-
-#define VK_KHR_SAMPLER_YCBCR_CONVERSION_SPEC_VERSION 1
-#define VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME "VK_KHR_sampler_ycbcr_conversion"
-			typedef VkSamplerYcbcrModelConversion VkSamplerYcbcrModelConversionKHR;
-
-			typedef VkSamplerYcbcrRange VkSamplerYcbcrRangeKHR;
-
-			typedef VkChromaLocation VkChromaLocationKHR;
-
-			typedef VkSamplerYcbcrConversionCreateInfo VkSamplerYcbcrConversionCreateInfoKHR;
-
-			typedef VkSamplerYcbcrConversionInfo VkSamplerYcbcrConversionInfoKHR;
-
-			typedef VkBindImagePlaneMemoryInfo VkBindImagePlaneMemoryInfoKHR;
-
-			typedef VkImagePlaneMemoryRequirementsInfo VkImagePlaneMemoryRequirementsInfoKHR;
-
-			typedef VkPhysicalDeviceSamplerYcbcrConversionFeatures VkPhysicalDeviceSamplerYcbcrConversionFeaturesKHR;
-
-			typedef VkSamplerYcbcrConversionImageFormatProperties VkSamplerYcbcrConversionImageFormatPropertiesKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkCreateSamplerYcbcrConversionKHR)(VkDevice device, const VkSamplerYcbcrConversionCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSamplerYcbcrConversion* pYcbcrConversion);
-			typedef void (VKAPI_PTR* PFN_vkDestroySamplerYcbcrConversionKHR)(VkDevice device, VkSamplerYcbcrConversion ycbcrConversion, const VkAllocationCallbacks* pAllocator);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkCreateSamplerYcbcrConversionKHR(
-				VkDevice                                    device,
-				const VkSamplerYcbcrConversionCreateInfo* pCreateInfo,
-				const VkAllocationCallbacks* pAllocator,
-				VkSamplerYcbcrConversion* pYcbcrConversion);
-
-			VKAPI_ATTR void VKAPI_CALL vkDestroySamplerYcbcrConversionKHR(
-				VkDevice                                    device,
-				VkSamplerYcbcrConversion                    ycbcrConversion,
-				const VkAllocationCallbacks* pAllocator);
 #endif
-
-
+#if defined(VK_KHR_sampler_ycbcr_conversion)
+			{
+				VK_KHR_SAMPLER_YCBCR_CONVERSION_EXTENSION_NAME,
+				VK_KHR_SAMPLER_YCBCR_CONVERSION_SPEC_VERSION,
+				true,
+				{
+					{"vkCreateSamplerYcbcrConversionKHR", Trampoline(&Device::CreateSamplerYcbcrConversion), false},
+					{"vkDestroySamplerYcbcrConversionKHR", Trampoline(&Device::DestroySamplerYcbcrConversion), false},
+				}
+			},
+#endif
+#ifdef XXX
 #define VK_KHR_bind_memory2 1
 #define VK_KHR_BIND_MEMORY_2_SPEC_VERSION 1
 #define VK_KHR_BIND_MEMORY_2_EXTENSION_NAME "VK_KHR_bind_memory2"
@@ -1476,21 +1447,17 @@ ExtensionGroup& GetInitialExtensions()
 				uint32_t                                    maxDrawCount,
 				uint32_t                                    stride);
 #endif
-
-
-#define VK_KHR_8bit_storage 1
-#define VK_KHR_8BIT_STORAGE_SPEC_VERSION  1
-#define VK_KHR_8BIT_STORAGE_EXTENSION_NAME "VK_KHR_8bit_storage"
-			typedef struct VkPhysicalDevice8BitStorageFeaturesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           storageBuffer8BitAccess;
-				VkBool32           uniformAndStorageBuffer8BitAccess;
-				VkBool32           storagePushConstant8;
-			} VkPhysicalDevice8BitStorageFeaturesKHR;
-
-
-
+#endif
+#if defined(VK_KHR_8bit_storage)
+			{
+				VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
+				VK_KHR_8BIT_STORAGE_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#ifdef XXX
 #define VK_KHR_shader_atomic_int64 1
 #define VK_KHR_SHADER_ATOMIC_INT64_SPEC_VERSION 1
 #define VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME "VK_KHR_shader_atomic_int64"
@@ -2281,52 +2248,19 @@ typedef struct VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT {
 				void* pNext;
 				VkBool32           decodeModeSharedExponent;
 			} VkPhysicalDeviceASTCDecodeFeaturesEXT;
-
-
-
-#define VK_EXT_conditional_rendering 1
-#define VK_EXT_CONDITIONAL_RENDERING_SPEC_VERSION 1
-#define VK_EXT_CONDITIONAL_RENDERING_EXTENSION_NAME "VK_EXT_conditional_rendering"
-
-			typedef enum VkConditionalRenderingFlagBitsEXT {
-				VK_CONDITIONAL_RENDERING_INVERTED_BIT_EXT = 0x00000001,
-				VK_CONDITIONAL_RENDERING_FLAG_BITS_MAX_ENUM_EXT = 0x7FFFFFFF
-			} VkConditionalRenderingFlagBitsEXT;
-			typedef VkFlags VkConditionalRenderingFlagsEXT;
-			typedef struct VkConditionalRenderingBeginInfoEXT {
-				VkStructureType                   sType;
-				const void* pNext;
-				VkBuffer                          buffer;
-				VkDeviceSize                      offset;
-				VkConditionalRenderingFlagsEXT    flags;
-			} VkConditionalRenderingBeginInfoEXT;
-
-			typedef struct VkPhysicalDeviceConditionalRenderingFeaturesEXT {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           conditionalRendering;
-				VkBool32           inheritedConditionalRendering;
-			} VkPhysicalDeviceConditionalRenderingFeaturesEXT;
-
-			typedef struct VkCommandBufferInheritanceConditionalRenderingInfoEXT {
-				VkStructureType    sType;
-				const void* pNext;
-				VkBool32           conditionalRenderingEnable;
-			} VkCommandBufferInheritanceConditionalRenderingInfoEXT;
-
-			typedef void (VKAPI_PTR* PFN_vkCmdBeginConditionalRenderingEXT)(VkCommandBuffer commandBuffer, const VkConditionalRenderingBeginInfoEXT* pConditionalRenderingBegin);
-			typedef void (VKAPI_PTR* PFN_vkCmdEndConditionalRenderingEXT)(VkCommandBuffer commandBuffer);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkCmdBeginConditionalRenderingEXT(
-				VkCommandBuffer                             commandBuffer,
-				const VkConditionalRenderingBeginInfoEXT* pConditionalRenderingBegin);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdEndConditionalRenderingEXT(
-				VkCommandBuffer                             commandBuffer);
 #endif
-
-
+#if defined(VK_EXT_conditional_rendering)
+			{
+				VK_EXT_CONDITIONAL_RENDERING_EXTENSION_NAME,
+				VK_EXT_CONDITIONAL_RENDERING_SPEC_VERSION,
+				true,
+				{
+					{"vkCmdBeginConditionalRenderingEXT", Trampoline(&CommandBuffer::EndConditionalRendering), false},
+					{"vkCmdEndConditionalRenderingEXT", Trampoline(&CommandBuffer::EndConditionalRendering), false},
+				}
+			},
+#endif
+#ifdef XXX
 #define VK_NVX_device_generated_commands 1
 			VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkObjectTableNVX)
 				VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkIndirectCommandsLayoutNVX)
@@ -4605,20 +4539,17 @@ typedef struct VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT {
 				const void* pNext;
 				VkAttachmentReference    fragmentDensityMapAttachment;
 			} VkRenderPassFragmentDensityMapCreateInfoEXT;
-
-
-
-#define VK_EXT_scalar_block_layout 1
-#define VK_EXT_SCALAR_BLOCK_LAYOUT_SPEC_VERSION 1
-#define VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME "VK_EXT_scalar_block_layout"
-			typedef struct VkPhysicalDeviceScalarBlockLayoutFeaturesEXT {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           scalarBlockLayout;
-			} VkPhysicalDeviceScalarBlockLayoutFeaturesEXT;
-
-
-
+#endif
+#if defined(VK_EXT_scalar_block_layout)
+			{
+				VK_EXT_SCALAR_BLOCK_LAYOUT_EXTENSION_NAME,
+				VK_EXT_SCALAR_BLOCK_LAYOUT_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#ifdef XXX
 #define VK_GOOGLE_hlsl_functionality1 1
 #define VK_GOOGLE_HLSL_FUNCTIONALITY1_SPEC_VERSION 1
 #define VK_GOOGLE_HLSL_FUNCTIONALITY1_EXTENSION_NAME "VK_GOOGLE_hlsl_functionality1"
@@ -5070,6 +5001,7 @@ typedef struct VkPhysicalDeviceIndexTypeUint8FeaturesEXT {
 				VkBool32           uniformTexelBufferOffsetSingleTexelAlignment;
 			} VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT;
 #endif
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
 #if defined(VK_KHR_win32_surface)
 			{
 				VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
@@ -5345,11 +5277,7 @@ typedef struct VkPhysicalDeviceIndexTypeUint8FeaturesEXT {
 		const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo,
 		VkDeviceGroupPresentModeFlagsKHR* pModes);
 #endif
-
-#ifdef __cplusplus
-}
 #endif
-
 #endif
 		}
 	};

@@ -3,6 +3,7 @@
 #include "Device.h"
 #include "Extensions.h"
 #include "PhysicalDevice.h"
+#include "Platform.h"
 
 #include <vulkan/vk_icd.h>
 #include <vulkan/vk_layer.h>
@@ -29,19 +30,19 @@ void Instance::DestroyInstance(const VkAllocationCallbacks* pAllocator)
 	Free(this, pAllocator);
 }
 
-VkResult Instance::EnumeratePhysicalDevices(uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices)
+VkResult Instance::EnumeratePhysicalDevices(uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices) const
 {
 	return HandleEnumeration(pPhysicalDeviceCount, pPhysicalDevices, std::vector<VkPhysicalDevice>
-	{
-		reinterpret_cast<VkPhysicalDevice>(physicalDevice.get())
-	});
+	                         {
+		                         reinterpret_cast<VkPhysicalDevice>(physicalDevice.get())
+	                         });
 }
 
-VkResult Instance::EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties)
+VkResult Instance::EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties) const
 {
 	if (pPhysicalDeviceGroupProperties)
 	{
-		if (pPhysicalDeviceGroupCount == 0)
+		if (*pPhysicalDeviceGroupCount == 0)
 		{
 			return VK_INCOMPLETE;
 		}
@@ -51,13 +52,9 @@ VkResult Instance::EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupC
 		pPhysicalDeviceGroupProperties[0].physicalDeviceCount = 1;
 		pPhysicalDeviceGroupProperties[0].physicalDevices[0] = reinterpret_cast<VkPhysicalDevice>(physicalDevice.get());
 		pPhysicalDeviceGroupProperties[0].subsetAllocation = false;
-
-		*pPhysicalDeviceGroupCount = 1;
 	}
-	else
-	{
-		*pPhysicalDeviceGroupCount = 1;
-	}
+	
+	*pPhysicalDeviceGroupCount = 1;
 
 	return VK_SUCCESS;
 }
@@ -73,7 +70,7 @@ VkResult Instance::CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreate
 	assert(pCreateInfo->pNext == nullptr);
 	assert(pCreateInfo->flags == 0);
 	
-	auto surface = Allocate<VkIcdSurfaceWin32>(pAllocator);
+	auto surface = Allocate<VkIcdSurfaceWin32>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
 	surface->base.platform = VK_ICD_WSI_PLATFORM_WIN32;
 	surface->hinstance = pCreateInfo->hinstance;
 	surface->hwnd = pCreateInfo->hwnd;
@@ -86,26 +83,34 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);
 	assert(pCreateInfo->flags == 0);
 
-	auto instance = Allocate<Instance>(pAllocator);
+	Platform::Initialise();
+
+	auto instance = Allocate<Instance>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+	if (!instance)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		auto type = *(VkStructureType*)next;
+		const auto type = *static_cast<const VkStructureType*>(next);
 		switch (type)
 		{
-		case VK_STRUCTURE_TYPE_LOADER_INSTANCE_CREATE_INFO:
-			next = ((VkLayerInstanceCreateInfo*)next)->pNext;
-			break;
-
+		case VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT:
+			FATAL_ERROR();
+			
 		case VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT:
-			instance->debug = *(VkDebugUtilsMessengerCreateInfoEXT*)next;
-			next = ((VkDebugUtilsMessengerCreateInfoEXT*)next)->pNext;
+			instance->debug = *static_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(next);
 			break;
-
-		default:
+			
+		case VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT:
+			FATAL_ERROR();
+			
+		case VK_STRUCTURE_TYPE_VALIDATION_FLAGS_EXT:
 			FATAL_ERROR();
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->pApplicationInfo)

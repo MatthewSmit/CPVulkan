@@ -17,9 +17,9 @@ public:
 
 	VKAPI_ATTR void VKAPI_CALL DestroyInstance(const VkAllocationCallbacks* pAllocator);
 
-	VKAPI_ATTR VkResult VKAPI_CALL EnumeratePhysicalDevices(uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices);
+	VKAPI_ATTR VkResult VKAPI_CALL EnumeratePhysicalDevices(uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices) const;
 
-	VKAPI_ATTR VkResult VKAPI_CALL EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties);
+	VKAPI_ATTR VkResult VKAPI_CALL EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties) const;
 	
 	VKAPI_ATTR void VKAPI_PTR DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator);
 	

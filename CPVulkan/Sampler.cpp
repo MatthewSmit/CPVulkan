@@ -1,12 +1,14 @@
 #include "Sampler.h"
 
+#include "Device.h"
+
 #include <cassert>
 
 VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSampler* pSampler)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO);
 
-	auto sampler = Allocate<Sampler>(pAllocator);
+	auto sampler = Allocate<Sampler>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
@@ -38,4 +40,14 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 	
 	*pSampler = reinterpret_cast<VkSampler>(sampler);
 	return VK_SUCCESS;
+}
+
+VkResult Device::CreateSampler(const VkSamplerCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSampler* pSampler)
+{
+	return Sampler::Create(pCreateInfo, pAllocator, pSampler);
+}
+
+void Device::DestroySampler(VkSampler sampler, const VkAllocationCallbacks* pAllocator)
+{
+	Free(reinterpret_cast<Sampler*>(sampler), pAllocator);
 }

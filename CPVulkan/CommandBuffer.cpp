@@ -3,9 +3,11 @@
 #include "Buffer.h"
 #include "DescriptorSet.h"
 #include "DeviceState.h"
+#include "Event.h"
 #include "Formats.h"
 #include "Framebuffer.h"
 #include "Image.h"
+#include "ImageView.h"
 #include "Pipeline.h"
 #include "RenderPass.h"
 
@@ -146,7 +148,7 @@ struct Variable
 							FATAL_ERROR();
 						}
 
-						const auto data = reinterpret_cast<Buffer*>(buffer.info.buffer)->getData() + buffer.info.offset + offset;
+						const auto data = reinterpret_cast<Buffer*>(buffer.info.buffer)->getData(buffer.info.offset + offset, sizeof(glm::mat4x4));
 						return Variable(data);
 					}
 
@@ -442,17 +444,17 @@ static void GetImageColour(uint64_t output[4], const FormatInformation& format, 
 		}
 		else if (format.ElementSize == 1)
 		{
-			output[0] = static_cast<uint64_t>(input.float32[0] * std::numeric_limits<uint8_t>::max());
-			output[1] = static_cast<uint64_t>(input.float32[1] * std::numeric_limits<uint8_t>::max());
-			output[2] = static_cast<uint64_t>(input.float32[2] * std::numeric_limits<uint8_t>::max());
-			output[3] = static_cast<uint64_t>(input.float32[3] * std::numeric_limits<uint8_t>::max());
+			output[0] = static_cast<uint64_t>(std::round(input.float32[0] * std::numeric_limits<uint8_t>::max()));
+			output[1] = static_cast<uint64_t>(std::round(input.float32[1] * std::numeric_limits<uint8_t>::max()));
+			output[2] = static_cast<uint64_t>(std::round(input.float32[2] * std::numeric_limits<uint8_t>::max()));
+			output[3] = static_cast<uint64_t>(std::round(input.float32[3] * std::numeric_limits<uint8_t>::max()));
 		}
 		else if (format.ElementSize == 2)
 		{
-			output[0] = static_cast<uint64_t>(input.float32[0] * std::numeric_limits<uint16_t>::max());
-			output[1] = static_cast<uint64_t>(input.float32[1] * std::numeric_limits<uint16_t>::max());
-			output[2] = static_cast<uint64_t>(input.float32[2] * std::numeric_limits<uint16_t>::max());
-			output[3] = static_cast<uint64_t>(input.float32[3] * std::numeric_limits<uint16_t>::max());
+			output[0] = static_cast<uint64_t>(std::round(input.float32[0] * std::numeric_limits<uint16_t>::max()));
+			output[1] = static_cast<uint64_t>(std::round(input.float32[1] * std::numeric_limits<uint16_t>::max()));
+			output[2] = static_cast<uint64_t>(std::round(input.float32[2] * std::numeric_limits<uint16_t>::max()));
+			output[3] = static_cast<uint64_t>(std::round(input.float32[3] * std::numeric_limits<uint16_t>::max()));
 		}
 		else
 		{
@@ -491,17 +493,17 @@ static void GetImageColour(uint64_t output[4], const FormatInformation& format, 
 		}
 		else if (format.ElementSize == 1)
 		{
-			output[0] = static_cast<int64_t>(input.float32[0] * std::numeric_limits<int8_t>::max());
-			output[1] = static_cast<int64_t>(input.float32[1] * std::numeric_limits<int8_t>::max());
-			output[2] = static_cast<int64_t>(input.float32[2] * std::numeric_limits<int8_t>::max());
-			output[3] = static_cast<int64_t>(input.float32[3] * std::numeric_limits<int8_t>::max());
+			output[0] = static_cast<int64_t>(std::round(input.float32[0] * std::numeric_limits<int8_t>::max()));
+			output[1] = static_cast<int64_t>(std::round(input.float32[1] * std::numeric_limits<int8_t>::max()));
+			output[2] = static_cast<int64_t>(std::round(input.float32[2] * std::numeric_limits<int8_t>::max()));
+			output[3] = static_cast<int64_t>(std::round(input.float32[3] * std::numeric_limits<int8_t>::max()));
 		}
 		else if (format.ElementSize == 2)
 		{
-			output[0] = static_cast<int64_t>(input.float32[0] * std::numeric_limits<int16_t>::max());
-			output[1] = static_cast<int64_t>(input.float32[1] * std::numeric_limits<int16_t>::max());
-			output[2] = static_cast<int64_t>(input.float32[2] * std::numeric_limits<int16_t>::max());
-			output[3] = static_cast<int64_t>(input.float32[3] * std::numeric_limits<int16_t>::max());
+			output[0] = static_cast<int64_t>(std::round(input.float32[0] * std::numeric_limits<int16_t>::max()));
+			output[1] = static_cast<int64_t>(std::round(input.float32[1] * std::numeric_limits<int16_t>::max()));
+			output[2] = static_cast<int64_t>(std::round(input.float32[2] * std::numeric_limits<int16_t>::max()));
+			output[3] = static_cast<int64_t>(std::round(input.float32[3] * std::numeric_limits<int16_t>::max()));
 		}
 		else
 		{
@@ -585,9 +587,14 @@ static Variable LoadValue(ShaderState& state, SPIRV::SPIRVValue* value)
 								}
 							}
 						}
+						
+						FATAL_ERROR();
 					}
-					
-					FATAL_ERROR();
+					else
+					{
+						const auto builtin = *builtinDecorate.begin();
+						return (*state.builtins)[builtin];
+					}
 				}
 
 				const auto location = *locationDecorate.begin();
@@ -620,6 +627,62 @@ static Variable LoadValue(ShaderState& state, SPIRV::SPIRVValue* value)
 	return state.scratch[value->getId()];
 }
 
+static Variable LoadConstant(SPIRV::SPIRVValue* value)
+{
+	switch (value->getOpCode())
+	{
+	case OpConstant:
+		FATAL_ERROR();
+		
+	case OpConstantComposite:
+		{
+			const auto constantComposite = reinterpret_cast<SPIRV::SPIRVConstantComposite*>(value);
+			const auto type = constantComposite->getType();
+
+			if (type->isTypeMatrix())
+			{
+				FATAL_ERROR();
+			}
+			else if (type->isTypeVector())
+			{
+				if (type->getVectorComponentCount() == 4)
+				{
+					if (type->getVectorComponentType()->getOpCode() == OpTypeFloat)
+					{
+						if (constantComposite->getElements().size() != 4)
+						{
+							FATAL_ERROR();
+						}
+
+						return Variable(glm::vec4
+							{
+								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[0])->getFloatValue(),
+								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[1])->getFloatValue(),
+								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[2])->getFloatValue(),
+								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[3])->getFloatValue(),
+							});
+					}
+					else
+					{
+						FATAL_ERROR();
+					}
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
+		}
+		
+	default:
+		FATAL_ERROR();
+	}
+}
+
 static bool InterpretBlock(ShaderState& state, SPIRV::SPIRVBasicBlock* basicBlock)
 {
 	for (auto i = 0u; i < basicBlock->getNumInst(); i++)
@@ -640,7 +703,19 @@ static bool InterpretBlock(ShaderState& state, SPIRV::SPIRVBasicBlock* basicBloc
 				const auto store = reinterpret_cast<SPIRV::SPIRVStore*>(instruction);
 				const auto dest = store->getDst();
 				auto pointer = LoadValue(state, dest);
-				pointer.SetValue(state.scratch[store->getSrc()->getId()]);
+
+				switch (store->getSrc()->getOpCode())
+				{
+				case OpConstant:
+				case OpConstantComposite:
+					pointer.SetValue(LoadConstant(store->getSrc()));
+					break;
+					
+				default:
+					pointer.SetValue(state.scratch[store->getSrc()->getId()]);
+					break;
+				}
+				
 				break;
 			}
 
@@ -731,7 +806,7 @@ static std::vector<Variable> LoadVertexInput(uint32_t vertex, const VertexInputS
 	{
 		const auto& binding = FindBinding(attribute.binding, vertexInputState);
 		const auto offset = vertexBindingOffset[binding.binding] + binding.stride * vertex + attribute.offset;
-		result[attribute.location] = Variable(vertexBinding[binding.binding]->getData() + offset);
+		result[attribute.location] = Variable(vertexBinding[binding.binding]->getData(offset, binding.stride));
 	}
 	return result;
 }
@@ -825,7 +900,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 	
 	const auto module = shaderStage->getModule();
 
-	auto maxLocation = 0u;
+	auto maxLocation = -1;
 	for (auto i = 0u; i < module->getNumVariables(); i++)
 	{
 		const auto variable = module->getVariable(i);
@@ -838,7 +913,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 			}
 
 			auto location = *locations.begin();
-			maxLocation = std::max(maxLocation, location);
+			maxLocation = std::max(maxLocation, int32_t(location));
 		}
 	}
 
@@ -1029,10 +1104,13 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 				float depth;
 				if (GetFragmentInput(state.input, output.outputs, inputTypes, storage, i * 3 + 0, i * 3 + 1, i * 3 + 2, p0, p1, p2, p, depth))
 				{
-					const auto currentDepth = GetDepthPixel(depthFormat, depthImage.second, x, y);
-					if (currentDepth <= depth)
+					if (depthImage.second)
 					{
-						continue;
+						const auto currentDepth = GetDepthPixel(depthFormat, depthImage.second, x, y);
+						if (currentDepth <= depth)
+						{
+							continue;
+						}
 					}
 					
 					InterpretShader(state, shaderStage->getModule(), SPIRV::SPIRVExecutionModelKind::ExecutionModelFragment, shaderStage->getName());
@@ -1050,12 +1128,16 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 							SetPixel(format, images[j].second, x, y, 0, values);
 						}
 					}
-					const VkClearColorValue input
+
+					if (depthImage.second)
 					{
-						{depth, 0, 0, 0}
-					};
-					GetImageColour(values, depthFormat, input);
-					SetPixel(depthFormat, depthImage.second, x, y, 0, values);
+						const VkClearColorValue input
+						{
+							{depth, 0, 0, 0}
+						};
+						GetImageColour(values, depthFormat, input);
+						SetPixel(depthFormat, depthImage.second, x, y, 0, values);
+					}
 				}
 			}
 		}
@@ -1264,7 +1346,7 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		const auto& information = GetFormatInformation(srcImage->getFormat());
+		const auto& format = GetFormatInformation(srcImage->getFormat());
 		
 		for (const auto& region : regions)
 		{
@@ -1306,17 +1388,18 @@ public:
 					for (auto x = region.imageOffset.x; x < static_cast<int32_t>(region.imageExtent.width); x++)
 					{
 						auto pixel = reinterpret_cast<uint8_t*>(srcImage->getData()) +
-							static_cast<uint64_t>(z) * (srcImage->getWidth() * srcImage->getHeight() * information.TotalSize) +
-							static_cast<uint64_t>(y) * (srcImage->getWidth() * information.TotalSize) +
-							static_cast<uint64_t>(x) * information.TotalSize;
-						memcpy(reinterpret_cast<uint8_t*>(dstBuffer->getData()) + offset, pixel, information.TotalSize);
-						offset += information.TotalSize;
+							static_cast<uint64_t>(z) * (srcImage->getWidth() * srcImage->getHeight() * format.TotalSize) +
+							static_cast<uint64_t>(y) * (srcImage->getWidth() * format.TotalSize) +
+							static_cast<uint64_t>(x) * format.TotalSize;
+						memcpy(reinterpret_cast<uint8_t*>(dstBuffer->getData(offset, format.TotalSize)), pixel, format.TotalSize);
+						offset += format.TotalSize;
 					}
 				}
 			}
 		}
 	}
 
+private:
 	Image* srcImage;
 	VkImageLayout srcImageLayout;
 	Buffer* dstBuffer;
@@ -1369,10 +1452,49 @@ public:
 		ClearImage(image, image->getFormat(), colour);
 	}
 
+private:
 	Image* image;
 	VkImageLayout imageLayout;
 	VkClearColorValue colour;
 	std::vector<VkImageSubresourceRange> ranges;
+};
+
+class SetEventCommand final : public Command
+{
+public:
+	SetEventCommand(Event* event, VkPipelineStageFlags stageMask):
+		event{event},
+		stageMask{stageMask}
+	{
+	}
+
+	void Process(DeviceState*) override
+	{
+		event->Signal();
+	}
+	
+private:
+	Event* event;
+	VkPipelineStageFlags stageMask;
+};
+
+class ResetEventCommand final : public Command
+{
+public:
+	ResetEventCommand(Event* event, VkPipelineStageFlags stageMask):
+		event{event},
+		stageMask{stageMask}
+	{
+	}
+
+	void Process(DeviceState*) override
+	{
+		event->Reset();
+	}
+	
+private:
+	Event* event;
+	VkPipelineStageFlags stageMask;
 };
 
 class BeginRenderPassCommand final : public Command
@@ -1440,6 +1562,29 @@ CommandBuffer::CommandBuffer(DeviceState* deviceState, VkCommandBufferLevel leve
 {
 }
 
+class ExecuteCommandsCommand final : public Command
+{
+public:
+	ExecuteCommandsCommand(std::vector<CommandBuffer*> commands):
+		commands{std::move(commands)}
+	{
+	}
+
+	void Process(DeviceState* deviceState) override
+	{
+		for (const auto commandBuffer : commands)
+		{
+			for (const auto& command : commandBuffer->commands)
+			{
+				command->Process(deviceState);
+			}
+		}
+	}
+
+private:
+	std::vector<CommandBuffer*> commands;
+};
+
 CommandBuffer::~CommandBuffer() = default;
 
 VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* pBeginInfo)
@@ -1449,16 +1594,13 @@ VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* pBeginInfo)
 	auto next = pBeginInfo->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_COMMAND_BUFFER_BEGIN_INFO:
-			{
-				FATAL_ERROR();
-			}
-		default:
 			FATAL_ERROR();
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (poolFlags & VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
@@ -1472,12 +1614,19 @@ VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* pBeginInfo)
 
 	if (level == VK_COMMAND_BUFFER_LEVEL_SECONDARY)
 	{
-		FATAL_ERROR();
-	}
+		assert(pBeginInfo->pInheritanceInfo->sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO);
 
-	if (pBeginInfo->flags)
-	{
-		FATAL_ERROR();
+		next = pBeginInfo->pInheritanceInfo->pNext;
+		while (next)
+		{
+			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+			switch (type)
+			{
+			case VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT:
+				FATAL_ERROR();
+			}
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		}
 	}
 
 	state = State::Recording;
@@ -1512,14 +1661,8 @@ VkResult CommandBuffer::Reset(VkCommandBufferResetFlags flags)
 		FATAL_ERROR();
 	}
 
-	if (state == State::Pending)
-	{
-		FATAL_ERROR();
-	}
+	ForceReset();
 
-	commands.clear();
-
-	state = State::Initial;
 	return VK_SUCCESS;
 }
 
@@ -1603,6 +1746,25 @@ void CommandBuffer::ClearColorImage(VkImage image, VkImageLayout imageLayout, co
 	commands.push_back(std::make_unique<ClearColourImageCommand>(reinterpret_cast<Image*>(image), imageLayout, *pColor, ArrayToVector(rangeCount, pRanges)));
 }
 
+void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
+{
+	// assert(state == State::Recording);
+	// commands.push_back(std::make_unique<ClearAttachmentsCommand>(reinterpret_cast<Event*>(event), stageMask));
+	FATAL_ERROR();
+}
+
+void CommandBuffer::SetEvent(VkEvent event, VkPipelineStageFlags stageMask)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<SetEventCommand>(reinterpret_cast<Event*>(event), stageMask));
+}
+
+void CommandBuffer::ResetEvent(VkEvent event, VkPipelineStageFlags stageMask)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<ResetEventCommand>(reinterpret_cast<Event*>(event), stageMask));
+}
+
 void CommandBuffer::PipelineBarrier(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask,
                                     VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers,
                                     uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers,
@@ -1620,17 +1782,21 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 	auto next = pRenderPassBegin->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_RENDER_PASS_BEGIN_INFO:
 			FATAL_ERROR();
+			
 		case VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO_KHR:
 			FATAL_ERROR();
+			
 		case VK_STRUCTURE_TYPE_RENDER_PASS_SAMPLE_LOCATIONS_BEGIN_INFO_EXT:
 			FATAL_ERROR();
+			
 		default:
-			FATAL_ERROR();
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -1646,6 +1812,27 @@ void CommandBuffer::EndRenderPass()
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<EndRenderPassCommand>());
+}
+
+void CommandBuffer::ExecuteCommands(uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<ExecuteCommandsCommand>(ArrayToVector<CommandBuffer*, VkCommandBuffer>(commandBufferCount, pCommandBuffers, [](VkCommandBuffer commandBuffer)
+	{
+		return reinterpret_cast<CommandBuffer*>(commandBuffer);
+	})));
+}
+
+void CommandBuffer::ForceReset()
+{
+	if (state == State::Pending)
+	{
+		FATAL_ERROR();
+	}
+
+	commands.clear();
+
+	state = State::Initial;
 }
 
 VkResult CommandBuffer::Submit()

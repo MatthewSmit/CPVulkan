@@ -1,6 +1,7 @@
 #pragma once
 #include "Base.h"
-#include "ImageView.h"
+
+class ImageView;
 
 class Framebuffer final : public VulkanBase
 {

@@ -62,7 +62,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 
 VkResult DescriptorSet::Create(VkDescriptorPool descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet)
 {
-	auto descriptorSet = Allocate<DescriptorSet>(nullptr);
+	auto descriptorSet = Allocate<DescriptorSet>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	const auto descriptorSetLayout = reinterpret_cast<DescriptorSetLayout*>(pSetLayout);
 	descriptorSet->layout = descriptorSetLayout;

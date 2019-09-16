@@ -25,6 +25,8 @@ using DWORD = unsigned long;
 #include <vulkan/vulkan_win32.h>
 #endif
 
+#include <gsl/gsl>
+
 #include <functional>
 #include <vector>
 
@@ -50,34 +52,61 @@ public:
 	VulkanBase&& operator=(const VulkanBase&&) = delete;
 
 	template <typename T>
-	static T* Allocate(const VkAllocationCallbacks* pAllocator)
+	static T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope allocationScope)
 	{
-		// TODO
+		// if (pAllocator)
+		// {
+		// 	const auto data = pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(T), 16, allocationScope);
+		// 	if (!data)
+		// 	{
+		// 		return nullptr;
+		// 	}
+		// 	
+		// 	return new(data) T();
+		// }
+		
 		return new T();
 	}
 
-	static DeviceMemory* AllocateSized(const VkAllocationCallbacks* pAllocator, uint64_t size)
+	static DeviceMemory* AllocateSized(const VkAllocationCallbacks* pAllocator, uint64_t size, VkSystemAllocationScope allocationScope)
 	{
-		// TODO
-		return static_cast<DeviceMemory*>(malloc(sizeof(uint64_t) + size));
+		if (pAllocator)
+		{
+			return static_cast<DeviceMemory*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(DeviceMemory) + size, 4096, allocationScope));
+		}
+		
+		return static_cast<DeviceMemory*>(_aligned_malloc(sizeof(DeviceMemory) + size, 4096));
 	}
 
 	template <typename T>
-	static void Free(T* value, const VkAllocationCallbacks* pAllocator)
+	static void Free(T* value, const VkAllocationCallbacks* pAllocator) noexcept
 	{
-		// TODO
-		delete value;
+		// if (pAllocator)
+		// {
+		// 	value->~T();
+		// 	pAllocator->pfnFree(pAllocator->pUserData, value);
+		// }
+		// else
+		{
+			delete value;
+		}
 	}
 
-	static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator)
+	static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator) noexcept
 	{
-		// TODO
-		free(deviceMemory);
+		if (pAllocator)
+		{
+			pAllocator->pfnFree(pAllocator->pUserData, deviceMemory);
+		}
+		else
+		{
+			_aligned_free(deviceMemory);
+		}
 	}
 };
 
 template <typename T>
-static VkResult HandleEnumeration(uint32_t* count, T* outputValues, const std::vector<T>& inputValues)
+static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T* outputValues, const std::vector<T>& inputValues)
 {
 	if (outputValues == nullptr)
 	{
@@ -106,7 +135,7 @@ static VkResult HandleEnumeration(uint32_t* count, T* outputValues, const std::v
 }
 
 template <typename T1, typename T2>
-static VkResult HandleEnumeration(uint32_t* count, T1* outputValues, const std::vector<T2>& inputValues, std::function<T1(T2)> conversion)
+static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T1* outputValues, const std::vector<T2>& inputValues, std::function<T1(T2)> conversion)
 {
 	if (outputValues == nullptr)
 	{

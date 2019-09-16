@@ -6,6 +6,7 @@
 struct DeviceState;
 
 class Command;
+class ExecuteCommandsCommand;
 
 enum class State
 {
@@ -53,10 +54,10 @@ public:
 	VKAPI_ATTR void VKAPI_PTR FillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR ClearColorImage(VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges);
 	VKAPI_ATTR void VKAPI_PTR ClearDepthStencilImage(VkImage image, VkImageLayout imageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR ClearAttachments(uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR ClearAttachments(uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects);
 	VKAPI_ATTR void VKAPI_PTR ResolveImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve* pRegions) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR SetEvent(VkEvent event, VkPipelineStageFlags stageMask) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR ResetEvent(VkEvent event, VkPipelineStageFlags stageMask) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR SetEvent(VkEvent event, VkPipelineStageFlags stageMask);
+	VKAPI_ATTR void VKAPI_PTR ResetEvent(VkEvent event, VkPipelineStageFlags stageMask);
 	VKAPI_ATTR void VKAPI_PTR WaitEvents(uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR PipelineBarrier(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers);
 	VKAPI_ATTR void VKAPI_PTR BeginQuery(VkQueryPool queryPool, uint32_t query, VkQueryControlFlags flags) { FATAL_ERROR(); } 
@@ -68,7 +69,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents);
 	VKAPI_ATTR void VKAPI_PTR NextSubpass(VkSubpassContents contents) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR EndRenderPass();
-	VKAPI_ATTR void VKAPI_PTR ExecuteCommands(uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR ExecuteCommands(uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers);
 
 	VKAPI_ATTR void VKAPI_PTR SetDeviceMask(uint32_t deviceMask) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DispatchBase(uint32_t baseGroupX, uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) { FATAL_ERROR(); } 
@@ -132,8 +133,11 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceMarker(const VkPerformanceMarkerInfoINTEL* pMarkerInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceStreamMarker(const VkPerformanceStreamMarkerInfoINTEL* pMarkerInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceOverride(const VkPerformanceOverrideInfoINTEL* pOverrideInfo) { FATAL_ERROR(); }
-	
+
+	void ForceReset();
 	VkResult Submit();
+
+	friend class ExecuteCommandsCommand;
 
 private:
 	DeviceState* deviceState{};

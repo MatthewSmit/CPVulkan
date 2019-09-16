@@ -1,12 +1,14 @@
 #include "PipelineCache.h"
 
+#include "Device.h"
+
 #include <cassert>
 
 VkResult PipelineCache::Create(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
 
-	auto pipelineCache = Allocate<PipelineCache>(pAllocator);
+	auto pipelineCache = Allocate<PipelineCache>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
@@ -28,4 +30,14 @@ VkResult PipelineCache::Create(const VkPipelineCacheCreateInfo* pCreateInfo, con
 
 	*pPipelineCache = reinterpret_cast<VkPipelineCache>(pipelineCache);
 	return VK_SUCCESS;
+}
+
+VkResult Device::CreatePipelineCache(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache)
+{
+	return PipelineCache::Create(pCreateInfo, pAllocator, pPipelineCache);
+}
+
+void Device::DestroyPipelineCache(VkPipelineCache pipelineCache, const VkAllocationCallbacks* pAllocator)
+{
+	Free(reinterpret_cast<PipelineCache*>(pipelineCache), pAllocator);
 }

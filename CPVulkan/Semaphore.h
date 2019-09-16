@@ -6,10 +6,14 @@ class Semaphore final : public VulkanBase
 public:
 	~Semaphore() override;
 
-	VkResult Wait();
+	void Signal();
+	VkResult Reset();
+	VkResult Wait(uint64_t timeout);
 	
 	static VkResult Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore);
 
+	[[nodiscard]] void* getHandle() const { return handle; }
+	
 private:
-	HANDLE handle{};
+	void* handle{};
 };

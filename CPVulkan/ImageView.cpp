@@ -1,21 +1,33 @@
 #include "ImageView.h"
 
+#include "Device.h"
+
 #include <cassert>
 
 VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
 
-	auto imageView = Allocate<ImageView>(pAllocator);
+	auto imageView = Allocate<ImageView>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT:
 			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
+			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -32,4 +44,14 @@ VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAll
 
 	*pView = reinterpret_cast<VkImageView>(imageView);
 	return VK_SUCCESS;
+}
+
+VkResult Device::CreateImageView(const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView)
+{
+	return ImageView::Create(pCreateInfo, pAllocator, pView);
+}
+
+void Device::DestroyImageView(VkImageView imageView, const VkAllocationCallbacks* pAllocator)
+{
+	Free(reinterpret_cast<ImageView*>(imageView), pAllocator);
 }

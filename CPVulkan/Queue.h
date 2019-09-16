@@ -8,7 +8,7 @@ public:
 	
 	VKAPI_ATTR VkResult VKAPI_PTR Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
 	VKAPI_ATTR VkResult VKAPI_PTR WaitIdle();
-	VKAPI_ATTR VkResult VKAPI_PTR BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence);
 	
 	VKAPI_ATTR VkResult VKAPI_PTR Present(const VkPresentInfoKHR* pPresentInfo);
 	

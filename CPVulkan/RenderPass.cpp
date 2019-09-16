@@ -1,21 +1,33 @@
 #include "RenderPass.h"
 
+#include "Device.h"
+
 #include <cassert>
 
 VkResult RenderPass::Create(const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO);
 
-	auto renderPass = Allocate<RenderPass>(pAllocator);
+	auto renderPass = Allocate<RenderPass>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT:
 			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_RENDER_PASS_INPUT_ATTACHMENT_ASPECT_CREATE_INFO:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO:
+			FATAL_ERROR();
+			
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -63,4 +75,14 @@ VkResult RenderPass::Create(const VkRenderPassCreateInfo* pCreateInfo, const VkA
 
 	*pRenderPass = reinterpret_cast<VkRenderPass>(renderPass);
 	return VK_SUCCESS;
+}
+
+VkResult Device::CreateRenderPass(const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
+{
+	return RenderPass::Create(pCreateInfo, pAllocator, pRenderPass);
+}
+
+void Device::DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallbacks* pAllocator)
+{
+	Free(reinterpret_cast<RenderPass*>(renderPass), pAllocator);
 }

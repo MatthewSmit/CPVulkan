@@ -6,16 +6,17 @@ VkResult PipelineLayout::Create(const VkPipelineLayoutCreateInfo* pCreateInfo, c
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO);
 
-	auto pipelineLayout = Allocate<PipelineLayout>(pAllocator);
+	auto pipelineLayout = Allocate<PipelineLayout>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
 		default:
-			FATAL_ERROR();
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 

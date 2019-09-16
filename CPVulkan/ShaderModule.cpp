@@ -1,5 +1,7 @@
 #include "ShaderModule.h"
 
+#include "Device.h"
+
 // #include "SpirvParser.h"
 // #include "../SPIRVToLLVM/Converter.h"
 #include <SPIRVModule.h>
@@ -28,16 +30,20 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
 	assert(pCreateInfo->codeSize % 4 == 0);
 
-	auto shaderModule = Allocate<ShaderModule>(pAllocator);
+	auto shaderModule = Allocate<ShaderModule>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT:
 			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -67,4 +73,14 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 
 	*pShaderModule = reinterpret_cast<VkShaderModule>(shaderModule);
 	return VK_SUCCESS;
+}
+
+VkResult Device::CreateShaderModule(const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule)
+{
+	return ShaderModule::Create(pCreateInfo, pAllocator, pShaderModule);
+}
+
+void Device::DestroyShaderModule(VkShaderModule shaderModule, const VkAllocationCallbacks* pAllocator)
+{
+	Free(reinterpret_cast<ShaderModule*>(shaderModule), pAllocator);
 }

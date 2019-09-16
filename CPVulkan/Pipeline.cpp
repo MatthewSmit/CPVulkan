@@ -26,11 +26,15 @@ static VertexInputState Parse(const VkPipelineVertexInputStateCreateInfo* pVerte
 	auto next = pVertexInputState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -53,11 +57,12 @@ static InputAssemblyState Parse(const VkPipelineInputAssemblyStateCreateInfo* pI
 	auto next = pInputAssemblyState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
 		default:
-			FATAL_ERROR();
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -88,11 +93,15 @@ static TessellationState Parse(const VkPipelineTessellationStateCreateInfo* pTes
 	auto next = pTessellationState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_DOMAIN_ORIGIN_STATE_CREATE_INFO:
 			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -114,11 +123,27 @@ static ViewportState Parse(const VkPipelineViewportStateCreateInfo* pViewportSta
 	auto next = pViewportState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_COARSE_SAMPLE_ORDER_STATE_CREATE_INFO_NV:
 			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_EXCLUSIVE_SCISSOR_STATE_CREATE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_SHADING_RATE_IMAGE_STATE_CREATE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_SWIZZLE_STATE_CREATE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_W_SCALING_STATE_CREATE_INFO_NV:
+			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -141,11 +166,27 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 	auto next = pRasterizationState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_DEPTH_CLIP_STATE_CREATE_INFO_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT:
+			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -176,11 +217,24 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 	auto next = pMultisampleState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_MODULATION_STATE_CREATE_INFO_NV:
 			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_REDUCTION_STATE_CREATE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_TO_COLOR_STATE_CREATE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT:
+			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -211,11 +265,12 @@ static DepthStencilState Parse(const VkPipelineDepthStencilStateCreateInfo* pDep
 	auto next = pDepthStencilState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
 		default:
-			FATAL_ERROR();
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -245,11 +300,15 @@ static ColourBlendState Parse(const VkPipelineColorBlendStateCreateInfo* pColorB
 	auto next = pColorBlendState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_ADVANCED_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -274,16 +333,22 @@ static ColourBlendState Parse(const VkPipelineColorBlendStateCreateInfo* pColorB
 
 static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 {
+	if (pDynamicState == nullptr)
+	{
+		return DynamicState{};
+	}
+	
 	assert(pDynamicState->sType == VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
 
 	auto next = pDynamicState->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
 		default:
-			FATAL_ERROR();
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -315,16 +380,29 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 		// TODO
 	}
 
-	auto pipeline = Allocate<Pipeline>(pAllocator);
+	auto pipeline = Allocate<Pipeline>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_PIPELINE_COMPILER_CONTROL_CREATE_INFO_AMD:
 			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_DISCARD_RECTANGLE_STATE_CREATE_INFO_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV:
+			FATAL_ERROR();
+
+		default:
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			break;
 		}
 	}
 
@@ -341,11 +419,15 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 		next = stage.pNext;
 		while (next)
 		{
-			const auto type = *static_cast<const VkStructureType*>(next);
+			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 			switch (type)
 			{
-			default:
+			case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT:
 				FATAL_ERROR();
+
+			default:
+				next = static_cast<const VkBaseInStructure*>(next)->pNext;
+				break;
 			}
 		}
 

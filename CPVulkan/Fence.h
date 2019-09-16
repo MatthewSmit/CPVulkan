@@ -5,13 +5,15 @@ class Fence final : public VulkanBase
 {
 public:
 	~Fence() override;
-	
+
 	void Signal();
+	VkResult Reset();
+	VkResult Wait(uint64_t timeout);
 
 	static VkResult Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence);
 
-	HANDLE getHandle() const { return handle; }
+	[[nodiscard]] void* getHandle() const { return handle; }
 
 private:
-	HANDLE handle{};
+	void* handle{};
 };

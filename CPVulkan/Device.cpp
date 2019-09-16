@@ -1,30 +1,13 @@
 #include "Device.h"
 
-#include "Buffer.h"
-#include "CommandPool.h"
-#include "DescriptorPool.h"
 #include "DescriptorSet.h"
 #include "DescriptorSetLayout.h"
 #include "DeviceState.h"
 #include "Extensions.h"
-#include "Fence.h"
-#include "Framebuffer.h"
-#include "Image.h"
-#include "ImageView.h"
 #include "Instance.h"
 #include "Pipeline.h"
-#include "PipelineCache.h"
 #include "PipelineLayout.h"
 #include "Queue.h"
-#include "RenderPass.h"
-#include "Sampler.h"
-#include "Semaphore.h"
-#include "ShaderModule.h"
-#include "Swapchain.h"
-
-#include <Windows.h>
-#include <vulkan/vk_icd.h>
-#include <vulkan/vk_layer.h>
 
 #include <cassert>
 
@@ -69,9 +52,49 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 		const auto type = *static_cast<const VkStructureType*>(next);
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
+			{
+				const auto allocateInfo = reinterpret_cast<const VkMemoryDedicatedAllocateInfo*>(next);
+				break;
+			}
+			
+		case VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT:
 			FATAL_ERROR();
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pAllocateInfo->memoryTypeIndex != 0)
@@ -79,7 +102,7 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 		FATAL_ERROR();
 	}
 
-	*pMemory = reinterpret_cast<VkDeviceMemory>(AllocateSized(pAllocator, pAllocateInfo->allocationSize));
+	*pMemory = reinterpret_cast<VkDeviceMemory>(AllocateSized(pAllocator, pAllocateInfo->allocationSize, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE));
 
 	return VK_SUCCESS;
 }
@@ -101,123 +124,14 @@ void Device::UnmapMemory(VkDeviceMemory memory)
 {
 }
 
-VkResult Device::InvalidateMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges)
+VkResult Device::FlushMappedMemoryRanges(uint32_t, const VkMappedMemoryRange*)
 {
 	return VK_SUCCESS;
 }
 
-VkResult Device::BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset)
+VkResult Device::InvalidateMappedMemoryRanges(uint32_t, const VkMappedMemoryRange*)
 {
-	return reinterpret_cast<Buffer*>(buffer)->BindMemory(memory, memoryOffset);
-}
-
-VkResult Device::BindImageMemory(VkImage image, VkDeviceMemory memory, VkDeviceSize memoryOffset)
-{
-	return reinterpret_cast<Image*>(image)->BindMemory(memory, memoryOffset);
-}
-
-void Device::GetBufferMemoryRequirements(VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements)
-{
-	reinterpret_cast<Buffer*>(buffer)->GetMemoryRequirements(pMemoryRequirements);
-}
-
-void Device::GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMemoryRequirements)
-{
-	reinterpret_cast<Image*>(image)->GetMemoryRequirements(pMemoryRequirements);
-}
-
-VkResult Device::CreateFence(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence)
-{
-	return Fence::Create(pCreateInfo, pAllocator, pFence);
-}
-
-void Device::DestroyFence(VkFence fence, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<Fence*>(fence), pAllocator);
-}
-
-VkResult Device::WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout)
-{
-	auto handles = std::vector<HANDLE>(fenceCount);
-	for (auto i = 0u; i < fenceCount; i++)
-	{
-		handles[i] = reinterpret_cast<Fence*>(pFences[i])->getHandle();
-	}
-
-	const auto result = WaitForMultipleObjects(fenceCount, handles.data(), waitAll, timeout == UINT64_MAX ? INFINITE : timeout / 1000000);
-	if (result == WAIT_FAILED)
-	{
-		FATAL_ERROR();
-	}
-
-	if (result == WAIT_TIMEOUT)
-	{
-		return VK_TIMEOUT;
-	}
-	
 	return VK_SUCCESS;
-}
-
-#undef CreateSemaphore
-
-VkResult Device::CreateSemaphore(const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore)
-{
-	return Semaphore::Create(pCreateInfo, pAllocator, pSemaphore);
-}
-
-void Device::DestroySemaphore(VkSemaphore semaphore, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<Semaphore*>(semaphore), pAllocator);
-}
-
-VkResult Device::CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer)
-{
-	return Buffer::Create(pCreateInfo, pAllocator, pBuffer);
-}
-
-void Device::DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<Buffer*>(buffer), pAllocator);
-}
-
-VkResult Device::CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
-{
-	return Image::Create(pCreateInfo, pAllocator, pImage);
-}
-
-void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<Image*>(image), pAllocator);
-}
-
-VkResult Device::CreateImageView(const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView)
-{
-	return ImageView::Create(pCreateInfo, pAllocator, pView);
-}
-
-void Device::DestroyImageView(VkImageView imageView, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<ImageView*>(imageView), pAllocator);
-}
-
-VkResult Device::CreateShaderModule(const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule)
-{
-	return ShaderModule::Create(pCreateInfo, pAllocator, pShaderModule);
-}
-
-void Device::DestroyShaderModule(VkShaderModule shaderModule, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<ShaderModule*>(shaderModule), pAllocator);
-}
-
-VkResult Device::CreatePipelineCache(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache)
-{
-	return PipelineCache::Create(pCreateInfo, pAllocator, pPipelineCache);
-}
-
-void Device::DestroyPipelineCache(VkPipelineCache pipelineCache, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<PipelineCache*>(pipelineCache), pAllocator);
 }
 
 VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
@@ -249,16 +163,6 @@ void Device::DestroyPipelineLayout(VkPipelineLayout pipelineLayout, const VkAllo
 	Free(reinterpret_cast<PipelineLayout*>(pipelineLayout), pAllocator);
 }
 
-VkResult Device::CreateSampler(const VkSamplerCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSampler* pSampler)
-{
-	return Sampler::Create(pCreateInfo, pAllocator, pSampler);
-}
-
-void Device::DestroySampler(VkSampler sampler, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<Sampler*>(sampler), pAllocator);
-}
-
 VkResult Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout)
 {
 	return DescriptorSetLayout::Create(pCreateInfo, pAllocator, pSetLayout);
@@ -267,16 +171,6 @@ VkResult Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo
 void Device::DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks* pAllocator)
 {
 	Free(reinterpret_cast<DescriptorSetLayout*>(descriptorSetLayout), pAllocator);
-}
-
-VkResult Device::CreateDescriptorPool(const VkDescriptorPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorPool* pDescriptorPool)
-{
-	return DescriptorPool::Create(pCreateInfo, pAllocator, pDescriptorPool);
-}
-
-void Device::DestroyDescriptorPool(VkDescriptorPool descriptorPool, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<DescriptorPool*>(descriptorPool), pAllocator);
 }
 
 VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllocateInfo, VkDescriptorSet* pDescriptorSets)
@@ -343,46 +237,6 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 	}
 }
 
-VkResult Device::CreateFramebuffer(const VkFramebufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFramebuffer* pFramebuffer)
-{
-	return Framebuffer::Create(pCreateInfo, pAllocator, pFramebuffer);
-}
-
-void Device::DestroyFramebuffer(VkFramebuffer framebuffer, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<Framebuffer*>(framebuffer), pAllocator);
-}
-
-VkResult Device::CreateRenderPass(const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
-{
-	return RenderPass::Create(pCreateInfo, pAllocator, pRenderPass);
-}
-
-void Device::DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<RenderPass*>(renderPass), pAllocator);
-}
-
-VkResult Device::CreateCommandPool(const VkCommandPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkCommandPool* pCommandPool)
-{
-	return CommandPool::Create(state.get(), pCreateInfo, pAllocator, pCommandPool);
-}
-
-void Device::DestroyCommandPool(VkCommandPool commandPool, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<CommandPool*>(commandPool), pAllocator);
-}
-
-VkResult Device::AllocateCommandBuffers(const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers)
-{
-	return reinterpret_cast<CommandPool*>(pAllocateInfo->commandPool)->AllocateCommandBuffers(pAllocateInfo, pCommandBuffers);
-}
-
-void Device::FreeCommandBuffers(VkCommandPool commandPool, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers)
-{
-	reinterpret_cast<CommandPool*>(commandPool)->FreeCommandBuffers(commandBufferCount, pCommandBuffers);
-}
-
 void Device::GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQueue)
 {
 	assert(pQueueInfo->sType == VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2);
@@ -409,95 +263,201 @@ void Device::GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQue
 	}
 }
 
-VkResult Device::CreateSwapchain(const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
-{
-	return Swapchain::Create(pCreateInfo, pAllocator, pSwapchain);
-}
-
-void Device::DestroySwapchain(VkSwapchainKHR swapchain, const VkAllocationCallbacks* pAllocator)
-{
-	reinterpret_cast<Swapchain*>(swapchain)->DeleteImages(pAllocator);
-	Free(reinterpret_cast<Swapchain*>(swapchain), pAllocator);
-}
-
-VkResult Device::GetSwapchainImages(VkSwapchainKHR swapchain, uint32_t* pSwapchainImageCount, VkImage* pSwapchainImages)
-{
-	return reinterpret_cast<Swapchain*>(swapchain)->GetImages(pSwapchainImageCount, pSwapchainImages);
-}
-
-VkResult Device::AcquireNextImage(VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex)
-{
-	return reinterpret_cast<Swapchain*>(swapchain)->AcquireNextImage(timeout, semaphore, fence, pImageIndex);
-}
-
 VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 	assert(pCreateInfo->flags == 0);
 
-	auto device = Allocate<Device>(pAllocator);
+	auto device = Allocate<Device>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		auto type = *(VkStructureType*)next;
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		case VK_STRUCTURE_TYPE_LOADER_DEVICE_CREATE_INFO:
-			next = ((VkLayerDeviceCreateInfo*)next)->pNext;
-			break;
-		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2:
-			{
-				// TODO
-				auto features = (VkPhysicalDeviceFeatures2*)next;
-				next = features->pNext;
-				break;
-			}
-		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES:
-			{
-				// TODO
-				auto features = (VkPhysicalDeviceVariablePointersFeatures*)next;
-				next = features->pNext;
-				break;
-			}
-		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES:
-			{
-				// TODO
-				auto features = (VkPhysicalDeviceMultiviewFeatures*)next;
-				next = features->pNext;
-				break;
-			}
-		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES:
-			{
-				// TODO
-				auto features = (VkPhysicalDeviceShaderDrawParametersFeatures*)next;
-				next = features->pNext;
-				break;
-			}
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES:
 			{
+				const auto features = static_cast<const VkPhysicalDevice16BitStorageFeatures*>(next);
 				// TODO
-				auto features = (VkPhysicalDevice16BitStorageFeatures*)next;
-				next = features->pNext;
 				break;
 			}
+			
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR:
+			{
+				const auto features = static_cast<const VkPhysicalDevice8BitStorageFeaturesKHR*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ASTC_DECODE_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_SHADER_DERIVATIVES_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONDITIONAL_RENDERING_FEATURES_EXT:
+			{
+				const auto features = static_cast<const VkPhysicalDeviceConditionalRenderingFeaturesEXT*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CORNER_SAMPLED_IMAGE_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COVERAGE_REDUCTION_MODE_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEDICATED_ALLOCATION_IMAGE_ALIASING_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXCLUSIVE_SCISSOR_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES:
+			{
+				const auto features = static_cast<const VkPhysicalDeviceMultiviewFeatures*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR:
+			FATAL_ERROR();
+
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES:
 			{
+				const auto features = static_cast<const VkPhysicalDeviceProtectedMemoryFeatures*>(next);
 				// TODO
-				auto features = (VkPhysicalDeviceProtectedMemoryFeatures*)next;
-				next = features->pNext;
 				break;
 			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_REPRESENTATIVE_FRAGMENT_TEST_FEATURES_NV:
+			FATAL_ERROR();
+
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES:
 			{
+				const auto features = static_cast<const VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
 				// TODO
-				auto features = (VkPhysicalDeviceSamplerYcbcrConversionFeatures*)next;
-				next = features->pNext;
 				break;
 			}
-		default:
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT:
+			{
+				const auto features = static_cast<const VkPhysicalDeviceScalarBlockLayoutFeaturesEXT*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT:
+			FATAL_ERROR();
+			
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES:
+			{
+				const auto features = static_cast<const VkPhysicalDeviceShaderDrawParametersFeatures*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_FOOTPRINT_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_FUNCTIONS_2_FEATURES_INTEL:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SM_BUILTINS_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_FEATURES_NV:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXTURE_COMPRESSION_ASTC_HDR_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES:
+			{
+				const auto features = static_cast<const VkPhysicalDeviceVariablePointersFeatures*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_YCBCR_IMAGE_ARRAYS_FEATURES_EXT:
 			FATAL_ERROR();
 		}
+		
+		next = static_cast<const VkPhysicalDeviceFeatures2*>(next)->pNext;
 	}
 
 	for (auto i = 0u; i < pCreateInfo->queueCreateInfoCount; i++)

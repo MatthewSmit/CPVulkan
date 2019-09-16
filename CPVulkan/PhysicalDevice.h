@@ -17,7 +17,7 @@ public:
 
 	VKAPI_ATTR VkResult VKAPI_CALL GetImageFormatProperties(VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties);
 
-	VKAPI_ATTR void VKAPI_CALL GetProperties(VkPhysicalDeviceProperties* pProperties);
+	VKAPI_ATTR void VKAPI_CALL GetProperties(VkPhysicalDeviceProperties* pProperties) const;
 
 	VKAPI_ATTR void VKAPI_CALL GetQueueFamilyProperties(uint32_t* pQueueFamilyPropertyCount, VkQueueFamilyProperties* pQueueFamilyProperties);
 

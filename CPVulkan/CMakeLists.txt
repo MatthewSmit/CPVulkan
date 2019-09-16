@@ -2,11 +2,14 @@
 
 find_package(glm CONFIG REQUIRED)
 
-add_library(CPVulkan SHARED
+set(FILES 
 	"Base.h"
 
 	"Buffer.cpp"
 	"Buffer.h"
+
+	"BufferView.cpp"
+	"BufferView.h"
 
 	"CommandBuffer.cpp"
 	"CommandBuffer.h"
@@ -27,6 +30,9 @@ add_library(CPVulkan SHARED
 
 	"Device.cpp"
 	"Device.h"
+
+	"Event.cpp"
+	"Event.h"
 
 	"Extensions.cpp"
 	"Extensions.h"
@@ -61,6 +67,11 @@ add_library(CPVulkan SHARED
 	"PipelineLayout.cpp"
 	"PipelineLayout.h"
 
+	"Platform.h"
+
+	"QueryPool.cpp"
+	"QueryPool.h"
+
 	"Queue.cpp"
 	"Queue.h"
 
@@ -75,10 +86,23 @@ add_library(CPVulkan SHARED
 
 	"ShaderModule.cpp"
 	"ShaderModule.h"
-
+	
 	"Swapchain.cpp"
 	"Swapchain.h"
 	)
-target_compile_definitions(CPVulkan PRIVATE VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR WIN32_LEAN_AND_MEAN)
-target_include_directories(CPVulkan PRIVATE "C:\\VulkanSDK\\1.1.121.0\\Include\\")
+
+set(DEFINES VK_NO_PROTOTYPES)
+set(INCLUDES)
+
+if(WIN32)
+	list(APPEND FILES 
+		"PlatformWin32.cpp"
+		"SwapchainWin32.cpp")
+	list(APPEND DEFINES VK_USE_PLATFORM_WIN32_KHR WIN32_LEAN_AND_MEAN)
+	list(APPEND INCLUDES "C:\\VulkanSDK\\1.1.121.0\\Include\\")
+endif()
+
+add_library(CPVulkan SHARED	${FILES})
+target_compile_definitions(CPVulkan PRIVATE ${DEFINES})
+target_include_directories(CPVulkan PRIVATE ${INCLUDES})
 target_link_libraries(CPVulkan PRIVATE glm SPIRVParser)

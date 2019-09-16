@@ -1,16 +1,20 @@
 #pragma once
 #include "Base.h"
 
-#include <Windows.h>
-
 class Image;
 
 class Swapchain final : public VulkanBase
 {
 public:
+	Swapchain() = default;
+	Swapchain(const Swapchain&) = delete;
+	Swapchain(Swapchain&&) = delete;
 	~Swapchain() override;
 
-	VkResult GetImages(uint32_t* pSwapchainImageCount, VkImage* vkImage);
+	Swapchain& operator=(const Swapchain&) = delete;
+	Swapchain&& operator=(const Swapchain&&) = delete;
+
+	VkResult GetImages(uint32_t* pSwapchainImageCount, VkImage* vkImage) const;
 
 	VkResult AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex);
 
@@ -25,5 +29,4 @@ private:
 	VkSurfaceKHR surface{};
 	VkColorSpaceKHR imageColorSpace{};
 	std::vector<Image*> images{};
-	BITMAPINFO bmi{};
 };

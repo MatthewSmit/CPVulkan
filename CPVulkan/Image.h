@@ -5,7 +5,7 @@ class Image final : public VulkanBase
 {
 public:
 	VkResult BindMemory(VkDeviceMemory memory, uint64_t memoryOffset);
-	void GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements);
+	void GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const;
 
 	static VkResult Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 
@@ -17,6 +17,7 @@ public:
 	[[nodiscard]] void* getData() const { return data; }
 
 private:
+	VkImageCreateFlags flags{};
 	VkImageType imageType{};
 	VkFormat format{};
 	VkExtent3D extent{};

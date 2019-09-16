@@ -23,7 +23,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR FreeMemory(VkDeviceMemory memory, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
 	VKAPI_ATTR void VKAPI_PTR UnmapMemory(VkDeviceMemory memory);
-	VKAPI_ATTR VkResult VKAPI_PTR FlushMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR FlushMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges);
 	VKAPI_ATTR VkResult VKAPI_PTR InvalidateMappedMemoryRanges(uint32_t memoryRangeCount, const VkMappedMemoryRange* pMemoryRanges);
 	VKAPI_ATTR void VKAPI_PTR GetDeviceMemoryCommitment(VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset);
@@ -38,18 +38,18 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateSemaphore(const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore);
 	VKAPI_ATTR void VKAPI_PTR DestroySemaphore(VkSemaphore semaphore, const VkAllocationCallbacks* pAllocator);
-	VKAPI_ATTR VkResult VKAPI_PTR CreateEvent(const VkEventCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkEvent* pEvent) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyEvent(VkEvent event, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR GetEventStatus(VkEvent event) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateEvent(const VkEventCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkEvent* pEvent);
+	VKAPI_ATTR void VKAPI_PTR DestroyEvent(VkEvent event, const VkAllocationCallbacks* pAllocator);
+	VKAPI_ATTR VkResult VKAPI_PTR GetEventStatus(VkEvent event);
 	VKAPI_ATTR VkResult VKAPI_PTR SetEvent(VkEvent event) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR ResetEvent(VkEvent event) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateQueryPool(const VkQueryPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkQueryPool* pQueryPool) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyQueryPool(VkQueryPool queryPool, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR ResetEvent(VkEvent event);
+	VKAPI_ATTR VkResult VKAPI_PTR CreateQueryPool(const VkQueryPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkQueryPool* pQueryPool);
+	VKAPI_ATTR void VKAPI_PTR DestroyQueryPool(VkQueryPool queryPool, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR GetQueryPoolResults(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer);
 	VKAPI_ATTR void VKAPI_PTR DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAllocator);
-	VKAPI_ATTR VkResult VKAPI_PTR CreateBufferView(const VkBufferViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateBufferView(const VkBufferViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView);
+	VKAPI_ATTR void VKAPI_PTR DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 	VKAPI_ATTR void VKAPI_PTR DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR void VKAPI_PTR GetImageSubresourceLayout(VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) { FATAL_ERROR(); } 
@@ -81,11 +81,9 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR CreateRenderPass(const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass);
 	VKAPI_ATTR void VKAPI_PTR DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR void VKAPI_PTR GetRenderAreaGranularity(VkRenderPass renderPass, VkExtent2D* pGranularity) { FATAL_ERROR(); }
-	
 	VKAPI_ATTR VkResult VKAPI_PTR CreateCommandPool(const VkCommandPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkCommandPool* pCommandPool);
-	
 	VKAPI_ATTR void VKAPI_PTR DestroyCommandPool(VkCommandPool commandPool, const VkAllocationCallbacks* pAllocator);
-	VKAPI_ATTR VkResult VKAPI_PTR ResetCommandPool(VkCommandPool commandPool, VkCommandPoolResetFlags flags) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR ResetCommandPool(VkCommandPool commandPool, VkCommandPoolResetFlags flags);
 	VKAPI_ATTR VkResult VKAPI_PTR AllocateCommandBuffers(const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers);
 	VKAPI_ATTR void VKAPI_PTR FreeCommandBuffers(VkCommandPool commandPool, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers);
 	
@@ -93,9 +91,9 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR GetDeviceGroupPeerMemoryFeatures(uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex, VkPeerMemoryFeatureFlags* pPeerMemoryFeatures) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR GetImageMemoryRequirements2(const VkImageMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements);
 	VKAPI_ATTR void VKAPI_PTR GetImageSparseMemoryRequirements2(const VkImageSparseMemoryRequirementsInfo2* pInfo, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements2* pSparseMemoryRequirements) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR TrimCommandPool(VkCommandPool commandPool, VkCommandPoolTrimFlags flags) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR TrimCommandPool(VkCommandPool commandPool, VkCommandPoolTrimFlags flags);
 	VKAPI_ATTR void VKAPI_PTR GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQueue);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateSamplerYcbcrConversion(const VkSamplerYcbcrConversionCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSamplerYcbcrConversion* pYcbcrConversion) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DestroySamplerYcbcrConversion(VkSamplerYcbcrConversion ycbcrConversion, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
@@ -138,9 +136,6 @@ public:
 	VKAPI_ATTR void VKAPI_PTR GetImageMemoryRequirements2KHR(const VkImageMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements2KHR(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR GetImageSparseMemoryRequirements2KHR(const VkImageSparseMemoryRequirementsInfo2* pInfo, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements2* pSparseMemoryRequirements) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR VkResult VKAPI_PTR CreateSamplerYcbcrConversionKHR(const VkSamplerYcbcrConversionCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSamplerYcbcrConversion* pYcbcrConversion) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroySamplerYcbcrConversionKHR(VkSamplerYcbcrConversion ycbcrConversion, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
 
 	VKAPI_ATTR VkResult VKAPI_PTR BindBufferMemory2KHR(uint32_t bindInfoCount, const VkBindBufferMemoryInfo* pBindInfos) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR BindImageMemory2KHR(uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos) { FATAL_ERROR(); } 

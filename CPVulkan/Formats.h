@@ -1,6 +1,14 @@
 #pragma once
 #include "Base.h"
 
+enum class FormatType
+{
+	Normal,
+	Compressed,
+	Planar,
+	PlanarSamplable,
+};
+
 enum class BaseType
 {
 	Unknown,
@@ -18,6 +26,7 @@ enum class BaseType
 struct FormatInformation
 {
 	VkFormat Format;
+	FormatType Type;
 	VkFormatFeatureFlags LinearTilingFeatures;
 	VkFormatFeatureFlags OptimalTilingFeatures;
 	VkFormatFeatureFlags BufferFeatures;
@@ -35,3 +44,5 @@ struct FormatInformation
 };
 
 const FormatInformation& GetFormatInformation(VkFormat format);
+
+bool NeedsYCBCRConversion(VkFormat format);
