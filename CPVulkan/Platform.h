@@ -12,4 +12,7 @@ namespace Platform
 	VkResult Wait(void* mutex, uint64_t timeout);
 	VkResult WaitMultiple(const std::vector<void*>& mutexes, bool waitAll, uint64_t timeout);
 	VkResult GetMutexStatus(void* mutex);
+
+	void* AlignedMalloc(size_t size, size_t alignment);
+    void AlignedFree(void* ptr);
 }

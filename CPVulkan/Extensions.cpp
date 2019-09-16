@@ -5001,7 +5001,6 @@ typedef struct VkPhysicalDeviceIndexTypeUint8FeaturesEXT {
 				VkBool32           uniformTexelBufferOffsetSingleTexelAlignment;
 			} VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT;
 #endif
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
 #if defined(VK_KHR_win32_surface)
 			{
 				VK_KHR_WIN32_SURFACE_EXTENSION_NAME,
@@ -5278,6 +5277,41 @@ typedef struct VkPhysicalDeviceIndexTypeUint8FeaturesEXT {
 		VkDeviceGroupPresentModeFlagsKHR* pModes);
 #endif
 #endif
+
+#if defined(VK_KHR_xcb_surface)
+                    {
+                            VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+                            VK_KHR_XCB_SURFACE_SPEC_VERSION,
+                            false,
+                            {
+                                    {"vkCreateXcbSurfaceKHR", Trampoline(&Instance::CreateXcbSurface), false},
+                                    {"vkGetPhysicalDeviceXcbPresentationSupportKHR", Trampoline(&PhysicalDevice::GetPhysicalDeviceXcbPresentationSupport), false},
+                            }
+                    },
+#endif
+
+#if defined(VK_KHR_xlib_surface)
+                    {
+                            VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
+                            VK_KHR_XLIB_SURFACE_SPEC_VERSION,
+                            false,
+                            {
+                                    {"vkCreateXlibSurfaceKHR", Trampoline(&Instance::CreateXlibSurface), false},
+                                    {"vkGetPhysicalDeviceXlibPresentationSupportKHR", Trampoline(&PhysicalDevice::GetPhysicalDeviceXlibPresentationSupport), false},
+                            }
+                    },
+#endif
+
+#if defined(VK_EXT_acquire_xlib_display)
+                    {
+                            VK_EXT_ACQUIRE_XLIB_DISPLAY_EXTENSION_NAME,
+                            VK_EXT_ACQUIRE_XLIB_DISPLAY_SPEC_VERSION,
+                            false,
+                            {
+                                    {"vkAcquireXlibDisplayEXT", Trampoline(&PhysicalDevice::AcquireXlibDisplay), false},
+                                    {"vkGetRandROutputDisplayEXT", Trampoline(&PhysicalDevice::GetRandROutputDisplay), false},
+                            }
+                    },
 #endif
 		}
 	};

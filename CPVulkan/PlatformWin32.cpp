@@ -1,4 +1,4 @@
-#include "Platform.h"
+#include "Base.h"
 
 #define NOMINMAX
 #include <Windows.h>
@@ -120,4 +120,14 @@ VkResult Platform::GetMutexStatus(void* mutex)
 	}
 
 	return VK_EVENT_RESET;
+}
+
+void* Platform::AlignedMalloc(size_t size, size_t alignment)
+{
+    return _aligned_malloc(size, alignment);
+}
+
+void Platform::AlignedFree(void* ptr)
+{
+    _aligned_free(ptr);
 }

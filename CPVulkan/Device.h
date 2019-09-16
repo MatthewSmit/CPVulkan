@@ -14,7 +14,8 @@ class Device final : public VulkanBase
 {
 public:
 	Device();
-	
+	~Device() override;
+
 	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName);
 	VKAPI_ATTR void VKAPI_PTR DestroyDevice(const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR void VKAPI_PTR GetDeviceQueue(uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue* pQueue);
@@ -201,6 +202,7 @@ public:
 
 	VKAPI_ATTR void VKAPI_PTR ResetQueryPoolEXT(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) { FATAL_ERROR(); }
 
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandleKHR(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits handleType, HANDLE handle, VkMemoryWin32HandlePropertiesKHR* pMemoryWin32HandleProperties) { FATAL_ERROR(); }
 								  
@@ -215,6 +217,7 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR AcquireFullScreenExclusiveModeEXT(VkSwapchainKHR swapchain) { FATAL_ERROR(); }
 	VKAPI_ATTR VkResult VKAPI_PTR ReleaseFullScreenExclusiveModeEXT(VkSwapchainKHR swapchain) { FATAL_ERROR(); }
 	VKAPI_ATTR VkResult VKAPI_PTR GetDeviceGroupSurfacePresentModes2EXT(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkDeviceGroupPresentModeFlagsKHR* pModes) { FATAL_ERROR(); }
+#endif
 
 	static VkResult Create(Instance* instance, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice);
 
@@ -222,5 +225,5 @@ private:
 	std::unique_ptr<DeviceState> state;
 	ExtensionGroup enabledExtensions{};
 	
-	std::vector<std::unique_ptr<Queue>> queues{};
+	std::vector<std::unique_ptr<Queue>> queues;
 };

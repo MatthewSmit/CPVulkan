@@ -3,12 +3,11 @@
 #include "Device.h"
 #include "Formats.h"
 
-#define NOMINMAX
-#include <Windows.h>
 #include <vulkan/vk_icd.h>
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 
 static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkImageTiling tiling, VkFlags usage, VkFlags flags, VkImageFormatProperties* pImageFormatProperties)
 {
@@ -958,37 +957,6 @@ VkResult PhysicalDevice::EnumerateDeviceExtensionProperties(const char* pLayerNa
 VkResult PhysicalDevice::GetSurfaceSupport(uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkBool32* pSupported)
 {
 	*pSupported = true;
-	return VK_SUCCESS;
-}
-
-VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities)
-{
-	const auto win32Surface = reinterpret_cast<VkIcdSurfaceWin32*>(surface);
-	RECT rect;
-	assert(GetClientRect(win32Surface->hwnd, &rect));
-	
-	pSurfaceCapabilities->minImageCount = 1;
-	pSurfaceCapabilities->maxImageCount = 0;
-	pSurfaceCapabilities->currentExtent.width = rect.right - rect.left;
-	pSurfaceCapabilities->currentExtent.height = rect.bottom - rect.top;
-	pSurfaceCapabilities->minImageExtent.width = 1;
-	pSurfaceCapabilities->minImageExtent.height = 1;
-	pSurfaceCapabilities->maxImageExtent.width = 8192;
-	pSurfaceCapabilities->maxImageExtent.height = 8192;
-	pSurfaceCapabilities->maxImageArrayLayers = 1;
-	pSurfaceCapabilities->supportedTransforms = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-	pSurfaceCapabilities->currentTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
-	pSurfaceCapabilities->supportedCompositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	pSurfaceCapabilities->supportedUsageFlags = VK_IMAGE_USAGE_TRANSFER_SRC_BIT |
-		VK_IMAGE_USAGE_TRANSFER_DST_BIT |
-		VK_IMAGE_USAGE_SAMPLED_BIT |
-		VK_IMAGE_USAGE_STORAGE_BIT |
-		VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT |
-		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT |
-		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT |
-		VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT |
-		VK_IMAGE_USAGE_SHADING_RATE_IMAGE_BIT_NV |
-		VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT;
 	return VK_SUCCESS;
 }
 

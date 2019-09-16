@@ -59,25 +59,6 @@ VkResult Instance::EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupC
 	return VK_SUCCESS;
 }
 
-void Instance::DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator)
-{
-	Free(reinterpret_cast<VkIcdSurfaceWin32*>(surface), pAllocator);
-}
-
-VkResult Instance::CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface)
-{
-	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR);
-	assert(pCreateInfo->pNext == nullptr);
-	assert(pCreateInfo->flags == 0);
-	
-	auto surface = Allocate<VkIcdSurfaceWin32>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
-	surface->base.platform = VK_ICD_WSI_PLATFORM_WIN32;
-	surface->hinstance = pCreateInfo->hinstance;
-	surface->hwnd = pCreateInfo->hwnd;
-	*pSurface = reinterpret_cast<VkSurfaceKHR>(surface);
-	return VK_SUCCESS;
-}
-
 VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO);

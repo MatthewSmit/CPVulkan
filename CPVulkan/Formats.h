@@ -32,7 +32,7 @@ struct FormatInformation
 	VkFormatFeatureFlags BufferFeatures;
 	uint32_t TotalSize;
 	uint32_t ElementSize;
-	BaseType BaseType;
+	BaseType Base;
 	uint32_t RedOffset;
 	uint32_t GreenOffset;
 	uint32_t BlueOffset;

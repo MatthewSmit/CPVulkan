@@ -15,7 +15,7 @@ void Event::Signal()
 	Platform::SetMutex(handle);
 }
 
-VkResult _Releases_lock_(this->handle) Event::Reset()
+VkResult Event::Reset()
 {
 	Platform::ReleaseMutex(handle);
 	return VK_SUCCESS;

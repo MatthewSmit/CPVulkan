@@ -329,7 +329,7 @@ static void GetPixel(void* data, const FormatInformation& format, uint32_t x, ui
 
 static void SetPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y, uint32_t z, uint64_t values[4])
 {
-	if (format.BaseType == BaseType::UNorm || format.BaseType == BaseType::SNorm)
+	if (format.Base == BaseType::UNorm || format.Base == BaseType::SNorm)
 	{
 		if (format.ElementSize == 0 && format.TotalSize == 1)
 		{
@@ -366,7 +366,7 @@ template<typename T1, typename T2>
 static void Convert(const uint64_t source[4], T2 destination[4]);
 
 template<>
-static void Convert<uint16_t, float>(const uint64_t source[4], float destination[4])
+void Convert<uint16_t, float>(const uint64_t source[4], float destination[4])
 {
 	destination[0] = static_cast<float>(static_cast<uint16_t>(source[0])) / std::numeric_limits<uint16_t>::max();
 	destination[1] = static_cast<float>(static_cast<uint16_t>(source[1])) / std::numeric_limits<uint16_t>::max();
@@ -377,7 +377,7 @@ static void Convert<uint16_t, float>(const uint64_t source[4], float destination
 template<typename T>
 static void GetPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y, uint32_t z, T values[4])
 {
-	if (format.BaseType == BaseType::UNorm)
+	if (format.Base == BaseType::UNorm)
 	{
 		if (format.ElementSize == 2)
 		{
@@ -412,7 +412,7 @@ static void ClearImage(Image* image, const FormatInformation& format, uint64_t v
 
 static void GetImageColour(uint64_t output[4], const FormatInformation& format, const VkClearColorValue& input)
 {
-	if (format.BaseType == BaseType::UNorm)
+	if (format.Base == BaseType::UNorm)
 	{
 		if (format.ElementSize == 0)
 		{
@@ -461,7 +461,7 @@ static void GetImageColour(uint64_t output[4], const FormatInformation& format, 
 			FATAL_ERROR();
 		}
 	}
-	else if (format.BaseType == BaseType::SNorm)
+	else if (format.Base == BaseType::SNorm)
 	{
 		if (format.ElementSize == 0)
 		{
@@ -923,7 +923,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 		std::vector<std::vector<Variable>>(vertexCount),
 		std::vector<std::vector<Variable>>(vertexCount),
 		256,
-		(maxLocation + 1 + 1) * 256,
+		static_cast<uint64_t>((maxLocation + 1 + 1) * 256),
 	};
 	for (auto i = 0u; i < vertexCount; i++)
 	{

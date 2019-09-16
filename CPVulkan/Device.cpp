@@ -16,6 +16,8 @@ Device::Device() :
 {
 }
 
+Device::~Device() = default;
+
 PFN_vkVoidFunction Device::GetProcAddress(const char* pName)
 {
 	return enabledExtensions.getFunction(pName, true);

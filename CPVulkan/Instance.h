@@ -35,9 +35,19 @@ public:
 	VKAPI_ATTR void VKAPI_PTR DestroyDebugUtilsMessengerEXT(VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SubmitDebugUtilsMessageEXT(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateHeadlessSurfaceEXT(const VkHeadlessSurfaceCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateHeadlessSurfaceEXT(const VkHeadlessSurfaceCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); }
 
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
 	VKAPI_ATTR VkResult VKAPI_PTR CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
+#endif
+
+#if defined(VK_USE_PLATFORM_XCB_KHR)
+    VKAPI_ATTR VkResult VKAPI_CALL CreateXcbSurface(const VkXcbSurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
+#endif
+
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
+    VKAPI_ATTR VkResult VKAPI_CALL CreateXlibSurface(const VkXlibSurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
+#endif
 
 	static VkResult Create(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance);
 

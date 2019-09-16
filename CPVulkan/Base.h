@@ -25,14 +25,44 @@ using DWORD = unsigned long;
 #include <vulkan/vulkan_win32.h>
 #endif
 
+#if defined(VK_USE_PLATFORM_XCB_KHR)
+typedef struct xcb_connection_t xcb_connection_t;
+typedef uint32_t xcb_window_t;
+typedef uint32_t xcb_visualid_t;
+#include <vulkan/vulkan_xcb.h>
+#endif
+
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
+typedef struct _XDisplay Display;
+typedef unsigned long XID;
+typedef XID Window;
+typedef unsigned long VisualID;
+#include <vulkan/vulkan_xlib.h>
+#endif
+
+#if defined(VK_USE_PLATFORM_XLIB_XRANDR_EXT)
+typedef struct _XDisplay Display;
+typedef unsigned long XID;
+typedef XID Window;
+typedef unsigned long VisualID;
+typedef XID RROutput;
+#include <vulkan/vulkan_xlib_xrandr.h>
+#endif
+
 #include <gsl/gsl>
 
 #include <functional>
 #include <vector>
 
+#include "Platform.h"
+
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 
-#define FATAL_ERROR() { __debugbreak(); abort(); }
+#if !defined(_MSC_VER)
+#define __debugbreak() __asm__("int3")
+#define strcpy_s strcpy // TODO: Functionify
+#endif
+#define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
 struct DeviceMemory
 {
@@ -75,7 +105,7 @@ public:
 			return static_cast<DeviceMemory*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(DeviceMemory) + size, 4096, allocationScope));
 		}
 		
-		return static_cast<DeviceMemory*>(_aligned_malloc(sizeof(DeviceMemory) + size, 4096));
+		return static_cast<DeviceMemory*>(Platform::AlignedMalloc(sizeof(DeviceMemory) + size, 4096));
 	}
 
 	template <typename T>
@@ -100,7 +130,7 @@ public:
 		}
 		else
 		{
-			_aligned_free(deviceMemory);
+			Platform::AlignedFree(deviceMemory);
 		}
 	}
 };

@@ -99,6 +99,19 @@ public:
 								  
 	VKAPI_ATTR VkResult VKAPI_PTR GetSurfacePresentModes2EXT(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes) { FATAL_ERROR(); }
 
+#if defined(VK_KHR_xcb_surface)
+    VKAPI_ATTR VkBool32 VKAPI_PTR GetPhysicalDeviceXcbPresentationSupport(uint32_t queueFamilyIndex, xcb_connection_t* connection, xcb_visualid_t visual_id) { FATAL_ERROR(); }
+#endif
+
+#if defined(VK_KHR_xlib_surface)
+    VKAPI_ATTR VkBool32 VKAPI_PTR GetPhysicalDeviceXlibPresentationSupport(uint32_t queueFamilyIndex, Display* dpy, VisualID visualID) { FATAL_ERROR(); }
+#endif
+
+#if defined(VK_EXT_acquire_xlib_display)
+    VKAPI_ATTR VkResult VKAPI_PTR AcquireXlibDisplay(Display* dpy, VkDisplayKHR display) { FATAL_ERROR(); }
+    VKAPI_ATTR VkResult VKAPI_PTR GetRandROutputDisplay(Display* dpy, RROutput rrOutput, VkDisplayKHR* pDisplay) { FATAL_ERROR(); }
+#endif
+
 private:
 	Instance* instance;
 };

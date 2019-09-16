@@ -39,8 +39,6 @@ static constexpr VkFormatFeatureFlags GetFeatures(FormatType type)
 	case FormatType::PlanarSamplable:
 		features |= static_cast<VkFormatFeatureFlags>(VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT | VK_FORMAT_FEATURE_TRANSFER_SRC_BIT | VK_FORMAT_FEATURE_TRANSFER_DST_BIT | VK_FORMAT_FEATURE_COSITED_CHROMA_SAMPLES_BIT);
 		break;
-	default:
-		FATAL_ERROR();
 	}
 
 	return features;

@@ -65,7 +65,9 @@ using namespace std;
 // Android, iOS, and macOS: main() implemented externally to allow access to Objective-C components
 int main(int argc, char **argv)
 {
+#ifdef WIN32
 	SetEnvironmentVariableA("VK_ICD_FILENAMES", "C:\\Work\\CPVulkan\\CPVulkan\\CPVulkan.json");
+#endif
 	return sample_main(argc, argv);
 }
 #endif

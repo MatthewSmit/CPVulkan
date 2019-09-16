@@ -3,6 +3,17 @@ cmake_minimum_required(VERSION 3.8)
 find_package(glm CONFIG REQUIRED)
 find_package(glslang CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
+find_package(Threads REQUIRED)
+
+set(DEFINES)
+set(LINKS CPVulkan glm glslang::HLSL glslang::SPIRV glslang::glslang glslang::OGLCompiler Vulkan::Vulkan)
+
+if(WIN32)
+	list(APPEND DEFINES VK_USE_PLATFORM_WIN32_KHR WIN32_LEAN_AND_MEAN)
+else()
+	list(APPEND DEFINES VK_USE_PLATFORM_XCB_KHR)
+	list(APPEND LINKS xcb)
+endif()
 
 add_executable(CPVulkanSamples
 	#"01-init_instance/01-init_instance.cpp"
@@ -56,5 +67,5 @@ add_executable(CPVulkanSamples
 	"utils/util_init.cpp"
 	)
 target_include_directories(CPVulkanSamples PRIVATE "data/" "utils/")
-target_compile_definitions(CPVulkanSamples PRIVATE VK_USE_PLATFORM_WIN32_KHR VULKAN_SAMPLES_BASE_DIR="/")
-target_link_libraries(CPVulkanSamples CPVulkan glm glslang::HLSL glslang::SPIRV glslang::glslang glslang::OGLCompiler Vulkan::Vulkan)
+target_compile_definitions(CPVulkanSamples PRIVATE VULKAN_SAMPLES_BASE_DIR="/" ${DEFINES})
+target_link_libraries(CPVulkanSamples ${LINKS})

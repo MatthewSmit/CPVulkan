@@ -13,6 +13,10 @@ add_library(SPIRVParser SHARED
 	"SPIRVValue.cpp"
 	)
 
-target_compile_definitions(SPIRVParser PRIVATE SPIRV_INTERNAL)
+set(DEFINES SPIRV_INTERNAL)
+if(WIN32)
+	list(APPEND DEFINES OS_WINDOWS)
+endif()
+target_compile_definitions(SPIRVParser PRIVATE ${DEFINES})
 
 set_target_properties(SPIRVParser PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
