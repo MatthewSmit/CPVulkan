@@ -108,7 +108,7 @@ else()
 			"SwapchainLinux.cpp")
 	list(APPEND DEFINES VK_USE_PLATFORM_XCB_KHR VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XLIB_XRANDR_EXT)
 	list(APPEND INCLUDES "/home/programmdude/1.1.121.0/x86_64/include/")
-	list(APPEND LINKS xcb X11)
+	list(APPEND LINKS xcb xcb-image X11)
 endif()
 
 add_library(CPVulkan SHARED	${FILES})

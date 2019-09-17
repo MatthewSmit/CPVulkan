@@ -1,4 +1,6 @@
 #pragma once
+
+#include <xcb/xproto.h>
 #include "Base.h"
 
 class Image;

@@ -14,7 +14,7 @@ public:
 	[[nodiscard]] uint32_t getHeight() const { return extent.height; }
 	[[nodiscard]] uint32_t getDepth() const { return extent.depth; }
 	
-	[[nodiscard]] void* getData() const { return data; }
+	[[nodiscard]] uint8_t* getData() const { return data; }
 
 private:
 	VkImageCreateFlags flags{};
@@ -29,5 +29,5 @@ private:
 	VkImageLayout layout{};
 	
 	uint64_t size{};
-	void* data{};
+    uint8_t* data{};
 };
