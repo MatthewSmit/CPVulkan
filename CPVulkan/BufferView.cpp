@@ -37,7 +37,7 @@ VkResult Device::CreateBufferView(const VkBufferViewCreateInfo* pCreateInfo, con
 	return BufferView::Create(pCreateInfo, pAllocator, pView);
 }
 
-void Device::DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator)
+void Device::DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator) noexcept
 {
 	Free(UnwrapVulkan<BufferView>(bufferView), pAllocator);
 }

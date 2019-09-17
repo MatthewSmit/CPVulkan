@@ -13,6 +13,7 @@
 Instance::Instance()
 {
 	physicalDevice = Allocate<PhysicalDevice>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, this);
+	assert(physicalDevice);
 }
 
 Instance::~Instance()
@@ -20,7 +21,7 @@ Instance::~Instance()
 	Free(physicalDevice, nullptr);
 }
 
-PFN_vkVoidFunction Instance::GetProcAddress(const char* pName)
+PFN_vkVoidFunction Instance::GetProcAddress(const char* pName) const
 {
 	return this->enabledExtensions.getFunction(pName, false);
 }
@@ -134,8 +135,8 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 		}
 	}
 
-	auto initialExtension = GetInitialExtensions();
-	auto result = initialExtension.MakeInstanceCopy(instance->version, enabledExtensions, &instance->enabledExtensions);
+	const auto initialExtension = GetInitialExtensions();
+	const auto result = initialExtension.MakeInstanceCopy(instance->version, enabledExtensions, &instance->enabledExtensions);
 
 	if (result != VK_SUCCESS)
 	{

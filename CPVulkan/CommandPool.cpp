@@ -15,10 +15,8 @@ VkResult CommandPool::AllocateCommandBuffers(const VkCommandBufferAllocateInfo* 
 		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	for (auto i = 0u; i < pAllocateInfo->commandBufferCount; i++)
@@ -64,7 +62,7 @@ VkResult CommandPool::Create(DeviceState* deviceState, const VkCommandPoolCreate
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
 
-	auto commandPool = Allocate<CommandPool>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	const auto commandPool = Allocate<CommandPool>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
@@ -72,10 +70,8 @@ VkResult CommandPool::Create(DeviceState* deviceState, const VkCommandPoolCreate
 		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	commandPool->flags = pCreateInfo->flags;

@@ -4,7 +4,6 @@
 #include <vulkan/vulkan_core.h>
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
-// #include <Windows.h>
 #ifndef DECLARE_HANDLE
 using HANDLE = void*;
 
@@ -77,14 +76,15 @@ T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope all
 	if (pAllocator)
 	{
 		data = static_cast<uint8_t*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(T), 16, allocationScope));
-		if (!data)
-		{
-			return nullptr;
-		}
 	}
 	else
 	{
 		data = static_cast<uint8_t*>(malloc(sizeof(T) + 16));
+	}
+	
+	if (!data)
+	{
+		return nullptr;
 	}
 	 
 	*static_cast<uintptr_t*>(static_cast<void*>(data)) = 0x01CDC0DE;
@@ -108,14 +108,14 @@ void Free(T* value, const VkAllocationCallbacks* pAllocator) noexcept
 }
 
 template<typename LocalType, typename VulkanType>
-void WrapVulkan(LocalType* local, VulkanType* vulkan)
+void WrapVulkan(LocalType* local, VulkanType* vulkan) noexcept
 {
 	const auto data = static_cast<uint8_t*>(static_cast<void*>(local));
 	*vulkan = reinterpret_cast<VulkanType>(data - 16);
 }
 
 template<typename LocalType, typename VulkanType>
-LocalType* UnwrapVulkan(VulkanType vulkanValue)
+LocalType* UnwrapVulkan(VulkanType vulkanValue) noexcept
 {
 	const auto data = reinterpret_cast<uint8_t*>(vulkanValue);
 	return static_cast<LocalType*>(static_cast<void*>(data + 16));

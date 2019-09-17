@@ -17,14 +17,14 @@ VkResult Device::BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDevi
 	return UnwrapVulkan<Buffer>(buffer)->BindMemory(memory, memoryOffset);
 }
 
-void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const
+void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const noexcept
 {
 	pMemoryRequirements->size = size;
 	pMemoryRequirements->alignment = 16;
 	pMemoryRequirements->memoryTypeBits = 1;
 }
 
-void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) const
+void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) const noexcept
 {
 	auto next = pMemoryRequirements->pNext;
 	while (next)
@@ -34,7 +34,7 @@ void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) c
 		{
 		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
 			{
-				const auto memoryRequirements = reinterpret_cast<VkMemoryDedicatedRequirements*>(next);
+				const auto memoryRequirements = static_cast<VkMemoryDedicatedRequirements*>(next);
 				memoryRequirements->prefersDedicatedAllocation = false;
 				memoryRequirements->requiresDedicatedAllocation = false;
 				break;
@@ -139,7 +139,7 @@ void SparseBuffer::SparseBindMemory(uint32_t bindCount, const VkSparseMemoryBind
 	}
 }
 
-void SparseBuffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const
+void SparseBuffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const noexcept
 {
 	pMemoryRequirements->size = (size + 4095) / 4096 * 4096;
 	pMemoryRequirements->alignment = 4096;

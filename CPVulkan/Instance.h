@@ -18,7 +18,7 @@ public:
 	Instance& operator=(const Instance&) = delete;
 	Instance&& operator=(const Instance&&) = delete;
 
-	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName);
+	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName) const;
 
 	VKAPI_ATTR void VKAPI_CALL DestroyInstance(const VkAllocationCallbacks* pAllocator);
 

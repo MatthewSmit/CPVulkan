@@ -14,7 +14,12 @@ class Device final
 {
 public:
 	Device();
+	Device(const Device&) = delete;
+	Device(Device&&) = delete;
 	~Device();
+
+	Device& operator=(const Device&) = delete;
+	Device&& operator=(const Device&&) = delete;
 
 	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName) const;
 	VKAPI_ATTR void VKAPI_PTR DestroyDevice(const VkAllocationCallbacks* pAllocator);
@@ -50,7 +55,7 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer);
 	VKAPI_ATTR void VKAPI_PTR DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateBufferView(const VkBufferViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView);
-	VKAPI_ATTR void VKAPI_PTR DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator);
+	VKAPI_ATTR void VKAPI_PTR DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator) noexcept;
 	VKAPI_ATTR VkResult VKAPI_PTR CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 	VKAPI_ATTR void VKAPI_PTR DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR void VKAPI_PTR GetImageSubresourceLayout(VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout) { FATAL_ERROR(); } 
@@ -205,7 +210,6 @@ public:
 	static VkResult Create(Instance* instance, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice);
 
 private:
-	void* magic;
 	std::unique_ptr<DeviceState> state;
 	ExtensionGroup enabledExtensions{};
 	

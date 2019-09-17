@@ -7,31 +7,34 @@
 
 struct DeviceMemory
 {
-	uint64_t Size;
+	ptrdiff_t Size;
 	uint8_t Data[1];
 
-	gsl::span<uint8_t> getSpan()
+	gsl::span<uint8_t> getSpan() noexcept
 	{
-		return gsl::span<uint8_t>{Data, static_cast<gsl::span<uint8_t>::index_type>(Size)};
+		return gsl::span<uint8_t>{Data, gsl::span<uint8_t>::index_type{Size}};
 	}
 };
 
 static DeviceMemory* AllocateSized(const VkAllocationCallbacks* pAllocator, uint64_t size, VkSystemAllocationScope allocationScope)
 {
-	DeviceMemory* deviceMemory;
-	if (pAllocator)
+	const auto realSize = sizeof(DeviceMemory) + size;
+	
+	assert(realSize <= uint64_t{std::numeric_limits<ptrdiff_t>::max()});
+
+	const auto deviceMemory = static_cast<DeviceMemory*>(pAllocator
+		                                                     ? pAllocator->pfnAllocation(pAllocator->pUserData, realSize, 4096, allocationScope)
+		                                                     : Platform::AlignedMalloc(realSize, 4096));
+	
+	if (deviceMemory)
 	{
-		deviceMemory = static_cast<DeviceMemory*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(DeviceMemory) + size, 4096, allocationScope));
+		deviceMemory->Size = size;
 	}
-	else
-	{
-		deviceMemory = static_cast<DeviceMemory*>(Platform::AlignedMalloc(sizeof(DeviceMemory) + size, 4096));
-	}
-	deviceMemory->Size = size;
+	
 	return deviceMemory;
 }
 
-static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator) noexcept
+static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator)
 {
 	if (pAllocator)
 	{
