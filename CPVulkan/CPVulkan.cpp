@@ -1,8 +1,7 @@
 ﻿#include "Instance.h"
 
 #include "Device.h"
-#include "Extensions.h"
-#include "PhysicalDevice.h"
+#include "Trampoline.h"
 
 #include <cstring>
 
@@ -16,7 +15,7 @@ extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstance
 {
 	if (strcmp(pName, "vkGetInstanceProcAddr") == 0)
 	{
-		return Trampoline(&Instance::GetProcAddress);
+		return GET_TRAMPOLINE(Instance, GetProcAddress);
 	}
 
 	if (strcmp(pName, "vkCreateInstance") == 0)
@@ -37,41 +36,41 @@ extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstance
 #if defined(VK_KHR_win32_surface)
 	if (strcmp(pName, "vkCreateWin32SurfaceKHR") == 0)
 	{
-		return Trampoline(&Instance::CreateWin32Surface);
+		return GET_TRAMPOLINE(Instance, CreateWin32Surface);
 	}
 #endif
 
 	if (strcmp(pName, "vkDestroySurfaceKHR") == 0)
 	{
-		return Trampoline(&Instance::DestroySurface);
+		return GET_TRAMPOLINE(Instance, DestroySurface);
 	}
 
 	if (strcmp(pName, "vkCreateSwapchainKHR") == 0)
 	{
-		return Trampoline(&Device::CreateSwapchain);
+		return GET_TRAMPOLINE(Device, CreateSwapchain);
 	}
 
 	if (strcmp(pName, "vkGetPhysicalDeviceSurfaceSupportKHR") == 0)
 	{
-		return Trampoline(&PhysicalDevice::GetSurfaceSupport);
+		return GET_TRAMPOLINE(PhysicalDevice, GetSurfaceSupport);
 	}
 
 	if (strcmp(pName, "vkGetPhysicalDeviceSurfaceCapabilitiesKHR") == 0)
 	{
-		return Trampoline(&PhysicalDevice::GetSurfaceCapabilities);
+		return GET_TRAMPOLINE(PhysicalDevice, GetSurfaceCapabilities);
 	}
 
 	if (strcmp(pName, "vkGetPhysicalDeviceSurfaceFormatsKHR") == 0)
 	{
-		return Trampoline(&PhysicalDevice::GetSurfaceFormats);
+		return GET_TRAMPOLINE(PhysicalDevice, GetSurfaceFormats);
 	}
 
 	if (strcmp(pName, "vkGetPhysicalDeviceSurfacePresentModesKHR") == 0)
 	{
-		return Trampoline(&PhysicalDevice::GetSurfacePresentModes);
+		return GET_TRAMPOLINE(PhysicalDevice, GetSurfacePresentModes);
 	}
 
-	return ((Instance*)instance)->GetProcAddress(pName);
+	return UnwrapVulkan<Instance>(instance)->GetProcAddress(pName);
 }
 
 extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetPhysicalDeviceProcAddr(VkInstance instance, const char* pName)

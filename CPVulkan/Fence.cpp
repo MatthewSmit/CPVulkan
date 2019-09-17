@@ -2,6 +2,7 @@
 
 #include "Device.h"
 #include "Platform.h"
+#include "Util.h"
 
 #include <cassert>
 
@@ -52,7 +53,7 @@ VkResult Fence::Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationC
 
 	fence->handle = Platform::CreateMutex(pCreateInfo->flags & VK_FENCE_CREATE_SIGNALED_BIT);
 
-	*pFence = reinterpret_cast<VkFence>(fence);
+	WrapVulkan(fence, pFence);
 	return VK_SUCCESS;
 }
 
@@ -63,13 +64,13 @@ VkResult Device::CreateFence(const VkFenceCreateInfo* pCreateInfo, const VkAlloc
 
 void Device::DestroyFence(VkFence fence, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Fence*>(fence), pAllocator);
+	Free(UnwrapVulkan<Fence>(fence), pAllocator);
 }
 
 VkResult Device::WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout)
 {
 	return Platform::WaitMultiple(ArrayToVector<void*, VkFence>(fenceCount, pFences, [](VkFence fence)
 	{
-		return reinterpret_cast<Fence*>(fence)->getHandle();
+		return UnwrapVulkan<Fence>(fence)->getHandle();
 	}), waitAll, timeout);
 }

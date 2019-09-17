@@ -34,12 +34,13 @@ static xcb_format_t* FindFormat(const xcb_setup_t* setup, uint8_t depth, uint8_t
 
 VkResult Swapchain::Present(uint32_t pImageIndex)
 {
+	const auto surfaceBase = UnwrapVulkan<VkIcdSurfaceBase>(surface);
     const auto image = images[pImageIndex];
 
-    if (reinterpret_cast<VkIcdSurfaceBase*>(surface)->platform == VK_ICD_WSI_PLATFORM_XCB)
+    if (surfaceBase->platform == VK_ICD_WSI_PLATFORM_XCB)
     {
 #if defined(VK_USE_PLATFORM_XCB_KHR)
-        const auto xcbSurface = reinterpret_cast<VkIcdSurfaceXcb*>(surface);
+        const auto xcbSurface = reinterpret_cast<VkIcdSurfaceXcb*>(surfaceBase);
         auto geometry = xcb_get_geometry_reply(xcbSurface->connection, xcb_get_geometry(xcbSurface->connection, xcbSurface->window), nullptr);
         const xcb_setup_t* setup = xcb_get_setup(xcbSurface->connection);
         auto* image32 = (uint8_t*)malloc(image->getWidth() * image->getHeight() * 4);
@@ -83,7 +84,7 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
     else
     {
 #if defined(VK_USE_PLATFORM_XLIB_KHR)
-        const auto xlibSurface = reinterpret_cast<VkIcdSurfaceXlib*>(surface);
+        const auto xlibSurface = reinterpret_cast<VkIcdSurfaceXlib*>(surfaceBase);
         FATAL_ERROR();
 #else
         FATAL_ERROR();
@@ -95,10 +96,11 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
 
 void Instance::DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator)
 {
-    if (reinterpret_cast<VkIcdSurfaceBase*>(surface)->platform == VK_ICD_WSI_PLATFORM_XCB)
+	const auto surfaceBase = UnwrapVulkan<VkIcdSurfaceBase>(surface);
+    if (surfaceBase->platform == VK_ICD_WSI_PLATFORM_XCB)
     {
 #if defined(VK_USE_PLATFORM_XCB_KHR)
-        Free(reinterpret_cast<VkIcdSurfaceXcb*>(surface), pAllocator);
+        Free(reinterpret_cast<VkIcdSurfaceXcb*>(surfaceBase), pAllocator);
 #else
         FATAL_ERROR();
 #endif
@@ -106,7 +108,7 @@ void Instance::DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks*
     else
     {
 #if defined(VK_USE_PLATFORM_XLIB_KHR)
-        Free(reinterpret_cast<VkIcdSurfaceXlib*>(surface), pAllocator);
+        Free(reinterpret_cast<VkIcdSurfaceXlib*>(surfaceBase), pAllocator);
 #else
         FATAL_ERROR();
 #endif
@@ -124,7 +126,8 @@ VkResult Instance::CreateXcbSurface(const VkXcbSurfaceCreateInfoKHR* pCreateInfo
     surface->base.platform = VK_ICD_WSI_PLATFORM_XCB;
     surface->connection = pCreateInfo->connection;
     surface->window = pCreateInfo->window;
-    *pSurface = reinterpret_cast<VkSurfaceKHR>(surface);
+
+	WrapVulkan(surface, pSurface);
     return VK_SUCCESS;
 }
 #endif
@@ -140,19 +143,21 @@ VkResult Instance::CreateXlibSurface(const VkXlibSurfaceCreateInfoKHR* pCreateIn
     surface->base.platform = VK_ICD_WSI_PLATFORM_XLIB;
     surface->dpy = pCreateInfo->dpy;
     surface->window = pCreateInfo->window;
-    *pSurface = reinterpret_cast<VkSurfaceKHR>(surface);
+
+	WrapVulkan(surface, pSurface);
     return VK_SUCCESS;
 }
 #endif
 
 VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities)
 {
+	const auto surfaceBase = UnwrapVulkan<VkIcdSurfaceBase>(surface);
     uint32_t width = 0;
     uint32_t height = 0;
-    if (reinterpret_cast<VkIcdSurfaceBase*>(surface)->platform == VK_ICD_WSI_PLATFORM_XCB)
+    if (surfaceBase->platform == VK_ICD_WSI_PLATFORM_XCB)
     {
 #if defined(VK_USE_PLATFORM_XCB_KHR)
-        const auto xcbSurface = reinterpret_cast<VkIcdSurfaceXcb*>(surface);
+        const auto xcbSurface = reinterpret_cast<VkIcdSurfaceXcb*>(surfaceBase);
         auto geometry = xcb_get_geometry_reply(xcbSurface->connection, xcb_get_geometry(xcbSurface->connection, xcbSurface->window), nullptr);
         width = geometry->width;
         height = geometry->height;
@@ -164,7 +169,7 @@ VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceC
     else
     {
 #if defined(VK_USE_PLATFORM_XLIB_KHR)
-        const auto xlibSurface = reinterpret_cast<VkIcdSurfaceXlib*>(surface);
+        const auto xlibSurface = reinterpret_cast<VkIcdSurfaceXlib*>(surfaceBase);
         Window rootWindow;
         int x;
         int y;

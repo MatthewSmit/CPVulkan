@@ -71,7 +71,7 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 	// parser.parse();
 	// shaderModule->ir = parser.get_parsed_ir();
 
-	*pShaderModule = reinterpret_cast<VkShaderModule>(shaderModule);
+	WrapVulkan(shaderModule, pShaderModule);
 	return VK_SUCCESS;
 }
 
@@ -82,5 +82,5 @@ VkResult Device::CreateShaderModule(const VkShaderModuleCreateInfo* pCreateInfo,
 
 void Device::DestroyShaderModule(VkShaderModule shaderModule, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<ShaderModule*>(shaderModule), pAllocator);
+	Free(UnwrapVulkan<ShaderModule>(shaderModule), pAllocator);
 }

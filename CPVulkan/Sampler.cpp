@@ -37,8 +37,8 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 	sampler->maxLod = pCreateInfo->maxLod;
 	sampler->borderColor = pCreateInfo->borderColor;
 	sampler->unnormalizedCoordinates = pCreateInfo->unnormalizedCoordinates;
-	
-	*pSampler = reinterpret_cast<VkSampler>(sampler);
+
+	WrapVulkan(sampler, pSampler);
 	return VK_SUCCESS;
 }
 
@@ -49,5 +49,5 @@ VkResult Device::CreateSampler(const VkSamplerCreateInfo* pCreateInfo, const VkA
 
 void Device::DestroySampler(VkSampler sampler, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Sampler*>(sampler), pAllocator);
+	Free(UnwrapVulkan<Sampler>(sampler), pAllocator);
 }

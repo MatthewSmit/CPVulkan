@@ -1,9 +1,17 @@
 #pragma once
 #include "Base.h"
 
-class Image final : public VulkanBase
+class Image final
 {
 public:
+	Image() = default;
+	Image(const Image&) = delete;
+	Image(Image&&) = delete;
+	~Image() = default;
+
+	Image& operator=(const Image&) = delete;
+	Image&& operator=(const Image&&) = delete;
+
 	VkResult BindMemory(VkDeviceMemory memory, uint64_t memoryOffset);
 	void GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const;
 

@@ -10,16 +10,16 @@ struct DeviceState;
 class Instance;
 class Queue;
 
-class Device final : public VulkanBase
+class Device final
 {
 public:
 	Device();
-	~Device() override;
+	~Device();
 
-	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName);
+	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName) const;
 	VKAPI_ATTR void VKAPI_PTR DestroyDevice(const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR void VKAPI_PTR GetDeviceQueue(uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue* pQueue);
-	VKAPI_ATTR VkResult VKAPI_PTR DeviceWaitIdle();
+	VKAPI_ATTR VkResult VKAPI_PTR WaitIdle();
 	VKAPI_ATTR VkResult VKAPI_PTR AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const VkAllocationCallbacks* pAllocator, VkDeviceMemory* pMemory);
 	VKAPI_ATTR void VKAPI_PTR FreeMemory(VkDeviceMemory memory, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData);
@@ -111,40 +111,23 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR GetDeviceGroupSurfacePresentModes(VkSurfaceKHR surface, VkDeviceGroupPresentModeFlagsKHR* pModes) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR AcquireNextImage2(const VkAcquireNextImageInfoKHR* pAcquireInfo, uint32_t* pImageIndex) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateSharedSwapchainsKHR(uint32_t swapchainCount, const VkSwapchainCreateInfoKHR* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchains) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateSharedSwapchains(uint32_t swapchainCount, const VkSwapchainCreateInfoKHR* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchains) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR void VKAPI_PTR GetDeviceGroupPeerMemoryFeaturesKHR(uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex, VkPeerMemoryFeatureFlags* pPeerMemoryFeatures) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryFd(const VkMemoryGetFdInfoKHR* pGetFdInfo, int* pFd) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryFdProperties(VkExternalMemoryHandleTypeFlagBits handleType, int fd, VkMemoryFdPropertiesKHR* pMemoryFdProperties) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR void VKAPI_PTR TrimCommandPoolKHR(VkCommandPool commandPool, VkCommandPoolTrimFlags flags) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR ImportSemaphoreFd(const VkImportSemaphoreFdInfoKHR* pImportSemaphoreFdInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetSemaphoreFd(const VkSemaphoreGetFdInfoKHR* pGetFdInfo, int* pFd) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryFdKHR(const VkMemoryGetFdInfoKHR* pGetFdInfo, int* pFd) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryFdPropertiesKHR(VkExternalMemoryHandleTypeFlagBits handleType, int fd, VkMemoryFdPropertiesKHR* pMemoryFdProperties) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR VkResult VKAPI_PTR ImportSemaphoreFdKHR(const VkImportSemaphoreFdInfoKHR* pImportSemaphoreFdInfo) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR GetSemaphoreFdKHR(const VkSemaphoreGetFdInfoKHR* pGetFdInfo, int* pFd) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR VkResult VKAPI_PTR CreateDescriptorUpdateTemplateKHR(const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyDescriptorUpdateTemplateKHR(VkDescriptorUpdateTemplate descriptorUpdateTemplate, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR UpdateDescriptorSetWithTemplateKHR(VkDescriptorSet descriptorSet, VkDescriptorUpdateTemplate descriptorUpdateTemplate, const void* pData) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR VkResult VKAPI_PTR CreateRenderPass2KHR(const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateRenderPass2(const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass) { FATAL_ERROR(); } 
 	
-	VKAPI_ATTR VkResult VKAPI_PTR GetSwapchainStatusKHR(VkSwapchainKHR swapchain) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetSwapchainStatus(VkSwapchainKHR swapchain) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR ImportFenceFdKHR(const VkImportFenceFdInfoKHR* pImportFenceFdInfo) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR GetFenceFdKHR(const VkFenceGetFdInfoKHR* pGetFdInfo, int* pFd) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR ImportFenceFd(const VkImportFenceFdInfoKHR* pImportFenceFdInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetFenceFd(const VkFenceGetFdInfoKHR* pGetFdInfo, int* pFd) { FATAL_ERROR(); }
 
-	VKAPI_ATTR void VKAPI_PTR GetImageMemoryRequirements2KHR(const VkImageMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements2KHR(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR GetImageSparseMemoryRequirements2KHR(const VkImageSparseMemoryRequirementsInfo2* pInfo, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements2* pSparseMemoryRequirements) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR VkResult VKAPI_PTR BindBufferMemory2KHR(uint32_t bindInfoCount, const VkBindBufferMemoryInfo* pBindInfos) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR BindImageMemory2KHR(uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR void VKAPI_PTR GetDescriptorSetLayoutSupportKHR(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayoutSupport* pSupport) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectTagEXT(const VkDebugMarkerObjectTagInfoEXT* pTagInfo) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectNameEXT(const VkDebugMarkerObjectNameInfoEXT* pNameInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectTag(const VkDebugMarkerObjectTagInfoEXT* pTagInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectName(const VkDebugMarkerObjectNameInfoEXT* pNameInfo) { FATAL_ERROR(); } 
 	
 	VKAPI_ATTR uint32_t VKAPI_PTR GetImageViewHandleNVX(const VkImageViewHandleInfoNVX* pInfo) { FATAL_ERROR(); } 
 
@@ -157,25 +140,25 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR RegisterObjectsNVX(VkObjectTableNVX objectTable, uint32_t objectCount, const VkObjectTableEntryNVX* const* ppObjectTableEntries, const uint32_t* pObjectIndices) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR UnregisterObjectsNVX(VkObjectTableNVX objectTable, uint32_t objectCount, const VkObjectEntryTypeNVX* pObjectEntryTypes, const uint32_t* pObjectIndices) { FATAL_ERROR(); } 
 	
-	VKAPI_ATTR VkResult VKAPI_PTR DisplayPowerControlEXT(VkDisplayKHR display, const VkDisplayPowerInfoEXT* pDisplayPowerInfo) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR RegisterDeviceEventEXT(const VkDeviceEventInfoEXT* pDeviceEventInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR RegisterDisplayEventEXT(VkDisplayKHR display, const VkDisplayEventInfoEXT* pDisplayEventInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR GetSwapchainCounterEXT(VkSwapchainKHR swapchain, VkSurfaceCounterFlagBitsEXT counter, uint64_t* pCounterValue) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR DisplayPowerControl(VkDisplayKHR display, const VkDisplayPowerInfoEXT* pDisplayPowerInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR RegisterDeviceEvent(const VkDeviceEventInfoEXT* pDeviceEventInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR RegisterDisplayEvent(VkDisplayKHR display, const VkDisplayEventInfoEXT* pDisplayEventInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetSwapchainCounter(VkSwapchainKHR swapchain, VkSurfaceCounterFlagBitsEXT counter, uint64_t* pCounterValue) { FATAL_ERROR(); } 
 
 	VKAPI_ATTR VkResult VKAPI_PTR GetRefreshCycleDurationGOOGLE(VkSwapchainKHR swapchain, VkRefreshCycleDurationGOOGLE* pDisplayTimingProperties) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR GetPastPresentationTimingGOOGLE(VkSwapchainKHR swapchain, uint32_t* pPresentationTimingCount, VkPastPresentationTimingGOOGLE* pPresentationTimings) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR void VKAPI_PTR SetHdrMetadataEXT(uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const VkHdrMetadataEXT* pMetadata) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR SetHdrMetadata(uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const VkHdrMetadataEXT* pMetadata) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR SetDebugUtilsObjectNameEXT(const VkDebugUtilsObjectNameInfoEXT* pNameInfo) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR SetDebugUtilsObjectTagEXT(const VkDebugUtilsObjectTagInfoEXT* pTagInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR SetDebugUtilsObjectName(const VkDebugUtilsObjectNameInfoEXT* pNameInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR SetDebugUtilsObjectTag(const VkDebugUtilsObjectTagInfoEXT* pTagInfo) { FATAL_ERROR(); } 
 	
-	VKAPI_ATTR VkResult VKAPI_PTR GetImageDrmFormatModifierPropertiesEXT(VkImage image, VkImageDrmFormatModifierPropertiesEXT* pProperties) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetImageDrmFormatModifierProperties(VkImage image, VkImageDrmFormatModifierPropertiesEXT* pProperties) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateValidationCacheEXT(const VkValidationCacheCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkValidationCacheEXT* pValidationCache) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyValidationCacheEXT(VkValidationCacheEXT validationCache, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR MergeValidationCachesEXT(VkValidationCacheEXT dstCache, uint32_t srcCacheCount, const VkValidationCacheEXT* pSrcCaches) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR GetValidationCacheDataEXT(VkValidationCacheEXT validationCache, size_t* pDataSize, void* pData) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateValidationCache(const VkValidationCacheCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkValidationCacheEXT* pValidationCache) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DestroyValidationCache(VkValidationCacheEXT validationCache, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR MergeValidationCaches(VkValidationCacheEXT dstCache, uint32_t srcCacheCount, const VkValidationCacheEXT* pSrcCaches) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetValidationCacheData(VkValidationCacheEXT validationCache, size_t* pDataSize, void* pData) { FATAL_ERROR(); } 
 
 	VKAPI_ATTR VkResult VKAPI_PTR CreateAccelerationStructureNV(const VkAccelerationStructureCreateInfoNV* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkAccelerationStructureNV* pAccelerationStructure) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DestroyAccelerationStructureNV(VkAccelerationStructureNV accelerationStructure, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
@@ -186,9 +169,9 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR GetAccelerationStructureHandleNV(VkAccelerationStructureNV accelerationStructure, size_t dataSize, void* pData) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR CompileDeferredNV(VkPipeline pipeline, uint32_t shader) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryHostPointerPropertiesEXT(VkExternalMemoryHandleTypeFlagBits handleType, const void* pHostPointer, VkMemoryHostPointerPropertiesEXT* pMemoryHostPointerProperties) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryHostPointerProperties(VkExternalMemoryHandleTypeFlagBits handleType, const void* pHostPointer, VkMemoryHostPointerPropertiesEXT* pMemoryHostPointerProperties) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetCalibratedTimestampsEXT(uint32_t timestampCount, const VkCalibratedTimestampInfoEXT* pTimestampInfos, uint64_t* pTimestamps, uint64_t* pMaxDeviation) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR GetCalibratedTimestamps(uint32_t timestampCount, const VkCalibratedTimestampInfoEXT* pTimestampInfos, uint64_t* pTimestamps, uint64_t* pMaxDeviation) { FATAL_ERROR(); } 
 
 	VKAPI_ATTR VkResult VKAPI_PTR InitializePerformanceApiINTEL(const VkInitializePerformanceApiInfoINTEL* pInitializeInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR UninitializePerformanceApiINTEL() { FATAL_ERROR(); } 
@@ -198,30 +181,31 @@ public:
 
 	VKAPI_ATTR void VKAPI_PTR SetLocalDimmingAMD(VkSwapchainKHR swapChain, VkBool32 localDimmingEnable) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkDeviceAddress VKAPI_PTR GetBufferDeviceAddressEXT(const VkBufferDeviceAddressInfoEXT* pInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkDeviceAddress VKAPI_PTR GetBufferDeviceAddress(const VkBufferDeviceAddressInfoEXT* pInfo) { FATAL_ERROR(); } 
 
 	VKAPI_ATTR void VKAPI_PTR ResetQueryPoolEXT(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) { FATAL_ERROR(); }
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
-	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandleKHR(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandlePropertiesKHR(VkExternalMemoryHandleTypeFlagBits handleType, HANDLE handle, VkMemoryWin32HandlePropertiesKHR* pMemoryWin32HandleProperties) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandleProperties(VkExternalMemoryHandleTypeFlagBits handleType, HANDLE handle, VkMemoryWin32HandlePropertiesKHR* pMemoryWin32HandleProperties) { FATAL_ERROR(); }
 								  
-	VKAPI_ATTR VkResult VKAPI_PTR ImportSemaphoreWin32HandleKHR(const VkImportSemaphoreWin32HandleInfoKHR* pImportSemaphoreWin32HandleInfo) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetSemaphoreWin32HandleKHR(const VkSemaphoreGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR ImportSemaphoreWin32Handle(const VkImportSemaphoreWin32HandleInfoKHR* pImportSemaphoreWin32HandleInfo) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetSemaphoreWin32Handle(const VkSemaphoreGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }
 								  
-	VKAPI_ATTR VkResult VKAPI_PTR ImportFenceWin32HandleKHR(const VkImportFenceWin32HandleInfoKHR* pImportFenceWin32HandleInfo) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetFenceWin32HandleKHR(const VkFenceGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR ImportFenceWin32Handle(const VkImportFenceWin32HandleInfoKHR* pImportFenceWin32HandleInfo) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetFenceWin32Handle(const VkFenceGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }
 								  
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandleNV(VkDeviceMemory memory, VkExternalMemoryHandleTypeFlagsNV handleType, HANDLE* pHandle) { FATAL_ERROR(); }
 								  
-	VKAPI_ATTR VkResult VKAPI_PTR AcquireFullScreenExclusiveModeEXT(VkSwapchainKHR swapchain) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR ReleaseFullScreenExclusiveModeEXT(VkSwapchainKHR swapchain) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetDeviceGroupSurfacePresentModes2EXT(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkDeviceGroupPresentModeFlagsKHR* pModes) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR AcquireFullScreenExclusiveMode(VkSwapchainKHR swapchain) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR ReleaseFullScreenExclusiveMode(VkSwapchainKHR swapchain) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetDeviceGroupSurfacePresentModes2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkDeviceGroupPresentModeFlagsKHR* pModes) { FATAL_ERROR(); }
 #endif
 
 	static VkResult Create(Instance* instance, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice);
 
 private:
+	void* magic;
 	std::unique_ptr<DeviceState> state;
 	ExtensionGroup enabledExtensions{};
 	

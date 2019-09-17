@@ -5,11 +5,17 @@ struct DeviceState;
 
 class CommandBuffer;
 
-class CommandPool final : public VulkanBase
+class CommandPool final
 {
 public:
-	~CommandPool() override = default;
-	
+	CommandPool() = default;
+	CommandPool(const CommandPool&) = delete;
+	CommandPool(CommandPool&&) = delete;
+	~CommandPool() = default;
+
+	CommandPool& operator=(const CommandPool&) = delete;
+	CommandPool&& operator=(const CommandPool&&) = delete;
+
 	VkResult AllocateCommandBuffers(const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers);
 	void FreeCommandBuffers(uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers);
 	

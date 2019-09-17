@@ -6,10 +6,16 @@ namespace SPIRV
 	class SPIRVModule;
 }
 
-class ShaderModule final : public VulkanBase
+class ShaderModule final
 {
 public:
-	~ShaderModule() override = default;
+	ShaderModule() = default;
+	ShaderModule(const ShaderModule&) = delete;
+	ShaderModule(ShaderModule&&) = delete;
+	~ShaderModule() = default;
+
+	ShaderModule& operator=(const ShaderModule&) = delete;
+	ShaderModule&& operator=(const ShaderModule&&) = delete;
 
 	static VkResult Create(const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule);
 

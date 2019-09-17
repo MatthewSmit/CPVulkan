@@ -1,19 +1,20 @@
 #include "Buffer.h"
 
 #include "Device.h"
+#include "Util.h"
 
 #include <cassert>
 
 VkResult Buffer::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
-	// TODO: Bounds check
-	data = reinterpret_cast<DeviceMemory*>(memory)->Data + memoryOffset;
+	const auto memorySpan = UnwrapVulkan<DeviceMemory>(memory)->getSpan();
+	data = gsl::span<uint8_t>(&memorySpan[memoryOffset], &memorySpan[memoryOffset + size - 1]);
 	return VK_SUCCESS;
 }
 
 VkResult Device::BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset)
 {
-	return reinterpret_cast<Buffer*>(buffer)->BindMemory(memory, memoryOffset);
+	return UnwrapVulkan<Buffer>(buffer)->BindMemory(memory, memoryOffset);
 }
 
 void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const
@@ -33,7 +34,7 @@ void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) c
 		{
 		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
 			{
-				auto memoryRequirements = reinterpret_cast<VkMemoryDedicatedRequirements*>(next);
+				const auto memoryRequirements = reinterpret_cast<VkMemoryDedicatedRequirements*>(next);
 				memoryRequirements->prefersDedicatedAllocation = false;
 				memoryRequirements->requiresDedicatedAllocation = false;
 				break;
@@ -47,7 +48,7 @@ void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) c
 
 void Device::GetBufferMemoryRequirements(VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements)
 {
-	reinterpret_cast<Buffer*>(buffer)->GetMemoryRequirements(pMemoryRequirements);
+	UnwrapVulkan<Buffer>(buffer)->GetMemoryRequirements(pMemoryRequirements);
 }
 
 void Device::GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements)
@@ -55,10 +56,10 @@ void Device::GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2*
 	assert(pInfo->sType == VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2);
 	assert(pMemoryRequirements->sType == VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2);
 
-	reinterpret_cast<Buffer*>(pInfo->buffer)->GetMemoryRequirements(pMemoryRequirements);
+	UnwrapVulkan<Buffer>(pInfo->buffer)->GetMemoryRequirements(pMemoryRequirements);
 }
 
-VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, gsl::not_null<VkBuffer*> pBuffer)
+VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
 
@@ -102,7 +103,7 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 		FATAL_ERROR();
 	}
 	
-	*pBuffer = reinterpret_cast<VkBuffer>(buffer);
+	WrapVulkan(buffer, pBuffer);
 	return VK_SUCCESS;
 }
 
@@ -127,7 +128,7 @@ void SparseBuffer::SparseBindMemory(uint32_t bindCount, const VkSparseMemoryBind
 		{
 			if (bind.memory)
 			{
-				this->pointers[page] = reinterpret_cast<DeviceMemory*>(bind.memory)->Data + bind.memoryOffset;
+				this->pointers[page] = UnwrapVulkan<DeviceMemory>(bind.memory)->Data + bind.memoryOffset;
 			}
 			else
 			{
@@ -157,5 +158,5 @@ VkResult Device::CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAll
 
 void Device::DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Buffer*>(buffer), pAllocator);
+	Free(UnwrapVulkan<Buffer>(buffer), pAllocator);
 }

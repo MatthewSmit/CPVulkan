@@ -49,7 +49,7 @@ VkResult Event::Create(const VkEventCreateInfo* pCreateInfo, const VkAllocationC
 
 	event->handle = Platform::CreateMutex(false);
 
-	*pEvent = reinterpret_cast<VkEvent>(event);
+	WrapVulkan(event, pEvent);
 	return VK_SUCCESS;
 }
 
@@ -67,15 +67,15 @@ VkResult Device::CreateEvent(const VkEventCreateInfo* pCreateInfo, const VkAlloc
 
 void Device::DestroyEvent(VkEvent event, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Event*>(event), pAllocator);
+	Free(UnwrapVulkan<Event>(event), pAllocator);
 }
 
 VkResult Device::GetEventStatus(VkEvent event)
 {
-	return reinterpret_cast<Event*>(event)->getStatus();
+	return UnwrapVulkan<Event>(event)->getStatus();
 }
 
 VkResult Device::ResetEvent(VkEvent event)
 {
-	return reinterpret_cast<Event*>(event)->Reset();
+	return UnwrapVulkan<Event>(event)->Reset();
 }

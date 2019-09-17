@@ -1,5 +1,7 @@
 #include "DescriptorSetLayout.h"
 
+#include "Util.h"
+
 #include <cassert>
 
 VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout)
@@ -26,6 +28,6 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 
 	descriptorSetLayout->bindings = ArrayToVector(pCreateInfo->bindingCount, pCreateInfo->pBindings);
 
-	*pSetLayout = reinterpret_cast<VkDescriptorSetLayout>(descriptorSetLayout);
+	WrapVulkan(descriptorSetLayout, pSetLayout);
 	return VK_SUCCESS;
 }

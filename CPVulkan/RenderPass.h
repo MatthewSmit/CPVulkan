@@ -12,16 +12,22 @@ struct Subpass
 	std::vector<uint32_t> PreserveAttachments;
 };
 
-class RenderPass final : public VulkanBase
+class RenderPass final
 {
 public:
-	~RenderPass() override = default;
-	
+	RenderPass() = default;
+	RenderPass(const RenderPass&) = delete;
+	RenderPass(RenderPass&&) = delete;
+	~RenderPass() = default;
+
+	RenderPass& operator=(const RenderPass&) = delete;
+	RenderPass&& operator=(const RenderPass&&) = delete;
+
 	static VkResult Create(const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass);
 
-	const std::vector<VkAttachmentDescription>& getAttachments() const { return attachments; }
-	const std::vector<Subpass>& getSubpasses() const { return subpasses; }
-	const std::vector<VkSubpassDependency>& getDependencies() const { return dependencies; }
+	[[nodiscard]] const std::vector<VkAttachmentDescription>& getAttachments() const { return attachments; }
+	[[nodiscard]] const std::vector<Subpass>& getSubpasses() const { return subpasses; }
+	[[nodiscard]] const std::vector<VkSubpassDependency>& getDependencies() const { return dependencies; }
 
 private:
 	std::vector<VkAttachmentDescription> attachments;

@@ -5,6 +5,7 @@
 #include "Formats.h"
 #include "Image.h"
 #include "Semaphore.h"
+#include "Util.h"
 
 #include <cassert>
 
@@ -18,7 +19,9 @@ VkResult Swapchain::GetImages(uint32_t* pSwapchainImageCount, VkImage* vkImage) 
 {
 	return HandleEnumeration<VkImage, Image*>(pSwapchainImageCount, vkImage, images, [](Image* image)
 	{
-		return reinterpret_cast<VkImage>(image);
+		VkImage result;
+		WrapVulkan(image, &result);
+		return result;
 	});
 }
 
@@ -27,11 +30,11 @@ VkResult Swapchain::AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, Vk
 	*pImageIndex = 0;
 	if (semaphore)
 	{
-		reinterpret_cast<Semaphore*>(semaphore)->Signal();
+		UnwrapVulkan<Semaphore>(semaphore)->Signal();
 	}
 	if (fence)
 	{
-		reinterpret_cast<Fence*>(fence)->Signal();
+		UnwrapVulkan<Fence>(fence)->Signal();
 	}
 	return VK_SUCCESS;
 }
@@ -91,8 +94,9 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 	{
 		VK_STRUCTURE_TYPE_IMAGE_SWAPCHAIN_CREATE_INFO_KHR,
 		nullptr,
-		reinterpret_cast<VkSwapchainKHR>(swapchain),
+		nullptr,
 	};
+	WrapVulkan(swapchain, &imageSwapchain.swapchain);
 	VkImageCreateInfo imageCreate
 	{
 		VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -130,8 +134,11 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 		{
 			FATAL_ERROR();
 		}
-		reinterpret_cast<Image*>(image)->BindMemory(reinterpret_cast<VkDeviceMemory>(swapchain->data), dataStride * i);
-		swapchain->images.push_back(reinterpret_cast<Image*>(image));
+
+		VkDeviceMemory deviceMemory;
+		WrapVulkan(swapchain->data, &deviceMemory);
+		UnwrapVulkan<Image>(image)->BindMemory(deviceMemory, dataStride * i);
+		swapchain->images.push_back(UnwrapVulkan<Image>(image));
 	}
 	
 	if (pCreateInfo->oldSwapchain)
@@ -139,7 +146,7 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 		FATAL_ERROR();
 	}
 
-	*pSwapchain = reinterpret_cast<VkSwapchainKHR>(swapchain);
+	WrapVulkan(swapchain, pSwapchain);
 	return VK_SUCCESS;
 }
 
@@ -150,16 +157,16 @@ VkResult Device::CreateSwapchain(const VkSwapchainCreateInfoKHR* pCreateInfo, co
 
 void Device::DestroySwapchain(VkSwapchainKHR swapchain, const VkAllocationCallbacks* pAllocator)
 {
-	reinterpret_cast<Swapchain*>(swapchain)->DeleteImages(pAllocator);
-	Free(reinterpret_cast<Swapchain*>(swapchain), pAllocator);
+	UnwrapVulkan<Swapchain>(swapchain)->DeleteImages(pAllocator);
+	Free(UnwrapVulkan<Swapchain>(swapchain), pAllocator);
 }
 
 VkResult Device::GetSwapchainImages(VkSwapchainKHR swapchain, uint32_t* pSwapchainImageCount, VkImage* pSwapchainImages)
 {
-	return reinterpret_cast<Swapchain*>(swapchain)->GetImages(pSwapchainImageCount, pSwapchainImages);
+	return UnwrapVulkan<Swapchain>(swapchain)->GetImages(pSwapchainImageCount, pSwapchainImages);
 }
 
 VkResult Device::AcquireNextImage(VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex)
 {
-	return reinterpret_cast<Swapchain*>(swapchain)->AcquireNextImage(timeout, semaphore, fence, pImageIndex);
+	return UnwrapVulkan<Swapchain>(swapchain)->AcquireNextImage(timeout, semaphore, fence, pImageIndex);
 }

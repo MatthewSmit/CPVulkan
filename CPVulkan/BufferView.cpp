@@ -2,7 +2,7 @@
 
 #include "Device.h"
 
-VkResult BufferView::Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, gsl::not_null<VkBufferView*> pView)
+VkResult BufferView::Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO);
 
@@ -23,12 +23,12 @@ VkResult BufferView::Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreate
 		FATAL_ERROR();
 	}
 
-	bufferView->buffer = reinterpret_cast<Buffer*>(pCreateInfo->buffer);
+	bufferView->buffer = UnwrapVulkan<Buffer>(pCreateInfo->buffer);
 	bufferView->format = pCreateInfo->format;
 	bufferView->offset = pCreateInfo->offset;
 	bufferView->range = pCreateInfo->range;
-	
-	*pView = reinterpret_cast<VkBufferView>(bufferView);
+
+	WrapVulkan(bufferView, pView);
 	return VK_SUCCESS;
 }
 
@@ -39,5 +39,5 @@ VkResult Device::CreateBufferView(const VkBufferViewCreateInfo* pCreateInfo, con
 
 void Device::DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<BufferView*>(bufferView), pAllocator);
+	Free(UnwrapVulkan<BufferView>(bufferView), pAllocator);
 }

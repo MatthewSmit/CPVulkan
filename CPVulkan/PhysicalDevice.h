@@ -3,13 +3,20 @@
 
 class Instance;
 
-class PhysicalDevice final : public VulkanBase
+class PhysicalDevice final
 {
 public:
-	PhysicalDevice(Instance* instance) :
+	explicit PhysicalDevice(Instance* instance) :
 		instance{instance}
 	{
 	}
+	
+	PhysicalDevice(const PhysicalDevice&) = delete;
+	PhysicalDevice(PhysicalDevice&&) = delete;
+	~PhysicalDevice() = default;
+
+	PhysicalDevice& operator=(const PhysicalDevice&) = delete;
+	PhysicalDevice&& operator=(const PhysicalDevice&&) = delete;
 	
 	VKAPI_ATTR void VKAPI_CALL GetFeatures(VkPhysicalDeviceFeatures* pFeatures);
 
@@ -65,39 +72,33 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR CreateDisplayMode(VkDisplayKHR display, const VkDisplayModeCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDisplayModeKHR* pMode) { FATAL_ERROR(); }
 	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayPlaneCapabilities(VkDisplayModeKHR mode, uint32_t planeIndex, VkDisplayPlaneCapabilitiesKHR* pCapabilities) { FATAL_ERROR(); }
 
-	VKAPI_ATTR void VKAPI_PTR GetExternalBufferPropertiesKHR(const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo, VkExternalBufferProperties* pExternalBufferProperties) { FATAL_ERROR(); }
-
-	VKAPI_ATTR void VKAPI_PTR GetExternalSemaphorePropertiesKHR(const VkPhysicalDeviceExternalSemaphoreInfo* pExternalSemaphoreInfo, VkExternalSemaphoreProperties* pExternalSemaphoreProperties) { FATAL_ERROR(); }
-
-	VKAPI_ATTR void VKAPI_PTR GetExternalFencePropertiesKHR(const VkPhysicalDeviceExternalFenceInfo* pExternalFenceInfo, VkExternalFenceProperties* pExternalFenceProperties) { FATAL_ERROR(); }
-
 	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceCapabilities2KHR(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkSurfaceCapabilities2KHR* pSurfaceCapabilities) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceFormats2KHR(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pSurfaceFormatCount, VkSurfaceFormat2KHR* pSurfaceFormats) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceFormats2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pSurfaceFormatCount, VkSurfaceFormat2KHR* pSurfaceFormats) { FATAL_ERROR(); }
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayProperties2KHR(uint32_t* pPropertyCount, VkDisplayProperties2KHR* pProperties) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayPlaneProperties2KHR(uint32_t* pPropertyCount, VkDisplayPlaneProperties2KHR* pProperties) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayModeProperties2KHR(VkDisplayKHR display, uint32_t* pPropertyCount, VkDisplayModeProperties2KHR* pProperties) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayPlaneCapabilities2KHR(const VkDisplayPlaneInfo2KHR* pDisplayPlaneInfo, VkDisplayPlaneCapabilities2KHR* pCapabilities) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayProperties2(uint32_t* pPropertyCount, VkDisplayProperties2KHR* pProperties) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayPlaneProperties2(uint32_t* pPropertyCount, VkDisplayPlaneProperties2KHR* pProperties) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayModeProperties2(VkDisplayKHR display, uint32_t* pPropertyCount, VkDisplayModeProperties2KHR* pProperties) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayPlaneCapabilities2(const VkDisplayPlaneInfo2KHR* pDisplayPlaneInfo, VkDisplayPlaneCapabilities2KHR* pCapabilities) { FATAL_ERROR(); }
 
 	VKAPI_ATTR VkResult VKAPI_PTR GetExternalImageFormatPropertiesNV(VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkExternalMemoryHandleTypeFlagsNV externalHandleType, VkExternalImageFormatPropertiesNV* pExternalImageFormatProperties) { FATAL_ERROR(); }
 
 	VKAPI_ATTR void VKAPI_PTR GetGeneratedCommandsPropertiesNVX(VkDeviceGeneratedCommandsFeaturesNVX* pFeatures, VkDeviceGeneratedCommandsLimitsNVX* pLimits) { FATAL_ERROR(); }
 
-	VKAPI_ATTR VkResult VKAPI_PTR ReleaseDisplayEXT(VkDisplayKHR display) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR ReleaseDisplay(VkDisplayKHR display) { FATAL_ERROR(); }
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceCapabilities2EXT(VkSurfaceKHR surface, VkSurfaceCapabilities2EXT* pSurfaceCapabilities) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceCapabilities2(VkSurfaceKHR surface, VkSurfaceCapabilities2EXT* pSurfaceCapabilities) { FATAL_ERROR(); }
 
-	VKAPI_ATTR void VKAPI_PTR GetMultisamplePropertiesEXT(VkSampleCountFlagBits samples, VkMultisamplePropertiesEXT* pMultisampleProperties) { FATAL_ERROR(); }
+	VKAPI_ATTR void VKAPI_PTR GetMultisampleProperties(VkSampleCountFlagBits samples, VkMultisamplePropertiesEXT* pMultisampleProperties) { FATAL_ERROR(); }
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetCalibrateableTimeDomainsEXT(uint32_t* pTimeDomainCount, VkTimeDomainEXT* pTimeDomains) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetCalibrateableTimeDomains(uint32_t* pTimeDomainCount, VkTimeDomainEXT* pTimeDomains) { FATAL_ERROR(); }
 	
 	VKAPI_ATTR VkResult VKAPI_PTR GetCooperativeMatrixPropertiesNV(uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesNV* pProperties) { FATAL_ERROR(); }
 
 	VKAPI_ATTR VkResult VKAPI_PTR GetSupportedFramebufferMixedSamplesCombinationsNV(uint32_t* pCombinationCount, VkFramebufferMixedSamplesCombinationNV* pCombinations) { FATAL_ERROR(); }
 
-	VKAPI_ATTR VkBool32 VKAPI_PTR GetWin32PresentationSupportKHR(uint32_t queueFamilyIndex) { FATAL_ERROR(); }
+	VKAPI_ATTR VkBool32 VKAPI_PTR GetWin32PresentationSupport(uint32_t queueFamilyIndex) { FATAL_ERROR(); }
 								  
-	VKAPI_ATTR VkResult VKAPI_PTR GetSurfacePresentModes2EXT(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetSurfacePresentModes2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes) { FATAL_ERROR(); }
 
 #if defined(VK_KHR_xcb_surface)
     VKAPI_ATTR VkBool32 VKAPI_PTR GetPhysicalDeviceXcbPresentationSupport(uint32_t queueFamilyIndex, xcb_connection_t* connection, xcb_visualid_t visual_id) { FATAL_ERROR(); }

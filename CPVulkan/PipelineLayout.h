@@ -1,10 +1,16 @@
 #pragma once
 #include "Base.h"
 
-class PipelineLayout final : public VulkanBase
+class PipelineLayout final
 {
 public:
-	~PipelineLayout() override = default;
-	
+	PipelineLayout() = default;
+	PipelineLayout(const PipelineLayout&) = delete;
+	PipelineLayout(PipelineLayout&&) = delete;
+	~PipelineLayout() = default;
+
+	PipelineLayout& operator=(const PipelineLayout&) = delete;
+	PipelineLayout&& operator=(const PipelineLayout&&) = delete;
+
 	static VkResult Create(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout);
 };

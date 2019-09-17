@@ -2,19 +2,20 @@
 
 #include "Device.h"
 #include "Formats.h"
+#include "Util.h"
 
 #include <cassert>
 
 VkResult Image::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
 	// TODO: Bounds check
-	data = reinterpret_cast<DeviceMemory*>(memory)->Data + memoryOffset;
+	data = UnwrapVulkan<DeviceMemory>(memory)->Data + memoryOffset;
 	return VK_SUCCESS;
 }
 
 VkResult Device::BindImageMemory(VkImage image, VkDeviceMemory memory, VkDeviceSize memoryOffset)
 {
-	return reinterpret_cast<Image*>(image)->BindMemory(memory, memoryOffset);
+	return UnwrapVulkan<Image>(image)->BindMemory(memory, memoryOffset);
 }
 
 void Image::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const
@@ -26,7 +27,7 @@ void Image::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) con
 
 void Device::GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMemoryRequirements)
 {
-	reinterpret_cast<Image*>(image)->GetMemoryRequirements(pMemoryRequirements);
+	UnwrapVulkan<Image>(image)->GetMemoryRequirements(pMemoryRequirements);
 }
 
 VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
@@ -96,8 +97,8 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 	{
 		FATAL_ERROR();
 	}
-	
-	*pImage = reinterpret_cast<VkImage>(image);
+
+	WrapVulkan(image, pImage);
 	return VK_SUCCESS;
 }
 
@@ -108,5 +109,5 @@ VkResult Device::CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAlloc
 
 void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Image*>(image), pAllocator);
+	Free(UnwrapVulkan<Image>(image), pAllocator);
 }

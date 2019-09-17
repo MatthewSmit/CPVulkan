@@ -8,6 +8,7 @@
 #include "Pipeline.h"
 #include "PipelineLayout.h"
 #include "Queue.h"
+#include "Util.h"
 
 #include <cassert>
 
@@ -16,9 +17,16 @@ Device::Device() :
 {
 }
 
-Device::~Device() = default;
+Device::~Device()
+{
+	for (auto& queue : queues)
+	{
+		const auto queuePtr = queue.release();
+		Free(queuePtr, nullptr);
+	}
+}
 
-PFN_vkVoidFunction Device::GetProcAddress(const char* pName)
+PFN_vkVoidFunction Device::GetProcAddress(const char* pName) const
 {
 	return enabledExtensions.getFunction(pName, true);
 }
@@ -35,10 +43,10 @@ void Device::GetDeviceQueue(uint32_t queueFamilyIndex, uint32_t queueIndex, VkQu
 		FATAL_ERROR();
 	}
 
-	*pQueue = reinterpret_cast<VkQueue>(queues[queueIndex].get());
+	WrapVulkan(queues[queueIndex].get(), pQueue);
 }
 
-VkResult Device::DeviceWaitIdle()
+VkResult Device::WaitIdle()
 {
 	// TODO:
 	return VK_SUCCESS;
@@ -90,6 +98,7 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
 			{
 				const auto allocateInfo = reinterpret_cast<const VkMemoryDedicatedAllocateInfo*>(next);
+				(void)allocateInfo;
 				break;
 			}
 			
@@ -104,21 +113,21 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 		FATAL_ERROR();
 	}
 
-	*pMemory = reinterpret_cast<VkDeviceMemory>(AllocateSized(pAllocator, pAllocateInfo->allocationSize, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE));
+	WrapVulkan(AllocateSized(pAllocator, pAllocateInfo->allocationSize, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE), pMemory);
 
 	return VK_SUCCESS;
 }
 
 void Device::FreeMemory(VkDeviceMemory memory, const VkAllocationCallbacks* pAllocator)
 {
-	FreeSized(reinterpret_cast<DeviceMemory*>(memory), pAllocator);
+	FreeSized(UnwrapVulkan<DeviceMemory>(memory), pAllocator);
 }
 
 VkResult Device::MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData)
 {
 	assert(flags == 0); 
 	// TODO: Bounds checks
-	*ppData = reinterpret_cast<DeviceMemory*>(memory)->Data + offset;
+	*ppData = UnwrapVulkan<DeviceMemory>(memory)->Data + offset;
 	return VK_SUCCESS;
 }
 
@@ -152,7 +161,7 @@ VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t
 
 void Device::DestroyPipeline(VkPipeline pipeline, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Pipeline*>(pipeline), pAllocator);
+	Free(UnwrapVulkan<Pipeline>(pipeline), pAllocator);
 }
 
 VkResult Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout)
@@ -162,7 +171,7 @@ VkResult Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo* pCreateI
 
 void Device::DestroyPipelineLayout(VkPipelineLayout pipelineLayout, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<PipelineLayout*>(pipelineLayout), pAllocator);
+	Free(UnwrapVulkan<PipelineLayout>(pipelineLayout), pAllocator);
 }
 
 VkResult Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout)
@@ -172,7 +181,7 @@ VkResult Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo
 
 void Device::DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<DescriptorSetLayout*>(descriptorSetLayout), pAllocator);
+	Free(UnwrapVulkan<DescriptorSetLayout>(descriptorSetLayout), pAllocator);
 }
 
 VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllocateInfo, VkDescriptorSet* pDescriptorSets)
@@ -206,7 +215,7 @@ VkResult Device::FreeDescriptorSets(VkDescriptorPool descriptorPool, uint32_t de
 {
 	for (auto i = 0u; i < descriptorSetCount; i++)
 	{
-		Free(reinterpret_cast<DescriptorSet*>(pDescriptorSets[i]), nullptr);
+		Free(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]), nullptr);
 	}
 	
 	return VK_SUCCESS;
@@ -230,7 +239,7 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 			}
 		}
 
-		reinterpret_cast<DescriptorSet*>(descriptorWrite.dstSet)->Update(descriptorWrite);
+		UnwrapVulkan<DescriptorSet>(descriptorWrite.dstSet)->Update(descriptorWrite);
 	}
 
 	for (auto i = 0u; i < descriptorCopyCount; i++)
@@ -254,14 +263,14 @@ void Device::GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQue
 		FATAL_ERROR();
 	}
 
-	auto queue = queues[pQueueInfo->queueIndex].get();
+	const auto queue = queues[pQueueInfo->queueIndex].get();
 	if (queue->getFlags() != pQueueInfo->flags)
 	{
 		*pQueue = VK_NULL_HANDLE;
 	}
 	else
 	{
-		*pQueue = reinterpret_cast<VkQueue>(queue);
+		WrapVulkan(queue, pQueue);
 	}
 }
 
@@ -476,7 +485,7 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 		}
 	}
 
-	auto result = GetInitialExtensions().MakeDeviceCopy(instance->getEnabledExtensions(), enabledExtensions, &device->enabledExtensions);
+	const auto result = GetInitialExtensions().MakeDeviceCopy(instance->getEnabledExtensions(), enabledExtensions, &device->enabledExtensions);
 
 	if (result != VK_SUCCESS)
 	{
@@ -489,6 +498,6 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 		// TODO
 	}
 
-	*pDevice = reinterpret_cast<VkDevice>(device);
+	WrapVulkan(device, pDevice);
 	return VK_SUCCESS;
 }

@@ -1,10 +1,10 @@
 #pragma once
 #include "Base.h"
 
-class Event final : public VulkanBase
+class Event final
 {
 public:
-	~Event() override;
+	~Event();
 	
 	void Signal();
 	VkResult Reset();

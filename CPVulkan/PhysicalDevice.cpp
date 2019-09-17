@@ -3,8 +3,6 @@
 #include "Device.h"
 #include "Formats.h"
 
-#include <vulkan/vk_icd.h>
-
 #include <algorithm>
 #include <cassert>
 #include <cmath>

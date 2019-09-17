@@ -27,6 +27,6 @@ VkResult PipelineLayout::Create(const VkPipelineLayoutCreateInfo* pCreateInfo, c
 
 	// TODO
 
-	*pPipelineLayout = reinterpret_cast<VkPipelineLayout>(pipelineLayout);
+	WrapVulkan(pipelineLayout, pPipelineLayout);
 	return VK_SUCCESS;
 }

@@ -17,11 +17,11 @@ enum class State
 	Invalid,
 };
 
-class CommandBuffer final : public VulkanBase
+class CommandBuffer final
 {
 public:
 	CommandBuffer(DeviceState* deviceState, VkCommandBufferLevel level, VkCommandPoolCreateFlags poolFlags);
-	~CommandBuffer() override;
+	~CommandBuffer();
 
 	VKAPI_ATTR VkResult VKAPI_PTR Begin(const VkCommandBufferBeginInfo* pBeginInfo);
 	VKAPI_ATTR VkResult VKAPI_PTR End();

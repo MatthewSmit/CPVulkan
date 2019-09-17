@@ -37,10 +37,4 @@ private:
 	std::vector<Extension> extensions{};
 };
 
-template <typename T>
-static constexpr PFN_vkVoidFunction Trampoline(T methodPointer)
-{
-	return *reinterpret_cast<PFN_vkVoidFunction*>(&methodPointer);
-}
-
 ExtensionGroup& GetInitialExtensions();

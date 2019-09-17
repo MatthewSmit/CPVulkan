@@ -53,7 +53,7 @@ VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAll
 
 	semaphore->handle = Platform::CreateMutex(false);
 
-	*pSemaphore = reinterpret_cast<VkSemaphore>(semaphore);
+	WrapVulkan(semaphore, pSemaphore);
 	return VK_SUCCESS;
 }
 
@@ -66,5 +66,5 @@ VkResult Device::CreateSemaphore(const VkSemaphoreCreateInfo* pCreateInfo, const
 
 void Device::DestroySemaphore(VkSemaphore semaphore, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Semaphore*>(semaphore), pAllocator);
+	Free(UnwrapVulkan<Semaphore>(semaphore), pAllocator);
 }

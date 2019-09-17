@@ -1,10 +1,16 @@
 #pragma once
 #include "Base.h"
 
-class Fence final : public VulkanBase
+class Fence final
 {
 public:
-	~Fence() override;
+	Fence() = default;
+	Fence(const Fence&) = delete;
+	Fence(Fence&&) = delete;
+	~Fence();
+
+	Fence& operator=(const Fence&) = delete;
+	Fence&& operator=(const Fence&&) = delete;
 
 	void Signal();
 	VkResult Reset();

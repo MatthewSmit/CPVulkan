@@ -10,10 +10,10 @@ union Bindings
 	VkBufferView TexelBufferView;
 };
 
-class DescriptorSet final : public VulkanBase
+class DescriptorSet final
 {
 public:
-	~DescriptorSet() override = default;
+	~DescriptorSet() = default;
 	
 	void Update(const VkWriteDescriptorSet& descriptorWrite);
 

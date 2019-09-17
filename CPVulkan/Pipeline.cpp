@@ -1,6 +1,7 @@
 #include "Pipeline.h"
 
 #include "ShaderModule.h"
+#include "Util.h"
 
 #include <cassert>
 
@@ -442,7 +443,7 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 		}
 
 		const auto stageIndex = GetStageIndex(stage.stage);
-		pipeline->shaderStages[stageIndex] = std::make_unique<ShaderFunction>(reinterpret_cast<ShaderModule*>(stage.module), stageIndex, stage.pName);
+		pipeline->shaderStages[stageIndex] = std::make_unique<ShaderFunction>(UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName);
 	}
 
 	pipeline->vertexInputState = Parse(pCreateInfo->pVertexInputState);
@@ -460,6 +461,6 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 		FATAL_ERROR();
 	}
 
-	*pPipeline = reinterpret_cast<VkPipeline>(pipeline);
+	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;
 }

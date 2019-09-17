@@ -28,7 +28,7 @@ VkResult PipelineCache::Create(const VkPipelineCacheCreateInfo* pCreateInfo, con
 
 	// TODO
 
-	*pPipelineCache = reinterpret_cast<VkPipelineCache>(pipelineCache);
+	WrapVulkan(pipelineCache, pPipelineCache);
 	return VK_SUCCESS;
 }
 
@@ -39,5 +39,5 @@ VkResult Device::CreatePipelineCache(const VkPipelineCacheCreateInfo* pCreateInf
 
 void Device::DestroyPipelineCache(VkPipelineCache pipelineCache, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<PipelineCache*>(pipelineCache), pAllocator);
+	Free(UnwrapVulkan<PipelineCache>(pipelineCache), pAllocator);
 }

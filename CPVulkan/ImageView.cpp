@@ -36,13 +36,13 @@ VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAll
 		FATAL_ERROR();
 	}
 	
-	imageView->image = reinterpret_cast<Image*>(pCreateInfo->image);
+	imageView->image = UnwrapVulkan<Image>(pCreateInfo->image);
 	imageView->viewType = pCreateInfo->viewType;
 	imageView->format = pCreateInfo->format;
 	imageView->components = pCreateInfo->components;
 	imageView->subresourceRange = pCreateInfo->subresourceRange;
 
-	*pView = reinterpret_cast<VkImageView>(imageView);
+	WrapVulkan(imageView, pView);
 	return VK_SUCCESS;
 }
 
@@ -53,5 +53,5 @@ VkResult Device::CreateImageView(const VkImageViewCreateInfo* pCreateInfo, const
 
 void Device::DestroyImageView(VkImageView imageView, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<ImageView*>(imageView), pAllocator);
+	Free(UnwrapVulkan<ImageView>(imageView), pAllocator);
 }

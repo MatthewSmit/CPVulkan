@@ -64,7 +64,7 @@ VkResult DescriptorSet::Create(VkDescriptorPool descriptorPool, VkDescriptorSetL
 {
 	auto descriptorSet = Allocate<DescriptorSet>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
-	const auto descriptorSetLayout = reinterpret_cast<DescriptorSetLayout*>(pSetLayout);
+	const auto descriptorSetLayout = UnwrapVulkan<DescriptorSetLayout>(pSetLayout);
 	descriptorSet->layout = descriptorSetLayout;
 
 	for (const auto& binding : descriptorSetLayout->getBindings())
@@ -84,6 +84,6 @@ VkResult DescriptorSet::Create(VkDescriptorPool descriptorPool, VkDescriptorSetL
 		descriptorSet->bindings.emplace_back(std::make_tuple(binding.descriptorType, binding.binding, Bindings{}));
 	}
 
-	*pDescriptorSet = reinterpret_cast<VkDescriptorSet>(descriptorSet);
+	WrapVulkan(descriptorSet, pDescriptorSet);
 	return VK_SUCCESS;
 }

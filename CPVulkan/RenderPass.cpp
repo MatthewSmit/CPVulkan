@@ -73,7 +73,7 @@ VkResult RenderPass::Create(const VkRenderPassCreateInfo* pCreateInfo, const VkA
 	renderPass->dependencies = std::vector<VkSubpassDependency>(pCreateInfo->dependencyCount);
 	memcpy(renderPass->dependencies.data(), pCreateInfo->pDependencies, sizeof(VkSubpassDependency) * pCreateInfo->dependencyCount);
 
-	*pRenderPass = reinterpret_cast<VkRenderPass>(renderPass);
+	WrapVulkan(renderPass, pRenderPass);
 	return VK_SUCCESS;
 }
 
@@ -84,5 +84,5 @@ VkResult Device::CreateRenderPass(const VkRenderPassCreateInfo* pCreateInfo, con
 
 void Device::DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<RenderPass*>(renderPass), pAllocator);
+	Free(UnwrapVulkan<RenderPass>(renderPass), pAllocator);
 }

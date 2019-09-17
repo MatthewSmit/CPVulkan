@@ -28,8 +28,8 @@ VkResult QueryPool::Create(const VkQueryPoolCreateInfo* pCreateInfo, const VkAll
 	queryPool->queryType = pCreateInfo->queryType;
 	queryPool->queryCount = pCreateInfo->queryCount;
 	queryPool->pipelineStatistics = pCreateInfo->pipelineStatistics;
-	
-	*pQueryPool = reinterpret_cast<VkQueryPool>(queryPool);
+
+	WrapVulkan(queryPool, pQueryPool);
 	return VK_SUCCESS;
 }
 
@@ -40,5 +40,5 @@ VkResult Device::CreateQueryPool(const VkQueryPoolCreateInfo* pCreateInfo, const
 
 void Device::DestroyQueryPool(VkQueryPool queryPool, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<QueryPool*>(queryPool), pAllocator);
+	Free(UnwrapVulkan<QueryPool>(queryPool), pAllocator);
 }

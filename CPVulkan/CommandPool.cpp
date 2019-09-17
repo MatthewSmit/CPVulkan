@@ -23,9 +23,9 @@ VkResult CommandPool::AllocateCommandBuffers(const VkCommandBufferAllocateInfo* 
 
 	for (auto i = 0u; i < pAllocateInfo->commandBufferCount; i++)
 	{
-		auto commandBuffer = new CommandBuffer(deviceState, pAllocateInfo->level, flags);
+		auto commandBuffer = Allocate<CommandBuffer>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, deviceState, pAllocateInfo->level, flags);
 		commandBuffers.push_back(commandBuffer);
-		pCommandBuffers[i] = reinterpret_cast<VkCommandBuffer>(commandBuffer);
+		WrapVulkan(commandBuffer, &pCommandBuffers[i]);
 	}
 
 	return VK_SUCCESS;
@@ -35,14 +35,14 @@ void CommandPool::FreeCommandBuffers(uint32_t commandBufferCount, const VkComman
 {
 	for (auto i = 0u; i < commandBufferCount; i++)
 	{
-		auto commandBuffer = reinterpret_cast<CommandBuffer*>(pCommandBuffers[i]);
+		auto commandBuffer = UnwrapVulkan<CommandBuffer>(pCommandBuffers[i]);
 		auto commandBufferPtr = std::find(commandBuffers.begin(), commandBuffers.end(), commandBuffer);
 		if (commandBufferPtr == commandBuffers.end())
 		{
 			FATAL_ERROR();
 		}
 		commandBuffers.erase(commandBufferPtr);
-		delete commandBuffer;
+		Free(commandBuffer, nullptr);
 	}
 }
 
@@ -82,8 +82,8 @@ VkResult CommandPool::Create(DeviceState* deviceState, const VkCommandPoolCreate
 	commandPool->deviceState = deviceState;
 
 	// TODO: Use queueFamilyIndex
-	
-	*pCommandPool = reinterpret_cast<VkCommandPool>(commandPool);
+
+	WrapVulkan(commandPool, pCommandPool);
 	return VK_SUCCESS;
 }
 
@@ -94,25 +94,25 @@ VkResult Device::CreateCommandPool(const VkCommandPoolCreateInfo* pCreateInfo, c
 
 void Device::DestroyCommandPool(VkCommandPool commandPool, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<CommandPool*>(commandPool), pAllocator);
+	Free(UnwrapVulkan<CommandPool>(commandPool), pAllocator);
 }
 
 VkResult Device::ResetCommandPool(VkCommandPool commandPool, VkCommandPoolResetFlags flags)
 {
-	return reinterpret_cast<CommandPool*>(commandPool)->Reset(flags);
+	return UnwrapVulkan<CommandPool>(commandPool)->Reset(flags);
 }
 
 VkResult Device::AllocateCommandBuffers(const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers)
 {
-	return reinterpret_cast<CommandPool*>(pAllocateInfo->commandPool)->AllocateCommandBuffers(pAllocateInfo, pCommandBuffers);
+	return UnwrapVulkan<CommandPool>(pAllocateInfo->commandPool)->AllocateCommandBuffers(pAllocateInfo, pCommandBuffers);
 }
 
 void Device::FreeCommandBuffers(VkCommandPool commandPool, uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers)
 {
-	reinterpret_cast<CommandPool*>(commandPool)->FreeCommandBuffers(commandBufferCount, pCommandBuffers);
+	UnwrapVulkan<CommandPool>(commandPool)->FreeCommandBuffers(commandBufferCount, pCommandBuffers);
 }
 
 void Device::TrimCommandPool(VkCommandPool commandPool, VkCommandPoolTrimFlags flags)
 {
-	reinterpret_cast<CommandPool*>(commandPool)->Trim(flags);
+	UnwrapVulkan<CommandPool>(commandPool)->Trim(flags);
 }

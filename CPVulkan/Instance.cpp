@@ -4,21 +4,21 @@
 #include "Extensions.h"
 #include "PhysicalDevice.h"
 #include "Platform.h"
-
-#include <vulkan/vk_icd.h>
-#include <vulkan/vk_layer.h>
+#include "Util.h"
 
 #include <algorithm>
 #include <cassert>
-#include <exception>
 #include <vector>
 
-Instance::Instance() :
-	physicalDevice{std::make_unique<PhysicalDevice>(this)}
+Instance::Instance()
 {
+	physicalDevice = Allocate<PhysicalDevice>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, this);
 }
 
-Instance::~Instance() = default;
+Instance::~Instance()
+{
+	Free(physicalDevice, nullptr);
+}
 
 PFN_vkVoidFunction Instance::GetProcAddress(const char* pName)
 {
@@ -32,10 +32,22 @@ void Instance::DestroyInstance(const VkAllocationCallbacks* pAllocator)
 
 VkResult Instance::EnumeratePhysicalDevices(uint32_t* pPhysicalDeviceCount, VkPhysicalDevice* pPhysicalDevices) const
 {
-	return HandleEnumeration(pPhysicalDeviceCount, pPhysicalDevices, std::vector<VkPhysicalDevice>
-	                         {
-		                         reinterpret_cast<VkPhysicalDevice>(physicalDevice.get())
-	                         });
+	if (pPhysicalDevices == nullptr)
+	{
+		*pPhysicalDeviceCount = 1;
+	}
+	else
+	{
+		if (*pPhysicalDeviceCount == 0)
+		{
+			return VK_INCOMPLETE;
+		}
+
+		WrapVulkan(physicalDevice, pPhysicalDevices);
+		*pPhysicalDeviceCount = 1;
+	}
+
+	return VK_SUCCESS;
 }
 
 VkResult Instance::EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties) const
@@ -50,7 +62,7 @@ VkResult Instance::EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupC
 		assert(pPhysicalDeviceGroupProperties[0].sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GROUP_PROPERTIES);
 		assert(pPhysicalDeviceGroupProperties[0].pNext == nullptr);
 		pPhysicalDeviceGroupProperties[0].physicalDeviceCount = 1;
-		pPhysicalDeviceGroupProperties[0].physicalDevices[0] = reinterpret_cast<VkPhysicalDevice>(physicalDevice.get());
+		WrapVulkan(physicalDevice, pPhysicalDeviceGroupProperties[0].physicalDevices);
 		pPhysicalDeviceGroupProperties[0].subsetAllocation = false;
 	}
 	
@@ -131,7 +143,7 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 		return result;
 	}
 
-	*pInstance = reinterpret_cast<VkInstance>(instance);
+	WrapVulkan(instance, pInstance);
 	return VK_SUCCESS;
 }
 

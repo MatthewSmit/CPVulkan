@@ -1,11 +1,17 @@
 #pragma once
 #include "Base.h"
 
-class Queue final : public VulkanBase
+class Queue final
 {
 public:
-	~Queue() override = default;
-	
+	Queue() = default;
+	Queue(const Queue&) = delete;
+	Queue(Queue&&) = delete;
+	~Queue() = default;
+
+	Queue& operator=(const Queue&) = delete;
+	Queue&& operator=(const Queue&&) = delete;
+
 	VKAPI_ATTR VkResult VKAPI_PTR Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
 	VKAPI_ATTR VkResult VKAPI_PTR WaitIdle();
 	VKAPI_ATTR VkResult VKAPI_PTR BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence);
@@ -22,7 +28,7 @@ public:
 
 	static Queue* Create(const VkDeviceQueueCreateInfo& vkDeviceQueueCreateInfo, const VkAllocationCallbacks* pAllocator);
 
-	VkDeviceQueueCreateFlags getFlags() const { return flags; }
+	[[nodiscard]] VkDeviceQueueCreateFlags getFlags() const { return flags; }
 
 private:
 	VkDeviceQueueCreateFlags flags{};

@@ -96,11 +96,17 @@ private:
 	std::string name;
 };
 
-class Pipeline final : public VulkanBase
+class Pipeline final
 {
 public:
-	~Pipeline() override;
-	
+	Pipeline() = default;
+	Pipeline(const Pipeline&) = delete;
+	Pipeline(Pipeline&&) = delete;
+	~Pipeline();
+
+	Pipeline& operator=(const Pipeline&) = delete;
+	Pipeline&& operator=(const Pipeline&&) = delete;
+
 	static VkResult Create(VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
 	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const { return shaderStages[index].get(); }

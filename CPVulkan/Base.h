@@ -19,9 +19,10 @@ using SECURITY_ATTRIBUTES = _SECURITY_ATTRIBUTES;
 
 using LPCWSTR = const wchar_t*;
 using PCWSTR = const wchar_t*;
-using DWORD = unsigned long;
+using DWORD = unsigned long; // NOLINT(google-runtime-int)
 #endif
 
+// ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vulkan_win32.h>
 #endif
 
@@ -29,6 +30,8 @@ using DWORD = unsigned long;
 typedef struct xcb_connection_t xcb_connection_t;
 typedef uint32_t xcb_window_t;
 typedef uint32_t xcb_visualid_t;
+
+// ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vulkan_xcb.h>
 #endif
 
@@ -37,6 +40,8 @@ typedef struct _XDisplay Display;
 typedef unsigned long XID;
 typedef XID Window;
 typedef unsigned long VisualID;
+
+// ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vulkan_xlib.h>
 #endif
 
@@ -46,174 +51,72 @@ typedef unsigned long XID;
 typedef XID Window;
 typedef unsigned long VisualID;
 typedef XID RROutput;
+
+// ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vulkan_xlib_xrandr.h>
 #endif
 
 #include <gsl/gsl>
 
-#include <functional>
-#include <vector>
-
-#include "Platform.h"
-
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 
 #if !defined(_MSC_VER)
 #define __debugbreak() __asm__("int3")
-#define strcpy_s strcpy // TODO: Functionify
+
+inline void strcpy_s(char* destination, const char* source)
+{
+	strcpy(destination, source);
+}
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
-struct DeviceMemory
+template<typename T, class... Types>
+T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope allocationScope, Types&& ... args)
 {
-	uint64_t Size;
-	uint8_t Data[1];
-};
-
-class VulkanBase
-{
-public:
-	VulkanBase() = default;
-	VulkanBase(const VulkanBase&) = delete;
-	VulkanBase(VulkanBase&&) = delete;
-	virtual ~VulkanBase() = default;
-
-	VulkanBase& operator=(const VulkanBase&) = delete;
-	VulkanBase&& operator=(const VulkanBase&&) = delete;
-
-	template <typename T>
-	static T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope allocationScope)
+	uint8_t* data;
+	if (pAllocator)
 	{
-		// if (pAllocator)
-		// {
-		// 	const auto data = pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(T), 16, allocationScope);
-		// 	if (!data)
-		// 	{
-		// 		return nullptr;
-		// 	}
-		// 	
-		// 	return new(data) T();
-		// }
-		
-		return new T();
-	}
-
-	static DeviceMemory* AllocateSized(const VkAllocationCallbacks* pAllocator, uint64_t size, VkSystemAllocationScope allocationScope)
-	{
-		if (pAllocator)
+		data = static_cast<uint8_t*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(T), 16, allocationScope));
+		if (!data)
 		{
-			return static_cast<DeviceMemory*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(DeviceMemory) + size, 4096, allocationScope));
+			return nullptr;
 		}
-		
-		return static_cast<DeviceMemory*>(Platform::AlignedMalloc(sizeof(DeviceMemory) + size, 4096));
-	}
-
-	template <typename T>
-	static void Free(T* value, const VkAllocationCallbacks* pAllocator) noexcept
-	{
-		// if (pAllocator)
-		// {
-		// 	value->~T();
-		// 	pAllocator->pfnFree(pAllocator->pUserData, value);
-		// }
-		// else
-		{
-			delete value;
-		}
-	}
-
-	static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator) noexcept
-	{
-		if (pAllocator)
-		{
-			pAllocator->pfnFree(pAllocator->pUserData, deviceMemory);
-		}
-		else
-		{
-			Platform::AlignedFree(deviceMemory);
-		}
-	}
-};
-
-template <typename T>
-static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T* outputValues, const std::vector<T>& inputValues)
-{
-	if (outputValues == nullptr)
-	{
-		*count = static_cast<uint32_t>(inputValues.size());
 	}
 	else
 	{
-		if (*count < inputValues.size())
-		{
-			FATAL_ERROR();
-		}
-		else if (*count == inputValues.size())
-		{
-			for (auto i = 0; i < inputValues.size(); i++)
-			{
-				outputValues[i] = inputValues[i];
-			}
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
+		data = static_cast<uint8_t*>(malloc(sizeof(T) + 16));
 	}
-
-	return VK_SUCCESS;
+	 
+	*static_cast<uintptr_t*>(static_cast<void*>(data)) = 0x01CDC0DE;
+	return new(data + 16) T(std::forward<Types>(args)...);
 }
 
-template <typename T1, typename T2>
-static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T1* outputValues, const std::vector<T2>& inputValues, std::function<T1(T2)> conversion)
+template<typename T>
+void Free(T* value, const VkAllocationCallbacks* pAllocator) noexcept
 {
-	if (outputValues == nullptr)
+	value->~T();
+	const auto data = static_cast<uint8_t*>(static_cast<void*>(value)) - 16;
+	
+	if (pAllocator)
 	{
-		*count = static_cast<uint32_t>(inputValues.size());
+		pAllocator->pfnFree(pAllocator->pUserData, data);
 	}
 	else
 	{
-		if (*count < inputValues.size())
-		{
-			FATAL_ERROR();
-		}
-		else if (*count == inputValues.size())
-		{
-			for (auto i = 0; i < inputValues.size(); i++)
-			{
-				outputValues[i] = conversion(inputValues[i]);
-			}
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
+		free(data);
 	}
-
-	return VK_SUCCESS;
 }
 
-template <typename T>
-std::vector<T> ArrayToVector(uint32_t count, const T* data)
+template<typename LocalType, typename VulkanType>
+void WrapVulkan(LocalType* local, VulkanType* vulkan)
 {
-	std::vector<T> result(count);
-	if (data)
-	{
-		memcpy(result.data(), data, sizeof(T) * count);
-	}
-	return result;
+	const auto data = static_cast<uint8_t*>(static_cast<void*>(local));
+	*vulkan = reinterpret_cast<VulkanType>(data - 16);
 }
 
-template <typename T1, typename T2>
-std::vector<T1> ArrayToVector(uint32_t count, const T2* data, std::function<T1(T2)> conversion)
+template<typename LocalType, typename VulkanType>
+LocalType* UnwrapVulkan(VulkanType vulkanValue)
 {
-	std::vector<T1> result(count);
-	if (data)
-	{
-		for (auto i = 0u; i < count; i++)
-		{
-			result[i] = conversion(data[i]);
-		}
-	}
-	return result;
+	const auto data = reinterpret_cast<uint8_t*>(vulkanValue);
+	return static_cast<LocalType*>(static_cast<void*>(data + 16));
 }

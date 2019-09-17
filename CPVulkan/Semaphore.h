@@ -1,10 +1,16 @@
 #pragma once
 #include "Base.h"
 
-class Semaphore final : public VulkanBase
+class Semaphore final
 {
 public:
-	~Semaphore() override;
+	Semaphore() = default;
+	Semaphore(const Semaphore&) = delete;
+	Semaphore(Semaphore&&) = delete;
+	~Semaphore();
+
+	Semaphore& operator=(const Semaphore&) = delete;
+	Semaphore&& operator=(const Semaphore&&) = delete;
 
 	void Signal();
 	VkResult Reset();

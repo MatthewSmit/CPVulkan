@@ -22,7 +22,7 @@ VkResult DescriptorPool::Create(const VkDescriptorPoolCreateInfo* pCreateInfo, c
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
-	*pDescriptorPool = reinterpret_cast<VkDescriptorPool>(descriptorPool);
+	WrapVulkan(descriptorPool, pDescriptorPool);
 	return VK_SUCCESS;
 }
 
@@ -33,5 +33,5 @@ VkResult Device::CreateDescriptorPool(const VkDescriptorPoolCreateInfo* pCreateI
 
 void Device::DestroyDescriptorPool(VkDescriptorPool descriptorPool, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<DescriptorPool*>(descriptorPool), pAllocator);
+	Free(UnwrapVulkan<DescriptorPool*>(descriptorPool), pAllocator);
 }

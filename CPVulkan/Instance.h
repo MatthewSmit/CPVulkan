@@ -7,12 +7,17 @@
 
 class PhysicalDevice;
 
-class Instance final : public VulkanBase
+class Instance final
 {
 public:
 	Instance();
-	~Instance() override;
-	
+	Instance(const Instance&) = delete;
+	Instance(Instance&&) = delete;
+	~Instance();
+
+	Instance& operator=(const Instance&) = delete;
+	Instance&& operator=(const Instance&&) = delete;
+
 	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName);
 
 	VKAPI_ATTR void VKAPI_CALL DestroyInstance(const VkAllocationCallbacks* pAllocator);
@@ -23,19 +28,17 @@ public:
 	
 	VKAPI_ATTR void VKAPI_PTR DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator);
 	
-	VKAPI_ATTR VkResult VKAPI_PTR CreateDisplayPlaneSurfaceKHR(const VkDisplaySurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDisplayPlaneSurface(const VkDisplaySurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR EnumeratePhysicalDeviceGroupsKHR(uint32_t* pPhysicalDeviceGroupCount, VkPhysicalDeviceGroupProperties* pPhysicalDeviceGroupProperties) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugReportCallback(const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DestroyDebugReportCallback(VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DebugReportMessage(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugReportCallbackEXT(const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyDebugReportCallbackEXT(VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DebugReportMessageEXT(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugUtilsMessenger(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DestroyDebugUtilsMessenger(VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR SubmitDebugUtilsMessage(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugUtilsMessengerEXT(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyDebugUtilsMessengerEXT(VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR SubmitDebugUtilsMessageEXT(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) { FATAL_ERROR(); } 
-
-	VKAPI_ATTR VkResult VKAPI_PTR CreateHeadlessSurfaceEXT(const VkHeadlessSurfaceCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR CreateHeadlessSurface(const VkHeadlessSurfaceCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); }
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 	VKAPI_ATTR VkResult VKAPI_PTR CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);
@@ -58,7 +61,7 @@ private:
 	int version = VK_API_VERSION_1_0;
 	VkDebugUtilsMessengerCreateInfoEXT debug{};
 
-	std::unique_ptr<PhysicalDevice> physicalDevice;
+	PhysicalDevice* physicalDevice;
 	ExtensionGroup enabledExtensions{};
 };
 

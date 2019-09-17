@@ -1,17 +1,17 @@
 #pragma once
-
-#include <xcb/xproto.h>
 #include "Base.h"
+
+struct DeviceMemory;
 
 class Image;
 
-class Swapchain final : public VulkanBase
+class Swapchain final
 {
 public:
 	Swapchain() = default;
 	Swapchain(const Swapchain&) = delete;
 	Swapchain(Swapchain&&) = delete;
-	~Swapchain() override;
+	~Swapchain();
 
 	Swapchain& operator=(const Swapchain&) = delete;
 	Swapchain&& operator=(const Swapchain&&) = delete;

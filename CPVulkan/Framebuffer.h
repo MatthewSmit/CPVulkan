@@ -3,10 +3,16 @@
 
 class ImageView;
 
-class Framebuffer final : public VulkanBase
+class Framebuffer final
 {
 public:
-	~Framebuffer() override = default;
+	Framebuffer() = default;
+	Framebuffer(const Framebuffer&) = delete;
+	Framebuffer(Framebuffer&&) = delete;
+	~Framebuffer() = default;
+
+	Framebuffer& operator=(const Framebuffer&) = delete;
+	Framebuffer&& operator=(const Framebuffer&&) = delete;
 
 	static VkResult Create(const VkFramebufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFramebuffer* pFramebuffer);
 

@@ -90,6 +90,13 @@ set(FILES
 
 		"Swapchain.cpp"
 		"Swapchain.h"
+
+		"Trampoline.cpp"
+		"Trampoline.h"
+
+		"Util.h"
+
+		"VulkanFunctions.h"
 		)
 
 set(DEFINES VK_NO_PROTOTYPES)

@@ -34,7 +34,7 @@ VkResult Framebuffer::Create(const VkFramebufferCreateInfo* pCreateInfo, const V
 	framebuffer->attachments = std::vector<ImageView*>(pCreateInfo->attachmentCount);
 	for (auto i = 0u; i < pCreateInfo->attachmentCount; i++)
 	{
-		framebuffer->attachments[i] = reinterpret_cast<ImageView*>(pCreateInfo->pAttachments[i]);
+		framebuffer->attachments[i] = UnwrapVulkan<ImageView>(pCreateInfo->pAttachments[i]);
 	}
 
 	framebuffer->width = pCreateInfo->width;
@@ -45,7 +45,7 @@ VkResult Framebuffer::Create(const VkFramebufferCreateInfo* pCreateInfo, const V
 		FATAL_ERROR();
 	}
 
-	*pFramebuffer = reinterpret_cast<VkFramebuffer>(framebuffer);
+	WrapVulkan(framebuffer, pFramebuffer);
 	return VK_SUCCESS;
 }
 
@@ -56,5 +56,5 @@ VkResult Device::CreateFramebuffer(const VkFramebufferCreateInfo* pCreateInfo, c
 
 void Device::DestroyFramebuffer(VkFramebuffer framebuffer, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<Framebuffer*>(framebuffer), pAllocator);
+	Free(UnwrapVulkan<Framebuffer>(framebuffer), pAllocator);
 }

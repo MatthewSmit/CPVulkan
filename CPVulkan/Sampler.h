@@ -1,10 +1,16 @@
 #pragma once
 #include "Base.h"
 
-class Sampler final : public VulkanBase
+class Sampler final
 {
 public:
-	~Sampler() override = default;
+	Sampler() = default;
+	Sampler(const Sampler&) = delete;
+	Sampler(Sampler&&) = delete;
+	~Sampler() = default;
+
+	Sampler& operator=(const Sampler&) = delete;
+	Sampler&& operator=(const Sampler&&) = delete;
 	
 	static VkResult Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSampler* pSampler);
 

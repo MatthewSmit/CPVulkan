@@ -1,13 +1,13 @@
 #pragma once
 #include "Base.h"
 
-class Buffer : public VulkanBase
+class Buffer
 {
 public:
 	Buffer() = default;
 	Buffer(const Buffer&) = delete;
 	Buffer(Buffer&&) = delete;
-	~Buffer() override = default;
+	virtual ~Buffer() = default;
 
 	Buffer& operator=(const Buffer&) = delete;
 	Buffer&& operator=(const Buffer&&) = delete;
@@ -17,15 +17,15 @@ public:
 	virtual void GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const;
 	virtual void GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) const;
 
-	static VkResult Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, gsl::not_null<VkBuffer*> pBuffer);
+	static VkResult Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer);
 
-	[[nodiscard]] virtual uint8_t* getData(uint64_t offset, uint64_t size) const noexcept { return data + offset; }
+	[[nodiscard]] virtual uint8_t* getData(uint64_t offset, uint64_t size) const noexcept { return data.data() + offset; }
 
 protected:
 	VkBufferCreateFlags flags{};
 	VkBufferUsageFlags usage{};
 
-	uint8_t* data{};
+	gsl::span<uint8_t> data{};
 	uint64_t size{};
 };
 

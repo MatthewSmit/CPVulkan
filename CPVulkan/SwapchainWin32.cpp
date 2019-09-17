@@ -9,16 +9,17 @@
 
 VkResult Swapchain::Present(uint32_t pImageIndex)
 {
+	const auto win32Surface = UnwrapVulkan<VkIcdSurfaceWin32>(surface);
 	const auto image = images[pImageIndex];
 
-	const auto dc = GetDC(reinterpret_cast<VkIcdSurfaceWin32*>(surface)->hwnd);
+	const auto dc = GetDC(win32Surface->hwnd);
 	if (dc == nullptr)
 	{
 		FATAL_ERROR();
 	}
 
 	RECT rect;
-	GetClientRect(reinterpret_cast<VkIcdSurfaceWin32*>(surface)->hwnd, &rect);
+	GetClientRect(win32Surface->hwnd, &rect);
 
 	const auto width = rect.right - rect.left;
 	const auto height = rect.bottom - rect.top;
@@ -45,7 +46,7 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
 		FATAL_ERROR();
 	}
 	
-	if (ReleaseDC(reinterpret_cast<VkIcdSurfaceWin32*>(surface)->hwnd, dc) != 1)
+	if (ReleaseDC(win32Surface->hwnd, dc) != 1)
 	{
 		FATAL_ERROR();
 	}
@@ -60,7 +61,7 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
 
 void Instance::DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator)
 {
-	Free(reinterpret_cast<VkIcdSurfaceWin32*>(surface), pAllocator);
+	Free(UnwrapVulkan<VkIcdSurfaceWin32>(surface), pAllocator);
 }
 
 VkResult Instance::CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface)
@@ -73,13 +74,14 @@ VkResult Instance::CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreate
 	surface->base.platform = VK_ICD_WSI_PLATFORM_WIN32;
 	surface->hinstance = pCreateInfo->hinstance;
 	surface->hwnd = pCreateInfo->hwnd;
-	*pSurface = reinterpret_cast<VkSurfaceKHR>(surface);
+	
+	WrapVulkan(surface, pSurface);
 	return VK_SUCCESS;
 }
 
 VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities)
 {
-	const auto win32Surface = reinterpret_cast<VkIcdSurfaceWin32*>(surface);
+	const auto win32Surface = UnwrapVulkan<VkIcdSurfaceWin32>(surface);
 	RECT rect;
 	assert(GetClientRect(win32Surface->hwnd, &rect));
 

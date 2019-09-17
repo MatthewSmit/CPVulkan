@@ -10,6 +10,7 @@
 #include "ImageView.h"
 #include "Pipeline.h"
 #include "RenderPass.h"
+#include "Util.h"
 
 #include <SPIRVFunction.h>
 #include <SPIRVInstruction.h>
@@ -148,7 +149,7 @@ struct Variable
 							FATAL_ERROR();
 						}
 
-						const auto data = reinterpret_cast<Buffer*>(buffer.info.buffer)->getData(buffer.info.offset + offset, sizeof(glm::mat4x4));
+						const auto data = UnwrapVulkan<Buffer>(buffer.info.buffer)->getData(buffer.info.offset + offset, sizeof(glm::mat4x4));
 						return Variable(data);
 					}
 
@@ -1674,7 +1675,7 @@ void CommandBuffer::BindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeli
 		FATAL_ERROR();
 	}
 	
-	commands.push_back(std::make_unique<BindPipelineCommand>(static_cast<int>(pipelineBindPoint), reinterpret_cast<Pipeline*>(pipeline)));
+	commands.push_back(std::make_unique<BindPipelineCommand>(static_cast<int>(pipelineBindPoint), UnwrapVulkan<Pipeline>(pipeline)));
 }
 
 void CommandBuffer::SetViewport(uint32_t firstViewport, uint32_t viewportCount, const VkViewport* pViewports)
@@ -1704,13 +1705,13 @@ void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, Vk
 	std::vector<DescriptorSet*> descriptorSets(descriptorSetCount);
 	for (auto i = 0u; i < descriptorSetCount; i++)
 	{
-		descriptorSets[i] = reinterpret_cast<DescriptorSet*>(pDescriptorSets[i]);
+		descriptorSets[i] = UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]);
 	}
 
 	std::vector<uint32_t> dynamicOffsets(dynamicOffsetCount);
 	memcpy(dynamicOffsets.data(), pDynamicOffsets, sizeof(uint32_t) * dynamicOffsetCount);
 
-	commands.push_back(std::make_unique<BindDescriptorSetsCommand>(static_cast<int>(pipelineBindPoint), reinterpret_cast<PipelineLayout*>(layout), firstSet, descriptorSets, dynamicOffsets));
+	commands.push_back(std::make_unique<BindDescriptorSetsCommand>(static_cast<int>(pipelineBindPoint), UnwrapVulkan<PipelineLayout>(layout), firstSet, descriptorSets, dynamicOffsets));
 }
 
 void CommandBuffer::BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets)
@@ -1721,7 +1722,7 @@ void CommandBuffer::BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCou
 
 	for (auto i = 0u; i < bindingCount; i++)
 	{
-		buffers[i] = reinterpret_cast<Buffer*>(pBuffers[i]);
+		buffers[i] = UnwrapVulkan<Buffer>(pBuffers[i]);
 		bufferOffsets[i] = pOffsets[i];
 	}
 	
@@ -1737,13 +1738,13 @@ void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t 
 void CommandBuffer::CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<CopyImageToBufferCommand>(reinterpret_cast<Image*>(srcImage), srcImageLayout, reinterpret_cast<Buffer*>(dstBuffer), ArrayToVector(regionCount, pRegions)));
+	commands.push_back(std::make_unique<CopyImageToBufferCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Buffer>(dstBuffer), ArrayToVector(regionCount, pRegions)));
 }
 
 void CommandBuffer::ClearColorImage(VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<ClearColourImageCommand>(reinterpret_cast<Image*>(image), imageLayout, *pColor, ArrayToVector(rangeCount, pRanges)));
+	commands.push_back(std::make_unique<ClearColourImageCommand>(UnwrapVulkan<Image>(image), imageLayout, *pColor, ArrayToVector(rangeCount, pRanges)));
 }
 
 void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
@@ -1756,13 +1757,13 @@ void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAtta
 void CommandBuffer::SetEvent(VkEvent event, VkPipelineStageFlags stageMask)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<SetEventCommand>(reinterpret_cast<Event*>(event), stageMask));
+	commands.push_back(std::make_unique<SetEventCommand>(UnwrapVulkan<Event>(event), stageMask));
 }
 
 void CommandBuffer::ResetEvent(VkEvent event, VkPipelineStageFlags stageMask)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<ResetEventCommand>(reinterpret_cast<Event*>(event), stageMask));
+	commands.push_back(std::make_unique<ResetEventCommand>(UnwrapVulkan<Event>(event), stageMask));
 }
 
 void CommandBuffer::PipelineBarrier(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask,
@@ -1802,8 +1803,8 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 
 	std::vector<VkClearValue> clearValues(pRenderPassBegin->clearValueCount);
 	memcpy(clearValues.data(), pRenderPassBegin->pClearValues, sizeof(VkClearValue) * pRenderPassBegin->clearValueCount);
-	commands.push_back(std::make_unique<BeginRenderPassCommand>(reinterpret_cast<RenderPass*>(pRenderPassBegin->renderPass), 
-	                                                            reinterpret_cast<Framebuffer*>(pRenderPassBegin->framebuffer),
+	commands.push_back(std::make_unique<BeginRenderPassCommand>(UnwrapVulkan<RenderPass>(pRenderPassBegin->renderPass), 
+	                                                            UnwrapVulkan<Framebuffer>(pRenderPassBegin->framebuffer),
 	                                                            pRenderPassBegin->renderArea,
 	                                                            clearValues));
 }
@@ -1819,7 +1820,7 @@ void CommandBuffer::ExecuteCommands(uint32_t commandBufferCount, const VkCommand
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<ExecuteCommandsCommand>(ArrayToVector<CommandBuffer*, VkCommandBuffer>(commandBufferCount, pCommandBuffers, [](VkCommandBuffer commandBuffer)
 	{
-		return reinterpret_cast<CommandBuffer*>(commandBuffer);
+		return UnwrapVulkan<CommandBuffer>(commandBuffer);
 	})));
 }
 

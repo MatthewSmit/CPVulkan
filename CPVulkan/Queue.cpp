@@ -46,7 +46,7 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 
 		for (auto j = 0u; j < submit.waitSemaphoreCount; j++)
 		{
-			const auto result = reinterpret_cast<Semaphore*>(submit.pWaitSemaphores[j])->Wait(std::numeric_limits<uint64_t>::max());
+			const auto result = UnwrapVulkan<Semaphore>(submit.pWaitSemaphores[j])->Wait(std::numeric_limits<uint64_t>::max());
 			if (result != VK_SUCCESS)
 			{
 				FATAL_ERROR();
@@ -55,7 +55,7 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 
 		for (auto j = 0u; j < submit.commandBufferCount; j++)
 		{
-			const auto result = reinterpret_cast<CommandBuffer*>(submit.pCommandBuffers[j])->Submit();
+			const auto result = UnwrapVulkan<CommandBuffer>(submit.pCommandBuffers[j])->Submit();
 			if (result != VK_SUCCESS)
 			{
 				FATAL_ERROR();
@@ -65,7 +65,7 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 
 	if (fence)
 	{
-		reinterpret_cast<Fence*>(fence)->Signal();
+		UnwrapVulkan<Fence>(fence)->Signal();
 	}
 
 	return VK_SUCCESS;
@@ -104,7 +104,7 @@ VkResult Queue::BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBind
 		for (auto j = 0u; j < bindInfo.bufferBindCount; j++)
 		{
 			const auto& bufferBind = bindInfo.pBufferBinds[j];
-			reinterpret_cast<SparseBuffer*>(bufferBind.buffer)->SparseBindMemory(bufferBind.bindCount, bufferBind.pBinds);
+			UnwrapVulkan<SparseBuffer>(bufferBind.buffer)->SparseBindMemory(bufferBind.bindCount, bufferBind.pBinds);
 		}
 
 		if (bindInfo.imageOpaqueBindCount)
@@ -125,7 +125,7 @@ VkResult Queue::BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBind
 	
 	if (fence)
 	{
-		reinterpret_cast<Fence*>(fence)->Signal();
+		UnwrapVulkan<Fence>(fence)->Signal();
 	}
 	return VK_SUCCESS;
 }
@@ -147,7 +147,7 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 
 	for (auto j = 0u; j < pPresentInfo->waitSemaphoreCount; j++)
 	{
-		const auto result = reinterpret_cast<Semaphore*>(pPresentInfo->pWaitSemaphores[j])->Wait(std::numeric_limits<uint64_t>::max());
+		const auto result = UnwrapVulkan<Semaphore>(pPresentInfo->pWaitSemaphores[j])->Wait(std::numeric_limits<uint64_t>::max());
 		if (result != VK_SUCCESS)
 		{
 			FATAL_ERROR();
@@ -161,7 +161,7 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 	
 	for (auto i = 0u; i < pPresentInfo->swapchainCount; i++)
 	{
-		auto result = reinterpret_cast<Swapchain*>(pPresentInfo->pSwapchains[i])->Present(pPresentInfo->pImageIndices[i]);
+		auto result = UnwrapVulkan<Swapchain>(pPresentInfo->pSwapchains[i])->Present(pPresentInfo->pImageIndices[i]);
 		if (pPresentInfo->pResults)
 		{
 			pPresentInfo->pResults[i] = result;
