@@ -11,27 +11,28 @@ Fence::~Fence()
 	Platform::CloseMutex(handle);
 }
 
-void Fence::Signal()
+VkResult Fence::Signal()
 {
-	Platform::ReleaseMutex(handle);
+	Platform::SignalMutex(handle);
+	return VK_SUCCESS;
 }
 
 VkResult Fence::Reset()
 {
-	Platform::SetMutex(handle);
+	Platform::ResetMutex(handle);
 	return VK_SUCCESS;
 }
 
 VkResult Fence::Wait(uint64_t timeout)
 {
-	return Platform::Wait(handle, timeout);
+	return Platform::Wait(handle, timeout) ? VK_SUCCESS : VK_TIMEOUT;
 }
 
 VkResult Fence::Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
 
-	auto fence = Allocate<Fence>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	const auto fence = Allocate<Fence>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
@@ -44,17 +45,19 @@ VkResult Fence::Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationC
 			
 		case VK_STRUCTURE_TYPE_EXPORT_FENCE_WIN32_HANDLE_INFO_KHR:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
-	fence->handle = Platform::CreateMutex(pCreateInfo->flags & VK_FENCE_CREATE_SIGNALED_BIT);
+	fence->handle = Platform::CreateMutex(pCreateInfo->flags & VK_FENCE_CREATE_SIGNALED_BIT, true);
 
 	WrapVulkan(fence, pFence);
 	return VK_SUCCESS;
+}
+
+VkResult Fence::getStatus() const
+{
+	return Platform::GetMutexStatus(handle) ? VK_SUCCESS : VK_NOT_READY;
 }
 
 VkResult Device::CreateFence(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence)
@@ -67,10 +70,29 @@ void Device::DestroyFence(VkFence fence, const VkAllocationCallbacks* pAllocator
 	Free(UnwrapVulkan<Fence>(fence), pAllocator);
 }
 
+VkResult Device::ResetFences(uint32_t fenceCount, const VkFence* pFences)
+{
+	for (auto i = 0u; i < fenceCount; i++)
+	{
+		if (UnwrapVulkan<Fence>(pFences[i])->Reset() != VK_SUCCESS)
+		{
+			FATAL_ERROR();
+		}
+	}
+	return VK_SUCCESS;
+}
+
+VkResult Device::GetFenceStatus(VkFence fence)
+{
+	return UnwrapVulkan<Fence>(fence)->getStatus();
+}
+
 VkResult Device::WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout)
 {
 	return Platform::WaitMultiple(ArrayToVector<void*, VkFence>(fenceCount, pFences, [](VkFence fence)
 	{
 		return UnwrapVulkan<Fence>(fence)->getHandle();
-	}), waitAll, timeout);
+	}), waitAll, timeout)
+		       ? VK_SUCCESS
+		       : VK_TIMEOUT;
 }

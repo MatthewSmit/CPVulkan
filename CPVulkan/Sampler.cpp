@@ -13,12 +13,16 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 	auto next = pCreateInfo->pNext;
 	while (next)
 	{
-		auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT:
+			FATAL_ERROR();
+			
+		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO:
 			FATAL_ERROR();
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 	
 	sampler->flags = pCreateInfo->flags;

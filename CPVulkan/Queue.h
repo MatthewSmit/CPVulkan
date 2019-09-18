@@ -26,7 +26,7 @@ public:
 
 	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceConfiguration(VkPerformanceConfigurationINTEL configuration) { FATAL_ERROR(); }
 
-	static Queue* Create(const VkDeviceQueueCreateInfo& vkDeviceQueueCreateInfo, const VkAllocationCallbacks* pAllocator);
+	static Queue* Create(const VkDeviceQueueCreateInfo* vkDeviceQueueCreateInfo, const VkAllocationCallbacks* pAllocator);
 
 	[[nodiscard]] VkDeviceQueueCreateFlags getFlags() const { return flags; }
 

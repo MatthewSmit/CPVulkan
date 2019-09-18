@@ -12,8 +12,11 @@ set(FILES
 		"BufferView.cpp"
 		"BufferView.h"
 
+		"CommandBuffer.Binding.cpp"
+		"CommandBuffer.Draw.cpp"
 		"CommandBuffer.cpp"
 		"CommandBuffer.h"
+		"CommandBuffer.Internal.h"
 
 		"CommandPool.cpp"
 		"CommandPool.h"

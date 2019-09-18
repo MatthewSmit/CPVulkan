@@ -1,5 +1,7 @@
 #include "Trampoline.h"
 
+// ReSharper disable CppUnusedIncludeDirective
+
 #include "CommandBuffer.h"
 #include "Device.h"
 #include "Instance.h"
@@ -32,6 +34,10 @@
 #define GET_NAMES8 , a, b, c, d, e, f, g, h
 #define GET_NAMES9 , a, b, c, d, e, f, g, h, i
 #define GET_NAMES10 , a, b, c, d, e, f, g, h, i, j
+#define GET_NAMES11 , a, b, c, d, e, f, g, h, i, j, k
+#define GET_NAMES12 , a, b, c, d, e, f, g, h, i, j, k, l
+#define GET_NAMES13 , a, b, c, d, e, f, g, h, i, j, k, l, m
+#define GET_NAMES14 , a, b, c, d, e, f, g, h, i, j, k, l, m, n
 #define GET_NAMES(...) MACRO_CONCAT(GET_NAMES, GET_ARG_COUNT(__VA_ARGS__))
 
 #define GET_ARGS0()
@@ -45,6 +51,10 @@
 #define GET_ARGS8(T0, T1, T2, T3, T4, T5, T6, T7) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h
 #define GET_ARGS9(T0, T1, T2, T3, T4, T5, T6, T7, T8) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i
 #define GET_ARGS10(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j
+#define GET_ARGS11(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j, T10 k
+#define GET_ARGS12(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j, T10 k, T11 l
+#define GET_ARGS13(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j, T10 k, T11 l, T12 m
+#define GET_ARGS14(T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j, T10 k, T11 l, T12 m, T13 n
 #define GET_ARGS(...) MACRO_CONCAT(GET_ARGS, GET_ARG_COUNT(__VA_ARGS__))(__VA_ARGS__)
 
 #define VULKAN_FUNCTION(method, returnType, clazz, ...) VKAPI_ATTR returnType VKAPI_PTR __##clazz##_##method(void* ptr GET_ARGS(__VA_ARGS__))\

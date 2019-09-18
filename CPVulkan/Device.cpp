@@ -191,12 +191,13 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 	auto next = pAllocateInfo->pNext;
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
+		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT:
 			FATAL_ERROR();
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	for (auto i = 0u; i < pAllocateInfo->descriptorSetCount; i++)
@@ -231,12 +232,16 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 		auto next = descriptorWrite.pNext;
 		while (next)
 		{
-			const auto type = *static_cast<const VkStructureType*>(next);
+			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 			switch (type)
 			{
-			default:
+			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV:
+				FATAL_ERROR();
+				
+			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT:
 				FATAL_ERROR();
 			}
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
 		}
 
 		UnwrapVulkan<DescriptorSet>(descriptorWrite.dstSet)->Update(descriptorWrite);
@@ -357,7 +362,11 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceImagelessFramebufferFeaturesKHR*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT:
 			FATAL_ERROR();
@@ -382,7 +391,11 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES:
 			{
@@ -409,7 +422,11 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceShaderAtomicInt64FeaturesKHR*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT:
 			FATAL_ERROR();
@@ -422,7 +439,11 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceShaderFloat16Int8FeaturesKHR*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_FOOTPRINT_FEATURES_NV:
 			FATAL_ERROR();
@@ -449,7 +470,11 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES:
 			{
@@ -462,18 +487,21 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_YCBCR_IMAGE_ARRAYS_FEATURES_EXT:
 			FATAL_ERROR();
 		}
-		
 		next = static_cast<const VkPhysicalDeviceFeatures2*>(next)->pNext;
 	}
 
 	for (auto i = 0u; i < pCreateInfo->queueCreateInfoCount; i++)
 	{
-		device->queues.push_back(std::unique_ptr<Queue>{Queue::Create(pCreateInfo->pQueueCreateInfos[i], pAllocator)});
+		device->queues.push_back(std::unique_ptr<Queue>{Queue::Create(&pCreateInfo->pQueueCreateInfos[i], pAllocator)});
 	}
 
 	std::vector<const char*> enabledExtensions{};

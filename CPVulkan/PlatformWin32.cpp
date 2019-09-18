@@ -5,17 +5,6 @@
 #define NOMINMAX
 #include <Windows.h>
 
-struct MutexWrapper
-{
-	explicit MutexWrapper(HANDLE event):
-		event{event}
-	{
-	}
-
-	HANDLE event{};
-	uint32_t lock{};
-};
-
 void Platform::Initialise()
 {
 	SYSTEM_INFO systemInfo{};
@@ -28,100 +17,76 @@ void Platform::Initialise()
 }
 
 #undef CreateMutex
-void* Platform::CreateMutex(bool initialState)
+void* Platform::CreateMutex(bool initialState, bool manualReset)
 {
-	const auto event = CreateEventW(nullptr, true, initialState, nullptr);
+	const auto event = CreateEventW(nullptr, manualReset, initialState, nullptr);
 	if (event == nullptr)
 	{
 		FATAL_ERROR();
 	}
-	return new MutexWrapper(event);
+	return event;
 }
 
-void Platform::CloseMutex(void* mutex)
+void Platform::CloseMutex(void* mutex) noexcept
 {
-	const auto mutexWrapper = static_cast<MutexWrapper*>(mutex);
-	CloseHandle(mutexWrapper->event);
-	delete mutexWrapper;
+	CloseHandle(mutex);
 }
 
-void Platform::SetMutex(void* mutex)
+void Platform::SignalMutex(void* mutex)
 {
-	const auto mutexWrapper = static_cast<MutexWrapper*>(mutex);
-	// if (InterlockedExchange(&mutexWrapper->lock, 1) != 0)
-	// {
-	// 	while (InterlockedExchange(&mutexWrapper->lock, -1) != 0)
-	// 	{
-	// 		if (WAIT_OBJECT_0 != WaitForSingleObject(mutexWrapper->event, INFINITE))
-	// 		{
-	// 			FATAL_ERROR();
-	// 		}
-	// 	}
-	// }
-	 
-	if (InterlockedCompareExchange(&mutexWrapper->lock, 1, 0) != 0)
-	{
-		// Has Lock
-	}
+	SetEvent(mutex);
 }
 
-void Platform::ReleaseMutex(void* mutex)
+void Platform::ResetMutex(void* mutex)
 {
-	const auto mutexWrapper = static_cast<MutexWrapper*>(mutex);
-	const auto lock = static_cast<int32_t>(InterlockedExchange(&mutexWrapper->lock, 0));
-	if (lock != 0)
-	{
-		if (lock < 0)
-		{
-			SetEvent(mutexWrapper->event);
-		}
-	}
+	ResetEvent(mutex);
 }
 
-VkResult Platform::Wait(void* mutex, uint64_t timeout)
+bool Platform::Wait(void* mutex, uint64_t timeout)
 {
-	const auto mutexWrapper = static_cast<MutexWrapper*>(mutex);
 	const auto milliseconds = static_cast<DWORD>(timeout == UINT64_MAX ? INFINITE : std::min(timeout / 1000000, static_cast<uint64_t>(INFINITE)));
-	if (InterlockedExchange(&mutexWrapper->lock, 1) != 0)
+	const auto result = WaitForSingleObject(mutex, milliseconds);
+	if (result == WAIT_OBJECT_0)
 	{
-		while (InterlockedExchange(&mutexWrapper->lock, -1) != 0)
-		{
-			const auto result = WaitForSingleObject(mutexWrapper->event, milliseconds);
-			if (result == WAIT_OBJECT_0)
-			{
-				return VK_SUCCESS;
-			}
-			if (result == WAIT_TIMEOUT)
-			{
-				return VK_TIMEOUT;
-			}
-
-			FATAL_ERROR();
-		}
+		return true;
 	}
-	
-	return VK_SUCCESS;
-}
-
-VkResult Platform::WaitMultiple(const std::vector<void*>& mutexes, bool waitAll, uint64_t timeout)
-{
-	if (mutexes.size() == 1)
+	if (result == WAIT_TIMEOUT)
 	{
-		return Wait(mutexes[0], timeout);
+		return false;
 	}
 	
 	FATAL_ERROR();
 }
 
-VkResult Platform::GetMutexStatus(void* mutex)
+bool Platform::WaitMultiple(const std::vector<void*>& mutexes, bool waitAll, uint64_t timeout)
 {
-	const auto mutexWrapper = static_cast<MutexWrapper*>(mutex);
-	if (mutexWrapper->lock != 0)
+	const auto milliseconds = static_cast<DWORD>(timeout == UINT64_MAX ? INFINITE : std::min(timeout / 1000000, static_cast<uint64_t>(INFINITE)));
+	const auto result = WaitForMultipleObjects(mutexes.size(), mutexes.data(), waitAll, milliseconds);
+	if (result == WAIT_OBJECT_0)
 	{
-		return VK_EVENT_SET;
+		return true;
+	}
+	if (result == WAIT_TIMEOUT)
+	{
+		return false;
 	}
 
-	return VK_EVENT_RESET;
+	FATAL_ERROR();
+}
+
+bool Platform::GetMutexStatus(void* mutex)
+{
+	const auto result = WaitForSingleObject(mutex, 0);
+	if (result == WAIT_OBJECT_0)
+	{
+		return true;
+	}
+	if (result == WAIT_TIMEOUT)
+	{
+		return false;
+	}
+	
+	FATAL_ERROR();
 }
 
 void* Platform::AlignedMalloc(size_t size, size_t alignment)
@@ -129,7 +94,7 @@ void* Platform::AlignedMalloc(size_t size, size_t alignment)
 	return _aligned_malloc(size, alignment);
 }
 
-void Platform::AlignedFree(void* ptr)
+void Platform::AlignedFree(void* ptr) noexcept
 {
 	_aligned_free(ptr);
 }

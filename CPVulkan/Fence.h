@@ -12,13 +12,14 @@ public:
 	Fence& operator=(const Fence&) = delete;
 	Fence&& operator=(const Fence&&) = delete;
 
-	void Signal();
+	VkResult Signal();
 	VkResult Reset();
 	VkResult Wait(uint64_t timeout);
 
 	static VkResult Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence);
 
-	[[nodiscard]] void* getHandle() const { return handle; }
+	[[nodiscard]] VkResult getStatus() const;
+	[[nodiscard]] void* getHandle() const noexcept { return handle; }
 
 private:
 	void* handle{};

@@ -5,7 +5,14 @@
 
 struct DeviceState;
 
-class Command;
+class Command
+{
+public:
+	virtual ~Command() = default;
+	
+	virtual void Process(DeviceState* deviceState) = 0;
+};
+
 class ExecuteCommandsCommand;
 
 enum class State
@@ -58,7 +65,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR ResolveImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageResolve* pRegions) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SetEvent(VkEvent event, VkPipelineStageFlags stageMask);
 	VKAPI_ATTR void VKAPI_PTR ResetEvent(VkEvent event, VkPipelineStageFlags stageMask);
-	VKAPI_ATTR void VKAPI_PTR WaitEvents(uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR WaitEvents(uint32_t eventCount, const VkEvent* pEvents, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers);
 	VKAPI_ATTR void VKAPI_PTR PipelineBarrier(VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkDependencyFlags dependencyFlags, uint32_t memoryBarrierCount, const VkMemoryBarrier* pMemoryBarriers, uint32_t bufferMemoryBarrierCount, const VkBufferMemoryBarrier* pBufferMemoryBarriers, uint32_t imageMemoryBarrierCount, const VkImageMemoryBarrier* pImageMemoryBarriers);
 	VKAPI_ATTR void VKAPI_PTR BeginQuery(VkQueryPool queryPool, uint32_t query, VkQueryControlFlags flags) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR EndQuery(VkQueryPool queryPool, uint32_t query) { FATAL_ERROR(); } 
@@ -133,6 +140,8 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceMarker(const VkPerformanceMarkerInfoINTEL* pMarkerInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceStreamMarker(const VkPerformanceStreamMarkerInfoINTEL* pMarkerInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceOverride(const VkPerformanceOverrideInfoINTEL* pOverrideInfo) { FATAL_ERROR(); }
+
+	VKAPI_ATTR void VKAPI_PTR SetLineStipple(uint32_t lineStippleFactor, uint16_t lineStipplePattern) { FATAL_ERROR(); }
 
 	void ForceReset();
 	VkResult Submit();

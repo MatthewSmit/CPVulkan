@@ -24,11 +24,8 @@ VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAll
 
 		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)

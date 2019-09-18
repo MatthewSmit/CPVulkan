@@ -19,11 +19,8 @@ VkResult Framebuffer::Create(const VkFramebufferCreateInfo* pCreateInfo, const V
 		{
 		case VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENTS_CREATE_INFO_KHR:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)

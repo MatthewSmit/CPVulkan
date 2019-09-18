@@ -79,7 +79,7 @@ VkResult Instance::CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreate
 	return VK_SUCCESS;
 }
 
-VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities)
+VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities) const
 {
 	const auto win32Surface = UnwrapVulkan<VkIcdSurfaceWin32>(surface);
 	RECT rect;

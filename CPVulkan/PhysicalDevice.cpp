@@ -341,7 +341,6 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 				features->uniformAndStorageBuffer16BitAccess = true;
 				features->storagePushConstant16 = true;
 				features->storageInputOutput16 = true;
-				next = features->pNext;
 				break;
 			}
 			
@@ -351,7 +350,6 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 				features->storageBuffer8BitAccess = true;
 				features->uniformAndStorageBuffer8BitAccess = true;
 				features->storagePushConstant8 = true;
-				next = features->pNext;
 				break;
 			}
 
@@ -375,7 +373,6 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 				const auto features = static_cast<VkPhysicalDeviceConditionalRenderingFeaturesEXT*>(next);
 				features->conditionalRendering = true;
 				features->inheritedConditionalRendering = true;
-				next = features->pNext;
 				break;
 			}
 
@@ -413,7 +410,11 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceImagelessFramebufferFeaturesKHR*>(next);
+				features->imagelessFramebuffer = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT:
 			FATAL_ERROR();
@@ -436,18 +437,20 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 				features->multiview = true;
 				features->multiviewGeometryShader = true;
 				features->multiviewTessellationShader = true;
-				next = features->pNext;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR*>(next);
+				features->pipelineExecutableInfo = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES:
 			{
 				const auto features = static_cast<VkPhysicalDeviceProtectedMemoryFeatures*>(next);
 				features->protectedMemory = true;
-				next = features->pNext;
 				break;
 			}
 
@@ -458,7 +461,6 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			{
 				const auto features = static_cast<VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
 				features->samplerYcbcrConversion = true;
-				next = features->pNext;
 				break;
 			}
 
@@ -480,12 +482,16 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			{
 				const auto features = static_cast<VkPhysicalDeviceShaderDrawParametersFeatures*>(next);
 				features->shaderDrawParameters = true;
-				next = features->pNext;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceShaderFloat16Int8FeaturesKHR*>(next);
+				features->shaderFloat16 = false;
+				features->shaderInt8 = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_FOOTPRINT_FEATURES_NV:
 			FATAL_ERROR();
@@ -512,14 +518,17 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR*>(next);
+				features->uniformBufferStandardLayout = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES:
 			{
 				const auto features = static_cast<VkPhysicalDeviceVariablePointersFeatures*>(next);
 				features->variablePointersStorageBuffer = true;
 				features->variablePointers = true;
-				next = features->pNext;
 				break;
 			}
 
@@ -527,15 +536,18 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceVulkanMemoryModelFeaturesKHR*>(next);
+				features->vulkanMemoryModel = true;
+				features->vulkanMemoryModelDeviceScope = true;
+				features->vulkanMemoryModelAvailabilityVisibilityChains = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_YCBCR_IMAGE_ARRAYS_FEATURES_EXT:
 			FATAL_ERROR();
-			
-		default:
-			next = static_cast<VkPhysicalDeviceFeatures2*>(next)->pNext;
-			break;
 		}
+		next = static_cast<VkPhysicalDeviceFeatures2*>(next)->pNext;
 	}
 }
 
@@ -694,7 +706,6 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT:
 			FATAL_ERROR();
 		}
-		
 		next = static_cast<VkPhysicalDeviceProperties2*>(next)->pNext;
 	}
 }
@@ -714,7 +725,6 @@ void PhysicalDevice::GetFormatProperties2(VkFormat format, VkFormatProperties2* 
 		case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT:
 			FATAL_ERROR();
 		}
-
 		next = static_cast<VkPhysicalDeviceProperties2*>(next)->pNext;
 	}
 }
@@ -725,7 +735,7 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 	assert(pImageFormatProperties->sType == VK_STRUCTURE_TYPE_IMAGE_FORMAT_PROPERTIES_2);
 
 	const auto format = pImageFormatInfo->format;
-	const auto type = pImageFormatInfo->type;
+	const auto formatType = pImageFormatInfo->type;
 	const auto tiling = pImageFormatInfo->tiling;
 	const auto usage = pImageFormatInfo->usage;
 	const auto flags = pImageFormatInfo->flags;
@@ -752,12 +762,11 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_VIEW_IMAGE_FORMAT_INFO_EXT:
 				FATAL_ERROR();
 			}
-
 			next = static_cast<const VkBaseInStructure*>(next)->pNext;
 		}
 	}
 
-	auto result = GetImageFormatPropertiesImpl(format, type, tiling, usage, flags, &pImageFormatProperties->imageFormatProperties);
+	const auto result = GetImageFormatPropertiesImpl(format, formatType, tiling, usage, flags, &pImageFormatProperties->imageFormatProperties);
 	if (result != VK_SUCCESS)
 	{
 		return result;
@@ -785,7 +794,6 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 			case VK_STRUCTURE_TYPE_TEXTURE_LOD_GATHER_FORMAT_PROPERTIES_AMD:
 				FATAL_ERROR();
 			}
-
 			next = static_cast<VkImageFormatProperties2*>(next)->pNext;
 		}
 	}
@@ -812,7 +820,6 @@ void PhysicalDevice::GetQueueFamilyProperties2(uint32_t* pQueueFamilyPropertyCou
 				case VK_STRUCTURE_TYPE_QUEUE_FAMILY_CHECKPOINT_PROPERTIES_NV:
 					FATAL_ERROR();
 				}
-
 				next = static_cast<VkQueueFamilyProperties2*>(next)->pNext;
 			}
 		}
@@ -848,7 +855,6 @@ void PhysicalDevice::GetMemoryProperties2(VkPhysicalDeviceMemoryProperties2* pMe
 				break;
 			}
 		}
-		
 		next = static_cast<VkPhysicalDeviceMemoryProperties2*>(next)->pNext;
 	}
 }
@@ -863,7 +869,7 @@ void PhysicalDevice::GetSparseImageFormatProperties2(const VkPhysicalDeviceSpars
 			assert(pProperties->sType == VK_STRUCTURE_TYPE_SPARSE_IMAGE_FORMAT_PROPERTIES_2);
 
 			const auto format = pFormatInfo->format;
-			const auto type = pFormatInfo->type;
+			const auto formatType = pFormatInfo->type;
 			const auto samples = pFormatInfo->samples;
 			const auto tiling = pFormatInfo->tiling;
 			const auto usage = pFormatInfo->usage;
@@ -876,12 +882,11 @@ void PhysicalDevice::GetSparseImageFormatProperties2(const VkPhysicalDeviceSpars
 					switch (type)
 					{
 					}
-
 					next = static_cast<const VkBaseInStructure*>(next)->pNext;
 				}
 			}
 			
-			GetSparseImageFormatPropertiesImpl(format, type, samples, usage, tiling, pPropertyCount, &pProperties->properties);
+			GetSparseImageFormatPropertiesImpl(format, formatType, samples, usage, tiling, pPropertyCount, &pProperties->properties);
 
 			{
 				auto next = pProperties->pNext;
@@ -891,7 +896,6 @@ void PhysicalDevice::GetSparseImageFormatProperties2(const VkPhysicalDeviceSpars
 					switch (type)
 					{
 					}
-
 					next = static_cast<VkSparseImageFormatProperties2*>(next)->pNext;
 				}
 			}

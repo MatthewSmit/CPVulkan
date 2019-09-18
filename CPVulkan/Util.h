@@ -34,7 +34,7 @@ static DeviceMemory* AllocateSized(const VkAllocationCallbacks* pAllocator, uint
 	return deviceMemory;
 }
 
-static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator)
+static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator) noexcept
 {
 	if (pAllocator)
 	{

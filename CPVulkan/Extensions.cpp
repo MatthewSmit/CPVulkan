@@ -1,10 +1,7 @@
 #include "Extensions.h"
 
 #include "CommandBuffer.h"
-#include "Device.h"
 #include "Instance.h"
-#include "PhysicalDevice.h"
-#include "Queue.h"
 #include "Trampoline.h"
 
 ExtensionGroup::ExtensionGroup() = default;
@@ -143,224 +140,6 @@ uint32_t ExtensionGroup::getNumberDeviceExtensions() const
 	return numberDeviceExtensions;
 }
 
-// 	{"vkGetMemoryFdKHR", GET_TRAMPOLINE(Device, GetMemoryFdKHR), true},
-// 	{"vkGetMemoryFdPropertiesKHR", GET_TRAMPOLINE(Device, GetMemoryFdPropertiesKHR), true},
-//
-// 	{"vkImportSemaphoreFdKHR", GET_TRAMPOLINE(Device, ImportSemaphoreFdKHR), true},
-// 	{"vkGetSemaphoreFdKHR", GET_TRAMPOLINE(Device, GetSemaphoreFdKHR), true},
-//
-// 	{"vkCmdPushDescriptorSetKHR", GET_TRAMPOLINE(CommandBuffer, PushDescriptorSetKHR), true},
-// 	{"vkCmdPushDescriptorSetWithTemplateKHR", GET_TRAMPOLINE(CommandBuffer, PushDescriptorSetWithTemplateKHR), true},
-//
-// 	{"vkCreateDescriptorUpdateTemplateKHR", GET_TRAMPOLINE(Device, CreateDescriptorUpdateTemplateKHR), true},
-// 	{"vkDestroyDescriptorUpdateTemplateKHR", GET_TRAMPOLINE(Device, DestroyDescriptorUpdateTemplateKHR), true},
-// 	{"vkUpdateDescriptorSetWithTemplateKHR", GET_TRAMPOLINE(Device, UpdateDescriptorSetWithTemplateKHR), true},
-//
-// 	{"vkCreateRenderPass2KHR", GET_TRAMPOLINE(Device, CreateRenderPass2KHR), true},
-// 	{"vkCmdBeginRenderPass2KHR", GET_TRAMPOLINE(CommandBuffer, BeginRenderPass2KHR), true},
-// 	{"vkCmdNextSubpass2KHR", GET_TRAMPOLINE(CommandBuffer, NextSubpass2KHR), true},
-// 	{"vkCmdEndRenderPass2KHR", GET_TRAMPOLINE(CommandBuffer, EndRenderPass2KHR), true},
-//
-// 	{"vkGetSwapchainStatusKHR", GET_TRAMPOLINE(Device, GetSwapchainStatusKHR), true},
-//
-// 	{"vkImportFenceFdKHR", GET_TRAMPOLINE(Device, ImportFenceFdKHR), true},
-// 	{"vkGetFenceFdKHR", GET_TRAMPOLINE(Device, GetFenceFdKHR), true},
-//
-// 	{"vkGetImageMemoryRequirements2KHR", GET_TRAMPOLINE(Device, GetImageMemoryRequirements2KHR), true},
-// 	{"vkGetBufferMemoryRequirements2KHR", GET_TRAMPOLINE(Device, GetBufferMemoryRequirements2KHR), true},
-// 	{"vkGetImageSparseMemoryRequirements2KHR", GET_TRAMPOLINE(Device, GetImageSparseMemoryRequirements2KHR), true},
-//
-// 	{"vkCreateSamplerYcbcrConversionKHR", GET_TRAMPOLINE(Device, CreateSamplerYcbcrConversionKHR), true},
-// 	{"vkDestroySamplerYcbcrConversionKHR", GET_TRAMPOLINE(Device, DestroySamplerYcbcrConversionKHR), true},
-//
-// 	{"vkBindBufferMemory2KHR", GET_TRAMPOLINE(Device, BindBufferMemory2KHR), true},
-// 	{"vkBindImageMemory2KHR", GET_TRAMPOLINE(Device, BindImageMemory2KHR), true},
-//
-// 	{"vkGetDescriptorSetLayoutSupportKHR", GET_TRAMPOLINE(Device, GetDescriptorSetLayoutSupportKHR), true},
-//
-// 	{"vkCmdDrawIndirectCountKHR", GET_TRAMPOLINE(CommandBuffer, DrawIndirectCountKHR), true},
-// 	{"vkCmdDrawIndexedIndirectCountKHR", GET_TRAMPOLINE(CommandBuffer, DrawIndexedIndirectCountKHR), true},
-//
-// 	{"vkDebugMarkerSetObjectTagEXT", GET_TRAMPOLINE(Device, DebugMarkerSetObjectTagEXT), true},
-// 	{"vkDebugMarkerSetObjectNameEXT", GET_TRAMPOLINE(Device, DebugMarkerSetObjectNameEXT), true},
-// 	{"vkCmdDebugMarkerBeginEXT", GET_TRAMPOLINE(CommandBuffer, DebugMarkerBeginEXT), true},
-// 	{"vkCmdDebugMarkerEndEXT", GET_TRAMPOLINE(CommandBuffer, DebugMarkerEndEXT), true},
-// 	{"vkCmdDebugMarkerInsertEXT", GET_TRAMPOLINE(CommandBuffer, DebugMarkerInsertEXT), true},
-//
-// 	{"vkCmdBindTransformFeedbackBuffersEXT", GET_TRAMPOLINE(CommandBuffer, BindTransformFeedbackBuffersEXT), true},
-// 	{"vkCmdBeginTransformFeedbackEXT", GET_TRAMPOLINE(CommandBuffer, BeginTransformFeedbackEXT), true},
-// 	{"vkCmdEndTransformFeedbackEXT", GET_TRAMPOLINE(CommandBuffer, EndTransformFeedbackEXT), true},
-// 	{"vkCmdBeginQueryIndexedEXT", GET_TRAMPOLINE(CommandBuffer, BeginQueryIndexedEXT), true},
-// 	{"vkCmdEndQueryIndexedEXT", GET_TRAMPOLINE(CommandBuffer, EndQueryIndexedEXT), true},
-// 	{"vkCmdDrawIndirectByteCountEXT", GET_TRAMPOLINE(CommandBuffer, DrawIndirectByteCountEXT), true},
-//
-// 	{"vkGetImageViewHandleNVX", GET_TRAMPOLINE(Device, GetImageViewHandleNVX), true},
-//
-// 	{"vkCmdDrawIndirectCountAMD", GET_TRAMPOLINE(CommandBuffer, DrawIndirectCountAMD), true},
-// 	{"vkCmdDrawIndexedIndirectCountAMD", GET_TRAMPOLINE(CommandBuffer, DrawIndexedIndirectCountAMD), true},
-//
-// 	{"vkGetShaderInfoAMD", GET_TRAMPOLINE(Device, GetShaderInfoAMD), true},
-//
-// 	{"vkCmdBeginConditionalRenderingEXT", GET_TRAMPOLINE(CommandBuffer, BeginConditionalRenderingEXT), true},
-// 	{"vkCmdEndConditionalRenderingEXT", GET_TRAMPOLINE(CommandBuffer, EndConditionalRenderingEXT), true},
-//
-// 	{"vkCmdProcessCommandsNVX", GET_TRAMPOLINE(CommandBuffer, ProcessCommandsNVX), true},
-// 	{"vkCmdReserveSpaceForCommandsNVX", GET_TRAMPOLINE(CommandBuffer, ReserveSpaceForCommandsNVX), true},
-// 	{"vkCreateIndirectCommandsLayoutNVX", GET_TRAMPOLINE(Device, CreateIndirectCommandsLayoutNVX), true},
-// 	{"vkDestroyIndirectCommandsLayoutNVX", GET_TRAMPOLINE(Device, DestroyIndirectCommandsLayoutNVX), true},
-// 	{"vkCreateObjectTableNVX", GET_TRAMPOLINE(Device, CreateObjectTableNVX), true},
-// 	{"vkDestroyObjectTableNVX", GET_TRAMPOLINE(Device, DestroyObjectTableNVX), true},
-// 	{"vkRegisterObjectsNVX", GET_TRAMPOLINE(Device, RegisterObjectsNVX), true},
-// 	{"vkUnregisterObjectsNVX", GET_TRAMPOLINE(Device, UnregisterObjectsNVX), true},
-//
-// 	{"vkCmdSetViewportWScalingNV", GET_TRAMPOLINE(CommandBuffer, SetViewportWScalingNV), true},
-//
-// 	{"vkDisplayPowerControlEXT", GET_TRAMPOLINE(Device, DisplayPowerControlEXT), true},
-// 	{"vkRegisterDeviceEventEXT", GET_TRAMPOLINE(Device, RegisterDeviceEventEXT), true},
-// 	{"vkRegisterDisplayEventEXT", GET_TRAMPOLINE(Device, RegisterDisplayEventEXT), true},
-// 	{"vkGetSwapchainCounterEXT", GET_TRAMPOLINE(Device, GetSwapchainCounterEXT), true},
-//
-// 	{"vkGetRefreshCycleDurationGOOGLE", GET_TRAMPOLINE(Device, GetRefreshCycleDurationGOOGLE), true},
-// 	{"vkGetPastPresentationTimingGOOGLE", GET_TRAMPOLINE(Device, GetPastPresentationTimingGOOGLE), true},
-//
-// 	{"vkCmdSetDiscardRectangleEXT", GET_TRAMPOLINE(CommandBuffer, SetDiscardRectangleEXT), true},
-//
-// 	{"vkSetHdrMetadataEXT", GET_TRAMPOLINE(Device, SetHdrMetadataEXT), true},
-//
-// 	{"vkSetDebugUtilsObjectNameEXT", GET_TRAMPOLINE(Device, SetDebugUtilsObjectNameEXT), true},
-// 	{"vkSetDebugUtilsObjectTagEXT", GET_TRAMPOLINE(Device, SetDebugUtilsObjectTagEXT), true},
-// 	{"vkQueueBeginDebugUtilsLabelEXT", GET_TRAMPOLINE(Queue, QueueBeginDebugUtilsLabelEXT), true},
-// 	{"vkQueueEndDebugUtilsLabelEXT", GET_TRAMPOLINE(Queue, QueueEndDebugUtilsLabelEXT), true},
-// 	{"vkQueueInsertDebugUtilsLabelEXT", GET_TRAMPOLINE(Queue, QueueInsertDebugUtilsLabelEXT), true},
-// 	{"vkCmdBeginDebugUtilsLabelEXT", GET_TRAMPOLINE(CommandBuffer, BeginDebugUtilsLabelEXT), true},
-// 	{"vkCmdEndDebugUtilsLabelEXT", GET_TRAMPOLINE(CommandBuffer, EndDebugUtilsLabelEXT), true},
-// 	{"vkCmdInsertDebugUtilsLabelEXT", GET_TRAMPOLINE(CommandBuffer, InsertDebugUtilsLabelEXT), true},
-//
-// 	{"vkCmdSetSampleLocationsEXT", GET_TRAMPOLINE(CommandBuffer, SetSampleLocationsEXT), true},
-//
-// 	{"vkGetImageDrmFormatModifierPropertiesEXT", GET_TRAMPOLINE(Device, GetImageDrmFormatModifierPropertiesEXT), true},
-//
-// 	{"vkCreateValidationCacheEXT", GET_TRAMPOLINE(Device, CreateValidationCacheEXT), true},
-// 	{"vkDestroyValidationCacheEXT", GET_TRAMPOLINE(Device, DestroyValidationCacheEXT), true},
-// 	{"vkMergeValidationCachesEXT", GET_TRAMPOLINE(Device, MergeValidationCachesEXT), true},
-// 	{"vkGetValidationCacheDataEXT", GET_TRAMPOLINE(Device, GetValidationCacheDataEXT), true},
-//
-// 	{"vkCmdBindShadingRateImageNV", GET_TRAMPOLINE(CommandBuffer, BindShadingRateImageNV), true},
-// 	{"vkCmdSetViewportShadingRatePaletteNV", GET_TRAMPOLINE(CommandBuffer, SetViewportShadingRatePaletteNV), true},
-// 	{"vkCmdSetCoarseSampleOrderNV", GET_TRAMPOLINE(CommandBuffer, SetCoarseSampleOrderNV), true},
-//
-// 	{"vkCreateAccelerationStructureNV", GET_TRAMPOLINE(Device, CreateAccelerationStructureNV), true},
-// 	{"vkDestroyAccelerationStructureNV", GET_TRAMPOLINE(Device, DestroyAccelerationStructureNV), true},
-// 	{"vkGetAccelerationStructureMemoryRequirementsNV", GET_TRAMPOLINE(Device, GetAccelerationStructureMemoryRequirementsNV), true},
-// 	{"vkBindAccelerationStructureMemoryNV", GET_TRAMPOLINE(Device, BindAccelerationStructureMemoryNV), true},
-// 	{"vkCmdBuildAccelerationStructureNV", GET_TRAMPOLINE(CommandBuffer, BuildAccelerationStructureNV), true},
-// 	{"vkCmdCopyAccelerationStructureNV", GET_TRAMPOLINE(CommandBuffer, CopyAccelerationStructureNV), true},
-// 	{"vkCmdTraceRaysNV", GET_TRAMPOLINE(CommandBuffer, TraceRaysNV), true},
-// 	{"vkCreateRayTracingPipelinesNV", GET_TRAMPOLINE(Device, CreateRayTracingPipelinesNV), true},
-// 	{"vkGetRayTracingShaderGroupHandlesNV", GET_TRAMPOLINE(Device, GetRayTracingShaderGroupHandlesNV), true},
-// 	{"vkGetAccelerationStructureHandleNV", GET_TRAMPOLINE(Device, GetAccelerationStructureHandleNV), true},
-// 	{"vkCmdWriteAccelerationStructuresPropertiesNV", GET_TRAMPOLINE(CommandBuffer, WriteAccelerationStructuresPropertiesNV), true},
-// 	{"vkCompileDeferredNV", GET_TRAMPOLINE(Device, CompileDeferredNV), true},
-//
-// 	{"vkGetMemoryHostPointerPropertiesEXT", GET_TRAMPOLINE(Device, GetMemoryHostPointerPropertiesEXT), true},
-//
-// 	{"vkCmdWriteBufferMarkerAMD", GET_TRAMPOLINE(CommandBuffer, WriteBufferMarkerAMD), true},
-//
-// 	{"vkGetCalibratedTimestampsEXT", GET_TRAMPOLINE(Device, GetCalibratedTimestampsEXT), true},
-//
-// 	{"vkCmdDrawMeshTasksNV", GET_TRAMPOLINE(CommandBuffer, DrawMeshTasksNV), true},
-// 	{"vkCmdDrawMeshTasksIndirectNV", GET_TRAMPOLINE(CommandBuffer, DrawMeshTasksIndirectNV), true},
-// 	{"vkCmdDrawMeshTasksIndirectCountNV", GET_TRAMPOLINE(CommandBuffer, DrawMeshTasksIndirectCountNV), true},
-//
-// 	{"vkCmdSetExclusiveScissorNV", GET_TRAMPOLINE(CommandBuffer, SetExclusiveScissorNV), true},
-//
-// 	{"vkCmdSetCheckpointNV", GET_TRAMPOLINE(CommandBuffer, SetCheckpointNV), true},
-// 	{"vkGetQueueCheckpointDataNV", GET_TRAMPOLINE(Queue, GetQueueCheckpointDataNV), true},
-//
-// 	{"vkInitializePerformanceApiINTEL", GET_TRAMPOLINE(Device, InitializePerformanceApiINTEL), true},
-// 	{"vkUninitializePerformanceApiINTEL", GET_TRAMPOLINE(Device, UninitializePerformanceApiINTEL), true},
-// 	{"vkCmdSetPerformanceMarkerINTEL", GET_TRAMPOLINE(CommandBuffer, SetPerformanceMarkerINTEL), true},
-// 	{"vkCmdSetPerformanceStreamMarkerINTEL", GET_TRAMPOLINE(CommandBuffer, SetPerformanceStreamMarkerINTEL), true},
-// 	{"vkCmdSetPerformanceOverrideINTEL", GET_TRAMPOLINE(CommandBuffer, SetPerformanceOverrideINTEL), true},
-// 	{"vkAcquirePerformanceConfigurationINTEL", GET_TRAMPOLINE(Device, AcquirePerformanceConfigurationINTEL), true},
-// 	{"vkReleasePerformanceConfigurationINTEL", GET_TRAMPOLINE(Device, ReleasePerformanceConfigurationINTEL), true},
-// 	{"vkQueueSetPerformanceConfigurationINTEL", GET_TRAMPOLINE(Queue, QueueSetPerformanceConfigurationINTEL), true},
-// 	{"vkGetPerformanceParameterINTEL", GET_TRAMPOLINE(Device, GetPerformanceParameterINTEL), true},
-//
-// 	{"vkSetLocalDimmingAMD", GET_TRAMPOLINE(Device, SetLocalDimmingAMD), true},
-//
-// 	{"vkGetBufferDeviceAddressEXT", GET_TRAMPOLINE(Device, GetBufferDeviceAddressEXT), true},
-//
-// 	{"vkResetQueryPoolEXT", GET_TRAMPOLINE(Device, ResetQueryPoolEXT), true},
-//
-// 	{"vkGetMemoryWin32HandleKHR", GET_TRAMPOLINE(Device, GetMemoryWin32HandleKHR), true},
-// 	{"vkGetMemoryWin32HandlePropertiesKHR", GET_TRAMPOLINE(Device, GetMemoryWin32HandlePropertiesKHR), true},
-//
-// 	{"vkImportSemaphoreWin32HandleKHR", GET_TRAMPOLINE(Device, ImportSemaphoreWin32HandleKHR), true},
-// 	{"vkGetSemaphoreWin32HandleKHR", GET_TRAMPOLINE(Device, GetSemaphoreWin32HandleKHR), true},
-//
-// 	{"vkImportFenceWin32HandleKHR", GET_TRAMPOLINE(Device, ImportFenceWin32HandleKHR), true},
-// 	{"vkGetFenceWin32HandleKHR", GET_TRAMPOLINE(Device, GetFenceWin32HandleKHR), true},
-//
-// 	{"vkGetMemoryWin32HandleNV", GET_TRAMPOLINE(Device, GetMemoryWin32HandleNV), true},
-//
-// 	{"vkAcquireFullScreenExclusiveModeEXT", GET_TRAMPOLINE(Device, AcquireFullScreenExclusiveModeEXT), true},
-// 	{"vkReleaseFullScreenExclusiveModeEXT", GET_TRAMPOLINE(Device, ReleaseFullScreenExclusiveModeEXT), true},
-// 	{"vkGetDeviceGroupSurfacePresentModes2EXT", GET_TRAMPOLINE(Device, GetDeviceGroupSurfacePresentModes2EXT), true},
-// };
-//
-// 	{"vkGetPhysicalDeviceExternalBufferPropertiesKHR", GET_TRAMPOLINE(PhysicalDevice, GetExternalBufferPropertiesKHR), false},
-//
-// 	{"vkGetPhysicalDeviceExternalSemaphorePropertiesKHR", GET_TRAMPOLINE(PhysicalDevice, GetExternalSemaphorePropertiesKHR), false},
-//
-// 	{"vkGetPhysicalDeviceExternalFencePropertiesKHR", GET_TRAMPOLINE(PhysicalDevice, GetExternalFencePropertiesKHR), false},
-//
-// 	{"vkGetPhysicalDeviceSurfaceCapabilities2KHR", GET_TRAMPOLINE(PhysicalDevice, GetSurfaceCapabilities2KHR), false},
-// 	{"vkGetPhysicalDeviceSurfaceFormats2KHR", GET_TRAMPOLINE(PhysicalDevice, GetSurfaceFormats2KHR), false},
-//
-// 	{"vkGetPhysicalDeviceDisplayProperties2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayProperties2KHR), false},
-// 	{"vkGetPhysicalDeviceDisplayPlaneProperties2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayPlaneProperties2KHR), false},
-// 	{"vkGetDisplayModeProperties2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayModeProperties2KHR), false},
-// 	{"vkGetDisplayPlaneCapabilities2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayPlaneCapabilities2KHR), false},
-//
-// 	{"vkCreateDebugReportCallbackEXT", GET_TRAMPOLINE(Instance, CreateDebugReportCallbackEXT), false},
-// 	{"vkDestroyDebugReportCallbackEXT", GET_TRAMPOLINE(Instance, DestroyDebugReportCallbackEXT), false},
-// 	{"vkDebugReportMessageEXT", GET_TRAMPOLINE(Instance, DebugReportMessageEXT), false},
-//
-// 	{"vkGetPhysicalDeviceExternalImageFormatPropertiesNV", GET_TRAMPOLINE(PhysicalDevice, GetExternalImageFormatPropertiesNV), false},
-//
-// 	{"vkGetPhysicalDeviceGeneratedCommandsPropertiesNVX", GET_TRAMPOLINE(PhysicalDevice, GetGeneratedCommandsPropertiesNVX), false},
-//
-// 	{"vkReleaseDisplayEXT", GET_TRAMPOLINE(PhysicalDevice, ReleaseDisplayEXT), false},
-//
-// 	{"vkGetPhysicalDeviceSurfaceCapabilities2EXT", GET_TRAMPOLINE(PhysicalDevice, GetSurfaceCapabilities2EXT), false},
-//
-// 	{"vkCreateDebugUtilsMessengerEXT", GET_TRAMPOLINE(Instance, CreateDebugUtilsMessengerEXT), false},
-// 	{"vkDestroyDebugUtilsMessengerEXT", GET_TRAMPOLINE(Instance, DestroyDebugUtilsMessengerEXT), false},
-// 	{"vkSubmitDebugUtilsMessageEXT", GET_TRAMPOLINE(Instance, SubmitDebugUtilsMessageEXT), false},
-//
-// 	{"vkGetPhysicalDeviceMultisamplePropertiesEXT", GET_TRAMPOLINE(PhysicalDevice, GetMultisamplePropertiesEXT), false},
-//
-// 	{"vkGetPhysicalDeviceCalibrateableTimeDomainsEXT", GET_TRAMPOLINE(PhysicalDevice, GetCalibrateableTimeDomainsEXT), false},
-//
-// 	{"vkGetPhysicalDeviceCooperativeMatrixPropertiesNV", GET_TRAMPOLINE(PhysicalDevice, GetCooperativeMatrixPropertiesNV), false},
-//
-// 	{"vkGetPhysicalDeviceSupportedFramebufferMixedSamplesCombinationsNV", GET_TRAMPOLINE(PhysicalDevice, GetSupportedFramebufferMixedSamplesCombinationsNV), false},
-//
-// 	{"vkCreateHeadlessSurfaceEXT", GET_TRAMPOLINE(Instance, CreateHeadlessSurfaceEXT), false},
-//
-// 	{"vkGetPhysicalDeviceSurfacePresentModes2EXT", GET_TRAMPOLINE(PhysicalDevice, GetSurfacePresentModes2EXT), false},
-// };
-
-// #if defined(VK_KHR_swapchain)
-// 			{
-// 				VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-// 				VK_KHR_SWAPCHAIN_SPEC_VERSION,
-// 				false,
-// 				{
-// 				}
-// 			},
-// #endif
 ExtensionGroup& GetInitialExtensions()
 {
 	static ExtensionGroup result
@@ -601,7 +380,7 @@ ExtensionGroup& GetInitialExtensions()
 				VK_KHR_DISPLAY_SWAPCHAIN_SPEC_VERSION,
 				true,
 				{
-					{"vkCreateSharedSwapchainsKHR", GET_TRAMPOLINE(Device, CreateSharedSwapchains), true},
+					{"vkCreateSharedSwapchainsKHR", GET_TRAMPOLINE(Device, CreateSharedSwapchains), false},
 				}
 			},
 #endif
@@ -645,9 +424,9 @@ ExtensionGroup& GetInitialExtensions()
 				VK_KHR_DEVICE_GROUP_SPEC_VERSION,
 				true,
 				{
-					{"vkGetDeviceGroupPeerMemoryFeaturesKHR", GET_TRAMPOLINE(Device, GetDeviceGroupPeerMemoryFeatures), true},
-					{"vkCmdSetDeviceMaskKHR", GET_TRAMPOLINE(CommandBuffer, SetDeviceMask), true},
-					{"vkCmdDispatchBaseKHR", GET_TRAMPOLINE(CommandBuffer, DispatchBase), true},
+					{"vkGetDeviceGroupPeerMemoryFeaturesKHR", GET_TRAMPOLINE(Device, GetDeviceGroupPeerMemoryFeatures), false},
+					{"vkCmdSetDeviceMaskKHR", GET_TRAMPOLINE(CommandBuffer, SetDeviceMask), false},
+					{"vkCmdDispatchBaseKHR", GET_TRAMPOLINE(CommandBuffer, DispatchBase), false},
 				}
 			},
 #endif
@@ -666,7 +445,7 @@ ExtensionGroup& GetInitialExtensions()
 				VK_KHR_MAINTENANCE1_SPEC_VERSION,
 				true,
 				{
-					{"vkTrimCommandPoolKHR", GET_TRAMPOLINE(Device, TrimCommandPool), true},
+					{"vkTrimCommandPoolKHR", GET_TRAMPOLINE(Device, TrimCommandPool), false},
 				}
 			},
 #endif
@@ -680,696 +459,267 @@ ExtensionGroup& GetInitialExtensions()
 				}
 			},
 #endif
-#if XXX
-#define VK_KHR_external_memory_capabilities 1
-#define VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME "VK_KHR_external_memory_capabilities"
-#define VK_LUID_SIZE_KHR                  VK_LUID_SIZE
-				typedef VkExternalMemoryHandleTypeFlags VkExternalMemoryHandleTypeFlagsKHR;
-
-			typedef VkExternalMemoryHandleTypeFlagBits VkExternalMemoryHandleTypeFlagBitsKHR;
-
-			typedef VkExternalMemoryFeatureFlags VkExternalMemoryFeatureFlagsKHR;
-
-			typedef VkExternalMemoryFeatureFlagBits VkExternalMemoryFeatureFlagBitsKHR;
-
-			typedef VkExternalMemoryProperties VkExternalMemoryPropertiesKHR;
-
-			typedef VkPhysicalDeviceExternalImageFormatInfo VkPhysicalDeviceExternalImageFormatInfoKHR;
-
-			typedef VkExternalImageFormatProperties VkExternalImageFormatPropertiesKHR;
-
-			typedef VkPhysicalDeviceExternalBufferInfo VkPhysicalDeviceExternalBufferInfoKHR;
-
-			typedef VkExternalBufferProperties VkExternalBufferPropertiesKHR;
-
-			typedef VkPhysicalDeviceIDProperties VkPhysicalDeviceIDPropertiesKHR;
-
-			typedef void (VKAPI_PTR* PFN_vkGetPhysicalDeviceExternalBufferPropertiesKHR)(VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo, VkExternalBufferProperties* pExternalBufferProperties);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceExternalBufferPropertiesKHR(
-				VkPhysicalDevice                            physicalDevice,
-				const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo,
-				VkExternalBufferProperties* pExternalBufferProperties);
+#if defined(VK_KHR_external_memory_capabilities)
+			{
+				VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_MEMORY_CAPABILITIES_SPEC_VERSION,
+				false,
+				{
+					{"vkGetPhysicalDeviceExternalBufferPropertiesKHR", GET_TRAMPOLINE(PhysicalDevice, GetExternalBufferProperties), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_external_memory 1
-#define VK_KHR_EXTERNAL_MEMORY_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME "VK_KHR_external_memory"
-#define VK_QUEUE_FAMILY_EXTERNAL_KHR      VK_QUEUE_FAMILY_EXTERNAL
-			typedef VkExternalMemoryImageCreateInfo VkExternalMemoryImageCreateInfoKHR;
-
-			typedef VkExternalMemoryBufferCreateInfo VkExternalMemoryBufferCreateInfoKHR;
-
-			typedef VkExportMemoryAllocateInfo VkExportMemoryAllocateInfoKHR;
-
-
-
-#define VK_KHR_external_memory_fd 1
-#define VK_KHR_EXTERNAL_MEMORY_FD_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME "VK_KHR_external_memory_fd"
-			typedef struct VkImportMemoryFdInfoKHR {
-				VkStructureType                       sType;
-				const void* pNext;
-				VkExternalMemoryHandleTypeFlagBits    handleType;
-				int                                   fd;
-			} VkImportMemoryFdInfoKHR;
-
-			typedef struct VkMemoryFdPropertiesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				uint32_t           memoryTypeBits;
-			} VkMemoryFdPropertiesKHR;
-
-			typedef struct VkMemoryGetFdInfoKHR {
-				VkStructureType                       sType;
-				const void* pNext;
-				VkDeviceMemory                        memory;
-				VkExternalMemoryHandleTypeFlagBits    handleType;
-			} VkMemoryGetFdInfoKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkGetMemoryFdKHR)(VkDevice device, const VkMemoryGetFdInfoKHR* pGetFdInfo, int* pFd);
-			typedef VkResult(VKAPI_PTR* PFN_vkGetMemoryFdPropertiesKHR)(VkDevice device, VkExternalMemoryHandleTypeFlagBits handleType, int fd, VkMemoryFdPropertiesKHR* pMemoryFdProperties);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetMemoryFdKHR(
-				VkDevice                                    device,
-				const VkMemoryGetFdInfoKHR* pGetFdInfo,
-				int* pFd);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetMemoryFdPropertiesKHR(
-				VkDevice                                    device,
-				VkExternalMemoryHandleTypeFlagBits          handleType,
-				int                                         fd,
-				VkMemoryFdPropertiesKHR* pMemoryFdProperties);
+#if defined(VK_KHR_external_memory)
+			{
+				VK_KHR_EXTERNAL_MEMORY_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_MEMORY_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
-
-
-#define VK_KHR_external_semaphore_capabilities 1
-#define VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME "VK_KHR_external_semaphore_capabilities"
-			typedef VkExternalSemaphoreHandleTypeFlags VkExternalSemaphoreHandleTypeFlagsKHR;
-
-			typedef VkExternalSemaphoreHandleTypeFlagBits VkExternalSemaphoreHandleTypeFlagBitsKHR;
-
-			typedef VkExternalSemaphoreFeatureFlags VkExternalSemaphoreFeatureFlagsKHR;
-
-			typedef VkExternalSemaphoreFeatureFlagBits VkExternalSemaphoreFeatureFlagBitsKHR;
-
-			typedef VkPhysicalDeviceExternalSemaphoreInfo VkPhysicalDeviceExternalSemaphoreInfoKHR;
-
-			typedef VkExternalSemaphoreProperties VkExternalSemaphorePropertiesKHR;
-
-			typedef void (VKAPI_PTR* PFN_vkGetPhysicalDeviceExternalSemaphorePropertiesKHR)(VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalSemaphoreInfo* pExternalSemaphoreInfo, VkExternalSemaphoreProperties* pExternalSemaphoreProperties);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceExternalSemaphorePropertiesKHR(
-				VkPhysicalDevice                            physicalDevice,
-				const VkPhysicalDeviceExternalSemaphoreInfo* pExternalSemaphoreInfo,
-				VkExternalSemaphoreProperties* pExternalSemaphoreProperties);
+#if defined(VK_KHR_external_memory_fd)
+			{
+				VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_MEMORY_FD_SPEC_VERSION,
+				true,
+				{
+					{"vkGetMemoryFdKHR", GET_TRAMPOLINE(Device, GetMemoryFd), false},
+					{"vkGetMemoryFdPropertiesKHR", GET_TRAMPOLINE(Device, GetMemoryFdProperties), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_external_semaphore 1
-#define VK_KHR_EXTERNAL_SEMAPHORE_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME "VK_KHR_external_semaphore"
-			typedef VkSemaphoreImportFlags VkSemaphoreImportFlagsKHR;
-
-			typedef VkSemaphoreImportFlagBits VkSemaphoreImportFlagBitsKHR;
-
-			typedef VkExportSemaphoreCreateInfo VkExportSemaphoreCreateInfoKHR;
-
-
-
-#define VK_KHR_external_semaphore_fd 1
-#define VK_KHR_EXTERNAL_SEMAPHORE_FD_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME "VK_KHR_external_semaphore_fd"
-			typedef struct VkImportSemaphoreFdInfoKHR {
-				VkStructureType                          sType;
-				const void* pNext;
-				VkSemaphore                              semaphore;
-				VkSemaphoreImportFlags                   flags;
-				VkExternalSemaphoreHandleTypeFlagBits    handleType;
-				int                                      fd;
-			} VkImportSemaphoreFdInfoKHR;
-
-			typedef struct VkSemaphoreGetFdInfoKHR {
-				VkStructureType                          sType;
-				const void* pNext;
-				VkSemaphore                              semaphore;
-				VkExternalSemaphoreHandleTypeFlagBits    handleType;
-			} VkSemaphoreGetFdInfoKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkImportSemaphoreFdKHR)(VkDevice device, const VkImportSemaphoreFdInfoKHR* pImportSemaphoreFdInfo);
-			typedef VkResult(VKAPI_PTR* PFN_vkGetSemaphoreFdKHR)(VkDevice device, const VkSemaphoreGetFdInfoKHR* pGetFdInfo, int* pFd);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkImportSemaphoreFdKHR(
-				VkDevice                                    device,
-				const VkImportSemaphoreFdInfoKHR* pImportSemaphoreFdInfo);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetSemaphoreFdKHR(
-				VkDevice                                    device,
-				const VkSemaphoreGetFdInfoKHR* pGetFdInfo,
-				int* pFd);
+#if defined(VK_KHR_external_semaphore_capabilities)
+			{
+				VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_SEMAPHORE_CAPABILITIES_SPEC_VERSION,
+				false,
+				{
+					{"vkGetPhysicalDeviceExternalSemaphorePropertiesKHR", GET_TRAMPOLINE(PhysicalDevice, GetExternalSemaphoreProperties), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_push_descriptor 1
-#define VK_KHR_PUSH_DESCRIPTOR_SPEC_VERSION 2
-#define VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME "VK_KHR_push_descriptor"
-			typedef struct VkPhysicalDevicePushDescriptorPropertiesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				uint32_t           maxPushDescriptors;
-			} VkPhysicalDevicePushDescriptorPropertiesKHR;
-
-			typedef void (VKAPI_PTR* PFN_vkCmdPushDescriptorSetKHR)(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites);
-			typedef void (VKAPI_PTR* PFN_vkCmdPushDescriptorSetWithTemplateKHR)(VkCommandBuffer commandBuffer, VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set, const void* pData);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkCmdPushDescriptorSetKHR(
-				VkCommandBuffer                             commandBuffer,
-				VkPipelineBindPoint                         pipelineBindPoint,
-				VkPipelineLayout                            layout,
-				uint32_t                                    set,
-				uint32_t                                    descriptorWriteCount,
-				const VkWriteDescriptorSet* pDescriptorWrites);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdPushDescriptorSetWithTemplateKHR(
-				VkCommandBuffer                             commandBuffer,
-				VkDescriptorUpdateTemplate                  descriptorUpdateTemplate,
-				VkPipelineLayout                            layout,
-				uint32_t                                    set,
-				const void* pData);
+#if defined(VK_KHR_external_semaphore)
+			{
+				VK_KHR_EXTERNAL_SEMAPHORE_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_SEMAPHORE_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
-
-
-#define VK_KHR_shader_float16_int8 1
-#define VK_KHR_SHADER_FLOAT16_INT8_SPEC_VERSION 1
-#define VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME "VK_KHR_shader_float16_int8"
-			typedef struct VkPhysicalDeviceFloat16Int8FeaturesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           shaderFloat16;
-				VkBool32           shaderInt8;
-			} VkPhysicalDeviceFloat16Int8FeaturesKHR;
+#if defined(VK_KHR_external_semaphore_fd)
+			{
+				VK_KHR_EXTERNAL_SEMAPHORE_FD_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_SEMAPHORE_FD_SPEC_VERSION,
+				true,
+				{
+					{"vkImportSemaphoreFdKHR", GET_TRAMPOLINE(Device, ImportSemaphoreFd), false},
+					{"vkGetSemaphoreFdKHR", GET_TRAMPOLINE(Device, GetSemaphoreFd), false},
+				}
+			},
+#endif
+#if defined(VK_KHR_push_descriptor)
+			{
+				VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+				VK_KHR_PUSH_DESCRIPTOR_SPEC_VERSION,
+				true,
+				{
+					{"vkCmdPushDescriptorSetKHR", GET_TRAMPOLINE(CommandBuffer, PushDescriptorSet), false},
+					{"vkCmdPushDescriptorSetWithTemplateKHR", GET_TRAMPOLINE(CommandBuffer, PushDescriptorSetWithTemplate), false},
+				}
+			},
+#endif
+#if defined(VK_KHR_shader_float16_int8)
+			{
+				VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME,
+				VK_KHR_SHADER_FLOAT16_INT8_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
 #if defined(VK_KHR_16bit_storage)
 			{
 				VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
 				VK_KHR_16BIT_STORAGE_SPEC_VERSION,
-				false,
+				true,
 				{
 				}
 			},
 #endif
-#ifdef XXX
-#define VK_KHR_incremental_present 1
-#define VK_KHR_INCREMENTAL_PRESENT_SPEC_VERSION 1
-#define VK_KHR_INCREMENTAL_PRESENT_EXTENSION_NAME "VK_KHR_incremental_present"
-			typedef struct VkRectLayerKHR {
-				VkOffset2D    offset;
-				VkExtent2D    extent;
-				uint32_t      layer;
-			} VkRectLayerKHR;
-
-			typedef struct VkPresentRegionKHR {
-				uint32_t                 rectangleCount;
-				const VkRectLayerKHR* pRectangles;
-			} VkPresentRegionKHR;
-
-			typedef struct VkPresentRegionsKHR {
-				VkStructureType              sType;
-				const void* pNext;
-				uint32_t                     swapchainCount;
-				const VkPresentRegionKHR* pRegions;
-			} VkPresentRegionsKHR;
-
-
-
-#define VK_KHR_descriptor_update_template 1
-			typedef VkDescriptorUpdateTemplate VkDescriptorUpdateTemplateKHR;
-
-#define VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_SPEC_VERSION 1
-#define VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME "VK_KHR_descriptor_update_template"
-			typedef VkDescriptorUpdateTemplateType VkDescriptorUpdateTemplateTypeKHR;
-
-			typedef VkDescriptorUpdateTemplateCreateFlags VkDescriptorUpdateTemplateCreateFlagsKHR;
-
-			typedef VkDescriptorUpdateTemplateEntry VkDescriptorUpdateTemplateEntryKHR;
-
-			typedef VkDescriptorUpdateTemplateCreateInfo VkDescriptorUpdateTemplateCreateInfoKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkCreateDescriptorUpdateTemplateKHR)(VkDevice device, const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate);
-			typedef void (VKAPI_PTR* PFN_vkDestroyDescriptorUpdateTemplateKHR)(VkDevice device, VkDescriptorUpdateTemplate descriptorUpdateTemplate, const VkAllocationCallbacks* pAllocator);
-			typedef void (VKAPI_PTR* PFN_vkUpdateDescriptorSetWithTemplateKHR)(VkDevice device, VkDescriptorSet descriptorSet, VkDescriptorUpdateTemplate descriptorUpdateTemplate, const void* pData);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkCreateDescriptorUpdateTemplateKHR(
-				VkDevice                                    device,
-				const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo,
-				const VkAllocationCallbacks* pAllocator,
-				VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate);
-
-			VKAPI_ATTR void VKAPI_CALL vkDestroyDescriptorUpdateTemplateKHR(
-				VkDevice                                    device,
-				VkDescriptorUpdateTemplate                  descriptorUpdateTemplate,
-				const VkAllocationCallbacks* pAllocator);
-
-			VKAPI_ATTR void VKAPI_CALL vkUpdateDescriptorSetWithTemplateKHR(
-				VkDevice                                    device,
-				VkDescriptorSet                             descriptorSet,
-				VkDescriptorUpdateTemplate                  descriptorUpdateTemplate,
-				const void* pData);
+#if defined(VK_KHR_incremental_present)
+			{
+				VK_KHR_INCREMENTAL_PRESENT_EXTENSION_NAME,
+				VK_KHR_INCREMENTAL_PRESENT_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
-
-
-#define VK_KHR_imageless_framebuffer 1
-#define VK_KHR_IMAGELESS_FRAMEBUFFER_SPEC_VERSION 1
-#define VK_KHR_IMAGELESS_FRAMEBUFFER_EXTENSION_NAME "VK_KHR_imageless_framebuffer"
-			typedef struct VkPhysicalDeviceImagelessFramebufferFeaturesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           imagelessFramebuffer;
-			} VkPhysicalDeviceImagelessFramebufferFeaturesKHR;
-
-			typedef struct VkFramebufferAttachmentImageInfoKHR {
-				VkStructureType       sType;
-				const void* pNext;
-				VkImageCreateFlags    flags;
-				VkImageUsageFlags     usage;
-				uint32_t              width;
-				uint32_t              height;
-				uint32_t              layerCount;
-				uint32_t              viewFormatCount;
-				const VkFormat* pViewFormats;
-			} VkFramebufferAttachmentImageInfoKHR;
-
-			typedef struct VkFramebufferAttachmentsCreateInfoKHR {
-				VkStructureType                               sType;
-				const void* pNext;
-				uint32_t                                      attachmentImageInfoCount;
-				const VkFramebufferAttachmentImageInfoKHR* pAttachmentImageInfos;
-			} VkFramebufferAttachmentsCreateInfoKHR;
-
-			typedef struct VkRenderPassAttachmentBeginInfoKHR {
-				VkStructureType       sType;
-				const void* pNext;
-				uint32_t              attachmentCount;
-				const VkImageView* pAttachments;
-			} VkRenderPassAttachmentBeginInfoKHR;
-
-
-
-#define VK_KHR_create_renderpass2 1
-#define VK_KHR_CREATE_RENDERPASS_2_SPEC_VERSION 1
-#define VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME "VK_KHR_create_renderpass2"
-			typedef struct VkAttachmentDescription2KHR {
-				VkStructureType                 sType;
-				const void* pNext;
-				VkAttachmentDescriptionFlags    flags;
-				VkFormat                        format;
-				VkSampleCountFlagBits           samples;
-				VkAttachmentLoadOp              loadOp;
-				VkAttachmentStoreOp             storeOp;
-				VkAttachmentLoadOp              stencilLoadOp;
-				VkAttachmentStoreOp             stencilStoreOp;
-				VkImageLayout                   initialLayout;
-				VkImageLayout                   finalLayout;
-			} VkAttachmentDescription2KHR;
-
-			typedef struct VkAttachmentReference2KHR {
-				VkStructureType       sType;
-				const void* pNext;
-				uint32_t              attachment;
-				VkImageLayout         layout;
-				VkImageAspectFlags    aspectMask;
-			} VkAttachmentReference2KHR;
-
-			typedef struct VkSubpassDescription2KHR {
-				VkStructureType                     sType;
-				const void* pNext;
-				VkSubpassDescriptionFlags           flags;
-				VkPipelineBindPoint                 pipelineBindPoint;
-				uint32_t                            viewMask;
-				uint32_t                            inputAttachmentCount;
-				const VkAttachmentReference2KHR* pInputAttachments;
-				uint32_t                            colorAttachmentCount;
-				const VkAttachmentReference2KHR* pColorAttachments;
-				const VkAttachmentReference2KHR* pResolveAttachments;
-				const VkAttachmentReference2KHR* pDepthStencilAttachment;
-				uint32_t                            preserveAttachmentCount;
-				const uint32_t* pPreserveAttachments;
-			} VkSubpassDescription2KHR;
-
-			typedef struct VkSubpassDependency2KHR {
-				VkStructureType         sType;
-				const void* pNext;
-				uint32_t                srcSubpass;
-				uint32_t                dstSubpass;
-				VkPipelineStageFlags    srcStageMask;
-				VkPipelineStageFlags    dstStageMask;
-				VkAccessFlags           srcAccessMask;
-				VkAccessFlags           dstAccessMask;
-				VkDependencyFlags       dependencyFlags;
-				int32_t                 viewOffset;
-			} VkSubpassDependency2KHR;
-
-			typedef struct VkRenderPassCreateInfo2KHR {
-				VkStructureType                       sType;
-				const void* pNext;
-				VkRenderPassCreateFlags               flags;
-				uint32_t                              attachmentCount;
-				const VkAttachmentDescription2KHR* pAttachments;
-				uint32_t                              subpassCount;
-				const VkSubpassDescription2KHR* pSubpasses;
-				uint32_t                              dependencyCount;
-				const VkSubpassDependency2KHR* pDependencies;
-				uint32_t                              correlatedViewMaskCount;
-				const uint32_t* pCorrelatedViewMasks;
-			} VkRenderPassCreateInfo2KHR;
-
-			typedef struct VkSubpassBeginInfoKHR {
-				VkStructureType      sType;
-				const void* pNext;
-				VkSubpassContents    contents;
-			} VkSubpassBeginInfoKHR;
-
-			typedef struct VkSubpassEndInfoKHR {
-				VkStructureType    sType;
-				const void* pNext;
-			} VkSubpassEndInfoKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkCreateRenderPass2KHR)(VkDevice device, const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass);
-			typedef void (VKAPI_PTR* PFN_vkCmdBeginRenderPass2KHR)(VkCommandBuffer commandBuffer, const VkRenderPassBeginInfo* pRenderPassBegin, const VkSubpassBeginInfoKHR* pSubpassBeginInfo);
-			typedef void (VKAPI_PTR* PFN_vkCmdNextSubpass2KHR)(VkCommandBuffer commandBuffer, const VkSubpassBeginInfoKHR* pSubpassBeginInfo, const VkSubpassEndInfoKHR* pSubpassEndInfo);
-			typedef void (VKAPI_PTR* PFN_vkCmdEndRenderPass2KHR)(VkCommandBuffer commandBuffer, const VkSubpassEndInfoKHR* pSubpassEndInfo);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkCreateRenderPass2KHR(
-				VkDevice                                    device,
-				const VkRenderPassCreateInfo2KHR* pCreateInfo,
-				const VkAllocationCallbacks* pAllocator,
-				VkRenderPass* pRenderPass);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdBeginRenderPass2KHR(
-				VkCommandBuffer                             commandBuffer,
-				const VkRenderPassBeginInfo* pRenderPassBegin,
-				const VkSubpassBeginInfoKHR* pSubpassBeginInfo);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdNextSubpass2KHR(
-				VkCommandBuffer                             commandBuffer,
-				const VkSubpassBeginInfoKHR* pSubpassBeginInfo,
-				const VkSubpassEndInfoKHR* pSubpassEndInfo);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdEndRenderPass2KHR(
-				VkCommandBuffer                             commandBuffer,
-				const VkSubpassEndInfoKHR* pSubpassEndInfo);
+#if defined(VK_KHR_descriptor_update_template)
+			{
+				VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_EXTENSION_NAME,
+				VK_KHR_DESCRIPTOR_UPDATE_TEMPLATE_SPEC_VERSION,
+				true,
+				{
+					{"vkCreateDescriptorUpdateTemplateKHR", GET_TRAMPOLINE(Device, CreateDescriptorUpdateTemplate), false},
+					{"vkDestroyDescriptorUpdateTemplateKHR", GET_TRAMPOLINE(Device, DestroyDescriptorUpdateTemplate), false},
+					{"vkUpdateDescriptorSetWithTemplateKHR", GET_TRAMPOLINE(Device, UpdateDescriptorSetWithTemplate), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_shared_presentable_image 1
-#define VK_KHR_SHARED_PRESENTABLE_IMAGE_SPEC_VERSION 1
-#define VK_KHR_SHARED_PRESENTABLE_IMAGE_EXTENSION_NAME "VK_KHR_shared_presentable_image"
-			typedef struct VkSharedPresentSurfaceCapabilitiesKHR {
-				VkStructureType      sType;
-				void* pNext;
-				VkImageUsageFlags    sharedPresentSupportedUsageFlags;
-			} VkSharedPresentSurfaceCapabilitiesKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkGetSwapchainStatusKHR)(VkDevice device, VkSwapchainKHR swapchain);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetSwapchainStatusKHR(
-				VkDevice                                    device,
-				VkSwapchainKHR                              swapchain);
+#if defined(VK_KHR_imageless_framebuffer)
+			{
+				VK_KHR_IMAGELESS_FRAMEBUFFER_EXTENSION_NAME,
+				VK_KHR_IMAGELESS_FRAMEBUFFER_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
-
-
-#define VK_KHR_external_fence_capabilities 1
-#define VK_KHR_EXTERNAL_FENCE_CAPABILITIES_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME "VK_KHR_external_fence_capabilities"
-			typedef VkExternalFenceHandleTypeFlags VkExternalFenceHandleTypeFlagsKHR;
-
-			typedef VkExternalFenceHandleTypeFlagBits VkExternalFenceHandleTypeFlagBitsKHR;
-
-			typedef VkExternalFenceFeatureFlags VkExternalFenceFeatureFlagsKHR;
-
-			typedef VkExternalFenceFeatureFlagBits VkExternalFenceFeatureFlagBitsKHR;
-
-			typedef VkPhysicalDeviceExternalFenceInfo VkPhysicalDeviceExternalFenceInfoKHR;
-
-			typedef VkExternalFenceProperties VkExternalFencePropertiesKHR;
-
-			typedef void (VKAPI_PTR* PFN_vkGetPhysicalDeviceExternalFencePropertiesKHR)(VkPhysicalDevice physicalDevice, const VkPhysicalDeviceExternalFenceInfo* pExternalFenceInfo, VkExternalFenceProperties* pExternalFenceProperties);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkGetPhysicalDeviceExternalFencePropertiesKHR(
-				VkPhysicalDevice                            physicalDevice,
-				const VkPhysicalDeviceExternalFenceInfo* pExternalFenceInfo,
-				VkExternalFenceProperties* pExternalFenceProperties);
+#if defined(VK_KHR_create_renderpass2)
+			{
+				VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME,
+				VK_KHR_CREATE_RENDERPASS_2_SPEC_VERSION,
+				true,
+				{
+					{"vkCreateRenderPass2KHR", GET_TRAMPOLINE(Device, CreateRenderPass2), false},
+					{"vkCmdBeginRenderPass2KHR", GET_TRAMPOLINE(CommandBuffer, BeginRenderPass2), false},
+					{"vkCmdNextSubpass2KHR", GET_TRAMPOLINE(CommandBuffer, NextSubpass2), false},
+					{"vkCmdEndRenderPass2KHR", GET_TRAMPOLINE(CommandBuffer, EndRenderPass2), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_external_fence 1
-#define VK_KHR_EXTERNAL_FENCE_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME "VK_KHR_external_fence"
-			typedef VkFenceImportFlags VkFenceImportFlagsKHR;
-
-			typedef VkFenceImportFlagBits VkFenceImportFlagBitsKHR;
-
-			typedef VkExportFenceCreateInfo VkExportFenceCreateInfoKHR;
-
-
-
-#define VK_KHR_external_fence_fd 1
-#define VK_KHR_EXTERNAL_FENCE_FD_SPEC_VERSION 1
-#define VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME "VK_KHR_external_fence_fd"
-			typedef struct VkImportFenceFdInfoKHR {
-				VkStructureType                      sType;
-				const void* pNext;
-				VkFence                              fence;
-				VkFenceImportFlags                   flags;
-				VkExternalFenceHandleTypeFlagBits    handleType;
-				int                                  fd;
-			} VkImportFenceFdInfoKHR;
-
-			typedef struct VkFenceGetFdInfoKHR {
-				VkStructureType                      sType;
-				const void* pNext;
-				VkFence                              fence;
-				VkExternalFenceHandleTypeFlagBits    handleType;
-			} VkFenceGetFdInfoKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkImportFenceFdKHR)(VkDevice device, const VkImportFenceFdInfoKHR* pImportFenceFdInfo);
-			typedef VkResult(VKAPI_PTR* PFN_vkGetFenceFdKHR)(VkDevice device, const VkFenceGetFdInfoKHR* pGetFdInfo, int* pFd);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkImportFenceFdKHR(
-				VkDevice                                    device,
-				const VkImportFenceFdInfoKHR* pImportFenceFdInfo);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetFenceFdKHR(
-				VkDevice                                    device,
-				const VkFenceGetFdInfoKHR* pGetFdInfo,
-				int* pFd);
+#if defined(VK_KHR_shared_presentable_image)
+			{
+				VK_KHR_SHARED_PRESENTABLE_IMAGE_EXTENSION_NAME,
+				VK_KHR_SHARED_PRESENTABLE_IMAGE_SPEC_VERSION,
+				true,
+				{
+					{"vkGetSwapchainStatusKHR", GET_TRAMPOLINE(Device, GetSwapchainStatus), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_maintenance2 1
-#define VK_KHR_MAINTENANCE2_SPEC_VERSION  1
-#define VK_KHR_MAINTENANCE2_EXTENSION_NAME "VK_KHR_maintenance2"
-			typedef VkPointClippingBehavior VkPointClippingBehaviorKHR;
-
-			typedef VkTessellationDomainOrigin VkTessellationDomainOriginKHR;
-
-			typedef VkPhysicalDevicePointClippingProperties VkPhysicalDevicePointClippingPropertiesKHR;
-
-			typedef VkRenderPassInputAttachmentAspectCreateInfo VkRenderPassInputAttachmentAspectCreateInfoKHR;
-
-			typedef VkInputAttachmentAspectReference VkInputAttachmentAspectReferenceKHR;
-
-			typedef VkImageViewUsageCreateInfo VkImageViewUsageCreateInfoKHR;
-
-			typedef VkPipelineTessellationDomainOriginStateCreateInfo VkPipelineTessellationDomainOriginStateCreateInfoKHR;
-
-
-
-#define VK_KHR_get_surface_capabilities2 1
-#define VK_KHR_GET_SURFACE_CAPABILITIES_2_SPEC_VERSION 1
-#define VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME "VK_KHR_get_surface_capabilities2"
-			typedef struct VkPhysicalDeviceSurfaceInfo2KHR {
-				VkStructureType    sType;
-				const void* pNext;
-				VkSurfaceKHR       surface;
-			} VkPhysicalDeviceSurfaceInfo2KHR;
-
-			typedef struct VkSurfaceCapabilities2KHR {
-				VkStructureType             sType;
-				void* pNext;
-				VkSurfaceCapabilitiesKHR    surfaceCapabilities;
-			} VkSurfaceCapabilities2KHR;
-
-			typedef struct VkSurfaceFormat2KHR {
-				VkStructureType       sType;
-				void* pNext;
-				VkSurfaceFormatKHR    surfaceFormat;
-			} VkSurfaceFormat2KHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceSurfaceCapabilities2KHR)(VkPhysicalDevice physicalDevice, const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkSurfaceCapabilities2KHR* pSurfaceCapabilities);
-			typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceSurfaceFormats2KHR)(VkPhysicalDevice physicalDevice, const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pSurfaceFormatCount, VkSurfaceFormat2KHR* pSurfaceFormats);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceSurfaceCapabilities2KHR(
-				VkPhysicalDevice                            physicalDevice,
-				const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo,
-				VkSurfaceCapabilities2KHR* pSurfaceCapabilities);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceSurfaceFormats2KHR(
-				VkPhysicalDevice                            physicalDevice,
-				const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo,
-				uint32_t* pSurfaceFormatCount,
-				VkSurfaceFormat2KHR* pSurfaceFormats);
+#if defined(VK_KHR_external_fence_capabilities)
+			{
+				VK_KHR_EXTERNAL_FENCE_CAPABILITIES_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_FENCE_CAPABILITIES_SPEC_VERSION,
+				false,
+				{
+					{"vkGetPhysicalDeviceExternalFencePropertiesKHR", GET_TRAMPOLINE(PhysicalDevice, GetExternalFenceProperties), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_variable_pointers 1
-#define VK_KHR_VARIABLE_POINTERS_SPEC_VERSION 1
-#define VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME "VK_KHR_variable_pointers"
-			typedef VkPhysicalDeviceVariablePointersFeatures VkPhysicalDeviceVariablePointerFeaturesKHR;
-
-			typedef VkPhysicalDeviceVariablePointersFeatures VkPhysicalDeviceVariablePointersFeaturesKHR;
-
-
-
-#define VK_KHR_get_display_properties2 1
-#define VK_KHR_GET_DISPLAY_PROPERTIES_2_SPEC_VERSION 1
-#define VK_KHR_GET_DISPLAY_PROPERTIES_2_EXTENSION_NAME "VK_KHR_get_display_properties2"
-			typedef struct VkDisplayProperties2KHR {
-				VkStructureType           sType;
-				void* pNext;
-				VkDisplayPropertiesKHR    displayProperties;
-			} VkDisplayProperties2KHR;
-
-			typedef struct VkDisplayPlaneProperties2KHR {
-				VkStructureType                sType;
-				void* pNext;
-				VkDisplayPlanePropertiesKHR    displayPlaneProperties;
-			} VkDisplayPlaneProperties2KHR;
-
-			typedef struct VkDisplayModeProperties2KHR {
-				VkStructureType               sType;
-				void* pNext;
-				VkDisplayModePropertiesKHR    displayModeProperties;
-			} VkDisplayModeProperties2KHR;
-
-			typedef struct VkDisplayPlaneInfo2KHR {
-				VkStructureType     sType;
-				const void* pNext;
-				VkDisplayModeKHR    mode;
-				uint32_t            planeIndex;
-			} VkDisplayPlaneInfo2KHR;
-
-			typedef struct VkDisplayPlaneCapabilities2KHR {
-				VkStructureType                  sType;
-				void* pNext;
-				VkDisplayPlaneCapabilitiesKHR    capabilities;
-			} VkDisplayPlaneCapabilities2KHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceDisplayProperties2KHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkDisplayProperties2KHR* pProperties);
-			typedef VkResult(VKAPI_PTR* PFN_vkGetPhysicalDeviceDisplayPlaneProperties2KHR)(VkPhysicalDevice physicalDevice, uint32_t* pPropertyCount, VkDisplayPlaneProperties2KHR* pProperties);
-			typedef VkResult(VKAPI_PTR* PFN_vkGetDisplayModeProperties2KHR)(VkPhysicalDevice physicalDevice, VkDisplayKHR display, uint32_t* pPropertyCount, VkDisplayModeProperties2KHR* pProperties);
-			typedef VkResult(VKAPI_PTR* PFN_vkGetDisplayPlaneCapabilities2KHR)(VkPhysicalDevice physicalDevice, const VkDisplayPlaneInfo2KHR* pDisplayPlaneInfo, VkDisplayPlaneCapabilities2KHR* pCapabilities);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceDisplayProperties2KHR(
-				VkPhysicalDevice                            physicalDevice,
-				uint32_t* pPropertyCount,
-				VkDisplayProperties2KHR* pProperties);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetPhysicalDeviceDisplayPlaneProperties2KHR(
-				VkPhysicalDevice                            physicalDevice,
-				uint32_t* pPropertyCount,
-				VkDisplayPlaneProperties2KHR* pProperties);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetDisplayModeProperties2KHR(
-				VkPhysicalDevice                            physicalDevice,
-				VkDisplayKHR                                display,
-				uint32_t* pPropertyCount,
-				VkDisplayModeProperties2KHR* pProperties);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkGetDisplayPlaneCapabilities2KHR(
-				VkPhysicalDevice                            physicalDevice,
-				const VkDisplayPlaneInfo2KHR* pDisplayPlaneInfo,
-				VkDisplayPlaneCapabilities2KHR* pCapabilities);
+#if defined(VK_KHR_external_fence)
+			{
+				VK_KHR_EXTERNAL_FENCE_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_FENCE_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
-
-
-#define VK_KHR_dedicated_allocation 1
-#define VK_KHR_DEDICATED_ALLOCATION_SPEC_VERSION 3
-#define VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME "VK_KHR_dedicated_allocation"
-			typedef VkMemoryDedicatedRequirements VkMemoryDedicatedRequirementsKHR;
-
-			typedef VkMemoryDedicatedAllocateInfo VkMemoryDedicatedAllocateInfoKHR;
-
-
-
-#define VK_KHR_storage_buffer_storage_class 1
-#define VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_SPEC_VERSION 1
-#define VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME "VK_KHR_storage_buffer_storage_class"
-
-
-#define VK_KHR_relaxed_block_layout 1
-#define VK_KHR_RELAXED_BLOCK_LAYOUT_SPEC_VERSION 1
-#define VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME "VK_KHR_relaxed_block_layout"
-
-
-#define VK_KHR_get_memory_requirements2 1
-#define VK_KHR_GET_MEMORY_REQUIREMENTS_2_SPEC_VERSION 1
-#define VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME "VK_KHR_get_memory_requirements2"
-			typedef VkBufferMemoryRequirementsInfo2 VkBufferMemoryRequirementsInfo2KHR;
-
-			typedef VkImageMemoryRequirementsInfo2 VkImageMemoryRequirementsInfo2KHR;
-
-			typedef VkImageSparseMemoryRequirementsInfo2 VkImageSparseMemoryRequirementsInfo2KHR;
-
-			typedef VkSparseImageMemoryRequirements2 VkSparseImageMemoryRequirements2KHR;
-
-			typedef void (VKAPI_PTR* PFN_vkGetImageMemoryRequirements2KHR)(VkDevice device, const VkImageMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements);
-			typedef void (VKAPI_PTR* PFN_vkGetBufferMemoryRequirements2KHR)(VkDevice device, const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements);
-			typedef void (VKAPI_PTR* PFN_vkGetImageSparseMemoryRequirements2KHR)(VkDevice device, const VkImageSparseMemoryRequirementsInfo2* pInfo, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements2* pSparseMemoryRequirements);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkGetImageMemoryRequirements2KHR(
-				VkDevice                                    device,
-				const VkImageMemoryRequirementsInfo2* pInfo,
-				VkMemoryRequirements2* pMemoryRequirements);
-
-			VKAPI_ATTR void VKAPI_CALL vkGetBufferMemoryRequirements2KHR(
-				VkDevice                                    device,
-				const VkBufferMemoryRequirementsInfo2* pInfo,
-				VkMemoryRequirements2* pMemoryRequirements);
-
-			VKAPI_ATTR void VKAPI_CALL vkGetImageSparseMemoryRequirements2KHR(
-				VkDevice                                    device,
-				const VkImageSparseMemoryRequirementsInfo2* pInfo,
-				uint32_t* pSparseMemoryRequirementCount,
-				VkSparseImageMemoryRequirements2* pSparseMemoryRequirements);
+#if defined(VK_KHR_external_fence_fd)
+			{
+				VK_KHR_EXTERNAL_FENCE_FD_EXTENSION_NAME,
+				VK_KHR_EXTERNAL_FENCE_FD_SPEC_VERSION,
+				true,
+				{
+					{"vkImportFenceFdKHR", GET_TRAMPOLINE(Device, ImportFenceFd), false},
+					{"vkGetFenceFdKHR", GET_TRAMPOLINE(Device, GetFenceFd), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_image_format_list 1
-#define VK_KHR_IMAGE_FORMAT_LIST_SPEC_VERSION 1
-#define VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME "VK_KHR_image_format_list"
-			typedef struct VkImageFormatListCreateInfoKHR {
-				VkStructureType    sType;
-				const void* pNext;
-				uint32_t           viewFormatCount;
-				const VkFormat* pViewFormats;
-			} VkImageFormatListCreateInfoKHR;
+#if defined(VK_KHR_maintenance2)
+			{
+				VK_KHR_MAINTENANCE2_EXTENSION_NAME,
+				VK_KHR_MAINTENANCE2_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_get_surface_capabilities2)
+			{
+				VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME,
+				VK_KHR_GET_SURFACE_CAPABILITIES_2_SPEC_VERSION,
+				false,
+				{
+					{"vkGetPhysicalDeviceSurfaceCapabilities2KHR", GET_TRAMPOLINE(PhysicalDevice, GetSurfaceCapabilities2KHR), false},
+					{"vkGetPhysicalDeviceSurfaceFormats2KHR", GET_TRAMPOLINE(PhysicalDevice, GetSurfaceFormats2), false},
+				}
+			},
+#endif
+#if defined(VK_KHR_variable_pointers)
+			{
+				VK_KHR_VARIABLE_POINTERS_EXTENSION_NAME,
+				VK_KHR_VARIABLE_POINTERS_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_get_display_properties2)
+			{
+				VK_KHR_GET_DISPLAY_PROPERTIES_2_EXTENSION_NAME,
+				VK_KHR_GET_DISPLAY_PROPERTIES_2_SPEC_VERSION,
+				false,
+				{
+					{"vkGetPhysicalDeviceDisplayProperties2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayProperties2), false},
+					{"vkGetPhysicalDeviceDisplayPlaneProperties2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayPlaneProperties2), false},
+					{"vkGetDisplayModeProperties2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayModeProperties2), false},
+					{"vkGetDisplayPlaneCapabilities2KHR", GET_TRAMPOLINE(PhysicalDevice, GetDisplayPlaneCapabilities2), false},
+				}
+			},
+#endif
+#if defined(VK_KHR_dedicated_allocation)
+			{
+				VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME,
+				VK_KHR_DEDICATED_ALLOCATION_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_storage_buffer_storage_class)
+			{
+				VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_EXTENSION_NAME,
+				VK_KHR_STORAGE_BUFFER_STORAGE_CLASS_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_relaxed_block_layout)
+			{
+				VK_KHR_RELAXED_BLOCK_LAYOUT_EXTENSION_NAME,
+				VK_KHR_RELAXED_BLOCK_LAYOUT_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_get_memory_requirements2)
+			{
+				VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME,
+				VK_KHR_GET_MEMORY_REQUIREMENTS_2_SPEC_VERSION,
+				true,
+				{
+					{"vkGetImageMemoryRequirements2KHR", GET_TRAMPOLINE(Device, GetImageMemoryRequirements2), false},
+					{"vkGetBufferMemoryRequirements2KHR", GET_TRAMPOLINE(Device, GetBufferMemoryRequirements2), false},
+					{"vkGetImageSparseMemoryRequirements2KHR", GET_TRAMPOLINE(Device, GetImageSparseMemoryRequirements2), false},
+				}
+			},
+#endif
+#if defined(VK_KHR_image_format_list)
+			{
+				VK_KHR_IMAGE_FORMAT_LIST_EXTENSION_NAME,
+				VK_KHR_IMAGE_FORMAT_LIST_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
 #if defined(VK_KHR_sampler_ycbcr_conversion)
 			{
@@ -1382,72 +732,37 @@ ExtensionGroup& GetInitialExtensions()
 				}
 			},
 #endif
-#ifdef XXX
-#define VK_KHR_bind_memory2 1
-#define VK_KHR_BIND_MEMORY_2_SPEC_VERSION 1
-#define VK_KHR_BIND_MEMORY_2_EXTENSION_NAME "VK_KHR_bind_memory2"
-			typedef VkBindBufferMemoryInfo VkBindBufferMemoryInfoKHR;
-
-			typedef VkBindImageMemoryInfo VkBindImageMemoryInfoKHR;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkBindBufferMemory2KHR)(VkDevice device, uint32_t bindInfoCount, const VkBindBufferMemoryInfo* pBindInfos);
-			typedef VkResult(VKAPI_PTR* PFN_vkBindImageMemory2KHR)(VkDevice device, uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkBindBufferMemory2KHR(
-				VkDevice                                    device,
-				uint32_t                                    bindInfoCount,
-				const VkBindBufferMemoryInfo* pBindInfos);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkBindImageMemory2KHR(
-				VkDevice                                    device,
-				uint32_t                                    bindInfoCount,
-				const VkBindImageMemoryInfo* pBindInfos);
+#if defined(VK_KHR_bind_memory2)
+			{
+				VK_KHR_BIND_MEMORY_2_EXTENSION_NAME,
+				VK_KHR_BIND_MEMORY_2_SPEC_VERSION,
+				true,
+				{
+					{"vkBindBufferMemory2KHR", GET_TRAMPOLINE(Device, BindBufferMemory2), false},
+					{"vkBindImageMemory2KHR", GET_TRAMPOLINE(Device, BindImageMemory2), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_maintenance3 1
-#define VK_KHR_MAINTENANCE3_SPEC_VERSION  1
-#define VK_KHR_MAINTENANCE3_EXTENSION_NAME "VK_KHR_maintenance3"
-			typedef VkPhysicalDeviceMaintenance3Properties VkPhysicalDeviceMaintenance3PropertiesKHR;
-
-			typedef VkDescriptorSetLayoutSupport VkDescriptorSetLayoutSupportKHR;
-
-			typedef void (VKAPI_PTR* PFN_vkGetDescriptorSetLayoutSupportKHR)(VkDevice device, const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayoutSupport* pSupport);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkGetDescriptorSetLayoutSupportKHR(
-				VkDevice                                    device,
-				const VkDescriptorSetLayoutCreateInfo* pCreateInfo,
-				VkDescriptorSetLayoutSupport* pSupport);
+#if defined(VK_KHR_maintenance3)
+			{
+				VK_KHR_MAINTENANCE3_EXTENSION_NAME,
+				VK_KHR_MAINTENANCE3_SPEC_VERSION,
+				true,
+				{
+					{"vkGetDescriptorSetLayoutSupportKHR", GET_TRAMPOLINE(Device, GetDescriptorSetLayoutSupport), false},
+				}
+			},
 #endif
-
-
-#define VK_KHR_draw_indirect_count 1
-#define VK_KHR_DRAW_INDIRECT_COUNT_SPEC_VERSION 1
-#define VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME "VK_KHR_draw_indirect_count"
-			typedef void (VKAPI_PTR * PFN_vkCmdDrawIndirectCountKHR)(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
-			typedef void (VKAPI_PTR* PFN_vkCmdDrawIndexedIndirectCountKHR)(VkCommandBuffer commandBuffer, VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndirectCountKHR(
-				VkCommandBuffer                             commandBuffer,
-				VkBuffer                                    buffer,
-				VkDeviceSize                                offset,
-				VkBuffer                                    countBuffer,
-				VkDeviceSize                                countBufferOffset,
-				uint32_t                                    maxDrawCount,
-				uint32_t                                    stride);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdDrawIndexedIndirectCountKHR(
-				VkCommandBuffer                             commandBuffer,
-				VkBuffer                                    buffer,
-				VkDeviceSize                                offset,
-				VkBuffer                                    countBuffer,
-				VkDeviceSize                                countBufferOffset,
-				uint32_t                                    maxDrawCount,
-				uint32_t                                    stride);
-#endif
+#if defined(VK_KHR_draw_indirect_count)
+			{
+				VK_KHR_DRAW_INDIRECT_COUNT_EXTENSION_NAME,
+				VK_KHR_DRAW_INDIRECT_COUNT_SPEC_VERSION,
+				true,
+				{
+					{"vkCmdDrawIndirectCountKHR", GET_TRAMPOLINE(CommandBuffer, DrawIndirectCount), false},
+					{"vkCmdDrawIndexedIndirectCountKHR", GET_TRAMPOLINE(CommandBuffer, DrawIndexedIndirectCount), false},
+				}
+			},
 #endif
 #if defined(VK_KHR_8bit_storage)
 			{
@@ -1458,16 +773,14 @@ ExtensionGroup& GetInitialExtensions()
 				}
 			},
 #endif
-#ifdef XXX
-#define VK_KHR_shader_atomic_int64 1
-#define VK_KHR_SHADER_ATOMIC_INT64_SPEC_VERSION 1
-#define VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME "VK_KHR_shader_atomic_int64"
-			typedef struct VkPhysicalDeviceShaderAtomicInt64FeaturesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           shaderBufferInt64Atomics;
-				VkBool32           shaderSharedInt64Atomics;
-			} VkPhysicalDeviceShaderAtomicInt64FeaturesKHR;
+#if defined(VK_KHR_shader_atomic_int64)
+			{
+				VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
+				VK_KHR_SHADER_ATOMIC_INT64_SPEC_VERSION,
+				true,
+				{
+				}
+			},
 #endif
 #if defined(VK_KHR_driver_properties)
 			{
@@ -1478,409 +791,153 @@ ExtensionGroup& GetInitialExtensions()
 				}
 			},
 #endif
+#if defined(VK_KHR_shader_float_controls)
+			{
+				VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME,
+				VK_KHR_SHADER_FLOAT_CONTROLS_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_depth_stencil_resolve)
+			{
+				VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME,
+				VK_KHR_DEPTH_STENCIL_RESOLVE_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_swapchain_mutable_format)
+			{
+				VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME,
+				VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_vulkan_memory_model)
+			{
+				VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
+				VK_KHR_VULKAN_MEMORY_MODEL_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_surface_protected_capabilities)
+			{
+				VK_KHR_SURFACE_PROTECTED_CAPABILITIES_EXTENSION_NAME,
+				VK_KHR_SURFACE_PROTECTED_CAPABILITIES_SPEC_VERSION,
+				false,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_uniform_buffer_standard_layout)
+			{
+				VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME,
+				VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_pipeline_executable_properties)
+			{
+				VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME,
+				VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_SPEC_VERSION,
+				true,
+				{
+					{"vkGetPipelineExecutablePropertiesKHR", GET_TRAMPOLINE(Device, GetPipelineExecutableProperties), false},
+					{"vkGetPipelineExecutableStatisticsKHR", GET_TRAMPOLINE(Device, GetPipelineExecutableStatistics), false},
+					{"vkGetPipelineExecutableInternalRepresentationsKHR", GET_TRAMPOLINE(Device, GetPipelineExecutableInternalRepresentations), false},
+				}
+			},
+#endif
+#if defined(VK_EXT_debug_report)
+			{
+				VK_EXT_DEBUG_REPORT_EXTENSION_NAME,
+				VK_EXT_DEBUG_REPORT_SPEC_VERSION,
+				false,
+				{
+					{"vkCreateDebugReportCallbackEXT", GET_TRAMPOLINE(Instance, CreateDebugReportCallback), false},
+					{"vkDestroyDebugReportCallbackEXT", GET_TRAMPOLINE(Instance, DestroyDebugReportCallback), false},
+					{"vkDebugReportMessageEXT", GET_TRAMPOLINE(Instance, DebugReportMessage), false},
+				}
+			},
+#endif
+#if defined(VK_NV_glsl_shader)
+			{
+				VK_NV_GLSL_SHADER_EXTENSION_NAME,
+				VK_NV_GLSL_SHADER_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_EXT_depth_range_unrestricted)
+			{
+				VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME,
+				VK_EXT_DEPTH_RANGE_UNRESTRICTED_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_IMG_filter_cubic)
+			{
+				VK_IMG_FILTER_CUBIC_EXTENSION_NAME,
+				VK_IMG_FILTER_CUBIC_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_AMD_rasterization_order)
+			{
+				VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME,
+				VK_AMD_RASTERIZATION_ORDER_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_AMD_shader_trinary_minmax)
+			{
+				VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME,
+				VK_AMD_SHADER_TRINARY_MINMAX_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_AMD_shader_explicit_vertex_parameter)
+			{
+				VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME,
+				VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_EXT_debug_marker)
+			{
+				VK_EXT_DEBUG_MARKER_EXTENSION_NAME,
+				VK_EXT_DEBUG_MARKER_SPEC_VERSION,
+				true,
+				{
+					{"vkDebugMarkerSetObjectTagEXT", GET_TRAMPOLINE(Device, DebugMarkerSetObjectTag), false},
+					{"vkDebugMarkerSetObjectNameEXT", GET_TRAMPOLINE(Device, DebugMarkerSetObjectName), false},
+					{"vkCmdDebugMarkerBeginEXT", GET_TRAMPOLINE(CommandBuffer, DebugMarkerBegin), false},
+					{"vkCmdDebugMarkerEndEXT", GET_TRAMPOLINE(CommandBuffer, DebugMarkerEnd), false},
+					{"vkCmdDebugMarkerInsertEXT", GET_TRAMPOLINE(CommandBuffer, DebugMarkerInsert), false},
+				}
+			},
+#endif
 #if XXX
-#define VK_KHR_shader_float_controls 1
-#define VK_KHR_SHADER_FLOAT_CONTROLS_SPEC_VERSION 1
-#define VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME "VK_KHR_shader_float_controls"
-			typedef struct VkPhysicalDeviceFloatControlsPropertiesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           separateDenormSettings;
-				VkBool32           separateRoundingModeSettings;
-				VkBool32           shaderSignedZeroInfNanPreserveFloat16;
-				VkBool32           shaderSignedZeroInfNanPreserveFloat32;
-				VkBool32           shaderSignedZeroInfNanPreserveFloat64;
-				VkBool32           shaderDenormPreserveFloat16;
-				VkBool32           shaderDenormPreserveFloat32;
-				VkBool32           shaderDenormPreserveFloat64;
-				VkBool32           shaderDenormFlushToZeroFloat16;
-				VkBool32           shaderDenormFlushToZeroFloat32;
-				VkBool32           shaderDenormFlushToZeroFloat64;
-				VkBool32           shaderRoundingModeRTEFloat16;
-				VkBool32           shaderRoundingModeRTEFloat32;
-				VkBool32           shaderRoundingModeRTEFloat64;
-				VkBool32           shaderRoundingModeRTZFloat16;
-				VkBool32           shaderRoundingModeRTZFloat32;
-				VkBool32           shaderRoundingModeRTZFloat64;
-			} VkPhysicalDeviceFloatControlsPropertiesKHR;
-
-
-
-#define VK_KHR_depth_stencil_resolve 1
-#define VK_KHR_DEPTH_STENCIL_RESOLVE_SPEC_VERSION 1
-#define VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME "VK_KHR_depth_stencil_resolve"
-
-			typedef enum VkResolveModeFlagBitsKHR {
-				VK_RESOLVE_MODE_NONE_KHR = 0,
-				VK_RESOLVE_MODE_SAMPLE_ZERO_BIT_KHR = 0x00000001,
-				VK_RESOLVE_MODE_AVERAGE_BIT_KHR = 0x00000002,
-				VK_RESOLVE_MODE_MIN_BIT_KHR = 0x00000004,
-				VK_RESOLVE_MODE_MAX_BIT_KHR = 0x00000008,
-				VK_RESOLVE_MODE_FLAG_BITS_MAX_ENUM_KHR = 0x7FFFFFFF
-			} VkResolveModeFlagBitsKHR;
-			typedef VkFlags VkResolveModeFlagsKHR;
-			typedef struct VkSubpassDescriptionDepthStencilResolveKHR {
-				VkStructureType                     sType;
-				const void* pNext;
-				VkResolveModeFlagBitsKHR            depthResolveMode;
-				VkResolveModeFlagBitsKHR            stencilResolveMode;
-				const VkAttachmentReference2KHR* pDepthStencilResolveAttachment;
-			} VkSubpassDescriptionDepthStencilResolveKHR;
-
-			typedef struct VkPhysicalDeviceDepthStencilResolvePropertiesKHR {
-				VkStructureType          sType;
-				void* pNext;
-				VkResolveModeFlagsKHR    supportedDepthResolveModes;
-				VkResolveModeFlagsKHR    supportedStencilResolveModes;
-				VkBool32                 independentResolveNone;
-				VkBool32                 independentResolve;
-			} VkPhysicalDeviceDepthStencilResolvePropertiesKHR;
-
-
-
-#define VK_KHR_swapchain_mutable_format 1
-#define VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_SPEC_VERSION 1
-#define VK_KHR_SWAPCHAIN_MUTABLE_FORMAT_EXTENSION_NAME "VK_KHR_swapchain_mutable_format"
-
-
-#define VK_KHR_vulkan_memory_model 1
-#define VK_KHR_VULKAN_MEMORY_MODEL_SPEC_VERSION 3
-#define VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME "VK_KHR_vulkan_memory_model"
-			typedef struct VkPhysicalDeviceVulkanMemoryModelFeaturesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           vulkanMemoryModel;
-				VkBool32           vulkanMemoryModelDeviceScope;
-				VkBool32           vulkanMemoryModelAvailabilityVisibilityChains;
-			} VkPhysicalDeviceVulkanMemoryModelFeaturesKHR;
-
-
-
-#define VK_KHR_surface_protected_capabilities 1
-#define VK_KHR_SURFACE_PROTECTED_CAPABILITIES_SPEC_VERSION 1
-#define VK_KHR_SURFACE_PROTECTED_CAPABILITIES_EXTENSION_NAME "VK_KHR_surface_protected_capabilities"
-			typedef struct VkSurfaceProtectedCapabilitiesKHR {
-				VkStructureType    sType;
-				const void* pNext;
-				VkBool32           supportsProtected;
-			} VkSurfaceProtectedCapabilitiesKHR;
-
-
-
-#define VK_KHR_uniform_buffer_standard_layout 1
-#define VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_SPEC_VERSION 1
-#define VK_KHR_UNIFORM_BUFFER_STANDARD_LAYOUT_EXTENSION_NAME "VK_KHR_uniform_buffer_standard_layout"
-			typedef struct VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           uniformBufferStandardLayout;
-			} VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR;
-
-
-
-#define VK_KHR_pipeline_executable_properties 1
-#define VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_SPEC_VERSION 1
-#define VK_KHR_PIPELINE_EXECUTABLE_PROPERTIES_EXTENSION_NAME "VK_KHR_pipeline_executable_properties"
-
-typedef enum VkPipelineExecutableStatisticFormatKHR {
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR = 0,
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_INT64_KHR = 1,
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_UINT64_KHR = 2,
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR = 3,
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BEGIN_RANGE_KHR = VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR,
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_END_RANGE_KHR = VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR,
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_RANGE_SIZE_KHR = (VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_FLOAT64_KHR - VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_BOOL32_KHR + 1),
-    VK_PIPELINE_EXECUTABLE_STATISTIC_FORMAT_MAX_ENUM_KHR = 0x7FFFFFFF
-} VkPipelineExecutableStatisticFormatKHR;
-typedef struct VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR {
-    VkStructureType    sType;
-    void*              pNext;
-    VkBool32           pipelineExecutableInfo;
-} VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR;
-
-typedef struct VkPipelineInfoKHR {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkPipeline         pipeline;
-} VkPipelineInfoKHR;
-
-typedef struct VkPipelineExecutablePropertiesKHR {
-    VkStructureType       sType;
-    void*                 pNext;
-    VkShaderStageFlags    stages;
-    char                  name[VK_MAX_DESCRIPTION_SIZE];
-    char                  description[VK_MAX_DESCRIPTION_SIZE];
-    uint32_t              subgroupSize;
-} VkPipelineExecutablePropertiesKHR;
-
-typedef struct VkPipelineExecutableInfoKHR {
-    VkStructureType    sType;
-    const void*        pNext;
-    VkPipeline         pipeline;
-    uint32_t           executableIndex;
-} VkPipelineExecutableInfoKHR;
-
-typedef union VkPipelineExecutableStatisticValueKHR {
-    VkBool32    b32;
-    int64_t     i64;
-    uint64_t    u64;
-    double      f64;
-} VkPipelineExecutableStatisticValueKHR;
-
-typedef struct VkPipelineExecutableStatisticKHR {
-    VkStructureType                           sType;
-    void*                                     pNext;
-    char                                      name[VK_MAX_DESCRIPTION_SIZE];
-    char                                      description[VK_MAX_DESCRIPTION_SIZE];
-    VkPipelineExecutableStatisticFormatKHR    format;
-    VkPipelineExecutableStatisticValueKHR     value;
-} VkPipelineExecutableStatisticKHR;
-
-typedef struct VkPipelineExecutableInternalRepresentationKHR {
-    VkStructureType    sType;
-    void*              pNext;
-    char               name[VK_MAX_DESCRIPTION_SIZE];
-    char               description[VK_MAX_DESCRIPTION_SIZE];
-    VkBool32           isText;
-    size_t             dataSize;
-    void*              pData;
-} VkPipelineExecutableInternalRepresentationKHR;
-
-typedef VkResult (VKAPI_PTR *PFN_vkGetPipelineExecutablePropertiesKHR)(VkDevice                        device, const VkPipelineInfoKHR*        pPipelineInfo, uint32_t* pExecutableCount, VkPipelineExecutablePropertiesKHR* pProperties);
-typedef VkResult (VKAPI_PTR *PFN_vkGetPipelineExecutableStatisticsKHR)(VkDevice                        device, const VkPipelineExecutableInfoKHR*  pExecutableInfo, uint32_t* pStatisticCount, VkPipelineExecutableStatisticKHR* pStatistics);
-typedef VkResult (VKAPI_PTR *PFN_vkGetPipelineExecutableInternalRepresentationsKHR)(VkDevice                        device, const VkPipelineExecutableInfoKHR*  pExecutableInfo, uint32_t* pInternalRepresentationCount, VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations);
-
-#ifndef VK_NO_PROTOTYPES
-VKAPI_ATTR VkResult VKAPI_CALL vkGetPipelineExecutablePropertiesKHR(
-    VkDevice                                    device,
-    const VkPipelineInfoKHR*                    pPipelineInfo,
-    uint32_t*                                   pExecutableCount,
-    VkPipelineExecutablePropertiesKHR*          pProperties);
-
-VKAPI_ATTR VkResult VKAPI_CALL vkGetPipelineExecutableStatisticsKHR(
-    VkDevice                                    device,
-    const VkPipelineExecutableInfoKHR*          pExecutableInfo,
-    uint32_t*                                   pStatisticCount,
-    VkPipelineExecutableStatisticKHR*           pStatistics);
-
-VKAPI_ATTR VkResult VKAPI_CALL vkGetPipelineExecutableInternalRepresentationsKHR(
-    VkDevice                                    device,
-    const VkPipelineExecutableInfoKHR*          pExecutableInfo,
-    uint32_t*                                   pInternalRepresentationCount,
-    VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations);
-#endif
-
-
-
-#define VK_EXT_debug_report 1
-			VK_DEFINE_NON_DISPATCHABLE_HANDLE(VkDebugReportCallbackEXT)
-#define VK_EXT_DEBUG_REPORT_SPEC_VERSION  9
-#define VK_EXT_DEBUG_REPORT_EXTENSION_NAME "VK_EXT_debug_report"
-
-				typedef enum VkDebugReportObjectTypeEXT {
-				VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT = 0,
-				VK_DEBUG_REPORT_OBJECT_TYPE_INSTANCE_EXT = 1,
-				VK_DEBUG_REPORT_OBJECT_TYPE_PHYSICAL_DEVICE_EXT = 2,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_EXT = 3,
-				VK_DEBUG_REPORT_OBJECT_TYPE_QUEUE_EXT = 4,
-				VK_DEBUG_REPORT_OBJECT_TYPE_SEMAPHORE_EXT = 5,
-				VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_BUFFER_EXT = 6,
-				VK_DEBUG_REPORT_OBJECT_TYPE_FENCE_EXT = 7,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DEVICE_MEMORY_EXT = 8,
-				VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_EXT = 9,
-				VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_EXT = 10,
-				VK_DEBUG_REPORT_OBJECT_TYPE_EVENT_EXT = 11,
-				VK_DEBUG_REPORT_OBJECT_TYPE_QUERY_POOL_EXT = 12,
-				VK_DEBUG_REPORT_OBJECT_TYPE_BUFFER_VIEW_EXT = 13,
-				VK_DEBUG_REPORT_OBJECT_TYPE_IMAGE_VIEW_EXT = 14,
-				VK_DEBUG_REPORT_OBJECT_TYPE_SHADER_MODULE_EXT = 15,
-				VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_CACHE_EXT = 16,
-				VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_LAYOUT_EXT = 17,
-				VK_DEBUG_REPORT_OBJECT_TYPE_RENDER_PASS_EXT = 18,
-				VK_DEBUG_REPORT_OBJECT_TYPE_PIPELINE_EXT = 19,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_LAYOUT_EXT = 20,
-				VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_EXT = 21,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_POOL_EXT = 22,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_SET_EXT = 23,
-				VK_DEBUG_REPORT_OBJECT_TYPE_FRAMEBUFFER_EXT = 24,
-				VK_DEBUG_REPORT_OBJECT_TYPE_COMMAND_POOL_EXT = 25,
-				VK_DEBUG_REPORT_OBJECT_TYPE_SURFACE_KHR_EXT = 26,
-				VK_DEBUG_REPORT_OBJECT_TYPE_SWAPCHAIN_KHR_EXT = 27,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT_EXT = 28,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DISPLAY_KHR_EXT = 29,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DISPLAY_MODE_KHR_EXT = 30,
-				VK_DEBUG_REPORT_OBJECT_TYPE_OBJECT_TABLE_NVX_EXT = 31,
-				VK_DEBUG_REPORT_OBJECT_TYPE_INDIRECT_COMMANDS_LAYOUT_NVX_EXT = 32,
-				VK_DEBUG_REPORT_OBJECT_TYPE_VALIDATION_CACHE_EXT_EXT = 33,
-				VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_EXT = 1000156000,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_EXT = 1000085000,
-				VK_DEBUG_REPORT_OBJECT_TYPE_ACCELERATION_STRUCTURE_NV_EXT = 1000165000,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_DEBUG_REPORT_CALLBACK_EXT_EXT,
-				VK_DEBUG_REPORT_OBJECT_TYPE_VALIDATION_CACHE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_VALIDATION_CACHE_EXT_EXT,
-				VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_KHR_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_EXT,
-				VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_KHR_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_SAMPLER_YCBCR_CONVERSION_EXT,
-				VK_DEBUG_REPORT_OBJECT_TYPE_BEGIN_RANGE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT,
-				VK_DEBUG_REPORT_OBJECT_TYPE_END_RANGE_EXT = VK_DEBUG_REPORT_OBJECT_TYPE_VALIDATION_CACHE_EXT_EXT,
-				VK_DEBUG_REPORT_OBJECT_TYPE_RANGE_SIZE_EXT = (VK_DEBUG_REPORT_OBJECT_TYPE_VALIDATION_CACHE_EXT_EXT - VK_DEBUG_REPORT_OBJECT_TYPE_UNKNOWN_EXT + 1),
-				VK_DEBUG_REPORT_OBJECT_TYPE_MAX_ENUM_EXT = 0x7FFFFFFF
-			} VkDebugReportObjectTypeEXT;
-
-			typedef enum VkDebugReportFlagBitsEXT {
-				VK_DEBUG_REPORT_INFORMATION_BIT_EXT = 0x00000001,
-				VK_DEBUG_REPORT_WARNING_BIT_EXT = 0x00000002,
-				VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT = 0x00000004,
-				VK_DEBUG_REPORT_ERROR_BIT_EXT = 0x00000008,
-				VK_DEBUG_REPORT_DEBUG_BIT_EXT = 0x00000010,
-				VK_DEBUG_REPORT_FLAG_BITS_MAX_ENUM_EXT = 0x7FFFFFFF
-			} VkDebugReportFlagBitsEXT;
-			typedef VkFlags VkDebugReportFlagsEXT;
-			typedef VkBool32(VKAPI_PTR* PFN_vkDebugReportCallbackEXT)(
-				VkDebugReportFlagsEXT                       flags,
-				VkDebugReportObjectTypeEXT                  objectType,
-				uint64_t                                    object,
-				size_t                                      location,
-				int32_t                                     messageCode,
-				const char* pLayerPrefix,
-				const char* pMessage,
-				void* pUserData);
-
-			typedef struct VkDebugReportCallbackCreateInfoEXT {
-				VkStructureType                 sType;
-				const void* pNext;
-				VkDebugReportFlagsEXT           flags;
-				PFN_vkDebugReportCallbackEXT    pfnCallback;
-				void* pUserData;
-			} VkDebugReportCallbackCreateInfoEXT;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkCreateDebugReportCallbackEXT)(VkInstance instance, const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback);
-			typedef void (VKAPI_PTR* PFN_vkDestroyDebugReportCallbackEXT)(VkInstance instance, VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator);
-			typedef void (VKAPI_PTR* PFN_vkDebugReportMessageEXT)(VkInstance instance, VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkCreateDebugReportCallbackEXT(
-				VkInstance                                  instance,
-				const VkDebugReportCallbackCreateInfoEXT* pCreateInfo,
-				const VkAllocationCallbacks* pAllocator,
-				VkDebugReportCallbackEXT* pCallback);
-
-			VKAPI_ATTR void VKAPI_CALL vkDestroyDebugReportCallbackEXT(
-				VkInstance                                  instance,
-				VkDebugReportCallbackEXT                    callback,
-				const VkAllocationCallbacks* pAllocator);
-
-			VKAPI_ATTR void VKAPI_CALL vkDebugReportMessageEXT(
-				VkInstance                                  instance,
-				VkDebugReportFlagsEXT                       flags,
-				VkDebugReportObjectTypeEXT                  objectType,
-				uint64_t                                    object,
-				size_t                                      location,
-				int32_t                                     messageCode,
-				const char* pLayerPrefix,
-				const char* pMessage);
-#endif
-
-
-#define VK_NV_glsl_shader 1
-#define VK_NV_GLSL_SHADER_SPEC_VERSION    1
-#define VK_NV_GLSL_SHADER_EXTENSION_NAME  "VK_NV_glsl_shader"
-
-
-#define VK_EXT_depth_range_unrestricted 1
-#define VK_EXT_DEPTH_RANGE_UNRESTRICTED_SPEC_VERSION 1
-#define VK_EXT_DEPTH_RANGE_UNRESTRICTED_EXTENSION_NAME "VK_EXT_depth_range_unrestricted"
-
-
-#define VK_IMG_filter_cubic 1
-#define VK_IMG_FILTER_CUBIC_SPEC_VERSION  1
-#define VK_IMG_FILTER_CUBIC_EXTENSION_NAME "VK_IMG_filter_cubic"
-
-
-#define VK_AMD_rasterization_order 1
-#define VK_AMD_RASTERIZATION_ORDER_SPEC_VERSION 1
-#define VK_AMD_RASTERIZATION_ORDER_EXTENSION_NAME "VK_AMD_rasterization_order"
-
-			typedef enum VkRasterizationOrderAMD {
-				VK_RASTERIZATION_ORDER_STRICT_AMD = 0,
-				VK_RASTERIZATION_ORDER_RELAXED_AMD = 1,
-				VK_RASTERIZATION_ORDER_BEGIN_RANGE_AMD = VK_RASTERIZATION_ORDER_STRICT_AMD,
-				VK_RASTERIZATION_ORDER_END_RANGE_AMD = VK_RASTERIZATION_ORDER_RELAXED_AMD,
-				VK_RASTERIZATION_ORDER_RANGE_SIZE_AMD = (VK_RASTERIZATION_ORDER_RELAXED_AMD - VK_RASTERIZATION_ORDER_STRICT_AMD + 1),
-				VK_RASTERIZATION_ORDER_MAX_ENUM_AMD = 0x7FFFFFFF
-			} VkRasterizationOrderAMD;
-			typedef struct VkPipelineRasterizationStateRasterizationOrderAMD {
-				VkStructureType            sType;
-				const void* pNext;
-				VkRasterizationOrderAMD    rasterizationOrder;
-			} VkPipelineRasterizationStateRasterizationOrderAMD;
-
-
-
-#define VK_AMD_shader_trinary_minmax 1
-#define VK_AMD_SHADER_TRINARY_MINMAX_SPEC_VERSION 1
-#define VK_AMD_SHADER_TRINARY_MINMAX_EXTENSION_NAME "VK_AMD_shader_trinary_minmax"
-
-
-#define VK_AMD_shader_explicit_vertex_parameter 1
-#define VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_SPEC_VERSION 1
-#define VK_AMD_SHADER_EXPLICIT_VERTEX_PARAMETER_EXTENSION_NAME "VK_AMD_shader_explicit_vertex_parameter"
-
-
-#define VK_EXT_debug_marker 1
-#define VK_EXT_DEBUG_MARKER_SPEC_VERSION  4
-#define VK_EXT_DEBUG_MARKER_EXTENSION_NAME "VK_EXT_debug_marker"
-			typedef struct VkDebugMarkerObjectNameInfoEXT {
-				VkStructureType               sType;
-				const void* pNext;
-				VkDebugReportObjectTypeEXT    objectType;
-				uint64_t                      object;
-				const char* pObjectName;
-			} VkDebugMarkerObjectNameInfoEXT;
-
-			typedef struct VkDebugMarkerObjectTagInfoEXT {
-				VkStructureType               sType;
-				const void* pNext;
-				VkDebugReportObjectTypeEXT    objectType;
-				uint64_t                      object;
-				uint64_t                      tagName;
-				size_t                        tagSize;
-				const void* pTag;
-			} VkDebugMarkerObjectTagInfoEXT;
-
-			typedef struct VkDebugMarkerMarkerInfoEXT {
-				VkStructureType    sType;
-				const void* pNext;
-				const char* pMarkerName;
-				float              color[4];
-			} VkDebugMarkerMarkerInfoEXT;
-
-			typedef VkResult(VKAPI_PTR* PFN_vkDebugMarkerSetObjectTagEXT)(VkDevice device, const VkDebugMarkerObjectTagInfoEXT* pTagInfo);
-			typedef VkResult(VKAPI_PTR* PFN_vkDebugMarkerSetObjectNameEXT)(VkDevice device, const VkDebugMarkerObjectNameInfoEXT* pNameInfo);
-			typedef void (VKAPI_PTR* PFN_vkCmdDebugMarkerBeginEXT)(VkCommandBuffer commandBuffer, const VkDebugMarkerMarkerInfoEXT* pMarkerInfo);
-			typedef void (VKAPI_PTR* PFN_vkCmdDebugMarkerEndEXT)(VkCommandBuffer commandBuffer);
-			typedef void (VKAPI_PTR* PFN_vkCmdDebugMarkerInsertEXT)(VkCommandBuffer commandBuffer, const VkDebugMarkerMarkerInfoEXT* pMarkerInfo);
-
-#ifndef VK_NO_PROTOTYPES
-			VKAPI_ATTR VkResult VKAPI_CALL vkDebugMarkerSetObjectTagEXT(
-				VkDevice                                    device,
-				const VkDebugMarkerObjectTagInfoEXT* pTagInfo);
-
-			VKAPI_ATTR VkResult VKAPI_CALL vkDebugMarkerSetObjectNameEXT(
-				VkDevice                                    device,
-				const VkDebugMarkerObjectNameInfoEXT* pNameInfo);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdDebugMarkerBeginEXT(
-				VkCommandBuffer                             commandBuffer,
-				const VkDebugMarkerMarkerInfoEXT* pMarkerInfo);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdDebugMarkerEndEXT(
-				VkCommandBuffer                             commandBuffer);
-
-			VKAPI_ATTR void VKAPI_CALL vkCmdDebugMarkerInsertEXT(
-				VkCommandBuffer                             commandBuffer,
-				const VkDebugMarkerMarkerInfoEXT* pMarkerInfo);
-#endif
-
-
 #define VK_AMD_gcn_shader 1
 #define VK_AMD_GCN_SHADER_SPEC_VERSION    1
 #define VK_AMD_GCN_SHADER_EXTENSION_NAME  "VK_AMD_gcn_shader"
@@ -5278,41 +4335,38 @@ typedef struct VkPhysicalDeviceIndexTypeUint8FeaturesEXT {
 		VkDeviceGroupPresentModeFlagsKHR* pModes);
 #endif
 #endif
-
 #if defined(VK_KHR_xcb_surface)
-                    {
-                            VK_KHR_XCB_SURFACE_EXTENSION_NAME,
-                            VK_KHR_XCB_SURFACE_SPEC_VERSION,
-                            false,
-                            {
-                                    {"vkCreateXcbSurfaceKHR", GET_TRAMPOLINE(Instance, CreateXcbSurface), false},
-                                    {"vkGetPhysicalDeviceXcbPresentationSupportKHR", GET_TRAMPOLINE(PhysicalDevice, GetPhysicalDeviceXcbPresentationSupport), false},
-                            }
-                    },
+            {
+                VK_KHR_XCB_SURFACE_EXTENSION_NAME,
+                VK_KHR_XCB_SURFACE_SPEC_VERSION,
+                false,
+                {
+                    {"vkCreateXcbSurfaceKHR", GET_TRAMPOLINE(Instance, CreateXcbSurface), false},
+                    {"vkGetPhysicalDeviceXcbPresentationSupportKHR", GET_TRAMPOLINE(PhysicalDevice, GetPhysicalDeviceXcbPresentationSupport), false},
+                }
+            },
 #endif
-
 #if defined(VK_KHR_xlib_surface)
-                    {
-                            VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
-                            VK_KHR_XLIB_SURFACE_SPEC_VERSION,
-                            false,
-                            {
-                                    {"vkCreateXlibSurfaceKHR", GET_TRAMPOLINE(Instance, CreateXlibSurface), false},
-                                    {"vkGetPhysicalDeviceXlibPresentationSupportKHR", GET_TRAMPOLINE(PhysicalDevice, GetPhysicalDeviceXlibPresentationSupport), false},
-                            }
-                    },
+             {
+                 VK_KHR_XLIB_SURFACE_EXTENSION_NAME,
+                 VK_KHR_XLIB_SURFACE_SPEC_VERSION,
+                 false,
+                 {
+                     {"vkCreateXlibSurfaceKHR", GET_TRAMPOLINE(Instance, CreateXlibSurface), false},
+                     {"vkGetPhysicalDeviceXlibPresentationSupportKHR", GET_TRAMPOLINE(PhysicalDevice, GetPhysicalDeviceXlibPresentationSupport), false},
+                 }
+             },
 #endif
-
 #if defined(VK_EXT_acquire_xlib_display)
-                    {
-                            VK_EXT_ACQUIRE_XLIB_DISPLAY_EXTENSION_NAME,
-                            VK_EXT_ACQUIRE_XLIB_DISPLAY_SPEC_VERSION,
-                            false,
-                            {
-                                    {"vkAcquireXlibDisplayEXT", GET_TRAMPOLINE(PhysicalDevice, AcquireXlibDisplay), false},
-                                    {"vkGetRandROutputDisplayEXT", GET_TRAMPOLINE(PhysicalDevice, GetRandROutputDisplay), false},
-                            }
-                    },
+             {
+                 VK_EXT_ACQUIRE_XLIB_DISPLAY_EXTENSION_NAME,
+                 VK_EXT_ACQUIRE_XLIB_DISPLAY_SPEC_VERSION,
+                 false,
+                 {
+                     {"vkAcquireXlibDisplayEXT", GET_TRAMPOLINE(PhysicalDevice, AcquireXlibDisplay), false},
+                     {"vkGetRandROutputDisplayEXT", GET_TRAMPOLINE(PhysicalDevice, GetRandROutputDisplay), false},
+                 }
+             },
 #endif
 		}
 	};

@@ -10,20 +10,21 @@ Semaphore::~Semaphore()
 	Platform::CloseMutex(handle);
 }
 
-void Semaphore::Signal()
+VkResult Semaphore::Signal()
 {
-	Platform::ReleaseMutex(handle);
+	Platform::SignalMutex(handle);
+	return VK_SUCCESS;
 }
 
 VkResult Semaphore::Reset()
 {
-	Platform::SetMutex(handle);
+	Platform::ResetMutex(handle);
 	return VK_SUCCESS;
 }
 
 VkResult Semaphore::Wait(uint64_t timeout)
 {
-	return Platform::Wait(handle, timeout);
+	return Platform::Wait(handle, timeout) ? VK_SUCCESS : VK_TIMEOUT;
 }
 
 VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore)
@@ -31,7 +32,7 @@ VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAll
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO);
 	assert(pCreateInfo->flags == 0);
 
-	auto semaphore = Allocate<Semaphore>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	const auto semaphore = Allocate<Semaphore>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
@@ -44,14 +45,11 @@ VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAll
 
 		case VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
-	semaphore->handle = Platform::CreateMutex(false);
+	semaphore->handle = Platform::CreateMutex(false, false);
 
 	WrapVulkan(semaphore, pSemaphore);
 	return VK_SUCCESS;

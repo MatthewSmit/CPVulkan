@@ -4,9 +4,15 @@
 class Event final
 {
 public:
+	Event() = default;
+	Event(const Event&) = delete;
+	Event(Event&&) = delete;
 	~Event();
-	
-	void Signal();
+
+	Event& operator=(const Event&) = delete;
+	Event&& operator=(const Event&&) = delete;
+
+	VkResult Signal();
 	VkResult Reset();
 	VkResult Wait(uint64_t timeout);
 

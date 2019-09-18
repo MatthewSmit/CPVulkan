@@ -12,7 +12,7 @@ struct membuf : std::streambuf
 {
 	membuf(char const* base, size_t size)
 	{
-		auto p(const_cast<char*>(base));
+		const auto p(const_cast<char*>(base));
 		this->setg(p, p, p + size);
 	}
 };
@@ -40,11 +40,8 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 		{
 		case VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)

@@ -40,6 +40,20 @@ extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstance
 	}
 #endif
 
+#if defined(VK_KHR_xcb_surface)
+	if (strcmp(pName, "vkCreateXcbSurfaceKHR") == 0)
+	{
+		return GET_TRAMPOLINE(Instance, CreateXcbSurface);
+	}
+#endif
+
+#if defined(VK_KHR_xlib_surface)
+	if (strcmp(pName, "vkCreateXlibSurfaceKHR") == 0)
+	{
+		return GET_TRAMPOLINE(Instance, CreateXlibSurface);
+	}
+#endif
+
 	if (strcmp(pName, "vkDestroySurfaceKHR") == 0)
 	{
 		return GET_TRAMPOLINE(Instance, DestroySurface);
@@ -73,7 +87,7 @@ extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetInstance
 	return UnwrapVulkan<Instance>(instance)->GetProcAddress(pName);
 }
 
-extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetPhysicalDeviceProcAddr(VkInstance instance, const char* pName)
+extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetPhysicalDeviceProcAddr(VkInstance, const char*)
 {
 	return nullptr;
 }

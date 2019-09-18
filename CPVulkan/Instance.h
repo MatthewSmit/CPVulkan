@@ -3,8 +3,6 @@
 
 #include "Extensions.h"
 
-#include <memory>
-
 class PhysicalDevice;
 
 class Instance final

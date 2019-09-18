@@ -59,7 +59,7 @@ public:
 	VKAPI_ATTR VkResult VKAPI_CALL EnumerateDeviceLayerProperties(uint32_t* pPropertyCount, VkLayerProperties* pProperties) { FATAL_ERROR(); }
 	
 	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceSupport(uint32_t queueFamilyIndex, VkSurfaceKHR surface, VkBool32* pSupported);
-	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities);
+	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities) const;
 	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceFormats(VkSurfaceKHR surface, uint32_t* pSurfaceFormatCount, VkSurfaceFormatKHR* pSurfaceFormats);
 	VKAPI_ATTR VkResult VKAPI_PTR GetSurfacePresentModes(VkSurfaceKHR surface, uint32_t* pPresentModeCount, VkPresentModeKHR* pPresentModes);
 

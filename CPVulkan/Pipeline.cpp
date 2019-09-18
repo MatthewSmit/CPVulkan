@@ -32,11 +32,8 @@ static VertexInputState Parse(const VkPipelineVertexInputStateCreateInfo* pVerte
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pVertexInputState->flags)
@@ -61,10 +58,8 @@ static InputAssemblyState Parse(const VkPipelineInputAssemblyStateCreateInfo* pI
 		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pInputAssemblyState->flags)
@@ -99,11 +94,8 @@ static TessellationState Parse(const VkPipelineTessellationStateCreateInfo* pTes
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_DOMAIN_ORIGIN_STATE_CREATE_INFO:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pTessellationState->flags)
@@ -141,11 +133,8 @@ static ViewportState Parse(const VkPipelineViewportStateCreateInfo* pViewportSta
 
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_W_SCALING_STATE_CREATE_INFO_NV:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pViewportState->flags)
@@ -184,11 +173,8 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pRasterizationState->flags)
@@ -232,11 +218,8 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 
 		case VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pMultisampleState->flags)
@@ -269,10 +252,8 @@ static DepthStencilState Parse(const VkPipelineDepthStencilStateCreateInfo* pDep
 		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pDepthStencilState->flags)
@@ -306,11 +287,8 @@ static ColourBlendState Parse(const VkPipelineColorBlendStateCreateInfo* pColorB
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_ADVANCED_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pColorBlendState->flags)
@@ -347,10 +325,8 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
 		switch (type)
 		{
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pDynamicState->flags)
@@ -400,11 +376,8 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 
 		case VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV:
 			FATAL_ERROR();
-
-		default:
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-			break;
 		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)
@@ -425,11 +398,8 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 			{
 			case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT:
 				FATAL_ERROR();
-
-			default:
-				next = static_cast<const VkBaseInStructure*>(next)->pNext;
-				break;
 			}
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
 		}
 
 		if (stage.flags)

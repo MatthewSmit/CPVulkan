@@ -39,15 +39,15 @@ public:
 	VKAPI_ATTR void VKAPI_PTR GetImageSparseMemoryRequirements(VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR CreateFence(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence);
 	VKAPI_ATTR void VKAPI_PTR DestroyFence(VkFence fence, const VkAllocationCallbacks* pAllocator);
-	VKAPI_ATTR VkResult VKAPI_PTR ResetFences(uint32_t fenceCount, const VkFence* pFences) { FATAL_ERROR(); } 
-	VKAPI_ATTR VkResult VKAPI_PTR GetFenceStatus(VkFence fence) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR ResetFences(uint32_t fenceCount, const VkFence* pFences);
+	VKAPI_ATTR VkResult VKAPI_PTR GetFenceStatus(VkFence fence);
 	VKAPI_ATTR VkResult VKAPI_PTR WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateSemaphore(const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore);
 	VKAPI_ATTR void VKAPI_PTR DestroySemaphore(VkSemaphore semaphore, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateEvent(const VkEventCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkEvent* pEvent);
 	VKAPI_ATTR void VKAPI_PTR DestroyEvent(VkEvent event, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR GetEventStatus(VkEvent event);
-	VKAPI_ATTR VkResult VKAPI_PTR SetEvent(VkEvent event) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR SetEvent(VkEvent event);
 	VKAPI_ATTR VkResult VKAPI_PTR ResetEvent(VkEvent event);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateQueryPool(const VkQueryPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkQueryPool* pQueryPool);
 	VKAPI_ATTR void VKAPI_PTR DestroyQueryPool(VkQueryPool queryPool, const VkAllocationCallbacks* pAllocator);
@@ -130,6 +130,10 @@ public:
 
 	VKAPI_ATTR VkResult VKAPI_PTR ImportFenceFd(const VkImportFenceFdInfoKHR* pImportFenceFdInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR GetFenceFd(const VkFenceGetFdInfoKHR* pGetFdInfo, int* pFd) { FATAL_ERROR(); }
+	
+	VKAPI_ATTR VkResult VKAPI_PTR GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipelineInfo, uint32_t* pExecutableCount, VkPipelineExecutablePropertiesKHR* pProperties) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetPipelineExecutableStatistics(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pStatisticCount, VkPipelineExecutableStatisticKHR* pStatistics) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetPipelineExecutableInternalRepresentations(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pInternalRepresentationCount, VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations) { FATAL_ERROR(); }
 
 	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectTag(const VkDebugMarkerObjectTagInfoEXT* pTagInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectName(const VkDebugMarkerObjectNameInfoEXT* pNameInfo) { FATAL_ERROR(); } 
@@ -188,7 +192,7 @@ public:
 
 	VKAPI_ATTR VkDeviceAddress VKAPI_PTR GetBufferDeviceAddress(const VkBufferDeviceAddressInfoEXT* pInfo) { FATAL_ERROR(); } 
 
-	VKAPI_ATTR void VKAPI_PTR ResetQueryPoolEXT(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) { FATAL_ERROR(); }
+	VKAPI_ATTR void VKAPI_PTR ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount) { FATAL_ERROR(); }
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle) { FATAL_ERROR(); }

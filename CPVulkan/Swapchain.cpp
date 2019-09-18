@@ -94,7 +94,7 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 	{
 		VK_STRUCTURE_TYPE_IMAGE_SWAPCHAIN_CREATE_INFO_KHR,
 		nullptr,
-		nullptr,
+		VK_NULL_HANDLE,
 	};
 	WrapVulkan(swapchain, &imageSwapchain.swapchain);
 	VkImageCreateInfo imageCreate
