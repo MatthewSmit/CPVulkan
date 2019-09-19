@@ -763,7 +763,6 @@ namespace SPIRV
 #define _SPIRV_OP(x) typedef SPIRVEntryUnimplemented<Op##x> SPIRV##x;
 	_SPIRV_OP(Nop)
 	_SPIRV_OP(SourceContinued)
-	_SPIRV_OP(TypeRuntimeArray)
 	_SPIRV_OP(SpecConstantTrue)
 	_SPIRV_OP(SpecConstantFalse)
 	_SPIRV_OP(SpecConstant)

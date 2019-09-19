@@ -108,6 +108,7 @@ public:
 	Pipeline&& operator=(const Pipeline&&) = delete;
 
 	static VkResult Create(VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
+	static VkResult Create(VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
 	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const { return shaderStages[index].get(); }
 	

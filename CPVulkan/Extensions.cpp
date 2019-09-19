@@ -2133,43 +2133,17 @@ typedef struct VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT {
 #define VK_AMD_shader_fragment_mask 1
 #define VK_AMD_SHADER_FRAGMENT_MASK_SPEC_VERSION 1
 #define VK_AMD_SHADER_FRAGMENT_MASK_EXTENSION_NAME "VK_AMD_shader_fragment_mask"
-
-
-#define VK_EXT_inline_uniform_block 1
-#define VK_EXT_INLINE_UNIFORM_BLOCK_SPEC_VERSION 1
-#define VK_EXT_INLINE_UNIFORM_BLOCK_EXTENSION_NAME "VK_EXT_inline_uniform_block"
-			typedef struct VkPhysicalDeviceInlineUniformBlockFeaturesEXT {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           inlineUniformBlock;
-				VkBool32           descriptorBindingInlineUniformBlockUpdateAfterBind;
-			} VkPhysicalDeviceInlineUniformBlockFeaturesEXT;
-
-			typedef struct VkPhysicalDeviceInlineUniformBlockPropertiesEXT {
-				VkStructureType    sType;
-				void* pNext;
-				uint32_t           maxInlineUniformBlockSize;
-				uint32_t           maxPerStageDescriptorInlineUniformBlocks;
-				uint32_t           maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks;
-				uint32_t           maxDescriptorSetInlineUniformBlocks;
-				uint32_t           maxDescriptorSetUpdateAfterBindInlineUniformBlocks;
-			} VkPhysicalDeviceInlineUniformBlockPropertiesEXT;
-
-			typedef struct VkWriteDescriptorSetInlineUniformBlockEXT {
-				VkStructureType    sType;
-				const void* pNext;
-				uint32_t           dataSize;
-				const void* pData;
-			} VkWriteDescriptorSetInlineUniformBlockEXT;
-
-			typedef struct VkDescriptorPoolInlineUniformBlockCreateInfoEXT {
-				VkStructureType    sType;
-				const void* pNext;
-				uint32_t           maxInlineUniformBlockBindings;
-			} VkDescriptorPoolInlineUniformBlockCreateInfoEXT;
-
-
-
+#endif
+#if defined(VK_EXT_inline_uniform_block)
+			{
+				VK_EXT_INLINE_UNIFORM_BLOCK_EXTENSION_NAME,
+				VK_EXT_INLINE_UNIFORM_BLOCK_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if XXX
 #define VK_EXT_shader_stencil_export 1
 #define VK_EXT_SHADER_STENCIL_EXPORT_SPEC_VERSION 1
 #define VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME "VK_EXT_shader_stencil_export"
@@ -2471,94 +2445,17 @@ typedef struct VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT {
 				void* pData);
 #endif
 
-
-#define VK_EXT_descriptor_indexing 1
-#define VK_EXT_DESCRIPTOR_INDEXING_SPEC_VERSION 2
-#define VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME "VK_EXT_descriptor_indexing"
-
-			typedef enum VkDescriptorBindingFlagBitsEXT {
-				VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT_EXT = 0x00000001,
-				VK_DESCRIPTOR_BINDING_UPDATE_UNUSED_WHILE_PENDING_BIT_EXT = 0x00000002,
-				VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT_EXT = 0x00000004,
-				VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT_EXT = 0x00000008,
-				VK_DESCRIPTOR_BINDING_FLAG_BITS_MAX_ENUM_EXT = 0x7FFFFFFF
-			} VkDescriptorBindingFlagBitsEXT;
-			typedef VkFlags VkDescriptorBindingFlagsEXT;
-			typedef struct VkDescriptorSetLayoutBindingFlagsCreateInfoEXT {
-				VkStructureType                       sType;
-				const void* pNext;
-				uint32_t                              bindingCount;
-				const VkDescriptorBindingFlagsEXT* pBindingFlags;
-			} VkDescriptorSetLayoutBindingFlagsCreateInfoEXT;
-
-			typedef struct VkPhysicalDeviceDescriptorIndexingFeaturesEXT {
-				VkStructureType    sType;
-				void* pNext;
-				VkBool32           shaderInputAttachmentArrayDynamicIndexing;
-				VkBool32           shaderUniformTexelBufferArrayDynamicIndexing;
-				VkBool32           shaderStorageTexelBufferArrayDynamicIndexing;
-				VkBool32           shaderUniformBufferArrayNonUniformIndexing;
-				VkBool32           shaderSampledImageArrayNonUniformIndexing;
-				VkBool32           shaderStorageBufferArrayNonUniformIndexing;
-				VkBool32           shaderStorageImageArrayNonUniformIndexing;
-				VkBool32           shaderInputAttachmentArrayNonUniformIndexing;
-				VkBool32           shaderUniformTexelBufferArrayNonUniformIndexing;
-				VkBool32           shaderStorageTexelBufferArrayNonUniformIndexing;
-				VkBool32           descriptorBindingUniformBufferUpdateAfterBind;
-				VkBool32           descriptorBindingSampledImageUpdateAfterBind;
-				VkBool32           descriptorBindingStorageImageUpdateAfterBind;
-				VkBool32           descriptorBindingStorageBufferUpdateAfterBind;
-				VkBool32           descriptorBindingUniformTexelBufferUpdateAfterBind;
-				VkBool32           descriptorBindingStorageTexelBufferUpdateAfterBind;
-				VkBool32           descriptorBindingUpdateUnusedWhilePending;
-				VkBool32           descriptorBindingPartiallyBound;
-				VkBool32           descriptorBindingVariableDescriptorCount;
-				VkBool32           runtimeDescriptorArray;
-			} VkPhysicalDeviceDescriptorIndexingFeaturesEXT;
-
-			typedef struct VkPhysicalDeviceDescriptorIndexingPropertiesEXT {
-				VkStructureType    sType;
-				void* pNext;
-				uint32_t           maxUpdateAfterBindDescriptorsInAllPools;
-				VkBool32           shaderUniformBufferArrayNonUniformIndexingNative;
-				VkBool32           shaderSampledImageArrayNonUniformIndexingNative;
-				VkBool32           shaderStorageBufferArrayNonUniformIndexingNative;
-				VkBool32           shaderStorageImageArrayNonUniformIndexingNative;
-				VkBool32           shaderInputAttachmentArrayNonUniformIndexingNative;
-				VkBool32           robustBufferAccessUpdateAfterBind;
-				VkBool32           quadDivergentImplicitLod;
-				uint32_t           maxPerStageDescriptorUpdateAfterBindSamplers;
-				uint32_t           maxPerStageDescriptorUpdateAfterBindUniformBuffers;
-				uint32_t           maxPerStageDescriptorUpdateAfterBindStorageBuffers;
-				uint32_t           maxPerStageDescriptorUpdateAfterBindSampledImages;
-				uint32_t           maxPerStageDescriptorUpdateAfterBindStorageImages;
-				uint32_t           maxPerStageDescriptorUpdateAfterBindInputAttachments;
-				uint32_t           maxPerStageUpdateAfterBindResources;
-				uint32_t           maxDescriptorSetUpdateAfterBindSamplers;
-				uint32_t           maxDescriptorSetUpdateAfterBindUniformBuffers;
-				uint32_t           maxDescriptorSetUpdateAfterBindUniformBuffersDynamic;
-				uint32_t           maxDescriptorSetUpdateAfterBindStorageBuffers;
-				uint32_t           maxDescriptorSetUpdateAfterBindStorageBuffersDynamic;
-				uint32_t           maxDescriptorSetUpdateAfterBindSampledImages;
-				uint32_t           maxDescriptorSetUpdateAfterBindStorageImages;
-				uint32_t           maxDescriptorSetUpdateAfterBindInputAttachments;
-			} VkPhysicalDeviceDescriptorIndexingPropertiesEXT;
-
-			typedef struct VkDescriptorSetVariableDescriptorCountAllocateInfoEXT {
-				VkStructureType    sType;
-				const void* pNext;
-				uint32_t           descriptorSetCount;
-				const uint32_t* pDescriptorCounts;
-			} VkDescriptorSetVariableDescriptorCountAllocateInfoEXT;
-
-			typedef struct VkDescriptorSetVariableDescriptorCountLayoutSupportEXT {
-				VkStructureType    sType;
-				void* pNext;
-				uint32_t           maxVariableDescriptorCount;
-			} VkDescriptorSetVariableDescriptorCountLayoutSupportEXT;
-
-
-
+#endif
+#if defined(VK_EXT_descriptor_indexing)
+			{
+				VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+				VK_EXT_DESCRIPTOR_INDEXING_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if XXX
 #define VK_EXT_shader_viewport_index_layer 1
 #define VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_SPEC_VERSION 1
 #define VK_EXT_SHADER_VIEWPORT_INDEX_LAYER_EXTENSION_NAME "VK_EXT_shader_viewport_index_layer"

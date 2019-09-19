@@ -31,8 +31,9 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: 
 				FATAL_ERROR();
-			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER: 
-				FATAL_ERROR();
+			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+				newBinding.TexelBufferView = *descriptorWrite.pTexelBufferView;
+				break;
 			case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER: 
 				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:

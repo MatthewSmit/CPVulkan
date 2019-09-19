@@ -44,217 +44,268 @@
 
 #include <cassert>
 
-namespace SPIRV {
+namespace SPIRV
+{
+	SPIRVType* SPIRVType::getArrayElementType() const
+	{
+		assert(OpCode == OpTypeArray && "Not array type");
+		return static_cast<const SPIRVTypeArray *>(this)->getElementType();
+	}
 
-SPIRVType *SPIRVType::getArrayElementType() const {
-  assert(OpCode == OpTypeArray && "Not array type");
-  return static_cast<const SPIRVTypeArray *>(this)->getElementType();
-}
+	uint64_t SPIRVType::getArrayLength() const
+	{
+		assert(OpCode == OpTypeArray && "Not array type");
+		return static_cast<const SPIRVTypeArray *>(this)
+		       ->getLength()
+		       ->getZExtIntValue();
+	}
 
-uint64_t SPIRVType::getArrayLength() const {
-  assert(OpCode == OpTypeArray && "Not array type");
-  return static_cast<const SPIRVTypeArray *>(this)
-      ->getLength()
-      ->getZExtIntValue();
-}
+	SPIRVWord SPIRVType::getBitWidth() const
+	{
+		if (isTypeVector())
+			return getVectorComponentType()->getBitWidth();
+		if (isTypeBool())
+			return 1;
+		return isTypeInt() ? getIntegerBitWidth() : getFloatBitWidth();
+	}
 
-SPIRVWord SPIRVType::getBitWidth() const {
-  if (isTypeVector())
-    return getVectorComponentType()->getBitWidth();
-  if (isTypeBool())
-    return 1;
-  return isTypeInt() ? getIntegerBitWidth() : getFloatBitWidth();
-}
+	SPIRVWord SPIRVType::getFloatBitWidth() const
+	{
+		assert(OpCode == OpTypeFloat && "Not a float type");
+		return static_cast<const SPIRVTypeFloat *>(this)->getBitWidth();
+	}
 
-SPIRVWord SPIRVType::getFloatBitWidth() const {
-  assert(OpCode == OpTypeFloat && "Not a float type");
-  return static_cast<const SPIRVTypeFloat *>(this)->getBitWidth();
-}
+	SPIRVWord SPIRVType::getIntegerBitWidth() const
+	{
+		assert((OpCode == OpTypeInt || OpCode == OpTypeBool) &&
+			"Not an integer type");
+		if (isTypeBool())
+			return 1;
+		return static_cast<const SPIRVTypeInt *>(this)->getBitWidth();
+	}
 
-SPIRVWord SPIRVType::getIntegerBitWidth() const {
-  assert((OpCode == OpTypeInt || OpCode == OpTypeBool) &&
-         "Not an integer type");
-  if (isTypeBool())
-    return 1;
-  return static_cast<const SPIRVTypeInt *>(this)->getBitWidth();
-}
+	SPIRVType* SPIRVType::getFunctionReturnType() const
+	{
+		assert(OpCode == OpTypeFunction);
+		return static_cast<const SPIRVTypeFunction *>(this)->getReturnType();
+	}
 
-SPIRVType *SPIRVType::getFunctionReturnType() const {
-  assert(OpCode == OpTypeFunction);
-  return static_cast<const SPIRVTypeFunction *>(this)->getReturnType();
-}
+	SPIRVType* SPIRVType::getPointerElementType() const
+	{
+		assert(OpCode == OpTypePointer && "Not a pointer type");
+		return static_cast<const SPIRVTypePointer *>(this)->getElementType();
+	}
 
-SPIRVType *SPIRVType::getPointerElementType() const {
-  assert(OpCode == OpTypePointer && "Not a pointer type");
-  return static_cast<const SPIRVTypePointer *>(this)->getElementType();
-}
+	SPIRVStorageClassKind SPIRVType::getPointerStorageClass() const
+	{
+		assert(OpCode == OpTypePointer && "Not a pointer type");
+		return static_cast<const SPIRVTypePointer *>(this)->getStorageClass();
+	}
 
-SPIRVStorageClassKind SPIRVType::getPointerStorageClass() const {
-  assert(OpCode == OpTypePointer && "Not a pointer type");
-  return static_cast<const SPIRVTypePointer *>(this)->getStorageClass();
-}
+	SPIRVType* SPIRVType::getStructMemberType(size_t Index) const
+	{
+		assert(OpCode == OpTypeStruct && "Not struct type");
+		return static_cast<const SPIRVTypeStruct *>(this)->getMemberType(Index);
+	}
 
-SPIRVType *SPIRVType::getStructMemberType(size_t Index) const {
-  assert(OpCode == OpTypeStruct && "Not struct type");
-  return static_cast<const SPIRVTypeStruct *>(this)->getMemberType(Index);
-}
+	SPIRVWord SPIRVType::getStructMemberCount() const
+	{
+		assert(OpCode == OpTypeStruct && "Not struct type");
+		return static_cast<const SPIRVTypeStruct *>(this)->getMemberCount();
+	}
 
-SPIRVWord SPIRVType::getStructMemberCount() const {
-  assert(OpCode == OpTypeStruct && "Not struct type");
-  return static_cast<const SPIRVTypeStruct *>(this)->getMemberCount();
-}
+	SPIRVWord SPIRVType::getVectorComponentCount() const
+	{
+		assert(OpCode == OpTypeVector && "Not vector type");
+		return static_cast<const SPIRVTypeVector *>(this)->getComponentCount();
+	}
 
-SPIRVWord SPIRVType::getVectorComponentCount() const {
-  assert(OpCode == OpTypeVector && "Not vector type");
-  return static_cast<const SPIRVTypeVector *>(this)->getComponentCount();
-}
+	SPIRVType* SPIRVType::getVectorComponentType() const
+	{
+		assert(OpCode == OpTypeVector && "Not vector type");
+		return static_cast<const SPIRVTypeVector *>(this)->getComponentType();
+	}
 
-SPIRVType *SPIRVType::getVectorComponentType() const {
-  assert(OpCode == OpTypeVector && "Not vector type");
-  return static_cast<const SPIRVTypeVector *>(this)->getComponentType();
-}
+	SPIRVWord SPIRVType::getMatrixColumnCount() const
+	{
+		assert(OpCode == OpTypeMatrix && "Not matrix type");
+		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnCount();
+	}
 
-SPIRVWord SPIRVType::getMatrixColumnCount() const {
-	assert(OpCode == OpTypeMatrix && "Not matrix type");
-	return static_cast<const SPIRVTypeMatrix*>(this)->getColumnCount();
-}
+	SPIRVWord SPIRVType::getMatrixRowCount() const
+	{
+		assert(OpCode == OpTypeMatrix && "Not matrix type");
+		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType()->getVectorComponentCount();
+	}
 
-SPIRVWord SPIRVType::getMatrixRowCount() const {
-	assert(OpCode == OpTypeMatrix && "Not matrix type");
-	return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType()->getVectorComponentCount();
-}
+	SPIRVType* SPIRVType::getMatrixVectorType() const
+	{
+		assert(OpCode == OpTypeMatrix && "Not matrix type");
+		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType();
+	}
 
-SPIRVType* SPIRVType::getMatrixVectorType() const {
-	assert(OpCode == OpTypeMatrix && "Not matrix type");
-	return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType();
-}
+	SPIRVType* SPIRVType::getMatrixComponentType() const
+	{
+		assert(OpCode == OpTypeMatrix && "Not matrix type");
+		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType()->getVectorComponentType();
+	}
 
-SPIRVType* SPIRVType::getMatrixComponentType() const {
-	assert(OpCode == OpTypeMatrix && "Not matrix type");
-	return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType()->getVectorComponentType();
-}
+	bool SPIRVType::isTypeVoid() const { return OpCode == OpTypeVoid; }
+	bool SPIRVType::isTypeArray() const { return OpCode == OpTypeArray; }
 
-bool SPIRVType::isTypeVoid() const { return OpCode == OpTypeVoid; }
-bool SPIRVType::isTypeArray() const { return OpCode == OpTypeArray; }
+	bool SPIRVType::isTypeBool() const { return OpCode == OpTypeBool; }
 
-bool SPIRVType::isTypeBool() const { return OpCode == OpTypeBool; }
+	bool SPIRVType::isTypeComposite() const
+	{
+		return isTypeVector() || isTypeArray() || isTypeStruct();
+	}
 
-bool SPIRVType::isTypeComposite() const {
-  return isTypeVector() || isTypeArray() || isTypeStruct();
-}
+	bool SPIRVType::isTypeFloat(unsigned Bits) const
+	{
+		return isType<SPIRVTypeFloat>(this, Bits);
+	}
 
-bool SPIRVType::isTypeFloat(unsigned Bits) const {
-  return isType<SPIRVTypeFloat>(this, Bits);
-}
+	bool SPIRVType::isTypeOCLImage() const
+	{
+		return isTypeImage() &&
+			static_cast<const SPIRVTypeImage *>(this)->isOCLImage();
+	}
 
-bool SPIRVType::isTypeOCLImage() const {
-  return isTypeImage() &&
-         static_cast<const SPIRVTypeImage *>(this)->isOCLImage();
-}
+	bool SPIRVType::isTypePipe() const { return OpCode == OpTypePipe; }
 
-bool SPIRVType::isTypePipe() const { return OpCode == OpTypePipe; }
+	bool SPIRVType::isTypePipeStorage() const
+	{
+		return OpCode == OpTypePipeStorage;
+	}
 
-bool SPIRVType::isTypePipeStorage() const {
-  return OpCode == OpTypePipeStorage;
-}
+	bool SPIRVType::isTypeReserveId() const { return OpCode == OpTypeReserveId; }
 
-bool SPIRVType::isTypeReserveId() const { return OpCode == OpTypeReserveId; }
+	bool SPIRVType::isTypeInt(unsigned Bits) const
+	{
+		return isType<SPIRVTypeInt>(this, Bits);
+	}
 
-bool SPIRVType::isTypeInt(unsigned Bits) const {
-  return isType<SPIRVTypeInt>(this, Bits);
-}
+	bool SPIRVType::isTypePointer() const { return OpCode == OpTypePointer; }
 
-bool SPIRVType::isTypePointer() const { return OpCode == OpTypePointer; }
+	bool SPIRVType::isTypeOpaque() const { return OpCode == OpTypeOpaque; }
 
-bool SPIRVType::isTypeOpaque() const { return OpCode == OpTypeOpaque; }
+	bool SPIRVType::isTypeEvent() const { return OpCode == OpTypeEvent; }
 
-bool SPIRVType::isTypeEvent() const { return OpCode == OpTypeEvent; }
+	bool SPIRVType::isTypeDeviceEvent() const
+	{
+		return OpCode == OpTypeDeviceEvent;
+	}
 
-bool SPIRVType::isTypeDeviceEvent() const {
-  return OpCode == OpTypeDeviceEvent;
-}
+	bool SPIRVType::isTypeSampler() const { return OpCode == OpTypeSampler; }
 
-bool SPIRVType::isTypeSampler() const { return OpCode == OpTypeSampler; }
+	bool SPIRVType::isTypeImage() const { return OpCode == OpTypeImage; }
 
-bool SPIRVType::isTypeImage() const { return OpCode == OpTypeImage; }
+	bool SPIRVType::isTypeStruct() const { return OpCode == OpTypeStruct; }
 
-bool SPIRVType::isTypeStruct() const { return OpCode == OpTypeStruct; }
+	bool SPIRVType::isTypeVector() const { return OpCode == OpTypeVector; }
 
-bool SPIRVType::isTypeVector() const { return OpCode == OpTypeVector; }
+	bool SPIRVType::isTypeMatrix() const { return OpCode == OpTypeMatrix; }
 
-bool SPIRVType::isTypeMatrix() const { return OpCode == OpTypeMatrix; }
+	bool SPIRVType::isTypeVectorBool() const
+	{
+		return isTypeVector() && getVectorComponentType()->isTypeBool();
+	}
 
-bool SPIRVType::isTypeVectorBool() const {
-  return isTypeVector() && getVectorComponentType()->isTypeBool();
-}
+	bool SPIRVType::isTypeVectorInt() const
+	{
+		return isTypeVector() && getVectorComponentType()->isTypeInt();
+	}
 
-bool SPIRVType::isTypeVectorInt() const {
-  return isTypeVector() && getVectorComponentType()->isTypeInt();
-}
+	bool SPIRVType::isTypeVectorFloat() const
+	{
+		return isTypeVector() && getVectorComponentType()->isTypeFloat();
+	}
 
-bool SPIRVType::isTypeVectorFloat() const {
-  return isTypeVector() && getVectorComponentType()->isTypeFloat();
-}
+	bool SPIRVType::isTypeVectorOrScalarBool() const
+	{
+		return isTypeBool() || isTypeVectorBool();
+	}
 
-bool SPIRVType::isTypeVectorOrScalarBool() const {
-  return isTypeBool() || isTypeVectorBool();
-}
+	bool SPIRVType::isTypeSubgroupAvcINTEL() const
+	{
+		return isSubgroupAvcINTELTypeOpCode(OpCode);
+	}
 
-bool SPIRVType::isTypeSubgroupAvcINTEL() const {
-  return isSubgroupAvcINTELTypeOpCode(OpCode);
-}
+	bool SPIRVType::isTypeSubgroupAvcMceINTEL() const
+	{
+		return OpCode == OpTypeAvcMcePayloadINTEL ||
+			OpCode == OpTypeAvcMceResultINTEL;
+	}
 
-bool SPIRVType::isTypeSubgroupAvcMceINTEL() const {
-  return OpCode == OpTypeAvcMcePayloadINTEL ||
-         OpCode == OpTypeAvcMceResultINTEL;
-}
+	bool SPIRVType::isTypeVectorOrScalarInt() const
+	{
+		return isTypeInt() || isTypeVectorInt();
+	}
 
-bool SPIRVType::isTypeVectorOrScalarInt() const {
-  return isTypeInt() || isTypeVectorInt();
-}
+	bool SPIRVType::isTypeVectorOrScalarFloat() const
+	{
+		return isTypeFloat() || isTypeVectorFloat();
+	}
 
-bool SPIRVType::isTypeVectorOrScalarFloat() const {
-  return isTypeFloat() || isTypeVectorFloat();
-}
+	bool SPIRVTypeStruct::isPacked() const
+	{
+		return hasDecorate(DecorationCPacked);
+	}
 
-bool SPIRVTypeStruct::isPacked() const {
-  return hasDecorate(DecorationCPacked);
-}
+	void SPIRVTypeStruct::setPacked(bool Packed)
+	{
+		if (Packed)
+			addDecorate(new SPIRVDecorate(DecorationCPacked, this));
+		else
+			eraseDecorate(DecorationCPacked);
+	}
 
-void SPIRVTypeStruct::setPacked(bool Packed) {
-  if (Packed)
-    addDecorate(new SPIRVDecorate(DecorationCPacked, this));
-  else
-    eraseDecorate(DecorationCPacked);
-}
+	SPIRVTypeArray::SPIRVTypeArray(SPIRVModule* M, SPIRVId TheId,
+	                               SPIRVType* TheElemType, SPIRVConstant* TheLength)
+		: SPIRVType(M, 4, OpTypeArray, TheId), ElemType(TheElemType),
+		  Length(TheLength->getId())
+	{
+		SPIRVTypeArray::validate();
+	}
 
-SPIRVTypeArray::SPIRVTypeArray(SPIRVModule *M, SPIRVId TheId,
-                               SPIRVType *TheElemType, SPIRVConstant *TheLength)
-    : SPIRVType(M, 4, OpTypeArray, TheId), ElemType(TheElemType),
-      Length(TheLength->getId()) {
-  validate();
-}
+	void SPIRVTypeArray::validate() const {
+		SPIRVEntry::validate();
+		ElemType->validate();
+		assert(getValue(Length)->getType()->isTypeInt() &&
+			get<SPIRVConstant>(Length)->getZExtIntValue() > 0);
+	}
 
-void SPIRVTypeArray::validate() const {
-  SPIRVEntry::validate();
-  ElemType->validate();
-  assert(getValue(Length)->getType()->isTypeInt() &&
-         get<SPIRVConstant>(Length)->getZExtIntValue() > 0);
-}
+	SPIRVConstant* SPIRVTypeArray::getLength() const
+	{
+		return get<SPIRVConstant>(Length);
+	}
 
-SPIRVConstant *SPIRVTypeArray::getLength() const {
-  return get<SPIRVConstant>(Length);
-}
+	_SPIRV_IMP_ENCDEC3(SPIRVTypeArray, Id, ElemType, Length)
 
-_SPIRV_IMP_ENCDEC3(SPIRVTypeArray, Id, ElemType, Length)
+	SPIRVTypeRuntimeArray::SPIRVTypeRuntimeArray(SPIRVModule* M, SPIRVId TheId,
+	                                             SPIRVType* TheElemType, SPIRVConstant* TheLength)
+		: SPIRVType(M, 3, OpTypeRuntimeArray, TheId), ElemType(TheElemType)
+	{
+		SPIRVTypeRuntimeArray::validate();
+	}
 
-void SPIRVTypeForwardPointer::encode(spv_ostream &O) const {
-  getEncoder(O) << Pointer << SC;
-}
+	void SPIRVTypeRuntimeArray::validate() const
+	{
+		SPIRVEntry::validate();
+		ElemType->validate();
+	}
 
-void SPIRVTypeForwardPointer::decode(std::istream &I) {
-  auto Decoder = getDecoder(I);
-  SPIRVId PointerId;
-  Decoder >> PointerId >> SC;
-}
+	_SPIRV_IMP_ENCDEC2(SPIRVTypeRuntimeArray, Id, ElemType)
+
+	void SPIRVTypeForwardPointer::encode(spv_ostream& O) const
+	{
+		getEncoder(O) << Pointer << SC;
+	}
+
+	void SPIRVTypeForwardPointer::decode(std::istream& I)
+	{
+		const auto Decoder = getDecoder(I);
+		SPIRVId PointerId;
+		Decoder >> PointerId >> SC;
+	}
 } // namespace SPIRV

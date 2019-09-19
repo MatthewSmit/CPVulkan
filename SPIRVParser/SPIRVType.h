@@ -401,6 +401,32 @@ private:
   SPIRVType *ElemType; // Element Type
   SPIRVId Length;      // Array Length
 };
+	
+class SPIRVTypeRuntimeArray : public SPIRVType {
+public:
+  // Complete constructor
+	SPIRVTypeRuntimeArray(SPIRVModule *M, SPIRVId TheId, SPIRVType *TheElemType,
+		SPIRVConstant *TheLength);
+  // Incomplete constructor
+	SPIRVTypeRuntimeArray()
+      : SPIRVType(OpTypeRuntimeArray), ElemType(nullptr) {}
+
+  SPIRVType *getElementType() const { return ElemType; }
+  SPIRVCapVec getRequiredCapability() const override {
+    return getElementType()->getRequiredCapability();
+  }
+  std::vector<SPIRVEntry *> getNonLiteralOperands() const override {
+    std::vector<SPIRVEntry *> Operands(1, ElemType);
+    return Operands;
+  }
+
+protected:
+  _SPIRV_DCL_ENCDEC
+  void validate() const override;
+
+private:
+  SPIRVType *ElemType; // Element Type
+};
 
 class SPIRVTypeOpaque : public SPIRVType {
 public:

@@ -5,7 +5,6 @@
 #include "DeviceState.h"
 #include "Extensions.h"
 #include "Instance.h"
-#include "Pipeline.h"
 #include "PipelineLayout.h"
 #include "Queue.h"
 #include "Util.h"
@@ -143,25 +142,6 @@ VkResult Device::FlushMappedMemoryRanges(uint32_t, const VkMappedMemoryRange*)
 VkResult Device::InvalidateMappedMemoryRanges(uint32_t, const VkMappedMemoryRange*)
 {
 	return VK_SUCCESS;
-}
-
-VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
-{
-	for (auto i = 0u; i < createInfoCount; i++)
-	{
-		auto result = Pipeline::Create(pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
-		if (result != VK_SUCCESS)
-		{
-			FATAL_ERROR();
-		}
-	}
-
-	return VK_SUCCESS;
-}
-
-void Device::DestroyPipeline(VkPipeline pipeline, const VkAllocationCallbacks* pAllocator)
-{
-	Free(UnwrapVulkan<Pipeline>(pipeline), pAllocator);
 }
 
 VkResult Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout)
@@ -344,22 +324,46 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceDescriptorIndexingFeaturesEXT*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXCLUSIVE_SCISSOR_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceExclusiveScissorFeaturesNV*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceFragmentDensityMapFeaturesEXT*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceHostQueryResetFeaturesEXT*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES_KHR:
 			{
@@ -369,10 +373,18 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceIndexTypeUint8FeaturesEXT*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<const VkPhysicalDeviceInlineUniformBlockFeaturesEXT*>(next);
+				// TODO
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT:
 			FATAL_ERROR();
@@ -501,7 +513,7 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 
 	for (auto i = 0u; i < pCreateInfo->queueCreateInfoCount; i++)
 	{
-		device->queues.push_back(std::unique_ptr<Queue>{Queue::Create(&pCreateInfo->pQueueCreateInfos[i], pAllocator)});
+		device->queues.push_back(std::unique_ptr<Queue>{Queue::Create(&pCreateInfo->pQueueCreateInfos[i], nullptr)});
 	}
 
 	std::vector<const char*> enabledExtensions{};

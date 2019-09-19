@@ -68,7 +68,7 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR GetPipelineCacheData(VkPipelineCache pipelineCache, size_t* pDataSize, void* pData) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR MergePipelineCaches(VkPipelineCache dstCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines);
-	VKAPI_ATTR VkResult VKAPI_PTR CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkComputePipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkComputePipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines);
 	VKAPI_ATTR void VKAPI_PTR DestroyPipeline(VkPipeline pipeline, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR CreatePipelineLayout(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout);
 	VKAPI_ATTR void VKAPI_PTR DestroyPipelineLayout(VkPipelineLayout pipelineLayout, const VkAllocationCallbacks* pAllocator);

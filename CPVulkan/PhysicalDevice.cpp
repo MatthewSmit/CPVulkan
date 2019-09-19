@@ -392,7 +392,30 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceDescriptorIndexingFeaturesEXT*>(next);
+				features->shaderInputAttachmentArrayDynamicIndexing = true;
+				features->shaderUniformTexelBufferArrayDynamicIndexing = true;
+				features->shaderStorageTexelBufferArrayDynamicIndexing = true;
+				features->shaderUniformBufferArrayNonUniformIndexing = true;
+				features->shaderSampledImageArrayNonUniformIndexing = true;
+				features->shaderStorageBufferArrayNonUniformIndexing = true;
+				features->shaderStorageImageArrayNonUniformIndexing = true;
+				features->shaderInputAttachmentArrayNonUniformIndexing = true;
+				features->shaderUniformTexelBufferArrayNonUniformIndexing = true;
+				features->shaderStorageTexelBufferArrayNonUniformIndexing = true;
+				features->descriptorBindingUniformBufferUpdateAfterBind = true;
+				features->descriptorBindingSampledImageUpdateAfterBind = true;
+				features->descriptorBindingStorageImageUpdateAfterBind = true;
+				features->descriptorBindingStorageBufferUpdateAfterBind = true;
+				features->descriptorBindingUniformTexelBufferUpdateAfterBind = true;
+				features->descriptorBindingStorageTexelBufferUpdateAfterBind = true;
+				features->descriptorBindingUpdateUnusedWhilePending = true;
+				features->descriptorBindingPartiallyBound = true;
+				features->descriptorBindingVariableDescriptorCount = true;
+				features->runtimeDescriptorArray = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXCLUSIVE_SCISSOR_FEATURES_NV:
 			FATAL_ERROR();
@@ -420,7 +443,12 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceInlineUniformBlockFeaturesEXT*>(next);
+				features->inlineUniformBlock = true;
+				features->descriptorBindingInlineUniformBlockUpdateAfterBind = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT:
 			FATAL_ERROR();
@@ -468,7 +496,6 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			{
 				const auto features = static_cast<VkPhysicalDeviceScalarBlockLayoutFeaturesEXT*>(next);
 				features->scalarBlockLayout = true;
-				next = features->pNext;
 				break;
 			}
 
@@ -575,10 +602,22 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_PROPERTIES_NV:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceCooperativeMatrixFeaturesNV*>(next);
+				properties->cooperativeMatrix = true;
+				properties->cooperativeMatrixRobustBufferAccess = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES_KHR:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceDepthStencilResolvePropertiesKHR*>(next);
+				properties->supportedDepthResolveModes = VK_RESOLVE_MODE_NONE_KHR | VK_RESOLVE_MODE_SAMPLE_ZERO_BIT_KHR | VK_RESOLVE_MODE_AVERAGE_BIT_KHR | VK_RESOLVE_MODE_MIN_BIT_KHR | VK_RESOLVE_MODE_MAX_BIT_KHR;
+				properties->supportedStencilResolveModes = VK_RESOLVE_MODE_NONE_KHR | VK_RESOLVE_MODE_SAMPLE_ZERO_BIT_KHR | VK_RESOLVE_MODE_AVERAGE_BIT_KHR | VK_RESOLVE_MODE_MIN_BIT_KHR | VK_RESOLVE_MODE_MAX_BIT_KHR;
+				properties->independentResolveNone = true;
+				properties->independentResolve = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES_EXT:
 			FATAL_ERROR();
@@ -603,7 +642,27 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceFloatControlsPropertiesKHR*>(next);
+				properties->denormBehaviorIndependence = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL_KHR;
+				properties->roundingModeIndependence = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL_KHR;
+				properties->shaderSignedZeroInfNanPreserveFloat16 = true;
+				properties->shaderSignedZeroInfNanPreserveFloat32 = true;
+				properties->shaderSignedZeroInfNanPreserveFloat64 = true;
+				properties->shaderDenormPreserveFloat16 = true;
+				properties->shaderDenormPreserveFloat32 = true;
+				properties->shaderDenormPreserveFloat64 = true;
+				properties->shaderDenormFlushToZeroFloat16 = true;
+				properties->shaderDenormFlushToZeroFloat32 = true;
+				properties->shaderDenormFlushToZeroFloat64 = true;
+				properties->shaderRoundingModeRTEFloat16 = true;
+				properties->shaderRoundingModeRTEFloat32 = true;
+				properties->shaderRoundingModeRTEFloat64 = true;
+				properties->shaderRoundingModeRTZFloat16 = true;
+				properties->shaderRoundingModeRTZFloat32 = true;
+				properties->shaderRoundingModeRTZFloat64 = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_PROPERTIES_EXT:
 			FATAL_ERROR();
@@ -665,7 +724,11 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDevicePushDescriptorPropertiesKHR*>(next);
+				properties->maxPushDescriptors = 128;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV:
 			FATAL_ERROR();
