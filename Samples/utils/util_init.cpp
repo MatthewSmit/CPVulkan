@@ -1769,7 +1769,7 @@ void init_image(struct sample_info &info, texture_object &texObj, const char *te
 
     if (!read_ppm(filename.c_str(), texObj.tex_width, texObj.tex_height, 0, NULL)) {
         std::cout << "Try relative path\n";
-        filename = "../../API-Samples/data/";
+        filename = "../../Samples/data/";
         if (textureName == nullptr)
             filename.append("lunarg.ppm");
         else

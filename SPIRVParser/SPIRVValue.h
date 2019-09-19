@@ -162,6 +162,7 @@ public:
   }
   // Incomplete constructor
   SPIRVConstant() : SPIRVValue(OpConstant), NumWords(0) {}
+  uint32_t getIntValue() const { return Union.Words[0]; }
   uint64_t getZExtIntValue() const { return Union.UInt64Val; }
   float getFloatValue() const { return Union.FloatVal; }
   double getDoubleValue() const { return Union.DoubleVal; }

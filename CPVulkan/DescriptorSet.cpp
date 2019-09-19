@@ -25,7 +25,8 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			case VK_DESCRIPTOR_TYPE_SAMPLER:
 				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				FATAL_ERROR();
+				newBinding.ImageInfo = *descriptorWrite.pImageInfo;
+				break;
 			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE: 
 				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: 
@@ -36,7 +37,6 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 				newBinding.BufferInfo = *descriptorWrite.pBufferInfo;
-				bindings[i] = std::make_tuple(descriptorWrite.descriptorType, descriptorWrite.dstBinding, newBinding);
 				break;
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: 
 				FATAL_ERROR();
@@ -53,6 +53,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			default:
 				FATAL_ERROR();
 			}
+			bindings[i] = std::make_tuple(descriptorWrite.descriptorType, descriptorWrite.dstBinding, newBinding);
 			return;
 		}
 	}

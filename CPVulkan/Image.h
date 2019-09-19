@@ -13,7 +13,9 @@ public:
 	Image&& operator=(const Image&&) = delete;
 
 	VkResult BindMemory(VkDeviceMemory memory, uint64_t memoryOffset);
+	
 	void GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const;
+	void GetSubresourceLayout(const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout);
 
 	static VkResult Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 
@@ -37,5 +39,5 @@ private:
 	VkImageLayout layout{};
 	
 	uint64_t size{};
-    uint8_t* data{};
+	uint8_t* data{};
 };

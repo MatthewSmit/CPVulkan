@@ -178,7 +178,7 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.maxPushConstantsSize = 128;
 	pProperties->limits.maxMemoryAllocationCount = 4096;
 	pProperties->limits.maxSamplerAllocationCount = 4000;
-	pProperties->limits.bufferImageGranularity = 0;
+	pProperties->limits.bufferImageGranularity = 1;
 	pProperties->limits.sparseAddressSpaceSize = std::numeric_limits<size_t>::max();
 	pProperties->limits.maxBoundDescriptorSets = 4;
 	pProperties->limits.maxPerStageDescriptorSamplers = 32;
@@ -473,7 +473,12 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceShaderAtomicInt64FeaturesKHR*>(next);
+				features->shaderBufferInt64Atomics = true;
+				features->shaderSharedInt64Atomics = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT:
 			FATAL_ERROR();
@@ -584,7 +589,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR:
 			{
 				const auto properties = static_cast<VkPhysicalDeviceDriverPropertiesKHR*>(next);
-				properties->driverID = static_cast<VkDriverIdKHR>(0x10000);
+				properties->driverID = VK_DRIVER_ID_GOOGLE_SWIFTSHADER_KHR; // TODO
 				strcpy_s(properties->driverName, "CPVulkan");
 				strcpy_s(properties->driverInfo, "Some CPU Driver");
 				properties->conformanceVersion.major = 1;

@@ -39,10 +39,10 @@ add_executable(CPVulkanSamples
 	##"dynamic_uniform/dynamic_uniform.cpp"
 	#"enable_validation_with_callback/enable_validation_with_callback.cpp"
 	#"enumerate_devices_adv/enumerate_devices_adv.cpp"
-	##"events/events.cpp"
+	#"events/events.cpp"
 	##"immutable_sampler/immutable_sampler.cpp"
-	##"init_texture/init_texture.cpp"
-	##"input_attachment/input_attachment.cpp"
+	#"init_texture/init_texture.cpp"
+	##"input_attachment/input_attachment.cpp" #SPIRV OpSMod
 	#"instance_extension_properties/instance_extension_properties.cpp"
 	#"instance_layer_extension_properties/instance_layer_extension_properties.cpp"
 	#"instance_layer_properties/instance_layer_properties.cpp"

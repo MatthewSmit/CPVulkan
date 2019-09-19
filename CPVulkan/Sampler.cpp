@@ -40,7 +40,7 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 	sampler->minLod = pCreateInfo->minLod;
 	sampler->maxLod = pCreateInfo->maxLod;
 	sampler->borderColor = pCreateInfo->borderColor;
-	sampler->unnormalizedCoordinates = pCreateInfo->unnormalizedCoordinates;
+	sampler->unnormalisedCoordinates = pCreateInfo->unnormalizedCoordinates;
 
 	WrapVulkan(sampler, pSampler);
 	return VK_SUCCESS;

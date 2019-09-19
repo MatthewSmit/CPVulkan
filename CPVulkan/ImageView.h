@@ -16,7 +16,12 @@ public:
 
 	static VkResult Create(const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView);
 	
-	Image* getImage() const { return image; }
+	[[nodiscard]] Image* getImage() { return image; }
+	[[nodiscard]] const Image* getImage() const { return image; }
+	[[nodiscard]] VkImageViewType getViewType() const { return viewType; }
+	[[nodiscard]] VkFormat getFormat() const { return format; }
+	[[nodiscard]] const VkComponentMapping& getComponents() const { return components; }
+	[[nodiscard]] const VkImageSubresourceRange& getSubresourceRange() const { return subresourceRange; }
 
 private:
 	Image* image;

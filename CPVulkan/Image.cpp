@@ -6,6 +6,11 @@
 
 #include <cassert>
 
+void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator)
+{
+	Free(UnwrapVulkan<Image>(image), pAllocator);
+}
+
 VkResult Image::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
 	// TODO: Bounds check
@@ -25,9 +30,53 @@ void Image::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) con
 	pMemoryRequirements->memoryTypeBits = 1;
 }
 
+void Image::GetSubresourceLayout(const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout)
+{
+	if (tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)
+	{
+		FATAL_ERROR();
+	}
+	else if (tiling != VK_IMAGE_TILING_LINEAR)
+	{
+		FATAL_ERROR();
+	}
+
+	auto const& formatInformation = GetFormatInformation(format);
+	if (formatInformation.Type != FormatType::Normal)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pSubresource->aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pSubresource->arrayLayer != 0)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pSubresource->mipLevel != 0)
+	{
+		FATAL_ERROR();
+	}
+
+	pLayout->offset = 0;
+	pLayout->rowPitch = getWidth() * VkDeviceSize{formatInformation.TotalSize};
+	pLayout->depthPitch = getHeight() * pLayout->rowPitch;
+	pLayout->arrayPitch = getDepth() * pLayout->depthPitch;
+	pLayout->size = arrayLayers * pLayout->arrayPitch;
+}
+
 void Device::GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMemoryRequirements)
 {
 	UnwrapVulkan<Image>(image)->GetMemoryRequirements(pMemoryRequirements);
+}
+
+void Device::GetImageSubresourceLayout(VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout)
+{
+	UnwrapVulkan<Image>(image)->GetSubresourceLayout(pSubresource, pLayout);
 }
 
 VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
@@ -105,9 +154,4 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 VkResult Device::CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
 {
 	return Image::Create(pCreateInfo, pAllocator, pImage);
-}
-
-void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator)
-{
-	Free(UnwrapVulkan<Image>(image), pAllocator);
 }

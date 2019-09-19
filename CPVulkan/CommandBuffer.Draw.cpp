@@ -10,6 +10,7 @@
 #include "ImageView.h"
 #include "Pipeline.h"
 #include "RenderPass.h"
+#include "Sampler.h"
 #include "Util.h"
 
 #include <SPIRVFunction.h>
@@ -24,28 +25,35 @@ class PipelineLayout;
 
 struct Variable
 {
-	enum class Type
+	enum class Type : uint32_t
 	{
-		Unknown,
-		Pointer,
-		UniformBuffer,
-		BuiltinBuffer,
-		Vector4Float,
-		Matrix4x4Float,
+		Unknown = 0x00000000,
+		Pointer = 0xF0000000,
+		UniformBuffer = 0xF0000001,
+		BuiltinBuffer = 0xF0000002,
+		ImageSampler = 0xF0000003,
+
+		TypeMask = 0xFF000000,
+		VectorMask = 0x0000000F,
+		MatrixColumnMask = 0x000000F0,
+		
+		Float11 = 0x01000011,
+		Float12 = 0x01000012,
+		Float13 = 0x01000013,
+		Float14 = 0x01000014,
+		Float44 = 0x01000044,
+		
+		Int11 = 0x02000011,
 	} type;
+
+	static constexpr unsigned long long MAX_RAW_SIZE = 4 * 4 * sizeof(double); // dmat4
 
 	Variable() = default;
 
-	Variable(uint8_t* pointer)
+	explicit Variable(uint8_t* pointer)
 	{
 		type = Type::Pointer;
 		this->pointer = pointer;
-	}
-
-	Variable(const glm::vec4& vector)
-	{
-		type = Type::Vector4Float;
-		f32.v4 = vector;
 	}
 
 	Variable(const VkDescriptorBufferInfo& bufferInfo, SPIRV::SPIRVTypeStruct* structType)
@@ -55,12 +63,6 @@ struct Variable
 		buffer.type = structType;
 	}
 
-	Variable(const glm::mat4x4& matrix)
-	{
-		type = Type::Matrix4x4Float;
-		f32.m4x4 = matrix;
-	}
-
 	Variable(const std::vector<Variable>* builtins, SPIRV::SPIRVTypeStruct* structType)
 	{
 		type = Type::BuiltinBuffer;
@@ -68,19 +70,80 @@ struct Variable
 		builtin.type = structType;
 	}
 
+	Variable(const VkDescriptorImageInfo& bufferInfo, SPIRV::SPIRVTypeSampledImage* sampledImageType)
+	{
+		type = Type::ImageSampler;
+		image.info = bufferInfo;
+		image.type = sampledImageType;
+	}
+
+	Variable(Type type, gsl::span<uint8_t> raw)
+	{
+		assert(raw.size_bytes() < MAX_RAW_SIZE);
+		
+		this->type = type;
+		memcpy(this->raw, raw.data(), raw.size_bytes());
+	}
+
+	explicit Variable(float value)
+	{
+		type = Type::Float11;
+		f32._11 = value;
+	}
+
+	explicit Variable(uint32_t value)
+	{
+		type = Type::Int11;
+		i32._11 = value;
+	}
+
+	explicit Variable(const glm::vec2& vector)
+	{
+		type = Type::Float12;
+		f32._12 = vector;
+	}
+
+	explicit Variable(const glm::vec4& vector)
+	{
+		type = Type::Float14;
+		f32._14 = vector;
+	}
+
+	explicit Variable(const glm::mat4x4& matrix)
+	{
+		type = Type::Float44;
+		f32._44 = matrix;
+	}
+
 	union
 	{
 		union
 		{
-			glm::vec4 v4;
-			glm::mat4x4 m4x4;
+			float _11;
+			glm::vec2 _12;
+			glm::vec3 _13;
+			glm::vec4 _14;
+			glm::mat4x4 _44;
 		} f32;
+		
+		union
+		{
+			uint32_t _11;
+		} i32;
+
+		uint8_t raw[MAX_RAW_SIZE];
 
 		struct
 		{
 			VkDescriptorBufferInfo info;
 			SPIRV::SPIRVTypeStruct* type;
 		} buffer;
+
+		struct
+		{
+			VkDescriptorImageInfo info;
+			SPIRV::SPIRVTypeSampledImage* type;
+		} image;
 
 		struct
 		{
@@ -165,57 +228,51 @@ struct Variable
 
 	Variable Dereference(SPIRV::SPIRVType* type) const
 	{
+		if (this->type == Type::ImageSampler)
+		{
+			// TODO: Fix this hack
+			return *this;
+		}
 		if (this->type != Type::Pointer)
 		{
 			FATAL_ERROR();
 		}
 
+		auto size = 0;
+		auto newType = Type::Unknown;
 		if (type->isTypeMatrix())
 		{
-			if (type->getMatrixColumnCount() == 4)
+			const auto columns = type->getMatrixColumnCount();
+			const auto rows = type->getMatrixColumnCount();
+			if (type->getMatrixComponentType()->isTypeFloat(32))
 			{
-				if (type->getMatrixRowCount() == 4)
-				{
-					if (type->getMatrixComponentType()->isTypeFloat())
-					{
-						return Variable(*reinterpret_cast<const glm::mat4x4*>(pointer));
-					}
-					else
-					{
-						FATAL_ERROR();
-					}
-				}
-				else
-				{
-					FATAL_ERROR();
-				}
+				size = columns * rows * sizeof(float);
+				newType = static_cast<Type>(static_cast<uint32_t>(Type::Float11) & static_cast<uint32_t>(Type::TypeMask) | (columns << 4) | rows);
 			}
 			else
 			{
 				FATAL_ERROR();
 			}
 		}
-
-		if (type->isTypeVector())
+		else if (type->isTypeVector())
 		{
-			if (type->getVectorComponentCount() == 4)
+			const auto components = type->getVectorComponentCount();
+			if (type->getVectorComponentType()->isTypeFloat())
 			{
-				if (type->getVectorComponentType()->isTypeFloat())
-				{
-					return Variable(*reinterpret_cast<const glm::vec4*>(pointer));
-				}
-				else
-				{
-					FATAL_ERROR();
-				}
+				size = components * sizeof(float);
+				newType = static_cast<Type>(static_cast<uint32_t>(Type::Float11) & static_cast<uint32_t>(Type::TypeMask) | (1 << 4) | components);
 			}
 			else
 			{
 				FATAL_ERROR();
 			}
 		}
+		else
+		{
+			FATAL_ERROR();
+		}
 
-		FATAL_ERROR();
+		return Variable(newType, gsl::span<uint8_t>(pointer, size));
 	}
 
 	void SetValue(const Variable& variable)
@@ -227,13 +284,49 @@ struct Variable
 
 		switch (variable.type)
 		{
-		case Type::Vector4Float:
-			*reinterpret_cast<glm::vec4*>(pointer) = variable.f32.v4;
+		case Type::Float11:
+			*reinterpret_cast<float*>(pointer) = variable.f32._11;
+			break;
+			
+		case Type::Float12:
+			*reinterpret_cast<glm::vec2*>(pointer) = variable.f32._12;
+			break;
+			
+		case Type::Float13:
+			*reinterpret_cast<glm::vec3*>(pointer) = variable.f32._13;
+			break;
+			
+		case Type::Float14:
+			*reinterpret_cast<glm::vec4*>(pointer) = variable.f32._14;
 			break;
 
 		default:
 			FATAL_ERROR();
 		}
+	}
+
+	float AsFloat32() const
+	{
+		assert(type == Type::Float11);
+		return f32._11;
+	}
+
+	glm::vec2 AsFloat32Vector2() const
+	{
+		assert(type == Type::Float12);
+		return f32._12;
+	}
+
+	glm::vec4 AsFloat32Vector4() const
+	{
+		assert(type == Type::Float14);
+		return f32._14;
+	}
+
+	uint32_t AsUInt32() const
+	{
+		assert(type == Type::Int11);
+		return i32._11;
 	}
 };
 
@@ -379,6 +472,15 @@ template<typename T1, typename T2>
 static void Convert(const uint64_t source[4], T2 destination[4]);
 
 template<>
+void Convert<uint8_t, float>(const uint64_t source[4], float destination[4])
+{
+	destination[0] = static_cast<float>(static_cast<uint8_t>(source[0])) / std::numeric_limits<uint8_t>::max();
+	destination[1] = static_cast<float>(static_cast<uint8_t>(source[1])) / std::numeric_limits<uint8_t>::max();
+	destination[2] = static_cast<float>(static_cast<uint8_t>(source[2])) / std::numeric_limits<uint8_t>::max();
+	destination[3] = static_cast<float>(static_cast<uint8_t>(source[3])) / std::numeric_limits<uint8_t>::max();
+}
+
+template<>
 void Convert<uint16_t, float>(const uint64_t source[4], float destination[4])
 {
 	destination[0] = static_cast<float>(static_cast<uint16_t>(source[0])) / std::numeric_limits<uint16_t>::max();
@@ -392,7 +494,13 @@ static void GetPixel(const FormatInformation& format, Image* image, uint32_t x, 
 {
 	if (format.Base == BaseType::UNorm)
 	{
-		if (format.ElementSize == 2)
+		if (format.ElementSize == 1)
+		{
+			uint64_t rawValues[4];
+			GetPixel<uint8_t>(image->getData(), format, x, y, z, image->getWidth(), image->getHeight(), image->getDepth(), rawValues);
+			Convert<uint8_t, T>(rawValues, values);
+		}
+		else if (format.ElementSize == 2)
 		{
 			uint64_t rawValues[4];
 			GetPixel<uint16_t>(image->getData(), format, x, y, z, image->getWidth(), image->getHeight(), image->getDepth(), rawValues);
@@ -600,8 +708,202 @@ static void GetImageColour(uint64_t output[4], const FormatInformation& format, 
 	}
 }
 
+static glm::vec4 SampleExplicitLod(ImageView* imageView, Sampler* sampler, const glm::vec2& vec, const float lod)
+{
+	if (imageView->getViewType() != VK_IMAGE_VIEW_TYPE_2D)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getSubresourceRange().aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getSubresourceRange().baseMipLevel != 0)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getSubresourceRange().levelCount != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getSubresourceRange().baseArrayLayer != 0)
+	{
+		FATAL_ERROR();
+	}
+
+	if (imageView->getSubresourceRange().layerCount != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	if (sampler->getFlags())
+	{
+		FATAL_ERROR();
+	}
+
+	if (sampler->getMagFilter() != VK_FILTER_NEAREST)
+	{
+		FATAL_ERROR();
+	}
+
+	if (sampler->getMinFilter() != VK_FILTER_NEAREST)
+	{
+		FATAL_ERROR();
+	}
+
+	if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
+	{
+		FATAL_ERROR();
+	}
+
+	if (sampler->getAnisotropyEnable())
+	{
+		FATAL_ERROR();
+	}
+
+	if (sampler->getCompareEnable())
+	{
+		FATAL_ERROR();
+	}
+
+	if (sampler->getUnnormalisedCoordinates())
+	{
+		FATAL_ERROR();
+	}
+
+	if (vec.x < 0 || vec.x > 1 || vec.y < 0 || vec.y > 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto& formatInformation = GetFormatInformation(imageView->getFormat());
+
+	const auto x = static_cast<uint32_t>(vec.x * imageView->getImage()->getWidth() + 0.5);
+	const auto y = static_cast<uint32_t>(vec.y * imageView->getImage()->getHeight() + 0.5);
+
+	float values[4];
+	GetPixel(formatInformation, imageView->getImage(), x, y, 0, values);
+	return glm::vec4(values[0], values[1], values[2], values[3]);
+}
+
+static Variable LoadConstant(SPIRV::SPIRVValue* value)
+{
+	switch (value->getOpCode())
+	{
+	case OpConstant:
+		{
+			const auto constant = reinterpret_cast<SPIRV::SPIRVConstant*>(value);
+			if (constant->getType()->isTypeInt(32))
+			{
+				return Variable(constant->getIntValue());
+			}
+
+			if (constant->getType()->isTypeInt(64))
+			{
+				FATAL_ERROR();
+			}
+
+			if (constant->getType()->isTypeFloat(32))
+			{
+				return Variable(constant->getFloatValue());
+			}
+
+			if (constant->getType()->isTypeFloat(64))
+			{
+				FATAL_ERROR();
+			}
+
+			FATAL_ERROR();
+		}
+
+	case OpConstantComposite:
+		{
+			const auto constantComposite = reinterpret_cast<SPIRV::SPIRVConstantComposite*>(value);
+			const auto type = constantComposite->getType();
+
+			if (type->isTypeMatrix())
+			{
+				FATAL_ERROR();
+			}
+			else if (type->isTypeVector())
+			{
+				if (type->getVectorComponentCount() == 4)
+				{
+					if (type->getVectorComponentType()->getOpCode() == OpTypeFloat)
+					{
+						if (constantComposite->getElements().size() != 4)
+						{
+							FATAL_ERROR();
+						}
+
+						const auto x = LoadConstant(constantComposite->getElements()[0]);
+						const auto y = LoadConstant(constantComposite->getElements()[1]);
+						const auto z = LoadConstant(constantComposite->getElements()[2]);
+						const auto w = LoadConstant(constantComposite->getElements()[3]);
+						if (x.type != Variable::Type::Float11 || y.type != Variable::Type::Float11 || z.type != Variable::Type::Float11 || w.type != Variable::Type::Float11)
+						{
+							FATAL_ERROR();
+						}
+
+						return Variable(glm::vec4{x.f32._11, y.f32._11, z.f32._11, w.f32._11});
+					}
+					else
+					{
+						FATAL_ERROR();
+					}
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
+		}
+
+	default:
+		FATAL_ERROR();
+	}
+}
+
 static Variable LoadValue(ShaderState& state, SPIRV::SPIRVValue* value)
 {
+	if (value->getOpCode() == OpConstant ||
+		value->getOpCode() == OpConstantComposite ||
+		value->getOpCode() == OpConstantFalse ||
+		value->getOpCode() == OpConstantTrue ||
+		value->getOpCode() == OpConstantNull ||
+		value->getOpCode() == OpConstantSampler ||
+		value->getOpCode() == OpConstantPipeStorage)
+	{
+		return LoadConstant(value);
+	}
 	if (value->getOpCode() == OpVariable)
 	{
 		const auto variable = reinterpret_cast<SPIRV::SPIRVVariable*>(value);
@@ -660,6 +962,7 @@ static Variable LoadValue(ShaderState& state, SPIRV::SPIRVValue* value)
 			}
 			
 		case StorageClassUniform:
+		case StorageClassUniformConstant:
 			{
 				auto bindingDecorate = variable->getDecorate(DecorationBinding);
 				if (bindingDecorate.size() != 1)
@@ -685,63 +988,7 @@ static Variable LoadValue(ShaderState& state, SPIRV::SPIRVValue* value)
 	return state.scratch[value->getId()];
 }
 
-static Variable LoadConstant(SPIRV::SPIRVValue* value)
-{
-	switch (value->getOpCode())
-	{
-	case OpConstant:
-		FATAL_ERROR();
-		
-	case OpConstantComposite:
-		{
-			const auto constantComposite = reinterpret_cast<SPIRV::SPIRVConstantComposite*>(value);
-			const auto type = constantComposite->getType();
-
-			if (type->isTypeMatrix())
-			{
-				FATAL_ERROR();
-			}
-			else if (type->isTypeVector())
-			{
-				if (type->getVectorComponentCount() == 4)
-				{
-					if (type->getVectorComponentType()->getOpCode() == OpTypeFloat)
-					{
-						if (constantComposite->getElements().size() != 4)
-						{
-							FATAL_ERROR();
-						}
-
-						return Variable(glm::vec4
-							{
-								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[0])->getFloatValue(),
-								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[1])->getFloatValue(),
-								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[2])->getFloatValue(),
-								reinterpret_cast<SPIRV::SPIRVConstant*>(constantComposite->getElements()[3])->getFloatValue(),
-							});
-					}
-					else
-					{
-						FATAL_ERROR();
-					}
-				}
-				else
-				{
-					FATAL_ERROR();
-				}
-			}
-			else
-			{
-				FATAL_ERROR();
-			}
-		}
-		
-	default:
-		FATAL_ERROR();
-	}
-}
-
-static bool InterpretBlock(ShaderState& state, SPIRV::SPIRVBasicBlock* basicBlock)
+static SPIRV::SPIRVBasicBlock* InterpretBlock(ShaderState& state, SPIRV::SPIRVBasicBlock* basicBlock)
 {
 	for (auto i = 0u; i < basicBlock->getNumInst(); i++)
 	{
@@ -796,23 +1043,56 @@ static bool InterpretBlock(ShaderState& state, SPIRV::SPIRVBasicBlock* basicBloc
 				const auto matrix = LoadValue(state, reinterpret_cast<SPIRV::SPIRVMatrixTimesVector*>(instruction)->getMatrix());
 				const auto vector = LoadValue(state, reinterpret_cast<SPIRV::SPIRVMatrixTimesVector*>(instruction)->getVector());
 
-				if (matrix.type != Variable::Type::Matrix4x4Float)
+				if (matrix.type != Variable::Type::Float44)
 				{
 					FATAL_ERROR();
 				}
 
-				if (vector.type != Variable::Type::Vector4Float)
+				if (vector.type != Variable::Type::Float14)
 				{
 					FATAL_ERROR();
 				}
 
-				const auto result = Variable(matrix.f32.m4x4 * vector.f32.v4);
+				const auto result = Variable(matrix.f32._44 * vector.f32._14);
 				state.scratch[instruction->getId()] = result;
 				break;
 			}
 
 		case OpReturn:
-			return false;
+			return nullptr;
+
+		case OpBranch:
+			{
+				auto target = reinterpret_cast<SPIRV::SPIRVBranch*>(instruction)->getTargetLabel();
+				assert(target->getOpCode() == OpLabel);
+				return reinterpret_cast<SPIRV::SPIRVLabel*>(target);
+			}
+
+		case OpImageSampleExplicitLod:
+			{
+				auto operands = instruction->getOperands();
+				const auto image = LoadValue(state, operands[0]);
+				const auto coordinate = LoadValue(state, operands[1]);
+				const auto type = LoadValue(state, operands[2]).AsUInt32();
+				if (type != 2)
+				{
+					FATAL_ERROR();
+				}
+				const auto lod = LoadValue(state, operands[3]).AsFloat32();
+
+				if (image.type != Variable::Type::ImageSampler)
+				{
+					FATAL_ERROR();
+				}
+
+				if (coordinate.type != Variable::Type::Float12)
+				{
+					FATAL_ERROR();
+				}
+
+				state.scratch[instruction->getId()] = Variable(SampleExplicitLod(UnwrapVulkan<ImageView>(image.image.info.imageView), UnwrapVulkan<Sampler>(image.image.info.sampler), coordinate.f32._12, lod));
+				break;
+			}
 			
 		default:
 			FATAL_ERROR();
@@ -830,12 +1110,10 @@ static void InterpretShader(ShaderState& state, const SPIRV::SPIRVModule* module
 		FATAL_ERROR();
 	}
 
-	for (auto i = 0u; i < entry->getNumBasicBlock(); i++)
+	auto nextBlock = entry->getBasicBlock(0);
+	while (nextBlock)
 	{
-		if (!InterpretBlock(state, entry->getBasicBlock(i)))
-		{
-			return;
-		}
+		nextBlock = InterpretBlock(state, nextBlock);
 	}
 }
 
@@ -881,57 +1159,76 @@ static std::array<std::vector<Variable>, MAX_DESCRIPTOR_SETS> LoadUniforms(Devic
 			auto maxBinding = -1;
 			for (const auto& binding : descriptorSet->getBindings())
 			{
-				if (std::get<0>(binding) == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
-				{
-					maxBinding = std::max(static_cast<int32_t>(std::get<1>(binding)), maxBinding);
-				}
+				maxBinding = std::max(static_cast<int32_t>(std::get<1>(binding)), maxBinding);
 			}
 
 			results[i].resize(maxBinding + 1);
 			for (const auto& binding : descriptorSet->getBindings())
 			{
-				if (std::get<0>(binding) == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER)
+				for (auto j = 0u; j < module->getNumVariables(); j++)
 				{
-					for (auto j = 0u; j < module->getNumVariables(); j++)
+					const auto variable = module->getVariable(j);
+					if (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant)
 					{
-						const auto variable = module->getVariable(j);
-						if (variable->getStorageClass() == StorageClassUniform)
+						auto bindingDecorate = variable->getDecorate(DecorationBinding);
+						if (bindingDecorate.size() != 1)
 						{
-							auto bindingDecorate = variable->getDecorate(DecorationBinding);
-							if (bindingDecorate.size() != 1)
+							FATAL_ERROR();
+						}
+
+						auto setDecorate = variable->getDecorate(DecorationDescriptorSet);
+						if (setDecorate.size() != 1)
+						{
+							FATAL_ERROR();
+						}
+
+						const auto bindingNmber = *bindingDecorate.begin();
+						const auto set = *setDecorate.begin();
+
+						if (set == i && bindingNmber == std::get<1>(binding))
+						{
+							auto type = variable->getType();
+							if (type->getOpCode() != OpTypePointer)
 							{
 								FATAL_ERROR();
 							}
-
-							auto setDecorate = variable->getDecorate(DecorationDescriptorSet);
-							if (setDecorate.size() != 1)
+							type = reinterpret_cast<SPIRV::SPIRVTypePointer*>(type)->getElementType();
+							switch (std::get<0>(binding))
 							{
-								FATAL_ERROR();
-							}
-
-							const auto bindingNmber = *bindingDecorate.begin();
-							const auto set = *setDecorate.begin();
-
-							if (set == i && bindingNmber == std::get<1>(binding))
-							{
-								auto type = variable->getType();
-								if (type->getOpCode() != OpTypePointer)
+							case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 								{
-									FATAL_ERROR();
-								}
-								type = reinterpret_cast<SPIRV::SPIRVTypePointer*>(type)->getElementType();
-								switch (type->getOpCode())
-								{
-								case OpTypeStruct:
+									switch (type->getOpCode())
 									{
-										const auto structType = reinterpret_cast<SPIRV::SPIRVTypeStruct*>(type);
-										results[i][std::get<1>(binding)] = Variable(std::get<2>(binding).BufferInfo, structType);
-										goto found_variable;
+									case OpTypeStruct:
+										{
+											const auto structType = reinterpret_cast<SPIRV::SPIRVTypeStruct*>(type);
+											results[i][std::get<1>(binding)] = Variable(std::get<2>(binding).BufferInfo, structType);
+											goto found_variable;
+										}
+
+									default:
+										FATAL_ERROR();
 									}
-									
-								default:
-									FATAL_ERROR();
 								}
+
+							case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+								{
+									switch (type->getOpCode())
+									{
+									case OpTypeSampledImage:
+										{
+											const auto sampledImageType = reinterpret_cast<SPIRV::SPIRVTypeSampledImage*>(type);
+											results[i][std::get<1>(binding)] = Variable(std::get<2>(binding).ImageInfo, sampledImageType);
+											goto found_variable;
+										}
+
+									default:
+										FATAL_ERROR();
+									}
+								}
+								
+							default:
+								FATAL_ERROR();
 							}
 						}
 					}
@@ -1043,9 +1340,13 @@ static bool GetFragmentInput(std::vector<Variable>& fragmentInput, const std::ve
 			const auto v2 = vertexOutput[p2Index][i].Dereference(types[i]);
 			switch (v0.type)
 			{
-			case Variable::Type::Vector4Float:
-				storage[i] = v0.f32.v4 * w0 + v1.f32.v4 * w1 + v2.f32.v4 * w2;
-				fragmentInput[i] = Variable(reinterpret_cast<uint8_t*>(&storage[i].f32.v4));
+			case Variable::Type::Float12:
+				storage[i] = Variable(v0.f32._12 * w0 + v1.f32._12 * w1 + v2.f32._12 * w2);
+				fragmentInput[i] = Variable(reinterpret_cast<uint8_t*>(&storage[i].f32._12));
+				break;
+			case Variable::Type::Float14:
+				storage[i] = Variable(v0.f32._14 * w0 + v1.f32._14 * w1 + v2.f32._14 * w2);
+				fragmentInput[i] = Variable(reinterpret_cast<uint8_t*>(&storage[i].f32._14));
 				break;
 			default:
 				FATAL_ERROR();
@@ -1111,7 +1412,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	std::vector<Variable> outputs{MAX_FRAGMENT_ATTACHMENTS};
 	for (auto i = 0u; i < MAX_FRAGMENT_ATTACHMENTS; i++)
 	{
-		outputs[i] = Variable(reinterpret_cast<uint8_t*>(&outputStorage[i].f32.v4));
+		outputs[i] = Variable(reinterpret_cast<uint8_t*>(&outputStorage[i].f32._14));
 	}
 	std::vector<Variable> builtins{};
 	std::vector<SPIRV::SPIRVType*> inputTypes(output.outputs[0].size());
@@ -1179,7 +1480,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 						{
 							const VkClearColorValue input
 							{
-								{outputStorage[j].f32.v4.r, outputStorage[j].f32.v4.g, outputStorage[j].f32.v4.b, outputStorage[j].f32.v4.a}
+								{outputStorage[j].f32._14.r, outputStorage[j].f32._14.g, outputStorage[j].f32._14.b, outputStorage[j].f32._14.a}
 							};
 							const auto& format = GetFormatInformation(images[j].first.format);
 							GetImageColour(values, format, input);

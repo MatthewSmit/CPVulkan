@@ -167,7 +167,7 @@ struct sample_info {
     VkSurfaceKHR surface;
     bool prepared;
     bool use_staging_buffer;
-    bool save_images;
+    bool save_images = true;
 
     std::vector<const char *> instance_layer_names;
     std::vector<const char *> instance_extension_names;

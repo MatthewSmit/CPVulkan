@@ -13,6 +13,111 @@
 
 #include <iostream>
 
+class CopyImageCommand final : public Command
+{
+public:
+	CopyImageCommand(Image* srcImage, VkImageLayout srcImageLayout, Image* dstImage, VkImageLayout dstImageLayout, std::vector<VkImageCopy> regions):
+		srcImage{srcImage},
+		srcImageLayout{srcImageLayout},
+		dstImage{dstImage},
+		dstImageLayout{dstImageLayout},
+		regions{std::move(regions)}
+	{
+	}
+
+	void Process(DeviceState*) override
+	{
+		const auto& format = GetFormatInformation(srcImage->getFormat());
+		if (srcImage->getFormat() != dstImage->getFormat())
+		{
+			FATAL_ERROR();
+		}
+		
+		for (const auto& region : regions)
+		{
+			if (region.srcSubresource.baseArrayLayer != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.srcSubresource.mipLevel != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.srcSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.baseArrayLayer != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.mipLevel != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				FATAL_ERROR();
+			}
+
+			const auto srcData = srcImage->getData();
+			const auto dstData = dstImage->getData();
+			const auto srcImageLineSize = size_t{srcImage->getWidth()} * format.TotalSize;
+			const auto srcImagePlaneSize = srcImageLineSize * srcImage->getHeight();
+			const auto dstImageLineSize = size_t{dstImage->getWidth()} * format.TotalSize;
+			const auto dstImagePlaneSize = srcImageLineSize * dstImage->getHeight();
+			
+			// TODO: Detect when both memories are contiguous
+			for (auto z = 0u; z < region.extent.depth; z++)
+			{
+				const auto srcZ = z + region.srcOffset.z;
+				const auto dstZ = z + region.dstOffset.z;
+				
+				for (auto y = 0u; y < region.extent.height; y++)
+				{
+					const auto srcY = y + region.srcOffset.y;
+					const auto dstY = y + region.dstOffset.y;
+					
+					const auto srcLineStart = region.srcOffset.x * format.TotalSize;
+					const auto dstLineStart = region.dstOffset.x * format.TotalSize;
+					const auto lineSize = region.extent.width * format.TotalSize;
+					const auto src = srcData +
+						static_cast<uint64_t>(srcZ) * srcImagePlaneSize +
+						static_cast<uint64_t>(srcY) * srcImageLineSize +
+						srcLineStart;
+					const auto dst = dstData +
+						static_cast<uint64_t>(dstZ) * dstImagePlaneSize +
+						static_cast<uint64_t>(dstY) * dstImageLineSize +
+						dstLineStart;
+					memcpy(dst, src, lineSize);
+				}
+			}
+		}
+	}
+
+private:
+	Image* srcImage;
+	VkImageLayout srcImageLayout;
+	Image* dstImage;
+	VkImageLayout dstImageLayout;
+	std::vector<VkImageCopy> regions;
+};
+
 class CopyImageToBufferCommand final : public Command
 {
 public:
@@ -24,7 +129,7 @@ public:
 	{
 	}
 
-	void Process(DeviceState* deviceState) override
+	void Process(DeviceState*) override
 	{
 		const auto& format = GetFormatInformation(srcImage->getFormat());
 		
@@ -287,6 +392,12 @@ VkResult CommandBuffer::Reset(VkCommandBufferResetFlags flags)
 	ForceReset();
 
 	return VK_SUCCESS;
+}
+
+void CommandBuffer::CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageCopy* pRegions)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<CopyImageCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions)));
 }
 
 void CommandBuffer::CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions)
