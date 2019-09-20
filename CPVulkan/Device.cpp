@@ -12,7 +12,8 @@
 #include <cassert>
 
 Device::Device() :
-	state{std::make_unique<DeviceState>()}
+	state{std::make_unique<DeviceState>()},
+    queues{}
 {
 }
 
@@ -265,6 +266,10 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 	assert(pCreateInfo->flags == 0);
 
 	auto device = Allocate<Device>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!device)
+    {
+	    return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
 
 	auto next = pCreateInfo->pNext;
 	while (next)

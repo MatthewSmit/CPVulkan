@@ -7,7 +7,7 @@ class Instance;
 class PhysicalDevice;
 class Queue;
 
-#define VULKAN_FUNCTION(method, returnType, clazz, ...) VKAPI_ATTR returnType VKAPI_PTR __##clazz##_##method(void*, ##__VA_ARGS__);
+#define VULKAN_FUNCTION(method, returnType, clazz, ...) VKAPI_ATTR returnType VKAPI_PTR __##clazz##_##method(__VA_ARGS__);
 // ReSharper disable once CppUnusedIncludeDirective
 #include "VulkanFunctions.h"
 #undef VULKAN_FUNCTION

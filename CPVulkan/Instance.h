@@ -59,7 +59,7 @@ private:
 	int version = VK_API_VERSION_1_0;
 	VkDebugUtilsMessengerCreateInfoEXT debug{};
 
-	PhysicalDevice* physicalDevice;
+	PhysicalDevice* physicalDevice{};
 	ExtensionGroup enabledExtensions{};
 };
 

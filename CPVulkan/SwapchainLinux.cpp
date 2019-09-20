@@ -149,7 +149,7 @@ VkResult Instance::CreateXlibSurface(const VkXlibSurfaceCreateInfoKHR* pCreateIn
 }
 #endif
 
-VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities)
+VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceCapabilitiesKHR* pSurfaceCapabilities) const
 {
 	const auto surfaceBase = UnwrapVulkan<VkIcdSurfaceBase>(surface);
     uint32_t width = 0;
