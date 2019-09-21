@@ -389,6 +389,10 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 	}
 
 	auto pipeline = Allocate<Pipeline>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!pipeline)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)
@@ -453,6 +457,10 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkComputePipeline
 	}
 
 	auto pipeline = Allocate<Pipeline>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!pipeline)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

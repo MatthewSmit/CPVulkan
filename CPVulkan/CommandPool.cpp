@@ -22,6 +22,11 @@ VkResult CommandPool::AllocateCommandBuffers(const VkCommandBufferAllocateInfo* 
 	for (auto i = 0u; i < pAllocateInfo->commandBufferCount; i++)
 	{
 		auto commandBuffer = Allocate<CommandBuffer>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, deviceState, pAllocateInfo->level, flags);
+		if (!commandBuffer)
+		{
+			FATAL_ERROR();
+			// return VK_ERROR_OUT_OF_HOST_MEMORY;
+		}
 		commandBuffers.push_back(commandBuffer);
 		WrapVulkan(commandBuffer, &pCommandBuffers[i]);
 	}
@@ -63,6 +68,10 @@ VkResult CommandPool::Create(DeviceState* deviceState, const VkCommandPoolCreate
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
 
 	const auto commandPool = Allocate<CommandPool>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!commandPool)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

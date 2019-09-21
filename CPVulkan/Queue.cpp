@@ -210,6 +210,10 @@ Queue* Queue::Create(const VkDeviceQueueCreateInfo* vkDeviceQueueCreateInfo, con
 	}
 
 	const auto queue = Allocate<Queue>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!queue)
+	{
+		FATAL_ERROR();
+	}
 	queue->flags = vkDeviceQueueCreateInfo->flags;
 
 	return queue;

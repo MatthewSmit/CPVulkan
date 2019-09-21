@@ -65,6 +65,10 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 VkResult DescriptorSet::Create(VkDescriptorPool descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet)
 {
 	auto descriptorSet = Allocate<DescriptorSet>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!descriptorSet)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	const auto descriptorSetLayout = UnwrapVulkan<DescriptorSetLayout>(pSetLayout);
 	descriptorSet->layout = descriptorSetLayout;

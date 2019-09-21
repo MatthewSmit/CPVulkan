@@ -86,12 +86,21 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 	if (pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT)
 	{
 		buffer = Allocate<SparseBuffer>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+		if (!buffer)
+		{
+			return VK_ERROR_OUT_OF_HOST_MEMORY;
+		}
+		
 		const auto pages = (pCreateInfo->size + 4095) / 4096;
 		reinterpret_cast<SparseBuffer*>(buffer)->setPages(pages);
 	}
 	else
 	{
 		buffer = Allocate<Buffer>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+		if (!buffer)
+		{
+			return VK_ERROR_OUT_OF_HOST_MEMORY;
+		}
 	}
 
 	buffer->flags = pCreateInfo->flags;

@@ -31,6 +31,10 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 	assert(pCreateInfo->codeSize % 4 == 0);
 
 	auto shaderModule = Allocate<ShaderModule>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!shaderModule)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

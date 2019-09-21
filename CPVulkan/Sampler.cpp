@@ -9,6 +9,10 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO);
 
 	auto sampler = Allocate<Sampler>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!sampler)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

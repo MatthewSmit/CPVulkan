@@ -9,6 +9,10 @@ VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAll
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO);
 
 	auto imageView = Allocate<ImageView>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!imageView)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

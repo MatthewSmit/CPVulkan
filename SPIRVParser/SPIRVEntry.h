@@ -775,7 +775,6 @@ namespace SPIRV
 	_SPIRV_OP(ImageSampleProjExplicitLod)
 	_SPIRV_OP(ImageSampleProjDrefImplicitLod)
 	_SPIRV_OP(ImageSampleProjDrefExplicitLod)
-	_SPIRV_OP(ImageFetch)
 	_SPIRV_OP(ImageGather)
 	_SPIRV_OP(ImageDrefGather)
 	_SPIRV_OP(QuantizeToF16)

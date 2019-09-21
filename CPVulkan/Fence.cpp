@@ -33,6 +33,10 @@ VkResult Fence::Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationC
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_FENCE_CREATE_INFO);
 
 	const auto fence = Allocate<Fence>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!fence)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

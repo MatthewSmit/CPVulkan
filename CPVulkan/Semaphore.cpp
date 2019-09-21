@@ -33,6 +33,10 @@ VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAll
 	assert(pCreateInfo->flags == 0);
 
 	const auto semaphore = Allocate<Semaphore>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!semaphore)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

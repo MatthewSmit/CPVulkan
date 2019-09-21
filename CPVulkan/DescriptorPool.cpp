@@ -8,7 +8,11 @@ VkResult DescriptorPool::Create(const VkDescriptorPoolCreateInfo* pCreateInfo, c
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
 
-	auto descriptorPool = Allocate<DescriptorPool>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	const auto descriptorPool = Allocate<DescriptorPool>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!descriptorPool)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

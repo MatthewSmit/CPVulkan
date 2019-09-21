@@ -10,6 +10,10 @@ VkResult Framebuffer::Create(const VkFramebufferCreateInfo* pCreateInfo, const V
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO);
 
 	auto framebuffer = Allocate<Framebuffer>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!framebuffer)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

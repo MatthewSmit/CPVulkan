@@ -32,6 +32,7 @@ struct Variable
 		UniformBuffer = 0xF0000001,
 		BuiltinBuffer = 0xF0000002,
 		ImageSampler = 0xF0000003,
+		Image = 0xF0000004,
 
 		TypeMask = 0xFF000000,
 		VectorMask = 0x0000000F,
@@ -73,8 +74,15 @@ struct Variable
 	Variable(const VkDescriptorImageInfo& bufferInfo, SPIRV::SPIRVTypeSampledImage* sampledImageType)
 	{
 		type = Type::ImageSampler;
+		sampled.info = bufferInfo;
+		sampled.type = sampledImageType;
+	}
+
+	Variable(const VkBufferView& bufferInfo, SPIRV::SPIRVTypeImage* imageType)
+	{
+		type = Type::ImageSampler;
 		image.info = bufferInfo;
-		image.type = sampledImageType;
+		image.type = imageType;
 	}
 
 	Variable(Type type, gsl::span<uint8_t> raw)
@@ -143,6 +151,12 @@ struct Variable
 		{
 			VkDescriptorImageInfo info;
 			SPIRV::SPIRVTypeSampledImage* type;
+		} sampled;
+
+		struct
+		{
+			VkBufferView info;
+			SPIRV::SPIRVTypeImage* type;
 		} image;
 
 		struct
@@ -461,6 +475,10 @@ static void SetPixel(const FormatInformation& format, Image* image, uint32_t x, 
 	else if (format.ElementSize == 2)
 	{
 		SetPixel<uint16_t>(image->getData(), format, x, y, z, width, height, depth, values);
+	}
+	else if (format.ElementSize == 4)
+	{
+		SetPixel<uint32_t>(image->getData(), format, x, y, z, width, height, depth, values);
 	}
 	else
 	{
@@ -1090,7 +1108,7 @@ static SPIRV::SPIRVBasicBlock* InterpretBlock(ShaderState& state, SPIRV::SPIRVBa
 					FATAL_ERROR();
 				}
 
-				state.scratch[instruction->getId()] = Variable(SampleExplicitLod(UnwrapVulkan<ImageView>(image.image.info.imageView), UnwrapVulkan<Sampler>(image.image.info.sampler), coordinate.f32._12, lod));
+				state.scratch[instruction->getId()] = Variable(SampleExplicitLod(UnwrapVulkan<ImageView>(image.sampled.info.imageView), UnwrapVulkan<Sampler>(image.sampled.info.sampler), coordinate.f32._12, lod));
 				break;
 			}
 			
@@ -1195,22 +1213,6 @@ static std::array<std::vector<Variable>, MAX_DESCRIPTOR_SETS> LoadUniforms(Devic
 							type = reinterpret_cast<SPIRV::SPIRVTypePointer*>(type)->getElementType();
 							switch (std::get<0>(binding))
 							{
-							case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-								{
-									switch (type->getOpCode())
-									{
-									case OpTypeStruct:
-										{
-											const auto structType = reinterpret_cast<SPIRV::SPIRVTypeStruct*>(type);
-											results[i][std::get<1>(binding)] = Variable(std::get<2>(binding).BufferInfo, structType);
-											goto found_variable;
-										}
-
-									default:
-										FATAL_ERROR();
-									}
-								}
-
 							case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 								{
 									switch (type->getOpCode())
@@ -1219,6 +1221,38 @@ static std::array<std::vector<Variable>, MAX_DESCRIPTOR_SETS> LoadUniforms(Devic
 										{
 											const auto sampledImageType = reinterpret_cast<SPIRV::SPIRVTypeSampledImage*>(type);
 											results[i][std::get<1>(binding)] = Variable(std::get<2>(binding).ImageInfo, sampledImageType);
+											goto found_variable;
+										}
+
+									default:
+										FATAL_ERROR();
+									}
+								}
+
+							case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+								{
+									switch (type->getOpCode())
+									{
+									case OpTypeImage:
+										{
+											const auto imageType = reinterpret_cast<SPIRV::SPIRVTypeImage*>(type);
+											results[i][std::get<1>(binding)] = Variable(std::get<2>(binding).TexelBufferView, imageType);
+											goto found_variable;
+										}
+
+									default:
+										FATAL_ERROR();
+									}
+								}
+								
+							case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+								{
+									switch (type->getOpCode())
+									{
+									case OpTypeStruct:
+										{
+											const auto structType = reinterpret_cast<SPIRV::SPIRVTypeStruct*>(type);
+											results[i][std::get<1>(binding)] = Variable(std::get<2>(binding).BufferInfo, structType);
 											goto found_variable;
 										}
 
@@ -1423,9 +1457,9 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		if (variable->getStorageClass() == StorageClassInput)
 		{
 			const auto locationDecorate = variable->getDecorate(DecorationLocation);
-			if (locationDecorate.size() != 1)
+			if (locationDecorate.empty())
 			{
-				FATAL_ERROR();
+				continue;
 			}
 
 			const auto location = *locationDecorate.begin();

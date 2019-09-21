@@ -11,6 +11,10 @@ VkResult PipelineCache::Create(const VkPipelineCacheCreateInfo* pCreateInfo, con
 	assert(pCreateInfo->flags == 0);
 
 	const auto pipelineCache = Allocate<PipelineCache>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!pipelineCache)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	// TODO
 

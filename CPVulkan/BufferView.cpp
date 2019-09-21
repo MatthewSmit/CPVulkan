@@ -7,6 +7,10 @@ VkResult BufferView::Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreate
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO);
 
 	auto bufferView = Allocate<BufferView>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!bufferView)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

@@ -34,6 +34,10 @@ VkResult Event::Create(const VkEventCreateInfo* pCreateInfo, const VkAllocationC
 	assert(pCreateInfo->flags == 0);
 
 	const auto event = Allocate<Event>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!event)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	event->handle = Platform::CreateMutex(false, true);
 

@@ -84,6 +84,10 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO);
 
 	auto image = Allocate<Image>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!image)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

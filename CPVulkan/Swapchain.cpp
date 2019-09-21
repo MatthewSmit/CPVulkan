@@ -55,6 +55,10 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR);
 
 	auto swapchain = Allocate<Swapchain>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!swapchain)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

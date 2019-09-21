@@ -9,6 +9,10 @@ VkResult QueryPool::Create(const VkQueryPoolCreateInfo* pCreateInfo, const VkAll
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO);
 
 	auto queryPool = Allocate<QueryPool>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!queryPool)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)
