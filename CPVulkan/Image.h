@@ -23,8 +23,8 @@ public:
 	[[nodiscard]] uint32_t getWidth() const { return extent.width; }
 	[[nodiscard]] uint32_t getHeight() const { return extent.height; }
 	[[nodiscard]] uint32_t getDepth() const { return extent.depth; }
-	
-	[[nodiscard]] uint8_t* getData() const { return data; }
+
+	[[nodiscard]] uint8_t* getData() const noexcept { return data.data(); }
 
 private:
 	VkImageCreateFlags flags{};
@@ -37,7 +37,7 @@ private:
 	VkImageTiling tiling{};
 	VkImageUsageFlags usage{};
 	VkImageLayout layout{};
-	
+
+	gsl::span<uint8_t> data{};
 	uint64_t size{};
-	uint8_t* data{};
 };

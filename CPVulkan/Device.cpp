@@ -1,24 +1,24 @@
 #include "Device.h"
 
-#include "DescriptorSet.h"
-#include "DescriptorSetLayout.h"
 #include "DeviceState.h"
 #include "Extensions.h"
 #include "Instance.h"
-#include "PipelineLayout.h"
 #include "Queue.h"
 #include "Util.h"
+
+#include <Converter.h>
 
 #include <cassert>
 
 Device::Device() :
-	state{std::make_unique<DeviceState>()},
-    queues{}
+	state{std::make_unique<DeviceState>()}
 {
+	state->jit = new SpirvJit();
 }
 
 Device::~Device()
 {
+	delete state->jit;
 	for (auto& queue : queues)
 	{
 		const auto queuePtr = queue.release();
@@ -125,13 +125,13 @@ void Device::FreeMemory(VkDeviceMemory memory, const VkAllocationCallbacks* pAll
 
 VkResult Device::MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData)
 {
-	assert(flags == 0); 
+	assert(flags == 0);
 	// TODO: Bounds checks
 	*ppData = UnwrapVulkan<DeviceMemory>(memory)->Data + offset;
 	return VK_SUCCESS;
 }
 
-void Device::UnmapMemory(VkDeviceMemory memory)
+void Device::UnmapMemory(VkDeviceMemory)
 {
 }
 
@@ -145,104 +145,11 @@ VkResult Device::InvalidateMappedMemoryRanges(uint32_t, const VkMappedMemoryRang
 	return VK_SUCCESS;
 }
 
-VkResult Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout)
-{
-	return PipelineLayout::Create(pCreateInfo, pAllocator, pPipelineLayout);
-}
-
-void Device::DestroyPipelineLayout(VkPipelineLayout pipelineLayout, const VkAllocationCallbacks* pAllocator)
-{
-	Free(UnwrapVulkan<PipelineLayout>(pipelineLayout), pAllocator);
-}
-
-VkResult Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout)
-{
-	return DescriptorSetLayout::Create(pCreateInfo, pAllocator, pSetLayout);
-}
-
-void Device::DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks* pAllocator)
-{
-	Free(UnwrapVulkan<DescriptorSetLayout>(descriptorSetLayout), pAllocator);
-}
-
-VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllocateInfo, VkDescriptorSet* pDescriptorSets)
-{
-	assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
-
-	auto next = pAllocateInfo->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT:
-			FATAL_ERROR();
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
-	}
-
-	for (auto i = 0u; i < pAllocateInfo->descriptorSetCount; i++)
-	{
-		const auto result = DescriptorSet::Create(pAllocateInfo->descriptorPool, pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
-		if (result != VK_SUCCESS)
-		{
-			FATAL_ERROR();
-		}
-	}
-
-	return VK_SUCCESS;
-}
-
-VkResult Device::FreeDescriptorSets(VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets)
-{
-	for (auto i = 0u; i < descriptorSetCount; i++)
-	{
-		Free(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]), nullptr);
-	}
-	
-	return VK_SUCCESS;
-}
-
-void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet* pDescriptorCopies)
-{
-	for (auto i = 0u; i < descriptorWriteCount; i++)
-	{
-		const auto& descriptorWrite = pDescriptorWrites[i];
-		assert(descriptorWrite.sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET);
-
-		auto next = descriptorWrite.pNext;
-		while (next)
-		{
-			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-			switch (type)
-			{
-			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV:
-				FATAL_ERROR();
-				
-			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT:
-				FATAL_ERROR();
-			}
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-		}
-
-		UnwrapVulkan<DescriptorSet>(descriptorWrite.dstSet)->Update(descriptorWrite);
-	}
-
-	for (auto i = 0u; i < descriptorCopyCount; i++)
-	{
-		FATAL_ERROR();
-	}
-}
-
 void Device::GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQueue)
 {
 	assert(pQueueInfo->sType == VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2);
-
-	auto next = pQueueInfo->pNext;
-	while (next)
-	{
-		FATAL_ERROR();
-	}
+	assert(pQueueInfo->pNext == nullptr);
+	assert(pQueueInfo->flags == 1);
 	
 	if (pQueueInfo->queueFamilyIndex != 0)
 	{
@@ -267,9 +174,9 @@ VkResult Device::Create(Instance* instance, const VkDeviceCreateInfo* pCreateInf
 
 	auto device = Allocate<Device>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 	if (!device)
-    {
-	    return VK_ERROR_OUT_OF_HOST_MEMORY;
-    }
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto next = pCreateInfo->pNext;
 	while (next)

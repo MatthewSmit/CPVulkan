@@ -104,7 +104,7 @@ set(FILES
 
 set(DEFINES VK_NO_PROTOTYPES)
 set(INCLUDES)
-set(LINKS glm SPIRVParser Threads::Threads)
+set(LINKS glm SPIRVParser SPIRVToLLVM Threads::Threads)
 
 if(WIN32)
 	list(APPEND FILES

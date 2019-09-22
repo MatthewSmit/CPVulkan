@@ -86,7 +86,7 @@ VkResult Device::ResetFences(uint32_t fenceCount, const VkFence* pFences)
 	return VK_SUCCESS;
 }
 
-VkResult Device::GetFenceStatus(VkFence fence)
+VkResult Device::GetFenceStatus(VkFence fence) const
 {
 	return UnwrapVulkan<Fence>(fence)->getStatus();
 }

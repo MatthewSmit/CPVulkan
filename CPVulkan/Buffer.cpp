@@ -46,12 +46,12 @@ void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) c
 	GetMemoryRequirements(&pMemoryRequirements->memoryRequirements);
 }
 
-void Device::GetBufferMemoryRequirements(VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements)
+void Device::GetBufferMemoryRequirements(VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements) const
 {
 	UnwrapVulkan<Buffer>(buffer)->GetMemoryRequirements(pMemoryRequirements);
 }
 
-void Device::GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements)
+void Device::GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) const
 {
 	assert(pInfo->sType == VK_STRUCTURE_TYPE_BUFFER_MEMORY_REQUIREMENTS_INFO_2);
 	assert(pMemoryRequirements->sType == VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2);

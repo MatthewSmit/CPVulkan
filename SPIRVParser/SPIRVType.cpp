@@ -62,6 +62,8 @@ namespace SPIRV
 
 	SPIRVWord SPIRVType::getBitWidth() const
 	{
+		if (isTypeMatrix())
+			return getMatrixComponentType()->getBitWidth();
 		if (isTypeVector())
 			return getVectorComponentType()->getBitWidth();
 		if (isTypeBool())

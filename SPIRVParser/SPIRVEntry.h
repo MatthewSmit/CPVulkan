@@ -279,25 +279,27 @@ namespace SPIRV
 		SPIRVValue* getValue(SPIRVId TheId) const;
 		std::vector<SPIRVValue*> getValues(const std::vector<SPIRVId>&) const;
 		std::vector<SPIRVId> getIds(std::vector<SPIRVValue*>) const;
-		SPIRVType *getValueType(SPIRVId TheId) const;
-		std::vector<SPIRVType *> getValueTypes(const std::vector<SPIRVId> &) const;
+		SPIRVType* getValueType(SPIRVId TheId) const;
+		std::vector<SPIRVType *> getValueTypes(const std::vector<SPIRVId>&) const;
 
-		virtual SPIRVDecoder getDecoder(std::istream &);
-		virtual SPIRVEncoder getEncoder(spv_ostream &) const;
-		SPIRVErrorLog &getErrorLog() const;
-		SPIRVId getId() const {
+		virtual SPIRVDecoder getDecoder(std::istream&);
+		virtual SPIRVEncoder getEncoder(spv_ostream&) const;
+		SPIRVErrorLog& getErrorLog() const;
+
+		SPIRVId getId() const
+		{
 			assert(hasId());
 			return Id;
 		}
+
 		std::shared_ptr<const SPIRVLine> getLine() const { return Line; }
 		SPIRVLinkageTypeKind getLinkageType() const;
 		Op getOpCode() const { return OpCode; }
-		SPIRVModule *getModule() const { return Module; }
+		SPIRVModule* getModule() const { return Module; }
 		virtual SPIRVCapVec getRequiredCapability() const { return SPIRVCapVec(); }
 		virtual SPIRVExtSet getRequiredExtensions() const { return SPIRVExtSet(); }
-		const std::string &getName() const { return Name; }
-		bool hasDecorate(Decoration Kind, size_t Index = 0,
-		                 SPIRVWord *Result = 0) const;
+		const std::string& getName() const { return Name; }
+		bool hasDecorate(Decoration Kind, size_t Index = 0, SPIRVWord* Result = 0) const;
 		std::set<SPIRVWord> getDecorate(Decoration Kind, size_t Index = 0) const;
 		bool hasId() const { return !(Attrib & SPIRVEA_NOID); }
 		bool hasLine() const { return Line != nullptr; }
@@ -305,9 +307,8 @@ namespace SPIRV
 		bool isAtomic() const { return isAtomicOpCode(OpCode); }
 		bool isBasicBlock() const { return isLabel(); }
 		bool isExtInst() const { return OpCode == OpExtInst; }
-		bool isExtInst(const SPIRVExtInstSetKind InstSet) const;
-		bool isExtInst(const SPIRVExtInstSetKind InstSet,
-		               const SPIRVWord ExtOp) const;
+		bool isExtInst(SPIRVExtInstSetKind InstSet) const;
+		bool isExtInst(SPIRVExtInstSetKind InstSet, SPIRVWord ExtOp) const;
 		bool isDecorate() const { return OpCode == OpDecorate; }
 		bool isMemberDecorate() const { return OpCode == OpMemberDecorate; }
 		bool isForward() const { return OpCode == OpForward; }
@@ -318,31 +319,38 @@ namespace SPIRV
 		bool isVariable() const { return OpCode == OpVariable; }
 		bool isEndOfBlock() const;
 		virtual bool isInst() const { return false; }
-		virtual bool isOperandLiteral(unsigned Index) const {
+
+		virtual bool isOperandLiteral(unsigned Index) const
+		{
 			assert(0 && "not implemented");
 			return false;
 		}
+
 		virtual bool isImplemented() const { return true; }
 
-		void addDecorate(SPIRVDecorate *);
+		void addDecorate(SPIRVDecorate*);
 		void addDecorate(Decoration Kind);
 		void addDecorate(Decoration Kind, SPIRVWord Literal);
 		void eraseDecorate(Decoration);
-		void addMemberDecorate(SPIRVMemberDecorate *);
+		void addMemberDecorate(SPIRVMemberDecorate*);
 		void addMemberDecorate(SPIRVWord MemberNumber, Decoration Kind);
 		void addMemberDecorate(SPIRVWord MemberNumber, Decoration Kind,
 		                       SPIRVWord Literal);
 		void eraseMemberDecorate(SPIRVWord MemberNumber, Decoration Kind);
 		void setHasNoId() { Attrib |= SPIRVEA_NOID; }
 		void setId(SPIRVId TheId) { Id = TheId; }
-		void setLine(const std::shared_ptr<const SPIRVLine> &L);
+		void setLine(const std::shared_ptr<const SPIRVLine>& L);
 		void setLinkageType(SPIRVLinkageTypeKind);
-		void setModule(SPIRVModule *TheModule);
-		void setName(const std::string &TheName);
-		virtual void setScope(SPIRVEntry *Scope){};
-		void takeAnnotations(SPIRVForward *);
-		void takeDecorates(SPIRVEntry *);
-		void takeMemberDecorates(SPIRVEntry *);
+		void setModule(SPIRVModule* TheModule);
+		void setName(const std::string& TheName);
+
+		virtual void setScope(SPIRVEntry* Scope)
+		{
+		}
+
+		void takeAnnotations(SPIRVForward*);
+		void takeDecorates(SPIRVEntry*);
+		void takeMemberDecorates(SPIRVEntry*);
 
 		/// After a SPIRV entry is created during reading SPIRV binary by default
 		/// constructor, this function is called to allow the SPIRV entry to resize
@@ -351,55 +359,65 @@ namespace SPIRV
 
 		/// Create an empty SPIRV object by op code, e.g. OpTypeInt creates
 		/// SPIRVTypeInt.
-		static SPIRVEntry *create(Op);
+		static SPIRVEntry* create(Op);
 		static std::unique_ptr<SPIRVEntry> createUnique(Op);
 
 		/// Create an empty extended instruction.
 		static std::unique_ptr<SPIRVExtInst> createUnique(SPIRVExtInstSetKind Set,
 		                                                  unsigned ExtOp);
 
-		friend DLL_EXPORT spv_ostream &operator<<(spv_ostream &O, const SPIRVEntry &E);
-		friend DLL_EXPORT std::istream &operator>>(std::istream &I, SPIRVEntry &E);
-		virtual void encodeLine(spv_ostream &O) const;
-		virtual void encodeAll(spv_ostream &O) const;
-		virtual void encodeName(spv_ostream &O) const;
-		virtual void encodeChildren(spv_ostream &O) const;
-		virtual void encodeDecorate(spv_ostream &O) const;
-		virtual void encodeWordCountOpCode(spv_ostream &O) const;
-		virtual void encode(spv_ostream &O) const;
-		virtual void decode(std::istream &I);
+		friend DLL_EXPORT spv_ostream& operator<<(spv_ostream& O, const SPIRVEntry& E);
+		friend DLL_EXPORT std::istream& operator>>(std::istream& I, SPIRVEntry& E);
+		virtual void encodeLine(spv_ostream& O) const;
+		virtual void encodeAll(spv_ostream& O) const;
+		virtual void encodeName(spv_ostream& O) const;
+		virtual void encodeChildren(spv_ostream& O) const;
+		virtual void encodeDecorate(spv_ostream& O) const;
+		virtual void encodeWordCountOpCode(spv_ostream& O) const;
+		virtual void encode(spv_ostream& O) const;
+		virtual void decode(std::istream& I);
 
 		friend class SPIRVDecoder;
 
 		/// Checks the integrity of the object.
-		virtual void validate() const {
+		virtual void validate() const
+		{
 			assert(Module && "Invalid module");
 			assert(OpCode != OpNop && "Invalid op code");
 			assert((!hasId() || isValidId(Id)) && "Invalid Id");
 		}
+
 		void validateFunctionControlMask(SPIRVWord FCtlMask) const;
-		void validateValues(const std::vector<SPIRVId> &) const;
+		void validateValues(const std::vector<SPIRVId>&) const;
 		void validateBuiltin(SPIRVWord, SPIRVWord) const;
 
 		// By default assume SPIRV 1.0 as required version
-		virtual SPIRVWord getRequiredSPIRVVersion() const {
+		virtual SPIRVWord getRequiredSPIRVVersion() const
+		{
 			return static_cast<SPIRVWord>(VersionNumber::SPIRV_1_0);
 		}
 
-		virtual std::vector<SPIRVEntry *> getNonLiteralOperands() const {
+		virtual std::vector<SPIRVEntry *> getNonLiteralOperands() const
+		{
 			return std::vector<SPIRVEntry *>();
 		}
 
 		/// An entry may have multiple FuncParamAttr decorations.
-		typedef std::multimap<Decoration, const SPIRVDecorate*> DecorateMapType;
-		typedef std::map<std::pair<SPIRVWord, Decoration>,
-			const SPIRVMemberDecorate*>
-			MemberDecorateMapType;
+		using DecorateMapType = std::multimap<Decoration, const SPIRVDecorate*>;
+		using MemberDecorateMapType = std::map<std::pair<SPIRVWord, Decoration>, const SPIRVMemberDecorate*>;
 
-		bool canHaveMemberDecorates() const {
+		bool canHaveMemberDecorates() const
+		{
 			return OpCode == OpTypeStruct || OpCode == OpForward;
 		}
-		MemberDecorateMapType& getMemberDecorates() {
+
+		const DecorateMapType& getDecorates() const
+		{
+			return Decorates;
+		}
+
+		const MemberDecorateMapType& getMemberDecorates() const
+		{
 			assert(canHaveMemberDecorates());
 			return MemberDecorates;
 		}
@@ -407,7 +425,7 @@ namespace SPIRV
 	protected:
 		void updateModuleVersion() const;
 
-		SPIRVModule *Module;
+		SPIRVModule* Module;
 		Op OpCode;
 		SPIRVId Id;
 		std::string Name;

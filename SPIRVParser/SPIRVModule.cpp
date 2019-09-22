@@ -95,7 +95,7 @@ public:
   }
 
   // Module query functions
-  SPIRVAddressingModelKind getAddressingModel() override { return AddrModel; }
+  SPIRVAddressingModelKind getAddressingModel() const override { return AddrModel; }
   SPIRVExtInstSetKind getBuiltinSet(SPIRVId SetId) const override;
   const SPIRVCapMap &getCapability() const override { return CapMap; }
   bool hasCapability(SPIRVCapabilityKind Cap) const override {

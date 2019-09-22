@@ -1,6 +1,39 @@
 #pragma once
-#include <vector>
-
 #include "spirv.hpp"
 
-__declspec(dllexport) void ConvertSpirv(const std::vector<uint32_t>& spirv, spv::ExecutionModel executionModel);
+#include <memory>
+#include <vector>
+#include <xstring>
+
+namespace llvm
+{
+	class LLVMContext;
+	class Module;
+}
+
+namespace SPIRV
+{
+	class SPIRVModule;
+}
+
+class SpirvCompiledModule;
+
+class __declspec(dllexport) SpirvJit
+{
+public:
+	using FunctionPointer = void (*)();
+	
+	SpirvJit();
+	~SpirvJit();
+
+	SpirvCompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel);
+	
+	void* getPointer(SpirvCompiledModule* module, const std::string& name);
+	FunctionPointer getFunctionPointer(SpirvCompiledModule* module, const std::string& name);
+
+private:
+	class Impl;
+	std::unique_ptr<Impl> impl;
+};
+
+std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel);

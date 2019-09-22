@@ -1,5 +1,6 @@
 #include "DescriptorSetLayout.h"
 
+#include "Device.h"
 #include "Util.h"
 
 #include <cassert>
@@ -35,4 +36,14 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 
 	WrapVulkan(descriptorSetLayout, pSetLayout);
 	return VK_SUCCESS;
+}
+
+VkResult Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout)
+{
+	return DescriptorSetLayout::Create(pCreateInfo, pAllocator, pSetLayout);
+}
+
+void Device::DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks* pAllocator)
+{
+	Free(UnwrapVulkan<DescriptorSetLayout>(descriptorSetLayout), pAllocator);
 }

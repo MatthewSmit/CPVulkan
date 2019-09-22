@@ -6,6 +6,7 @@ class DescriptorSet;
 class Framebuffer;
 class Pipeline;
 class RenderPass;
+class SpirvJit;
 
 constexpr auto MAX_DESCRIPTOR_SETS = 4;
 constexpr auto MAX_VERTEX_BINDINGS = 16;
@@ -24,4 +25,6 @@ struct DeviceState
 	RenderPass* renderPass;
 	Framebuffer* framebuffer;
 	VkRect2D renderArea;
+
+	SpirvJit* jit;
 };

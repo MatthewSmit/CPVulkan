@@ -34,13 +34,13 @@ public:
 	VKAPI_ATTR void VKAPI_PTR GetDeviceMemoryCommitment(VkDeviceMemory memory, VkDeviceSize* pCommittedMemoryInBytes) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset);
 	VKAPI_ATTR VkResult VKAPI_PTR BindImageMemory(VkImage image, VkDeviceMemory memory, VkDeviceSize memoryOffset);
-	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements(VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements);
+	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements(VkBuffer buffer, VkMemoryRequirements* pMemoryRequirements) const;
 	VKAPI_ATTR void VKAPI_PTR GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMemoryRequirements);
 	VKAPI_ATTR void VKAPI_PTR GetImageSparseMemoryRequirements(VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements) { FATAL_ERROR(); } 
 	VKAPI_ATTR VkResult VKAPI_PTR CreateFence(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence);
 	VKAPI_ATTR void VKAPI_PTR DestroyFence(VkFence fence, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR ResetFences(uint32_t fenceCount, const VkFence* pFences);
-	VKAPI_ATTR VkResult VKAPI_PTR GetFenceStatus(VkFence fence);
+	VKAPI_ATTR VkResult VKAPI_PTR GetFenceStatus(VkFence fence) const;
 	VKAPI_ATTR VkResult VKAPI_PTR WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBool32 waitAll, uint64_t timeout);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateSemaphore(const VkSemaphoreCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSemaphore* pSemaphore);
 	VKAPI_ATTR void VKAPI_PTR DestroySemaphore(VkSemaphore semaphore, const VkAllocationCallbacks* pAllocator);
@@ -97,7 +97,7 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR GetDeviceGroupPeerMemoryFeatures(uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex, VkPeerMemoryFeatureFlags* pPeerMemoryFeatures) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR GetImageMemoryRequirements2(const VkImageMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements);
+	VKAPI_ATTR void VKAPI_PTR GetBufferMemoryRequirements2(const VkBufferMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements) const;
 	VKAPI_ATTR void VKAPI_PTR GetImageSparseMemoryRequirements2(const VkImageSparseMemoryRequirementsInfo2* pInfo, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements2* pSparseMemoryRequirements) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR TrimCommandPool(VkCommandPool commandPool, VkCommandPoolTrimFlags flags);
 	VKAPI_ATTR void VKAPI_PTR GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQueue);
@@ -212,6 +212,9 @@ public:
 #endif
 
 	static VkResult Create(Instance* instance, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice);
+
+	[[nodiscard]] DeviceState* getState() { return state.get(); }
+	[[nodiscard]] const DeviceState* getState() const { return state.get(); }
 
 private:
 	std::unique_ptr<DeviceState> state;

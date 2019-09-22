@@ -1,5 +1,7 @@
 #include "PipelineLayout.h"
 
+#include "Device.h"
+
 #include <cassert>
 
 VkResult PipelineLayout::Create(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout)
@@ -27,4 +29,14 @@ VkResult PipelineLayout::Create(const VkPipelineLayoutCreateInfo* pCreateInfo, c
 
 	WrapVulkan(pipelineLayout, pPipelineLayout);
 	return VK_SUCCESS;
+}
+
+VkResult Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout)
+{
+	return PipelineLayout::Create(pCreateInfo, pAllocator, pPipelineLayout);
+}
+
+void Device::DestroyPipelineLayout(VkPipelineLayout pipelineLayout, const VkAllocationCallbacks* pAllocator)
+{
+	Free(UnwrapVulkan<PipelineLayout>(pipelineLayout), pAllocator);
 }

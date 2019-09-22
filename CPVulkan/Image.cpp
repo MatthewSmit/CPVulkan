@@ -13,8 +13,8 @@ void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator
 
 VkResult Image::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
-	// TODO: Bounds check
-	data = UnwrapVulkan<DeviceMemory>(memory)->Data + memoryOffset;
+	const auto memorySpan = UnwrapVulkan<DeviceMemory>(memory)->getSpan();
+	data = gsl::span<uint8_t>(&memorySpan[memoryOffset], &memorySpan[memoryOffset + size - 1]);
 	return VK_SUCCESS;
 }
 

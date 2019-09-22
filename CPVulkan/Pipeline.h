@@ -8,6 +8,10 @@ namespace SPIRV
 	class SPIRVModule;
 }
 
+class SpirvCompiledModule;
+class SpirvJit;
+
+class Device;
 class ShaderFunction;
 class ShaderModule;
 
@@ -86,14 +90,21 @@ struct DynamicState
 class ShaderFunction final
 {
 public:
-	ShaderFunction(ShaderModule* module, uint32_t stageIndex, const char* name);
+	using EntryPoint = void (*)();
+	
+	ShaderFunction(SpirvJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name);
+	~ShaderFunction();
 
-	const SPIRV::SPIRVModule* getModule() const { return module; }
-	const std::string& getName() const { return name; }
+	[[nodiscard]] const SPIRV::SPIRVModule* getModule() const { return module; }
+	[[nodiscard]] SpirvCompiledModule* getLLVMModule() const { return llvmModule; }
+	[[nodiscard]] const std::string& getName() const { return name; }
+	[[nodiscard]] EntryPoint getEntryPoint() const { return entryPoint; }
 
 private:
 	const SPIRV::SPIRVModule* module;
+	SpirvCompiledModule* llvmModule;
 	std::string name;
+	EntryPoint entryPoint;
 };
 
 class Pipeline final
@@ -107,8 +118,8 @@ public:
 	Pipeline& operator=(const Pipeline&) = delete;
 	Pipeline&& operator=(const Pipeline&&) = delete;
 
-	static VkResult Create(VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
-	static VkResult Create(VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
+	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
+	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
 	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const { return shaderStages[index].get(); }
 	

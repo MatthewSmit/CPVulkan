@@ -113,7 +113,7 @@ public:
   bool isModuleValid() { return IsValid; }
 
   // Module query functions
-  virtual SPIRVAddressingModelKind getAddressingModel() = 0;
+  virtual SPIRVAddressingModelKind getAddressingModel() const = 0;
   virtual const SPIRVCapMap &getCapability() const = 0;
   virtual bool hasCapability(SPIRVCapabilityKind) const = 0;
   virtual SPIRVExtInstSetKind getBuiltinSet(SPIRVId) const = 0;

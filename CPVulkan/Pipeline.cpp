@@ -1,8 +1,11 @@
 #include "Pipeline.h"
 
 #include "Device.h"
+#include "DeviceState.h"
 #include "ShaderModule.h"
 #include "Util.h"
+
+#include <Converter.h>
 
 #include <cassert>
 
@@ -341,7 +344,7 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 	};
 }
 
-static std::tuple<int, ShaderFunction*> LoadShaderStage(const struct VkPipelineShaderStageCreateInfo& stage)
+static std::tuple<int, ShaderFunction*> LoadShaderStage(SpirvJit* jit, const struct VkPipelineShaderStageCreateInfo& stage)
 {
 	assert(stage.sType == VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
 
@@ -368,18 +371,26 @@ static std::tuple<int, ShaderFunction*> LoadShaderStage(const struct VkPipelineS
 	}
 
 	const auto stageIndex = GetStageIndex(stage.stage);
-	return std::make_tuple(stageIndex, new ShaderFunction(UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName));
+	return std::make_tuple(stageIndex, new ShaderFunction(jit, UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName));
 }
 
-ShaderFunction::ShaderFunction(ShaderModule* module, uint32_t stageIndex, const char* name)
+ShaderFunction::ShaderFunction(SpirvJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name)
 {
 	this->module = module->getModule();
 	this->name = name;
+
+	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex));
+	entryPoint = jit->getFunctionPointer(llvmModule, name);
+}
+
+ShaderFunction::~ShaderFunction()
+{
+	// TODO: Delete llvmModule
 }
 
 Pipeline::~Pipeline() = default;
 
-VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
+VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
 
@@ -424,7 +435,7 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 	{
 		int stageIndex;
 		ShaderFunction* shaderFunction;
-		std::tie(stageIndex, shaderFunction) = LoadShaderStage(pCreateInfo->pStages[i]);
+		std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pCreateInfo->pStages[i]);
 		pipeline->shaderStages[stageIndex] = std::unique_ptr<ShaderFunction>(shaderFunction);
 	}
 
@@ -447,7 +458,7 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkGraphicsPipelin
 	return VK_SUCCESS;
 }
 
-VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
+VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO);
 
@@ -490,7 +501,7 @@ VkResult Pipeline::Create(VkPipelineCache pipelineCache, const VkComputePipeline
 	
 	int stageIndex;
 	ShaderFunction* shaderFunction;
-	std::tie(stageIndex, shaderFunction) = LoadShaderStage(pCreateInfo->stage);
+	std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pCreateInfo->stage);
 	pipeline->shaderStages[stageIndex] = std::unique_ptr<ShaderFunction>(shaderFunction);
 
 	if (pCreateInfo->basePipelineHandle)
@@ -506,7 +517,7 @@ VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t
 {
 	for (auto i = 0u; i < createInfoCount; i++)
 	{
-		const auto result = Pipeline::Create(pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		const auto result = Pipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
 		if (result != VK_SUCCESS)
 		{
 			FATAL_ERROR();
@@ -520,7 +531,7 @@ VkResult Device::CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t 
 {
 	for (auto i = 0u; i < createInfoCount; i++)
 	{
-		const auto result = Pipeline::Create(pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		const auto result = Pipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
 		if (result != VK_SUCCESS)
 		{
 			FATAL_ERROR();

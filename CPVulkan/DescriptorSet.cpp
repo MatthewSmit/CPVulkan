@@ -1,6 +1,7 @@
 #include "DescriptorSet.h"
 
 #include "DescriptorSetLayout.h"
+#include "Device.h"
 
 void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 {
@@ -62,6 +63,37 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 	FATAL_ERROR();
 }
 
+void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet* pDescriptorCopies)
+{
+	for (auto i = 0u; i < descriptorWriteCount; i++)
+	{
+		const auto& descriptorWrite = pDescriptorWrites[i];
+		assert(descriptorWrite.sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET);
+
+		auto next = descriptorWrite.pNext;
+		while (next)
+		{
+			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+			switch (type)
+			{
+			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV:
+				FATAL_ERROR();
+
+			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT:
+				FATAL_ERROR();
+			}
+			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		}
+
+		UnwrapVulkan<DescriptorSet>(descriptorWrite.dstSet)->Update(descriptorWrite);
+	}
+
+	for (auto i = 0u; i < descriptorCopyCount; i++)
+	{
+		FATAL_ERROR();
+	}
+}
+
 VkResult DescriptorSet::Create(VkDescriptorPool descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet)
 {
 	auto descriptorSet = Allocate<DescriptorSet>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
@@ -91,5 +123,43 @@ VkResult DescriptorSet::Create(VkDescriptorPool descriptorPool, VkDescriptorSetL
 	}
 
 	WrapVulkan(descriptorSet, pDescriptorSet);
+	return VK_SUCCESS;
+}
+
+VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllocateInfo, VkDescriptorSet* pDescriptorSets)
+{
+	assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
+
+	auto next = pAllocateInfo->pNext;
+	while (next)
+	{
+		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		switch (type)
+		{
+		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT:
+			FATAL_ERROR();
+		}
+		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+	}
+
+	for (auto i = 0u; i < pAllocateInfo->descriptorSetCount; i++)
+	{
+		const auto result = DescriptorSet::Create(pAllocateInfo->descriptorPool, pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
+		if (result != VK_SUCCESS)
+		{
+			FATAL_ERROR();
+		}
+	}
+
+	return VK_SUCCESS;
+}
+
+VkResult Device::FreeDescriptorSets(VkDescriptorPool descriptorPool, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets)
+{
+	for (auto i = 0u; i < descriptorSetCount; i++)
+	{
+		Free(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]), nullptr);
+	}
+
 	return VK_SUCCESS;
 }
