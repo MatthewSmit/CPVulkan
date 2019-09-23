@@ -4,6 +4,16 @@
 
 #include <cassert>
 
+VkResult PipelineCache::GetData(size_t* pDataSize, void* pData)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::GetPipelineCacheData(VkPipelineCache pipelineCache, size_t* pDataSize, void* pData)
+{
+	return UnwrapVulkan<PipelineCache>(pipelineCache)->GetData(pDataSize, pData);
+}
+
 VkResult PipelineCache::Create(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
@@ -30,4 +40,9 @@ VkResult Device::CreatePipelineCache(const VkPipelineCacheCreateInfo* pCreateInf
 void Device::DestroyPipelineCache(VkPipelineCache pipelineCache, const VkAllocationCallbacks* pAllocator)
 {
 	Free(UnwrapVulkan<PipelineCache>(pipelineCache), pAllocator);
+}
+
+VkResult Device::MergePipelineCaches(VkPipelineCache dstCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches)
+{
+	FATAL_ERROR();
 }

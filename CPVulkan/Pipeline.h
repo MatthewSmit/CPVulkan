@@ -121,7 +121,7 @@ public:
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
-	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const { return shaderStages[index].get(); }
+	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const { return shaderStages.at(index).get(); }
 	
 	[[nodiscard]] const VertexInputState& getVertexInputState() const { return vertexInputState; }
 	[[nodiscard]] const InputAssemblyState& getInputAssemblyState() const { return inputAssemblyState; }

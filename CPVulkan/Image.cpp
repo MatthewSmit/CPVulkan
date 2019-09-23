@@ -74,6 +74,11 @@ void Device::GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMe
 	UnwrapVulkan<Image>(image)->GetMemoryRequirements(pMemoryRequirements);
 }
 
+void Device::GetImageSparseMemoryRequirements(VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements)
+{
+	FATAL_ERROR();
+}
+
 void Device::GetImageSubresourceLayout(VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout)
 {
 	UnwrapVulkan<Image>(image)->GetSubresourceLayout(pSubresource, pLayout);
@@ -158,4 +163,9 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 VkResult Device::CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
 {
 	return Image::Create(pCreateInfo, pAllocator, pImage);
+}
+
+VkResult Device::BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos)
+{
+	FATAL_ERROR();
 }

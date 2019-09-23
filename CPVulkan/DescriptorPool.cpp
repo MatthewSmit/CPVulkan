@@ -4,6 +4,16 @@
 
 #include <cassert>
 
+VkResult DescriptorPool::Reset(VkFlags flags)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::ResetDescriptorPool(VkDescriptorPool descriptorPool, VkDescriptorPoolResetFlags flags)
+{
+	return UnwrapVulkan<DescriptorPool>(descriptorPool)->Reset(flags);
+}
+
 VkResult DescriptorPool::Create(const VkDescriptorPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorPool* pDescriptorPool)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO);
@@ -37,5 +47,5 @@ VkResult Device::CreateDescriptorPool(const VkDescriptorPoolCreateInfo* pCreateI
 
 void Device::DestroyDescriptorPool(VkDescriptorPool descriptorPool, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<DescriptorPool*>(descriptorPool), pAllocator);
+	Free(UnwrapVulkan<DescriptorPool>(descriptorPool), pAllocator);
 }

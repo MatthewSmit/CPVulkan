@@ -55,16 +55,7 @@ static VertexInputState Parse(const VkPipelineVertexInputStateCreateInfo* pVerte
 static InputAssemblyState Parse(const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState)
 {
 	assert(pInputAssemblyState->sType == VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
-
-	auto next = pInputAssemblyState->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
-	}
+	assert(pInputAssemblyState->pNext == nullptr);
 
 	if (pInputAssemblyState->flags)
 	{
@@ -249,16 +240,7 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 static DepthStencilState Parse(const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState)
 {
 	assert(pDepthStencilState->sType == VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
-
-	auto next = pDepthStencilState->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
-	}
+	assert(pDepthStencilState->pNext == nullptr);
 
 	if (pDepthStencilState->flags)
 	{
@@ -322,16 +304,7 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 	}
 	
 	assert(pDynamicState->sType == VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
-
-	auto next = pDynamicState->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
-	}
+	assert(pDynamicState->pNext == nullptr);
 
 	if (pDynamicState->flags)
 	{

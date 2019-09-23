@@ -15,9 +15,8 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 		FATAL_ERROR();
 	}
 
-	for (auto i = 0u; i < bindings.size(); i++)
+	for (auto& binding : bindings)
 	{
-		const auto& binding = bindings[i];
 		if (std::get<0>(binding) == descriptorWrite.descriptorType && std::get<1>(binding) == descriptorWrite.dstBinding)
 		{
 			Bindings newBinding{};
@@ -55,7 +54,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			default:
 				FATAL_ERROR();
 			}
-			bindings[i] = std::make_tuple(descriptorWrite.descriptorType, descriptorWrite.dstBinding, newBinding);
+			binding = std::make_tuple(descriptorWrite.descriptorType, descriptorWrite.dstBinding, newBinding);
 			return;
 		}
 	}

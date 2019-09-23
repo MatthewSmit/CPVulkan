@@ -11,6 +11,8 @@ public:
 
 	PipelineCache& operator=(const PipelineCache&) = delete;
 	PipelineCache&& operator=(const PipelineCache&&) = delete;
+	
+	VkResult GetData(size_t* pDataSize, void* pData);
 
 	static VkResult Create(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache);
 };

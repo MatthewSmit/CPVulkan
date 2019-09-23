@@ -78,6 +78,16 @@ VkResult RenderPass::Create(const VkRenderPassCreateInfo* pCreateInfo, const VkA
 	return VK_SUCCESS;
 }
 
+VkExtent2D RenderPass::getRenderAreaGranularity() const
+{
+	FATAL_ERROR();
+}
+
+void Device::GetRenderAreaGranularity(VkRenderPass renderPass, VkExtent2D* pGranularity)
+{
+	*pGranularity = UnwrapVulkan<RenderPass>(renderPass)->getRenderAreaGranularity();
+}
+
 VkResult Device::CreateRenderPass(const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
 {
 	return RenderPass::Create(pCreateInfo, pAllocator, pRenderPass);
@@ -86,4 +96,9 @@ VkResult Device::CreateRenderPass(const VkRenderPassCreateInfo* pCreateInfo, con
 void Device::DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallbacks* pAllocator)
 {
 	Free(UnwrapVulkan<RenderPass>(renderPass), pAllocator);
+}
+
+VkResult Device::CreateRenderPass2(const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
+{
+	FATAL_ERROR();
 }

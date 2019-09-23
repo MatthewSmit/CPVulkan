@@ -8,16 +8,7 @@
 VkResult CommandPool::AllocateCommandBuffers(const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers)
 {
 	assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO);
-
-	auto next = pAllocateInfo->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
-	}
+	assert(pAllocateInfo->pNext == nullptr);
 
 	for (auto i = 0u; i < pAllocateInfo->commandBufferCount; i++)
 	{
@@ -66,21 +57,12 @@ void CommandPool::Trim(VkCommandPoolTrimFlags)
 VkResult CommandPool::Create(DeviceState* deviceState, const VkCommandPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkCommandPool* pCommandPool)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO);
+	assert(pCreateInfo->pNext == nullptr);
 
 	const auto commandPool = Allocate<CommandPool>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 	if (!commandPool)
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
-	}
-
-	auto next = pCreateInfo->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	commandPool->flags = pCreateInfo->flags;

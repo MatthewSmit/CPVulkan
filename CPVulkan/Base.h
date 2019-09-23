@@ -22,6 +22,10 @@ using DWORD = unsigned long; // NOLINT(google-runtime-int)
 #endif
 
 // ReSharper disable once CppUnusedIncludeDirective
+
+#undef VK_KHR_external_memory_fd
+#undef VK_KHR_external_semaphore_fd
+#undef VK_KHR_external_fence_fd
 #include <vulkan/vulkan_win32.h>
 #endif
 
@@ -57,6 +61,8 @@ typedef XID RROutput;
 
 #include <gsl/gsl>
 
+#undef VK_EXT_pci_bus_info
+
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 
 #if !defined(_MSC_VER)
@@ -69,18 +75,15 @@ inline void strcpy_s(char* destination, const char* source)
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
+#pragma warning(push)
+#pragma warning(disable: 26490 26474 26408 26409)
+
 template<typename T, class... Types>
 T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope allocationScope, Types&& ... args)
 {
-	uint8_t* data;
-	if (pAllocator)
-	{
-		data = static_cast<uint8_t*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(T), 16, allocationScope));
-	}
-	else
-	{
-		data = static_cast<uint8_t*>(malloc(sizeof(T) + 16));
-	}
+	const auto data = pAllocator
+		                  ? static_cast<uint8_t*>(pAllocator->pfnAllocation(pAllocator->pUserData, sizeof(T), 16, allocationScope))
+		                  : static_cast<uint8_t*>(malloc(sizeof(T) + 16));
 	
 	if (!data)
 	{
@@ -120,3 +123,4 @@ LocalType* UnwrapVulkan(VulkanType vulkanValue) noexcept
 	const auto data = reinterpret_cast<uint8_t*>(vulkanValue);
 	return static_cast<LocalType*>(static_cast<void*>(data + 16));
 }
+#pragma warning(pop)

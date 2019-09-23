@@ -123,7 +123,7 @@ std::vector<T1> ArrayToVector(uint32_t count, const T2* data, std::function<T1(T
 	{
 		for (auto i = 0u; i < count; i++)
 		{
-			result[i] = conversion(data[i]);
+			result.at(i) = conversion(data[i]);
 		}
 	}
 	return result;

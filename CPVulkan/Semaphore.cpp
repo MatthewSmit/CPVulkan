@@ -70,3 +70,27 @@ void Device::DestroySemaphore(VkSemaphore semaphore, const VkAllocationCallbacks
 {
 	Free(UnwrapVulkan<Semaphore>(semaphore), pAllocator);
 }
+
+#if defined(VK_KHR_external_semaphore_fd)
+VkResult Device::ImportSemaphoreFd(const VkImportSemaphoreFdInfoKHR* pImportSemaphoreFdInfo)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::GetSemaphoreFd(const VkSemaphoreGetFdInfoKHR* pGetFdInfo, int* pFd)
+{
+	FATAL_ERROR();
+}
+#endif
+
+#if defined(VK_KHR_external_semaphore_win32)
+VkResult Device::ImportSemaphoreWin32Handle(const VkImportSemaphoreWin32HandleInfoKHR* pImportSemaphoreWin32HandleInfo)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::GetSemaphoreWin32Handle(const VkSemaphoreGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle)
+{
+	FATAL_ERROR();
+}
+#endif

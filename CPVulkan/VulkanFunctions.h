@@ -184,8 +184,12 @@ VULKAN_FUNCTION(GetQueueFamilyProperties2, void, PhysicalDevice, void*, uint32_t
 VULKAN_FUNCTION(GetMemoryProperties2, void, PhysicalDevice, void*, VkPhysicalDeviceMemoryProperties2*)
 VULKAN_FUNCTION(GetMemoryFd, VkResult, Device, void*, const VkMemoryGetFdInfoKHR*, int*)
 VULKAN_FUNCTION(GetMemoryFdProperties, VkResult, Device, void*, VkExternalMemoryHandleTypeFlagBits, int, VkMemoryFdPropertiesKHR*)
+
+#if defined(VK_KHR_external_semaphore_fd)
 VULKAN_FUNCTION(ImportSemaphoreFd, VkResult, Device, void*, const VkImportSemaphoreFdInfoKHR*)
 VULKAN_FUNCTION(GetSemaphoreFd, VkResult, Device, void*, const VkSemaphoreGetFdInfoKHR*, int*)
+#endif
+
 VULKAN_FUNCTION(PushDescriptorSet, void, CommandBuffer, void*, VkPipelineBindPoint, VkPipelineLayout, uint32_t, uint32_t, const VkWriteDescriptorSet*)
 VULKAN_FUNCTION(PushDescriptorSetWithTemplate, void, CommandBuffer, void*, VkDescriptorUpdateTemplate, VkPipelineLayout, uint32_t, const void*)
 VULKAN_FUNCTION(CreateRenderPass2, VkResult, Device, void*, const VkRenderPassCreateInfo2KHR*, const VkAllocationCallbacks*, VkRenderPass*)
@@ -304,29 +308,48 @@ VULKAN_FUNCTION(GetSupportedFramebufferMixedSamplesCombinationsNV, VkResult, Phy
 VULKAN_FUNCTION(CreateHeadlessSurface, VkResult, Instance, void*, const VkHeadlessSurfaceCreateInfoEXT*, const VkAllocationCallbacks*, VkSurfaceKHR*)
 VULKAN_FUNCTION(SetLineStipple, void, CommandBuffer, void*, uint32_t, uint16_t)
 VULKAN_FUNCTION(ResetQueryPool, void, Device, void*, VkQueryPool, uint32_t, uint32_t)
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
+
+#if defined(VK_KHR_win32_surface)
 VULKAN_FUNCTION(CreateWin32Surface, VkResult, Instance, void*, const VkWin32SurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*)
 VULKAN_FUNCTION(GetWin32PresentationSupport, VkBool32, PhysicalDevice, void*, uint32_t)
+#endif
+
+#if defined(VK_KHR_external_memory_win32)
 VULKAN_FUNCTION(GetMemoryWin32Handle, VkResult, Device, void*, const VkMemoryGetWin32HandleInfoKHR*, HANDLE*)
 VULKAN_FUNCTION(GetMemoryWin32HandleProperties, VkResult, Device, void*, VkExternalMemoryHandleTypeFlagBits, HANDLE, VkMemoryWin32HandlePropertiesKHR*)
+#endif
+
+#if defined(VK_KHR_external_semaphore_win32)
 VULKAN_FUNCTION(ImportSemaphoreWin32Handle, VkResult, Device, void*, const VkImportSemaphoreWin32HandleInfoKHR*)
 VULKAN_FUNCTION(GetSemaphoreWin32Handle, VkResult, Device, void*, const VkSemaphoreGetWin32HandleInfoKHR*, HANDLE*)
+#endif
+
+#if defined(VK_KHR_external_fence_win32)
 VULKAN_FUNCTION(ImportFenceWin32Handle, VkResult, Device, void*, const VkImportFenceWin32HandleInfoKHR*)
 VULKAN_FUNCTION(GetFenceWin32Handle, VkResult, Device, void*, const VkFenceGetWin32HandleInfoKHR*, HANDLE*)
+#endif
+
+#if defined(VK_NV_external_memory_win32)
 VULKAN_FUNCTION(GetMemoryWin32HandleNV, VkResult, Device, void*, VkDeviceMemory, VkExternalMemoryHandleTypeFlagsNV, HANDLE*)
+#endif
+
+#if defined(VK_EXT_full_screen_exclusive)
 VULKAN_FUNCTION(GetSurfacePresentModes2, VkResult, PhysicalDevice, void*, const VkPhysicalDeviceSurfaceInfo2KHR*, uint32_t*, VkPresentModeKHR*)
 VULKAN_FUNCTION(AcquireFullScreenExclusiveMode, VkResult, Device, void*, VkSwapchainKHR)
 VULKAN_FUNCTION(ReleaseFullScreenExclusiveMode, VkResult, Device, void*, VkSwapchainKHR)
 VULKAN_FUNCTION(GetDeviceGroupSurfacePresentModes2, VkResult, Device, void*, const VkPhysicalDeviceSurfaceInfo2KHR*, VkDeviceGroupPresentModeFlagsKHR*)
 #endif
-#if defined(VK_USE_PLATFORM_XCB_KHR)
+
+#if defined(VK_KHR_xcb_surface)
 VULKAN_FUNCTION(CreateXcbSurface, VkResult, Instance, void*, const VkXcbSurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*)
 VULKAN_FUNCTION(GetPhysicalDeviceXcbPresentationSupport, VkBool32, PhysicalDevice, void*, uint32_t, xcb_connection_t*, xcb_visualid_t)
 #endif
-#if defined(VK_USE_PLATFORM_XLIB_KHR)
+
+#if defined(VK_KHR_xlib_surface)
 VULKAN_FUNCTION(CreateXlibSurface, VkResult, Instance, void*, const VkXlibSurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*)
 VULKAN_FUNCTION(GetPhysicalDeviceXlibPresentationSupport, VkBool32, PhysicalDevice, void*, uint32_t, Display*, VisualID)
 #endif
+
 #if defined(VK_USE_PLATFORM_XLIB_XRANDR_EXT)
 VULKAN_FUNCTION(AcquireXlibDisplay, VkResult, PhysicalDevice, void*, Display*, VkDisplayKHR)
 VULKAN_FUNCTION(GetRandROutputDisplay, VkResult, PhysicalDevice, void*, Display*, RROutput, VkDisplayKHR*)

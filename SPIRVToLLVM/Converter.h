@@ -2,8 +2,7 @@
 #include "spirv.hpp"
 
 #include <memory>
-#include <vector>
-#include <xstring>
+#include <string>
 
 namespace llvm
 {
@@ -33,7 +32,7 @@ public:
 
 private:
 	class Impl;
-	std::unique_ptr<Impl> impl;
+	Impl* impl;
 };
 
 std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel);

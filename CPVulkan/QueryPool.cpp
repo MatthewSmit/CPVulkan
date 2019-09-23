@@ -46,3 +46,8 @@ void Device::DestroyQueryPool(VkQueryPool queryPool, const VkAllocationCallbacks
 {
 	Free(UnwrapVulkan<QueryPool>(queryPool), pAllocator);
 }
+
+VkResult Device::GetQueryPoolResults(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags)
+{
+	FATAL_ERROR();
+}

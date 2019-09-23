@@ -100,3 +100,25 @@ VkResult Device::WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBo
 		       ? VK_SUCCESS
 		       : VK_TIMEOUT;
 }
+
+VkResult Device::ImportFenceFd(const VkImportFenceFdInfoKHR* pImportFenceFdInfo)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::GetFenceFd(const VkFenceGetFdInfoKHR* pGetFdInfo, int* pFd)
+{
+	FATAL_ERROR();
+}
+
+#if defined(VK_KHR_external_fence_win32)
+VkResult Device::ImportFenceWin32Handle(const VkImportFenceWin32HandleInfoKHR* pImportFenceWin32HandleInfo)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::GetFenceWin32Handle(const VkFenceGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle)
+{
+	FATAL_ERROR();
+}
+#endif

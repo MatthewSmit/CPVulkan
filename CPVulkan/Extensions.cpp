@@ -4,8 +4,6 @@
 #include "Instance.h"
 #include "Trampoline.h"
 
-#undef VK_EXT_pci_bus_info
-
 ExtensionGroup::ExtensionGroup() = default;
 
 ExtensionGroup::ExtensionGroup(std::vector<Extension>&& extensions):

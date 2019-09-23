@@ -37,7 +37,7 @@ add_executable(CPVulkanSamples
 	##"draw_subpasses/draw_subpasses.cpp"
 	##"draw_textured_cube/draw_textured_cube.cpp"
 	##"dynamic_uniform/dynamic_uniform.cpp"
-	#"enable_validation_with_callback/enable_validation_with_callback.cpp"
+	##"enable_validation_with_callback/enable_validation_with_callback.cpp"
 	#"enumerate_devices_adv/enumerate_devices_adv.cpp"
 	#"events/events.cpp"
 	##"immutable_sampler/immutable_sampler.cpp"

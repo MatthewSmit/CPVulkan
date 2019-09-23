@@ -173,7 +173,7 @@ public:
 						static_cast<uint64_t>(z) * imagePlaneSize +
 						static_cast<uint64_t>(y) * imageLineSize +
 						lineStart;
-					const auto dst = dstBuffer->getData(bufferOffset + z * bufferPlaneSize + y * bufferLineSize + lineStart, lineSize);
+					const auto dst = dstBuffer->getDataPtr(bufferOffset + z * bufferPlaneSize + y * bufferLineSize + lineStart, lineSize);
 					memcpy(dst, src, lineSize);
 				}
 			}

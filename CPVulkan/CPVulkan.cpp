@@ -94,11 +94,11 @@ extern "C" DLL_EXPORT VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL vk_icdGetPhysical
 
 extern "C" DLL_EXPORT VKAPI_ATTR VkResult VKAPI_CALL vk_icdNegotiateLoaderICDInterfaceVersion(uint32_t* pSupportedVersion)
 {
-	constexpr auto LATEST_VERSION = 5;
+	constexpr auto LATEST_ICD_VERSION = 5;
 	
-	if (*pSupportedVersion > LATEST_VERSION)
+	if (*pSupportedVersion > LATEST_ICD_VERSION)
 	{
-		*pSupportedVersion = LATEST_VERSION;
+		*pSupportedVersion = LATEST_ICD_VERSION;
 	}
 
 	return VK_SUCCESS;

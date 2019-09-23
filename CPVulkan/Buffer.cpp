@@ -8,7 +8,7 @@
 VkResult Buffer::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
 	const auto memorySpan = UnwrapVulkan<DeviceMemory>(memory)->getSpan();
-	data = gsl::span<uint8_t>(&memorySpan[memoryOffset], &memorySpan[memoryOffset + size - 1]);
+	data = memorySpan.subspan(memoryOffset, size);
 	return VK_SUCCESS;
 }
 
@@ -81,26 +81,15 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
-	Buffer* buffer;
-
 	if (pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT)
 	{
-		buffer = Allocate<SparseBuffer>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
-		if (!buffer)
-		{
-			return VK_ERROR_OUT_OF_HOST_MEMORY;
-		}
-		
-		const auto pages = (pCreateInfo->size + 4095) / 4096;
-		reinterpret_cast<SparseBuffer*>(buffer)->setPages(pages);
+		FATAL_ERROR();
 	}
-	else
+
+	const auto buffer = Allocate<Buffer>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!buffer)
 	{
-		buffer = Allocate<Buffer>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
-		if (!buffer)
-		{
-			return VK_ERROR_OUT_OF_HOST_MEMORY;
-		}
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
 	buffer->flags = pCreateInfo->flags;
@@ -116,50 +105,6 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 	return VK_SUCCESS;
 }
 
-VkResult SparseBuffer::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
-{
-	FATAL_ERROR();
-}
-
-void SparseBuffer::SparseBindMemory(uint32_t bindCount, const VkSparseMemoryBind* pBinds)
-{
-	for (auto i = 0u; i < bindCount; i++)
-	{
-		const auto& bind = pBinds[i];
-
-		if (bind.flags)
-		{
-			FATAL_ERROR();
-		}
-		
-		auto page = (bind.resourceOffset + 4095) / 4096;
-		for (auto j = 0u; j < bind.size; j += 4096)
-		{
-			if (bind.memory)
-			{
-				this->pointers[page] = UnwrapVulkan<DeviceMemory>(bind.memory)->Data + bind.memoryOffset;
-			}
-			else
-			{
-				this->pointers[page] = nullptr;
-			}
-			page++;
-		}
-	}
-}
-
-void SparseBuffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const noexcept
-{
-	pMemoryRequirements->size = (size + 4095) / 4096 * 4096;
-	pMemoryRequirements->alignment = 4096;
-	pMemoryRequirements->memoryTypeBits = 1;
-}
-
-uint8_t* SparseBuffer::getData(uint64_t offset, uint64_t size) const noexcept
-{
-	FATAL_ERROR();
-}
-
 VkResult Device::CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer)
 {
 	return Buffer::Create(pCreateInfo, pAllocator, pBuffer);
@@ -168,4 +113,9 @@ VkResult Device::CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAll
 void Device::DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAllocator)
 {
 	Free(UnwrapVulkan<Buffer>(buffer), pAllocator);
+}
+
+VkResult Device::BindBufferMemory2(uint32_t bindInfoCount, const VkBindBufferMemoryInfo* pBindInfos)
+{
+	FATAL_ERROR();
 }

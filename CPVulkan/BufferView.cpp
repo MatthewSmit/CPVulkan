@@ -5,21 +5,12 @@
 VkResult BufferView::Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO);
+	assert(pCreateInfo->pNext == nullptr);
 
 	auto bufferView = Allocate<BufferView>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 	if (!bufferView)
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
-	}
-
-	auto next = pCreateInfo->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)

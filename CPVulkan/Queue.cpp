@@ -83,55 +83,7 @@ VkResult Queue::WaitIdle()
 
 VkResult Queue::BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence)
 {
-	for (auto i = 0u; i < bindInfoCount; i++)
-	{
-		const auto& bindInfo = pBindInfo[i];
-		assert(bindInfo.sType == VK_STRUCTURE_TYPE_BIND_SPARSE_INFO);
-
-		auto next = bindInfo.pNext;
-		while (next)
-		{
-			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-			switch (type)
-			{
-			case VK_STRUCTURE_TYPE_DEVICE_GROUP_BIND_SPARSE_INFO:
-				FATAL_ERROR();
-			}
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
-		}
-
-		if (bindInfo.waitSemaphoreCount)
-		{
-			FATAL_ERROR();
-		}
-
-		for (auto j = 0u; j < bindInfo.bufferBindCount; j++)
-		{
-			const auto& bufferBind = bindInfo.pBufferBinds[j];
-			UnwrapVulkan<SparseBuffer>(bufferBind.buffer)->SparseBindMemory(bufferBind.bindCount, bufferBind.pBinds);
-		}
-
-		if (bindInfo.imageOpaqueBindCount)
-		{
-			FATAL_ERROR();
-		}
-
-		if (bindInfo.imageBindCount)
-		{
-			FATAL_ERROR();
-		}
-
-		if (bindInfo.signalSemaphoreCount)
-		{
-			FATAL_ERROR();
-		}
-	}
-	
-	if (fence)
-	{
-		UnwrapVulkan<Fence>(fence)->Signal();
-	}
-	return VK_SUCCESS;
+	FATAL_ERROR();
 }
 
 VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)

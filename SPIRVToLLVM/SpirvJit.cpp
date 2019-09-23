@@ -131,10 +131,13 @@ SpirvJit::SpirvJit()
 		FATAL_ERROR();
 	}
 
-	impl = std::make_unique<Impl>(std::move(*targetMachineBuilder), std::move(*dataLayout));
+	impl = new Impl(std::move(*targetMachineBuilder), std::move(*dataLayout));
 }
 
-SpirvJit::~SpirvJit() = default;
+SpirvJit::~SpirvJit()
+{
+	delete impl;
+}
 
 SpirvCompiledModule* SpirvJit::CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
 {

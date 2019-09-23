@@ -29,6 +29,8 @@ public:
 	[[nodiscard]] const std::vector<Subpass>& getSubpasses() const { return subpasses; }
 	[[nodiscard]] const std::vector<VkSubpassDependency>& getDependencies() const { return dependencies; }
 
+	[[nodiscard]] VkExtent2D getRenderAreaGranularity() const;
+
 private:
 	std::vector<VkAttachmentDescription> attachments;
 	std::vector<Subpass> subpasses;
