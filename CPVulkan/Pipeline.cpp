@@ -304,7 +304,6 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 	}
 	
 	assert(pDynamicState->sType == VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO);
-	assert(pDynamicState->pNext == nullptr);
 
 	if (pDynamicState->flags)
 	{

@@ -7,9 +7,12 @@
 #include "Formats.h"
 #include "Framebuffer.h"
 #include "Image.h"
+#include "ImageSampler.h"
 #include "ImageView.h"
 #include "RenderPass.h"
 #include "Util.h"
+
+#include <glm/glm.hpp>
 
 #include <iostream>
 
@@ -116,6 +119,100 @@ private:
 	Image* dstImage;
 	VkImageLayout dstImageLayout;
 	std::vector<VkImageCopy> regions;
+};
+
+class BlitImageCommand final : public Command
+{
+public:
+	BlitImageCommand(Image* srcImage, VkImageLayout srcImageLayout, Image* dstImage, VkImageLayout dstImageLayout, std::vector<VkImageBlit> regions, VkFilter filter):
+		srcImage{srcImage},
+		srcImageLayout{srcImageLayout},
+		dstImage{dstImage},
+		dstImageLayout{dstImageLayout},
+		regions{std::move(regions)},
+		filter{filter}
+	{
+	}
+
+	void Process(DeviceState*) override
+	{
+		const auto& dstFormat = GetFormatInformation(dstImage->getFormat());
+		for (const auto& region : regions)
+		{
+			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.srcSubresource.mipLevel != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.mipLevel != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.srcSubresource.baseArrayLayer != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.baseArrayLayer != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.srcSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+
+			if (region.dstSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+
+			const auto dstWidth = region.dstOffsets[1].x - region.dstOffsets[0].x;
+			const auto dstHeight = region.dstOffsets[1].y - region.dstOffsets[0].y;
+			const auto dstDepth = region.dstOffsets[1].z - region.dstOffsets[0].z;
+			constexpr auto currentArray = 0;
+			for (auto z = 0; z < dstDepth; z++)
+			{
+				for (auto y = 0; y < dstHeight; y++)
+				{
+					for (auto x = 0; x < dstWidth; x++)
+					{
+						auto u = (x + 0.5f - region.dstOffsets[0].x) * (float(region.srcOffsets[1].x - region.srcOffsets[0].x) / (region.dstOffsets[1].x - region.dstOffsets[0].x)) + region.srcOffsets[0].x;
+						auto v = (y + 0.5f - region.dstOffsets[0].y) * (float(region.srcOffsets[1].y - region.srcOffsets[0].y) / (region.dstOffsets[1].y - region.dstOffsets[0].y)) + region.srcOffsets[0].y;
+						auto w = (z + 0.5f - region.dstOffsets[0].z) * (float(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
+						auto q = region.srcSubresource.mipLevel;
+						auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
+
+						// TODO: Use appropriate data type depending on source/dest formats
+						auto pixels = SampleImage<glm::vec4>(srcImage, u, v, w, q, a, filter, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+						uint64_t tmp[4];
+						Convert(dstFormat, &pixels.x, tmp);
+						SetPixel(dstFormat, dstImage, x + region.dstOffsets[0].x, y + region.dstOffsets[0].y, z + region.dstOffsets[0].z, tmp);
+					}
+				}
+			}
+		}
+	}
+
+private:
+	Image* srcImage;
+	VkImageLayout srcImageLayout;
+	Image* dstImage;
+	VkImageLayout dstImageLayout;
+	std::vector<VkImageBlit> regions;
+	VkFilter filter;
 };
 
 class CopyImageToBufferCommand final : public Command
@@ -398,6 +495,12 @@ void CommandBuffer::CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, Vk
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<CopyImageCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions)));
+}
+
+void CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<BlitImageCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions), filter));
 }
 
 void CommandBuffer::CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions)

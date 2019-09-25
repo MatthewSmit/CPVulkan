@@ -47,5 +47,6 @@ VkResult Device::CreateDescriptorPool(const VkDescriptorPoolCreateInfo* pCreateI
 
 void Device::DestroyDescriptorPool(VkDescriptorPool descriptorPool, const VkAllocationCallbacks* pAllocator)
 {
+	// TODO: Destroying a pool object implicitly frees all objects allocated from that pool. Specifically, destroying VkCommandPool frees all VkCommandBuffer objects that were allocated from it, and destroying VkDescriptorPool frees all VkDescriptorSet objects that were allocated from it.
 	Free(UnwrapVulkan<DescriptorPool>(descriptorPool), pAllocator);
 }

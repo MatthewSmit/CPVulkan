@@ -7,8 +7,8 @@ add_library(SPIRVToLLVM SHARED
 	"Converter.cpp"
 	"Converter.h"
 
-	"GlslFunctions.cpp"
-	"GlslFunctions.h"
+	"SpirvFunctions.cpp"
+	"SpirvFunctions.h"
 
 	"SpirvJit.cpp"
 	)

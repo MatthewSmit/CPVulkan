@@ -17,7 +17,6 @@ VkResult Device::GetPipelineCacheData(VkPipelineCache pipelineCache, size_t* pDa
 VkResult PipelineCache::Create(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
-	assert(pCreateInfo->pNext == nullptr);
 	assert(pCreateInfo->flags == 0);
 
 	const auto pipelineCache = Allocate<PipelineCache>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);

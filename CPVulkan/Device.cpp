@@ -2,6 +2,7 @@
 
 #include "DeviceState.h"
 #include "Extensions.h"
+#include "GlslFunctions.h"
 #include "Instance.h"
 #include "Queue.h"
 #include "Util.h"
@@ -14,6 +15,7 @@ Device::Device() noexcept :
 	state{std::make_unique<DeviceState>()}
 {
 	state->jit = new SpirvJit();
+	AddGlslFunctions(state->jit);
 }
 
 Device::~Device()
@@ -440,7 +442,6 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 void Device::GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQueue)
 {
 	assert(pQueueInfo->sType == VK_STRUCTURE_TYPE_DEVICE_QUEUE_INFO_2);
-	assert(pQueueInfo->pNext == nullptr);
 	assert(pQueueInfo->flags == 1);
 	
 	if (pQueueInfo->queueFamilyIndex != 0)

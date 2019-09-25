@@ -23,12 +23,10 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			switch (descriptorWrite.descriptorType)
 			{
 			case VK_DESCRIPTOR_TYPE_SAMPLER:
-				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 				newBinding.ImageInfo = *descriptorWrite.pImageInfo;
 				break;
-			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE: 
-				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: 
 				FATAL_ERROR();
 			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:

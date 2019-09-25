@@ -40,179 +40,6 @@ struct VertexOutput
 	uint32_t vertexCount;
 };
 
-template<typename Size>
-static void SetPixel(void* data, const FormatInformation& format, uint32_t x, uint32_t y, uint32_t z, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
-{
-	static_assert(std::numeric_limits<Size>::is_integer);
-	static_assert(!std::numeric_limits<Size>::is_signed);
-	
-	if (format.ElementSize != sizeof(Size))
-	{
-		FATAL_ERROR();
-	}
-
-	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
-	const auto stride = width * pixelSize;
-	const auto pane = height * stride;
-
-	auto pixel = reinterpret_cast<Size*>(reinterpret_cast<uint8_t*>(data) +
-		static_cast<uint64_t>(z) * pane +
-		static_cast<uint64_t>(y) * stride +
-		static_cast<uint64_t>(x) * pixelSize);
-
-	if (format.RedOffset != -1) pixel[format.RedOffset] = static_cast<Size>(values[0]);
-	if (format.GreenOffset != -1) pixel[format.GreenOffset] = static_cast<Size>(values[1]);
-	if (format.BlueOffset != -1) pixel[format.BlueOffset] = static_cast<Size>(values[2]);
-	if (format.AlphaOffset != -1) pixel[format.AlphaOffset] = static_cast<Size>(values[3]);
-}
-
-template<typename Size>
-static void SetPackedPixel(void* data, const FormatInformation& format, uint32_t x, uint32_t y, uint32_t z, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
-{
-	static_assert(std::numeric_limits<Size>::is_integer);
-	static_assert(!std::numeric_limits<Size>::is_signed);
-
-	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
-	const auto stride = width * pixelSize;
-	const auto pane = height * stride;
-
-	auto pixel = reinterpret_cast<Size*>(reinterpret_cast<uint8_t*>(data) +
-		static_cast<uint64_t>(z) * pane +
-		static_cast<uint64_t>(y) * stride +
-		static_cast<uint64_t>(x) * pixelSize);
-
-	*pixel = static_cast<Size>(values[0]);
-}
-
-template<typename Size>
-static void GetPixel(void* data, const FormatInformation& format, uint32_t x, uint32_t y, uint32_t z, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
-{
-	static_assert(std::numeric_limits<Size>::is_integer);
-	static_assert(!std::numeric_limits<Size>::is_signed);
-
-	if (format.ElementSize != sizeof(Size))
-	{
-		FATAL_ERROR();
-	}
-
-	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
-	const auto stride = width * pixelSize;
-	const auto pane = height * stride;
-
-	auto pixel = reinterpret_cast<Size*>(reinterpret_cast<uint8_t*>(data) +
-		static_cast<uint64_t>(z) * pane +
-		static_cast<uint64_t>(y) * stride +
-		static_cast<uint64_t>(x) * pixelSize);
-
-	if (format.RedOffset != -1) values[0] = static_cast<uint64_t>(pixel[format.RedOffset]);
-	if (format.GreenOffset != -1) values[1] = static_cast<uint64_t>(pixel[format.GreenOffset]);
-	if (format.BlueOffset != -1) values[2] = static_cast<uint64_t>(pixel[format.BlueOffset]);
-	if (format.AlphaOffset != -1) values[3] = static_cast<uint64_t>(pixel[format.AlphaOffset]);
-}
-
-static void SetPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y, uint32_t z, uint64_t values[4])
-{
-	const auto width = image->getWidth();
-	const auto height = image->getHeight();
-	const auto depth = image->getDepth();
-
-	assert(x < width);
-	assert(y < height);
-	assert(z < depth);
-	
-	switch (format.Base)
-	{
-	case BaseType::UScaled:
-	case BaseType::SScaled:
-		FATAL_ERROR();
-		
-	case BaseType::UFloat:
-	case BaseType::SFloat:
-		FATAL_ERROR();
-		
-	case BaseType::SRGB:
-		FATAL_ERROR();
-	}
-	
-	if (format.ElementSize == 0 && format.TotalSize == 1)
-	{
-		SetPackedPixel<uint8_t>(image->getData(), format, x, y, z, width, height, depth, values);
-	}
-	else if (format.ElementSize == 0 && format.TotalSize == 2)
-	{
-		SetPackedPixel<uint16_t>(image->getData(), format, x, y, z, width, height, depth, values);
-	}
-	else if (format.ElementSize == 0 && format.TotalSize == 4)
-	{
-		SetPackedPixel<uint32_t>(image->getData(), format, x, y, z, width, height, depth, values);
-	}
-	else if (format.ElementSize == 1)
-	{
-		SetPixel<uint8_t>(image->getData(), format, x, y, z, width, height, depth, values);
-	}
-	else if (format.ElementSize == 2)
-	{
-		SetPixel<uint16_t>(image->getData(), format, x, y, z, width, height, depth, values);
-	}
-	else if (format.ElementSize == 4)
-	{
-		SetPixel<uint32_t>(image->getData(), format, x, y, z, width, height, depth, values);
-	}
-	else
-	{
-		FATAL_ERROR();
-	}
-}
-
-template<typename T1, typename T2>
-static void Convert(const uint64_t source[4], T2 destination[4]);
-
-template<>
-void Convert<uint8_t, float>(const uint64_t source[4], float destination[4])
-{
-	destination[0] = static_cast<float>(static_cast<uint8_t>(source[0])) / std::numeric_limits<uint8_t>::max();
-	destination[1] = static_cast<float>(static_cast<uint8_t>(source[1])) / std::numeric_limits<uint8_t>::max();
-	destination[2] = static_cast<float>(static_cast<uint8_t>(source[2])) / std::numeric_limits<uint8_t>::max();
-	destination[3] = static_cast<float>(static_cast<uint8_t>(source[3])) / std::numeric_limits<uint8_t>::max();
-}
-
-template<>
-void Convert<uint16_t, float>(const uint64_t source[4], float destination[4])
-{
-	destination[0] = static_cast<float>(static_cast<uint16_t>(source[0])) / std::numeric_limits<uint16_t>::max();
-	destination[1] = static_cast<float>(static_cast<uint16_t>(source[1])) / std::numeric_limits<uint16_t>::max();
-	destination[2] = static_cast<float>(static_cast<uint16_t>(source[2])) / std::numeric_limits<uint16_t>::max();
-	destination[3] = static_cast<float>(static_cast<uint16_t>(source[3])) / std::numeric_limits<uint16_t>::max();
-}
-
-template<typename T>
-static void GetPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y, uint32_t z, T values[4])
-{
-	if (format.Base == BaseType::UNorm)
-	{
-		if (format.ElementSize == 1)
-		{
-			uint64_t rawValues[4];
-			GetPixel<uint8_t>(image->getData(), format, x, y, z, image->getWidth(), image->getHeight(), image->getDepth(), rawValues);
-			Convert<uint8_t, T>(rawValues, values);
-		}
-		else if (format.ElementSize == 2)
-		{
-			uint64_t rawValues[4];
-			GetPixel<uint16_t>(image->getData(), format, x, y, z, image->getWidth(), image->getHeight(), image->getDepth(), rawValues);
-			Convert<uint16_t, T>(rawValues, values);
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
-	}
-	else
-	{
-		FATAL_ERROR();
-	}
-}
-
 static void ClearImage(Image* image, const FormatInformation& format, uint64_t values[4])
 {
 	for (auto z = 0u; z < image->getDepth(); z++)
@@ -404,108 +231,6 @@ static void GetImageColour(uint64_t output[4], const FormatInformation& format, 
 	}
 }
 
-static glm::vec4 SampleExplicitLod(ImageView* imageView, Sampler* sampler, const glm::vec2& vec, const float lod)
-{
-	if (imageView->getViewType() != VK_IMAGE_VIEW_TYPE_2D)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getSubresourceRange().aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getSubresourceRange().baseMipLevel != 0)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getSubresourceRange().levelCount != 1)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getSubresourceRange().baseArrayLayer != 0)
-	{
-		FATAL_ERROR();
-	}
-
-	if (imageView->getSubresourceRange().layerCount != 1)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getFlags())
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMagFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMinFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getAnisotropyEnable())
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getCompareEnable())
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getUnnormalisedCoordinates())
-	{
-		FATAL_ERROR();
-	}
-
-	if (vec.x < 0 || vec.x > 1 || vec.y < 0 || vec.y > 1)
-	{
-		FATAL_ERROR();
-	}
-
-	const auto& formatInformation = GetFormatInformation(imageView->getFormat());
-
-	const auto x = static_cast<uint32_t>(vec.x * imageView->getImage()->getWidth() + 0.5);
-	const auto y = static_cast<uint32_t>(vec.y * imageView->getImage()->getHeight() + 0.5);
-
-	float values[4];
-	GetPixel(formatInformation, imageView->getImage(), x, y, 0, values);
-	return glm::vec4(values[0], values[1], values[2], values[3]);
-}
-
 static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, const VertexInputState& vertexInputState)
 {
 	for (const auto& bindingDescription : vertexInputState.VertexBindingDescriptions)
@@ -539,19 +264,21 @@ static void LoadVertexInput(uint32_t vertex, const VertexInputState& vertexInput
 	}
 }
 
-static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* module, const std::vector<std::tuple<void*, int, int>>& uniformPointers)
+static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* module, const std::vector<std::tuple<void*, int, int>>& uniformPointers, std::vector<const void*>& pointers)
 {
 	for (const auto& pointer : uniformPointers)
 	{
-		const auto descriptorSet = deviceState->descriptorSets[std::get<1>(pointer)][0];
+		const auto descriptorSet = deviceState->descriptorSets[std::get<2>(pointer)][0];
 		for (const auto& binding : descriptorSet->getBindings())
 		{
-			if (std::get<1>(binding) == std::get<2>(pointer))
+			if (std::get<1>(binding) == std::get<1>(pointer))
 			{
 				switch (std::get<0>(binding))
 				{
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-					FATAL_ERROR();
+					pointers.push_back(&std::get<2>(binding).ImageInfo);
+					*static_cast<const void**>(std::get<0>(pointer)) = &pointers[pointers.size() - 1];
+					break;
 
 				case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 					FATAL_ERROR();
@@ -584,8 +311,13 @@ static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
 	{
 		if (type->getVectorComponentType()->isTypeFloat(32))
 		{
-			if (type->getVectorComponentCount() == 4)
+			switch (type->getVectorComponentCount())
 			{
+			case 2:
+				return VK_FORMAT_R32G32_SFLOAT;
+			case 3:
+				return VK_FORMAT_R32G32B32_SFLOAT;
+			case 4:
 				return VK_FORMAT_R32G32B32A32_SFLOAT;
 			}
 		}
@@ -692,7 +424,8 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 		vertexCount,
 	};
 
-	LoadUniforms(deviceState, module, uniformPointers);
+	std::vector<const void*> pointers{};
+	LoadUniforms(deviceState, module, uniformPointers, pointers);
 		 
 	for (auto i = 0u; i < vertexCount; i++)
 	{
@@ -738,9 +471,24 @@ static auto GetFragmentInput(const std::vector<std::tuple<VkFormat, int>>& verte
 			const auto data2 = vertexData + p2Index * vertexStride + std::get<1>(vertexOutput);
 			switch (std::get<0>(vertexOutput))
 			{
+			case VK_FORMAT_R32G32_SFLOAT:
+				*reinterpret_cast<glm::vec2*>(output + std::get<1>(vertexOutput)) = 
+					*reinterpret_cast<glm::vec2*>(data0) * w0 +
+					*reinterpret_cast<glm::vec2*>(data1) * w1 +
+					*reinterpret_cast<glm::vec2*>(data2) * w2;
+				break;
+				
+			case VK_FORMAT_R32G32B32_SFLOAT:
+				*reinterpret_cast<glm::vec3*>(output + std::get<1>(vertexOutput)) = 
+					*reinterpret_cast<glm::vec3*>(data0) * w0 +
+					*reinterpret_cast<glm::vec3*>(data1) * w1 +
+					*reinterpret_cast<glm::vec3*>(data2) * w2;
+				break;
+
 			case VK_FORMAT_R32G32B32A32_SFLOAT:
-				*reinterpret_cast<glm::vec4*>(output + std::get<1>(vertexOutput)) = *reinterpret_cast<glm::vec4*>(data0) * w0 + 
-					*reinterpret_cast<glm::vec4*>(data1) * w1 + 
+				*reinterpret_cast<glm::vec4*>(output + std::get<1>(vertexOutput)) =
+					*reinterpret_cast<glm::vec4*>(data0) * w0 +
+					*reinterpret_cast<glm::vec4*>(data1) * w1 +
 					*reinterpret_cast<glm::vec4*>(data2) * w2;
 				break;
 				
@@ -825,6 +573,26 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 				break;
 			}
 
+		case StorageClassUniformConstant:
+			{
+				auto bindingDecorate = variable->getDecorate(DecorationBinding);
+				if (bindingDecorate.size() != 1)
+				{
+					FATAL_ERROR();
+				}
+
+				auto setDecorate = variable->getDecorate(DecorationDescriptorSet);
+				if (setDecorate.size() != 1)
+				{
+					FATAL_ERROR();
+				}
+
+				const auto binding = *bindingDecorate.begin();
+				const auto set = *setDecorate.begin();
+				uniformPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_uniformc_" + variable->getName()), binding, set));
+				break;
+			}
+
 		case StorageClassOutput:
 			{
 				auto locations = variable->getDecorate(DecorationLocation);
@@ -845,7 +613,8 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		}
 	}
 
-	LoadUniforms(deviceState, module, uniformPointers);
+	std::vector<const void*> pointers{};
+	LoadUniforms(deviceState, module, uniformPointers, pointers);
 	
 	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_ATTACHMENTS};
 	std::pair<VkAttachmentDescription, Image*> depthImage;
@@ -867,50 +636,6 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	
 	const auto image = images[0].second;
 	const auto halfPixel = glm::vec2(1.0f / image->getWidth(), 1.0f / image->getHeight()) * 0.5f;
-	
-	// std::vector<Variable> outputStorage{MAX_FRAGMENT_ATTACHMENTS};
-	// std::vector<Variable> outputs{MAX_FRAGMENT_ATTACHMENTS};
-	// for (auto i = 0u; i < MAX_FRAGMENT_ATTACHMENTS; i++)
-	// {
-	// 	outputs[i] = Variable(reinterpret_cast<uint8_t*>(&outputStorage[i].f32._14));
-	// }
-	// std::vector<Variable> builtins{};
-	// std::vector<SPIRV::SPIRVType*> inputTypes(1);
-	// std::vector<std::vector<Variable>> vertexOutputs(output.vertexCount);
-	//
-	// for (auto i = 0u; i < module->getNumVariables(); i++)
-	// {
-	// 	const auto variable = module->getVariable(i);
-	// 	if (variable->getStorageClass() == StorageClassInput)
-	// 	{
-	// 		const auto locationDecorate = variable->getDecorate(DecorationLocation);
-	// 		if (locationDecorate.empty())
-	// 		{
-	// 			continue;
-	// 		}
-	//
-	// 		const auto location = *locationDecorate.begin();
-	// 		const auto type = variable->getType()->getPointerElementType();
-	// 		inputTypes[location] = type;
-	//
-	// 		for (auto j = 0u; j < output.vertexCount; j++)
-	// 		{
-	// 			vertexOutputs[j].resize(1);
-	// 			vertexOutputs[j][location] = Variable(output.outputData.get() + j * output.outputStride);
-	// 		}
-	// 	}
-	// }
-	//
-	// ShaderState state
-	// {
-	// 	std::vector<Variable>(128),
-	// 	std::vector<Variable>(inputTypes.size()),
-	// 	LoadUniforms(deviceState, module),
-	// 	&outputs,
-	// 	&builtins
-	// };
-	//
-	// std::vector<Variable> storage(32);
 
 	auto inputData = std::unique_ptr<uint8_t[]>(new uint8_t[output.outputStride]);
 	auto outputData = std::unique_ptr<uint8_t[]>(new uint8_t[MAX_FRAGMENT_ATTACHMENTS * 128]); // TODO: Use real stride

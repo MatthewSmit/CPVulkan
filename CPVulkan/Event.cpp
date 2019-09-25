@@ -30,7 +30,6 @@ VkResult Event::Wait(uint64_t timeout)
 VkResult Event::Create(const VkEventCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkEvent* pEvent)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_EVENT_CREATE_INFO);
-	assert(pCreateInfo->pNext == nullptr);
 	assert(pCreateInfo->flags == 0);
 
 	const auto event = Allocate<Event>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);

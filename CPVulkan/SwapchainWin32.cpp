@@ -67,7 +67,6 @@ void Instance::DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks*
 VkResult Instance::CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR);
-	assert(pCreateInfo->pNext == nullptr);
 	assert(pCreateInfo->flags == 0);
 
 	auto surface = Allocate<VkIcdSurfaceWin32>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);

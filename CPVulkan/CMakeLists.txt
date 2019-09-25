@@ -50,8 +50,14 @@ set(FILES
 		"Framebuffer.cpp"
 		"Framebuffer.h"
 
+		"GlslFunctions.cpp"
+		"GlslFunctions.h"
+
 		"Image.cpp"
 		"Image.h"
+
+		"ImageSampler.cpp"
+		"ImageSampler.h"
 
 		"ImageView.cpp"
 		"ImageView.h"
