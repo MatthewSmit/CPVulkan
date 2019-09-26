@@ -142,15 +142,9 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, const 
 		}
 
 	case OpTypeImage:
-		FATAL_ERROR();
-		break;
-
 	case OpTypeSampler:
-		FATAL_ERROR();
-		break;
-
 	case OpTypeSampledImage:
-		FATAL_ERROR();
+		llvmType = llvm::Type::getInt8PtrTy(state.context);
 		break;
 
 	case OpTypeArray:
@@ -386,7 +380,9 @@ static llvm::GlobalVariable* ConvertVariable(State& state, const SPIRV::SPIRVVar
 	switch (storage)
 	{
 	case StorageClassUniformConstant:
-		FATAL_ERROR();
+		linkage = llvm::GlobalVariable::ExternalLinkage;
+		tlsModel = llvm::GlobalValue::GeneralDynamicTLSModel;
+		name = "_uniformc_" + spirvVariable->getName();
 		break;
 
 	case StorageClassInput:
@@ -471,6 +467,24 @@ static llvm::Value* ConvertValue(State& state, SPIRV::SPIRVValue* spirvValue)
 			llvmValue = state.builder.CreateAlignedLoad(variable, ALIGNMENT);
 			break;
 		}
+
+	case OpConstant:
+		{
+			const auto constant = static_cast<SPIRV::SPIRVConstant*>(spirvValue);
+			if (constant->getType()->isTypeFloat(32))
+			{
+				llvmValue = llvm::ConstantFP::get(llvm::Type::getFloatTy(state.context), constant->getFloatValue());
+			}
+			else if (constant->getType()->isTypeFloat(64))
+			{
+				llvmValue = llvm::ConstantFP::get(llvm::Type::getDoubleTy(state.context), constant->getDoubleValue());
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
+			break;
+		}
 		
 	default:
 		FATAL_ERROR();
@@ -493,18 +507,53 @@ static llvm::Function* GetInbuildFunction(State& state, SPIRV::SPIRVMatrixTimesV
 	}
 
 	llvm::Type* params[3];
-	params[0] = llvm::PointerType::get(ConvertType(state, matrix), 0);
-	params[1] = llvm::PointerType::get(ConvertType(state, vector), 0);
+	params[0] = llvm::PointerType::get(ConvertType(state, vector), 0);
+	params[1] = llvm::PointerType::get(ConvertType(state, matrix), 0);
 	params[2] = llvm::PointerType::get(ConvertType(state, vector), 0);
-	// params[0] = ConvertType(state, matrix);
-	// params[1] = ConvertType(state, vector);
 	
 	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
 	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "_Matrix_Vector_Mult_4_4_F32_Col", state.module);
-	function->addDereferenceableAttr(0, 64);
-	function->addDereferenceableAttr(1, 16);
+	function->addDereferenceableAttr(0, 16);
+	function->addDereferenceableAttr(1, 64);
 	function->addDereferenceableAttr(2, 16);
 	return function;
+}
+
+static llvm::Function* GetInbuildFunction(State& state, SPIRV::SPIRVImageSampleExplicitLod* imageSampleExplicitLod, bool& isLod)
+{
+	// TODO: Cache
+	const auto resultType = imageSampleExplicitLod->getType();
+	const auto coordinateType = imageSampleExplicitLod->getOpValue(1)->getType();
+	const auto operand = imageSampleExplicitLod->getOpWord(2);
+	if (operand == 4)
+	{
+		isLod = false;
+		FATAL_ERROR();
+	}
+
+	if (operand == 2)
+	{
+		isLod = true;
+
+		if (resultType->getVectorComponentCount() != 4 || !resultType->getVectorComponentType()->isTypeFloat(32) || coordinateType->getVectorComponentCount() != 2 || !coordinateType->getVectorComponentType()->isTypeFloat(32))
+		{
+			FATAL_ERROR();
+		}
+
+		llvm::Type* params[4];
+		params[0] = llvm::PointerType::get(ConvertType(state, resultType), 0);
+		params[1] = llvm::Type::getInt8PtrTy(state.context);
+		params[2] = llvm::PointerType::get(ConvertType(state, coordinateType), 0);
+		params[3] = llvm::Type::getFloatTy(state.context);
+
+		const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+		auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "_Image_Sample_4_F32_2_F32_Lod", state.module);
+		function->addDereferenceableAttr(0, 16);
+		function->addDereferenceableAttr(2, 16);
+		return function;
+	}
+
+	FATAL_ERROR();
 }
 
 static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
@@ -530,7 +579,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 		{
 		case OpNop:
 			break;
-			
+
 			// case OpUndef: break;
 			// case OpConstantTrue: break;
 			// case OpConstantFalse: break;
@@ -549,21 +598,21 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpFunctionCall: break;
 			// case OpVariable: break;
 			// case OpImageTexelPointer: break;
-			 
+
 		case OpLoad:
 			{
 				const auto load = reinterpret_cast<SPIRV::SPIRVLoad*>(instruction);
 				llvmValue = state.builder.CreateAlignedLoad(ConvertValue(state, load->getSrc()), ALIGNMENT);
 				break;
 			}
-			
+
 		case OpStore:
 			{
 				const auto store = reinterpret_cast<SPIRV::SPIRVStore*>(instruction);
 				llvmValue = state.builder.CreateAlignedStore(ConvertValue(state, store->getSrc()), ConvertValue(state, store->getDst()), ALIGNMENT);
 				break;
 			}
-			
+
 			// case OpCopyMemory: break;
 			// case OpCopyMemorySized: break;
 		case OpAccessChain:
@@ -586,7 +635,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				}
 				break;
 			}
-			
+
 			// case OpInBoundsAccessChain: break;
 			// case OpPtrAccessChain: break;
 			// case OpArrayLength: break;
@@ -607,7 +656,36 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpTranspose: break;
 			// case OpSampledImage: break;
 			// case OpImageSampleImplicitLod: break;
-			// case OpImageSampleExplicitLod: break;
+
+		case OpImageSampleExplicitLod:
+			{
+				const auto imageSampleExplicitLod = reinterpret_cast<SPIRV::SPIRVImageSampleExplicitLod*>(instruction);
+				bool isLod;
+				auto function = GetInbuildFunction(state, imageSampleExplicitLod, isLod);
+				
+				if (isLod)
+				{
+					llvm::Value* args[4];
+					args[1] = ConvertValue(state, imageSampleExplicitLod->getOpValue(0));
+					args[2] = ConvertValue(state, imageSampleExplicitLod->getOpValue(1));
+					args[3] = ConvertValue(state, imageSampleExplicitLod->getOpValue(3));
+
+					const auto tmp0 = state.builder.CreateAlloca(ConvertType(state, imageSampleExplicitLod->getType()));
+					const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
+					state.builder.CreateStore(args[2], tmp2);
+					args[0] = tmp0;
+					args[2] = tmp2;
+
+					state.builder.CreateCall(function, args);
+					llvmValue = state.builder.CreateLoad(tmp0);
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+				break;
+			}
+			
 			// case OpImageSampleDrefImplicitLod: break;
 			// case OpImageSampleDrefExplicitLod: break;
 			// case OpImageSampleProjImplicitLod: break;
@@ -667,21 +745,21 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			{
 				const auto matrixTimesVector = reinterpret_cast<SPIRV::SPIRVMatrixTimesVector*>(instruction);
 				llvm::Value* args[3];
-				args[0] = ConvertValue(state, matrixTimesVector->getMatrix());
-				args[1] = ConvertValue(state, matrixTimesVector->getVector());
+				args[1] = ConvertValue(state, matrixTimesVector->getMatrix());
+				args[2] = ConvertValue(state, matrixTimesVector->getVector());
 
-				const auto tmp1 = state.builder.CreateAlloca(args[0]->getType());
-				const auto tmp2 = state.builder.CreateAlloca(args[1]->getType());
-				const auto tmp3 = state.builder.CreateAlloca(args[1]->getType());
-				state.builder.CreateStore(args[0], tmp1);
-				state.builder.CreateStore(args[1], tmp2);
+				const auto tmp0 = state.builder.CreateAlloca(args[2]->getType());
+				const auto tmp1 = state.builder.CreateAlloca(args[1]->getType());
+				const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
+				state.builder.CreateStore(args[1], tmp1);
+				state.builder.CreateStore(args[2], tmp2);
 				
-				args[0] = tmp1;
-				args[1] = tmp2;
-				args[2] = tmp3;
+				args[0] = tmp0;
+				args[1] = tmp1;
+				args[2] = tmp2;
 
-				auto call = state.builder.CreateCall(GetInbuildFunction(state, matrixTimesVector), args);
-				llvmValue = state.builder.CreateLoad(tmp3);
+				state.builder.CreateCall(GetInbuildFunction(state, matrixTimesVector), args);
+				llvmValue = state.builder.CreateLoad(tmp0);
 				break;
 			}
 			

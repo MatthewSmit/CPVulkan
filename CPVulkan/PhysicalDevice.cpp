@@ -774,7 +774,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT:
 			FATAL_ERROR();
 		}
-		next = static_cast<VkPhysicalDeviceProperties2*>(next)->pNext;
+		next = static_cast<VkBaseOutStructure*>(next)->pNext;
 	}
 }
 
@@ -793,7 +793,7 @@ void PhysicalDevice::GetFormatProperties2(VkFormat format, VkFormatProperties2* 
 		case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT:
 			FATAL_ERROR();
 		}
-		next = static_cast<VkPhysicalDeviceProperties2*>(next)->pNext;
+		next = static_cast<VkBaseOutStructure*>(next)->pNext;
 	}
 }
 
@@ -862,7 +862,7 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 			case VK_STRUCTURE_TYPE_TEXTURE_LOD_GATHER_FORMAT_PROPERTIES_AMD:
 				FATAL_ERROR();
 			}
-			next = static_cast<VkImageFormatProperties2*>(next)->pNext;
+			next = static_cast<VkBaseOutStructure*>(next)->pNext;
 		}
 	}
 	
@@ -888,7 +888,7 @@ void PhysicalDevice::GetQueueFamilyProperties2(uint32_t* pQueueFamilyPropertyCou
 				case VK_STRUCTURE_TYPE_QUEUE_FAMILY_CHECKPOINT_PROPERTIES_NV:
 					FATAL_ERROR();
 				}
-				next = static_cast<VkQueueFamilyProperties2*>(next)->pNext;
+				next = static_cast<VkBaseOutStructure*>(next)->pNext;
 			}
 		}
 	}
@@ -923,7 +923,7 @@ void PhysicalDevice::GetMemoryProperties2(VkPhysicalDeviceMemoryProperties2* pMe
 				break;
 			}
 		}
-		next = static_cast<VkPhysicalDeviceMemoryProperties2*>(next)->pNext;
+		next = static_cast<VkBaseOutStructure*>(next)->pNext;
 	}
 }
 
@@ -942,31 +942,7 @@ void PhysicalDevice::GetSparseImageFormatProperties2(const VkPhysicalDeviceSpars
 			const auto tiling = pFormatInfo->tiling;
 			const auto usage = pFormatInfo->usage;
 
-			{
-				auto next = pFormatInfo->pNext;
-				while (next)
-				{
-					const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-					switch (type)
-					{
-					}
-					next = static_cast<const VkBaseInStructure*>(next)->pNext;
-				}
-			}
-			
 			GetSparseImageFormatPropertiesImpl(format, formatType, samples, usage, tiling, pPropertyCount, &pProperties->properties);
-
-			{
-				auto next = pProperties->pNext;
-				while (next)
-				{
-					const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-					switch (type)
-					{
-					}
-					next = static_cast<VkSparseImageFormatProperties2*>(next)->pNext;
-				}
-			}
 		}
 	}
 	else

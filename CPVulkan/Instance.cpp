@@ -61,7 +61,6 @@ VkResult Instance::EnumeratePhysicalDeviceGroups(uint32_t* pPhysicalDeviceGroupC
 		}
 
 		assert(pPhysicalDeviceGroupProperties[0].sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GROUP_PROPERTIES);
-		assert(pPhysicalDeviceGroupProperties[0].pNext == nullptr);
 		pPhysicalDeviceGroupProperties[0].physicalDeviceCount = 1;
 		WrapVulkan(physicalDevice, pPhysicalDeviceGroupProperties[0].physicalDevices);
 		pPhysicalDeviceGroupProperties[0].subsetAllocation = false;

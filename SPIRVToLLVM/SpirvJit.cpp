@@ -1,6 +1,6 @@
 #include "Converter.h"
 
-#include "GlslFunctions.h"
+#include "SpirvFunctions.h"
 
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 
@@ -20,6 +20,8 @@ inline void strcpy_s(char* destination, const char* source)
 }
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
+
+static std::unordered_map<std::string, void*> functions{}; // TODO: Attach to SpirvJit
 
 class SpirvCompiledModule
 {
@@ -44,12 +46,27 @@ static llvm::orc::SymbolNameSet GetSpirvFunctions(llvm::orc::JITDylib& parent, c
 		}
 		
 		std::string tmp((*name).data(), (*name).size());
-		const auto function = getGlslFunctions().find(tmp);
-		if (function != getGlslFunctions().end())
+		auto functionPtr = functions.find(tmp);
+		void* function;
+		if (functionPtr != functions.end())
 		{
-			addedSymbols.insert(name);
-			newSymbols[name] = llvm::JITEvaluatedSymbol(static_cast<llvm::JITTargetAddress>(reinterpret_cast<uintptr_t>(function->second)), llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+			function = functionPtr->second;
 		}
+		else
+		{
+			functionPtr = getSpirvFunctions().find(tmp);
+			if (functionPtr != getSpirvFunctions().end())
+			{
+				function = functionPtr->second;
+			}
+			else
+			{
+				continue;
+			}
+		}
+		
+		addedSymbols.insert(name);
+		newSymbols[name] = llvm::JITEvaluatedSymbol(static_cast<llvm::JITTargetAddress>(reinterpret_cast<uintptr_t>(function)), llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
 	}
 
 	// Add any new symbols to parent. Since the generator is only called for symbols
@@ -162,3 +179,8 @@ SpirvCompiledModule::SpirvCompiledModule(llvm::Module* module, llvm::orc::Thread
 }
 
 SpirvCompiledModule::~SpirvCompiledModule() = default;
+
+void __declspec(dllexport) AddSpirvFunction(const std::string& name, void* pointer)
+{
+	functions.insert(std::make_pair(name, pointer));
+}

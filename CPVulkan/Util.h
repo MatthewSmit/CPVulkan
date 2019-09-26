@@ -12,7 +12,7 @@ struct DeviceMemory
 
 	gsl::span<uint8_t> getSpan() noexcept
 	{
-		return gsl::span<uint8_t>{Data, gsl::span<uint8_t>::index_type{Size}};
+		return gsl::span<uint8_t>{Data, gsl::span<uint8_t>::index_type{ Size }};
 	}
 };
 
