@@ -3,7 +3,8 @@
 if(WIN32)
     add_compile_options("/std:c++latest")
 else()
-    add_compile_options("-std=c++2a")
+    #add_compile_options("-std=c++2a")
+    add_compile_options("-std=c++17")
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")
 endif()
 

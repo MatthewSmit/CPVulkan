@@ -1,6 +1,8 @@
 #pragma once
 #include "spirv.hpp"
 
+#include "Helper.h"
+
 #include <memory>
 #include <string>
 
@@ -17,7 +19,7 @@ namespace SPIRV
 
 class SpirvCompiledModule;
 
-class __declspec(dllexport) SpirvJit
+class DLL_EXPORT SpirvJit
 {
 public:
 	using FunctionPointer = void (*)();
