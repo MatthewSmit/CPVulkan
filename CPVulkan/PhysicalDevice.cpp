@@ -354,19 +354,42 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ASTC_DECODE_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceASTCDecodeFeaturesEXT*>(next);
+				features->decodeModeSharedExponent = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT*>(next);
+				features->advancedBlendCoherentOperations = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceBufferDeviceAddressFeaturesEXT*>(next);
+				features->bufferDeviceAddress = true;
+				features->bufferDeviceAddressCaptureReplay = false;
+				features->bufferDeviceAddressMultiDevice = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceCoherentMemoryFeaturesAMD*>(next);
+				features->deviceCoherentMemory = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_SHADER_DERIVATIVES_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceComputeShaderDerivativesFeaturesNV*>(next);
+				features->computeDerivativeGroupQuads = true;
+				features->computeDerivativeGroupLinear = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONDITIONAL_RENDERING_FEATURES_EXT:
 			{
@@ -377,19 +400,40 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceCooperativeMatrixFeaturesNV*>(next);
+				features->cooperativeMatrix = true;
+				features->cooperativeMatrixRobustBufferAccess = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CORNER_SAMPLED_IMAGE_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceCornerSampledImageFeaturesNV*>(next);
+				features->cornerSampledImage = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COVERAGE_REDUCTION_MODE_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceCoverageReductionModeFeaturesNV*>(next);
+				features->coverageReductionMode = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEDICATED_ALLOCATION_IMAGE_ALIASING_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV*>(next);
+				features->dedicatedAllocationImageAliasing = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceDepthClipEnableFeaturesEXT*>(next);
+				features->depthClipEnable = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT:
 			{
@@ -418,19 +462,43 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXCLUSIVE_SCISSOR_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceExclusiveScissorFeaturesNV*>(next);
+				features->exclusiveScissor = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceFragmentDensityMapFeaturesEXT*>(next);
+				features->fragmentDensityMap = true;
+				features->fragmentDensityMapDynamic = true;
+				features->fragmentDensityMapNonSubsampledImages = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV*>(next);
+				features->fragmentShaderBarycentric = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT*>(next);
+				features->fragmentShaderPixelInterlock = true;
+				features->fragmentShaderSampleInterlock = true;
+				features->fragmentShaderShadingRateInterlock = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceHostQueryResetFeaturesEXT*>(next);
+				features->hostQueryReset = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES_KHR:
 			{
@@ -440,7 +508,11 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceIndexTypeUint8FeaturesEXT*>(next);
+				features->indexTypeUint8 = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT:
 			{
@@ -451,13 +523,31 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceLineRasterizationFeaturesEXT*>(next);
+				features->rectangularLines = true;
+				features->bresenhamLines = true;
+				features->smoothLines = true;
+				features->stippledRectangularLines = true;
+				features->stippledBresenhamLines = true;
+				features->stippledSmoothLines = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceMemoryPriorityFeaturesEXT*>(next);
+				features->memoryPriority = false;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceMeshShaderFeaturesNV*>(next);
+				features->meshShader = true;
+				features->taskShader = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES:
 			{
@@ -483,7 +573,11 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_REPRESENTATIVE_FRAGMENT_TEST_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV*>(next);
+				features->representativeFragmentTest = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES:
 			{
@@ -508,7 +602,11 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT*>(next);
+				features->shaderDemoteToHelperInvocation = true;
+				break;
+			}
 			
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES:
 			{
@@ -526,28 +624,63 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_FOOTPRINT_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceShaderImageFootprintFeaturesNV*>(next);
+				features->imageFootprint = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_FUNCTIONS_2_FEATURES_INTEL:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceShaderIntegerFunctions2FeaturesINTEL*>(next);
+				features->shaderIntegerFunctions2 = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SM_BUILTINS_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceShaderSMBuiltinsFeaturesNV*>(next);
+				features->shaderSMBuiltins = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_FEATURES_NV:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceShadingRateImageFeaturesNV*>(next);
+				features->shadingRateImage = true;
+				features->shadingRateCoarseSampleOrder = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceSubgroupSizeControlFeaturesEXT*>(next);
+				features->computeFullSubgroups = true;
+				features->subgroupSizeControl = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceTexelBufferAlignmentFeaturesEXT*>(next);
+				features->texelBufferAlignment = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXTURE_COMPRESSION_ASTC_HDR_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT*>(next);
+				features->textureCompressionASTC_HDR = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceTransformFeedbackFeaturesEXT*>(next);
+				features->transformFeedback = true;
+				features->geometryStreams = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES_KHR:
 			{
@@ -565,7 +698,12 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT*>(next);
+				features->vertexAttributeInstanceRateDivisor = true;
+				features->vertexAttributeInstanceRateZeroDivisor = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR:
 			{
@@ -577,7 +715,11 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_YCBCR_IMAGE_ARRAYS_FEATURES_EXT:
-			FATAL_ERROR();
+			{
+				const auto features = static_cast<VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
+				features->samplerYcbcrConversion = true;
+				break;
+			}
 		}
 		next = static_cast<VkPhysicalDeviceFeatures2*>(next)->pNext;
 	}

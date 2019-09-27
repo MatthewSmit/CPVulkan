@@ -361,6 +361,7 @@ static llvm::GlobalVariable* ConvertVariable(State& state, const SPIRV::SPIRVVar
 		case DecorationBinding:
 		case DecorationDescriptorSet:
 		case DecorationLocation:
+		case DecorationRelaxedPrecision:
 			break;
 			
 		default:
@@ -485,6 +486,26 @@ static llvm::Value* ConvertValue(State& state, SPIRV::SPIRVValue* spirvValue)
 			}
 			break;
 		}
+
+	case OpConstantComposite:
+		{
+			const auto constantComposite = static_cast<SPIRV::SPIRVConstantComposite*>(spirvValue);
+			if (constantComposite->getType()->isTypeVector())
+			{
+				auto elements = constantComposite->getElements();
+				std::vector<llvm::Constant*> values(elements.size());
+				for (auto i = 0u; i < elements.size(); i++)
+				{
+					values[i] = static_cast<llvm::Constant*>(ConvertValue(state, elements[i]));
+				}
+				llvmValue = llvm::ConstantVector::get(values);
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
+			break;
+		}
 		
 	default:
 		FATAL_ERROR();
@@ -512,10 +533,40 @@ static llvm::Function* GetInbuildFunction(State& state, SPIRV::SPIRVMatrixTimesV
 	params[2] = llvm::PointerType::get(ConvertType(state, vector), 0);
 	
 	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
-	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "_Matrix_Vector_Mult_4_4_F32_Col", state.module);
+	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "_Matrix_4_4_F32_Col_Mult_Vector_4_F32", state.module);
 	function->addDereferenceableAttr(0, 16);
 	function->addDereferenceableAttr(1, 64);
 	function->addDereferenceableAttr(2, 16);
+	return function;
+}
+
+static llvm::Function* GetInbuildFunction(State& state, SPIRV::SPIRVMatrixTimesMatrix* matrixTimesMatrix)
+{
+	// TODO: Cache
+	// TODO: Detect row/column major
+	const auto left = matrixTimesMatrix->getMatrixLeft()->getType();
+	const auto right = matrixTimesMatrix->getMatrixRight()->getType();
+
+	if (left->getMatrixColumnCount() != 4 || left->getMatrixRowCount() != 4 || !left->getMatrixComponentType()->isTypeFloat(32))
+	{
+		FATAL_ERROR();
+	}
+
+	if (right->getMatrixColumnCount() != 4 || right->getMatrixRowCount() != 4 || !right->getMatrixComponentType()->isTypeFloat(32))
+	{
+		FATAL_ERROR();
+	}
+
+	llvm::Type* params[3];
+	params[0] = llvm::PointerType::get(ConvertType(state, left), 0);
+	params[1] = llvm::PointerType::get(ConvertType(state, left), 0);
+	params[2] = llvm::PointerType::get(ConvertType(state, right), 0);
+	
+	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "_Matrix_4_4_F32_Col_Mult_Matrix_4_4_F32_Col", state.module);
+	function->addDereferenceableAttr(0, 64);
+	function->addDereferenceableAttr(1, 64);
+	function->addDereferenceableAttr(2, 64);
 	return function;
 }
 
@@ -615,6 +666,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 
 			// case OpCopyMemory: break;
 			// case OpCopyMemorySized: break;
+			 
 		case OpAccessChain:
 			{
 				const auto accessChain = reinterpret_cast<SPIRV::SPIRVAccessChain*>(instruction);
@@ -649,8 +701,50 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpVectorExtractDynamic: break;
 			// case OpVectorInsertDynamic: break;
 			// case OpVectorShuffle: break;
-			// case OpCompositeConstruct: break;
-			// case OpCompositeExtract: break;
+			 
+		case OpCompositeConstruct:
+			{
+				const auto compositeConstruct = reinterpret_cast<SPIRV::SPIRVCompositeConstruct*>(instruction);
+				const auto type = compositeConstruct->getType();
+				if (type->isTypeVector())
+				{
+					llvmValue = llvm::UndefValue::get(ConvertType(state, type));
+					for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
+					{
+						llvmValue = state.builder.CreateInsertElement(llvmValue, ConvertValue(state, compositeConstruct->getConstituents()[j]), j);
+					}
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+				
+				break;
+			}
+			 
+		case OpCompositeExtract:
+			{
+				const auto compositeExtract = reinterpret_cast<SPIRV::SPIRVCompositeExtract*>(instruction);
+				llvmValue = ConvertValue(state, compositeExtract->getComposite());
+				auto type = compositeExtract->getComposite()->getType();
+				auto indices = compositeExtract->getIndices();
+
+				for (auto index : indices)
+				{
+					if (type->isTypeVector())
+					{
+						llvmValue = state.builder.CreateExtractElement(llvmValue, index);
+						type = type->getVectorComponentType();
+					}
+					else
+					{
+						FATAL_ERROR();
+					}
+				}
+				
+				break;
+			}
+			
 			// case OpCompositeInsert: break;
 			// case OpCopyObject: break;
 			// case OpTranspose: break;
@@ -661,7 +755,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			{
 				const auto imageSampleExplicitLod = reinterpret_cast<SPIRV::SPIRVImageSampleExplicitLod*>(instruction);
 				bool isLod;
-				auto function = GetInbuildFunction(state, imageSampleExplicitLod, isLod);
+				const auto function = GetInbuildFunction(state, imageSampleExplicitLod, isLod);
 				
 				if (isLod)
 				{
@@ -759,6 +853,28 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				args[2] = tmp2;
 
 				state.builder.CreateCall(GetInbuildFunction(state, matrixTimesVector), args);
+				llvmValue = state.builder.CreateLoad(tmp0);
+				break;
+			}
+			 
+		case OpMatrixTimesMatrix:
+			{
+				const auto matrixTimesMatrix = reinterpret_cast<SPIRV::SPIRVMatrixTimesMatrix*>(instruction);
+				llvm::Value* args[3];
+				args[1] = ConvertValue(state, matrixTimesMatrix->getMatrixLeft());
+				args[2] = ConvertValue(state, matrixTimesMatrix->getMatrixRight());
+
+				const auto tmp0 = state.builder.CreateAlloca(args[1]->getType());
+				const auto tmp1 = state.builder.CreateAlloca(args[1]->getType());
+				const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
+				state.builder.CreateStore(args[1], tmp1);
+				state.builder.CreateStore(args[2], tmp2);
+				
+				args[0] = tmp0;
+				args[1] = tmp1;
+				args[2] = tmp2;
+
+				state.builder.CreateCall(GetInbuildFunction(state, matrixTimesMatrix), args);
 				llvmValue = state.builder.CreateLoad(tmp0);
 				break;
 			}

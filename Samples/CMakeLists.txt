@@ -30,37 +30,37 @@ add_executable(CPVulkanSamples
 	#"12-init_frame_buffers/12-init_frame_buffers.cpp"
 	#"13-init_vertex_buffer/13-init_vertex_buffer.cpp"
 	#"14-init_pipeline/14-init_pipeline.cpp"
-	#"15-draw_cube/15-draw_cube.cpp"
+	"15-draw_cube/15-draw_cube.cpp"
 	#"16-vulkan_1_1/16-vulkan_1_1.cpp"
-	"copy_blit_image/copy_blit_image.cpp"
+	#"copy_blit_image/copy_blit_image.cpp"
 	#"create_debug_report_callback/create_debug_report_callback.cpp"
-	##"draw_subpasses/draw_subpasses.cpp"
+	##"draw_subpasses/draw_subpasses.cpp"												#SPIRV gl_VertexIndex
 	#"draw_textured_cube/draw_textured_cube.cpp"
-	##"dynamic_uniform/dynamic_uniform.cpp"
-	##"enable_validation_with_callback/enable_validation_with_callback.cpp"
+	##"dynamic_uniform/dynamic_uniform.cpp"												#BindDescriptorSetsCommand - dynamicOffsets
+	##"enable_validation_with_callback/enable_validation_with_callback.cpp"				#vkCreateDebugReportCallback
 	#"enumerate_devices_adv/enumerate_devices_adv.cpp"
 	#"events/events.cpp"
-	##"immutable_sampler/immutable_sampler.cpp"
+	##"immutable_sampler/immutable_sampler.cpp"											#DescriptorSet Create - pImmutableSamplers
 	#"init_texture/init_texture.cpp"
-	##"input_attachment/input_attachment.cpp" #SPIRV OpSMod
+	##"input_attachment/input_attachment.cpp"											#SPIRV OpSMod
 	#"instance_extension_properties/instance_extension_properties.cpp"
 	#"instance_layer_extension_properties/instance_layer_extension_properties.cpp"
 	#"instance_layer_properties/instance_layer_properties.cpp"
-	##"memory_barriers/memory_barriers.cpp"
-	##"multiple_sets/multiple_sets.cpp"
-	##"multithreaded_command_buffers/multithreaded_command_buffers.cpp"
-	##"occlusion_query/occlusion_query.cpp"
-	##"pipeline_cache/pipeline_cache.cpp"
-	##"pipeline_derivative/pipeline_derivative.cpp"
-	##"push_constants/push_constants.cpp"
-	##"push_descriptors/push_descriptors.cpp"
+	##"memory_barriers/memory_barriers.cpp"												#Multilayer clearing
+	##"multiple_sets/multiple_sets.cpp"													#SPIRV - ConvertValue - Composite constants
+	##multithreaded_command_buffers/multithreaded_command_buffers.cpp"					#ClearColourImageCommand - imagelayer > 1
+	##"occlusion_query/occlusion_query.cpp"												#vkResetQueryPool
+	##"pipeline_cache/pipeline_cache.cpp"												#PipelineCache::GetData
+	##"pipeline_derivative/pipeline_derivative.cpp"										#Pipeline::Create flags
+	##"push_constants/push_constants.cpp"												#vkCmdPushConstants
+	##"push_descriptors/push_descriptors.cpp"											#DescriptorSetLayout::Create flags
 	#"secondary_command_buffer/secondary_command_buffer.cpp"
-	##"separate_image_sampler/separate_image_sampler.cpp"
-	##"spirv_assembly/spirv_assembly.cpp"
-	##"spirv_specialization/spirv_specialization.cpp"
-	##"template/template.cpp"
-	##"texel_buffer/texel_buffer.cpp"
-	##"validation_cache/validation_cache.cpp"
+	##"separate_image_sampler/separate_image_sampler.cpp"								#SPIRV Function Variables
+	##"spirv_assembly/spirv_assembly.cpp"												#spirv-tools/libspirv.h
+	##"spirv_specialization/spirv_specialization.cpp"									#spirv-tools/libspirv.h
+	#"template/template.cpp"
+	##"texel_buffer/texel_buffer.cpp"													#SPIRV Opcode 100
+	##"validation_cache/validation_cache.cpp"											#VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT
 	#"vulkan_1_1_flexible/vulkan_1_1_flexible.cpp"
 	
 	"utils/util.cpp"

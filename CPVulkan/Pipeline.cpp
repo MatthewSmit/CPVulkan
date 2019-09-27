@@ -55,7 +55,6 @@ static VertexInputState Parse(const VkPipelineVertexInputStateCreateInfo* pVerte
 static InputAssemblyState Parse(const VkPipelineInputAssemblyStateCreateInfo* pInputAssemblyState)
 {
 	assert(pInputAssemblyState->sType == VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO);
-	assert(pInputAssemblyState->pNext == nullptr);
 
 	if (pInputAssemblyState->flags)
 	{
@@ -73,10 +72,7 @@ static TessellationState Parse(const VkPipelineTessellationStateCreateInfo* pTes
 {
 	if (pTessellationState == nullptr)
 	{
-		return TessellationState
-		{
-			0
-		};
+		return TessellationState{};
 	}
 	
 	assert(pTessellationState->sType == VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_STATE_CREATE_INFO);
@@ -240,7 +236,6 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 static DepthStencilState Parse(const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState)
 {
 	assert(pDepthStencilState->sType == VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
-	assert(pDepthStencilState->pNext == nullptr);
 
 	if (pDepthStencilState->flags)
 	{
@@ -263,6 +258,11 @@ static DepthStencilState Parse(const VkPipelineDepthStencilStateCreateInfo* pDep
 
 static ColourBlendState Parse(const VkPipelineColorBlendStateCreateInfo* pColorBlendState)
 {
+	if (!pColorBlendState)
+	{
+		return {};
+	}
+	
 	assert(pColorBlendState->sType == VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO);
 
 	auto next = pColorBlendState->pNext;

@@ -436,8 +436,14 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 		*static_cast<void**>(builtinInputPointer) = &builtinInput;
 		*static_cast<void**>(builtinOutputPointer) = &output.builtinData[i];
 
-		assert(outputPointers.size() == 1);
-		*static_cast<void**>(std::get<0>(outputPointers[0])) = output.outputData.get() + i * output.outputStride;
+		for (auto j = 0; j < outputPointers.size(); j++)
+		{
+			if (j != 0)
+			{
+				FATAL_ERROR();
+			}
+			*static_cast<void**>(std::get<0>(outputPointers[j])) = output.outputData.get() + i * output.outputStride;
+		}
 
 		LoadVertexInput(i, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputPointers);
 

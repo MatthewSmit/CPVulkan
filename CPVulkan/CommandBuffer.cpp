@@ -16,6 +16,32 @@
 
 #include <iostream>
 
+class CopyBufferCommand final : public Command
+{
+public:
+	CopyBufferCommand(Buffer* srcBuffer, Buffer* dstBuffer, std::vector<VkBufferCopy> regions):
+		srcBuffer{srcBuffer},
+		dstBuffer{dstBuffer},
+		regions{std::move(regions)}
+	{
+	}
+
+	void Process(DeviceState*) override
+	{
+		for (const auto& region : regions)
+		{
+			const auto srcSpan = srcBuffer->getData(region.srcOffset, region.size);
+			const auto dstSpan = dstBuffer->getData(region.dstOffset, region.size);
+			memcpy(dstSpan.data(), srcSpan.data(), region.size);
+		}
+	}
+
+private:
+	Buffer* srcBuffer;
+	Buffer* dstBuffer;
+	std::vector<VkBufferCopy> regions;
+};
+
 class CopyImageCommand final : public Command
 {
 public:
@@ -489,6 +515,12 @@ VkResult CommandBuffer::Reset(VkCommandBufferResetFlags flags)
 	ForceReset();
 
 	return VK_SUCCESS;
+}
+
+void CommandBuffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferCopy* pRegions)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<CopyBufferCommand>(UnwrapVulkan<Buffer>(srcBuffer), UnwrapVulkan<Buffer>(dstBuffer), ArrayToVector(regionCount, pRegions)));
 }
 
 void CommandBuffer::CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageCopy* pRegions)

@@ -255,7 +255,7 @@ static constexpr FormatInformation formatInformation[]
 	MakeFormatInformation(VK_FORMAT_S8_UINT, FormatType::Normal, 1),
 	MakeFormatInformation(VK_FORMAT_D16_UNORM_S8_UINT, FormatType::Normal),
 	MakeFormatInformation(VK_FORMAT_D24_UNORM_S8_UINT, FormatType::Normal),
-	MakeFormatInformation(VK_FORMAT_D32_SFLOAT_S8_UINT, FormatType::Normal),
+	MakeFormatInformation(VK_FORMAT_D32_SFLOAT_S8_UINT, FormatType::Normal, 8, 4, BaseType::SFloat, 0, 4, -1, -1),
 	MakeFormatInformation(VK_FORMAT_BC1_RGB_UNORM_BLOCK, FormatType::Compressed),
 	MakeFormatInformation(VK_FORMAT_BC1_RGB_SRGB_BLOCK, FormatType::Compressed),
 	MakeFormatInformation(VK_FORMAT_BC1_RGBA_UNORM_BLOCK, FormatType::Compressed),

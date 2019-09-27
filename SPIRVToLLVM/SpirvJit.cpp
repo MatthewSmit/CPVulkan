@@ -91,6 +91,7 @@ public:
 	{
 		// TODO: Only setOverrideObjectFlagsWithResponsibilityFlags on windows
 		objectLayer.setOverrideObjectFlagsWithResponsibilityFlags(true);
+		objectLayer.setAutoClaimResponsibilityForObjectSymbols(true);
 	}
 
 	SpirvCompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
