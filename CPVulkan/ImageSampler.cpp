@@ -87,9 +87,12 @@ void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input
 	case BaseType::UNorm:
 		switch (format.ElementSize)
 		{
-		case 1:
-			ConvertPixelsFromTemp<uint8_t, OutputType>(input, output);
-			return;
+            case 1:
+                ConvertPixelsFromTemp<uint8_t, OutputType>(input, output);
+                return;
+            case 2:
+                ConvertPixelsFromTemp<uint16_t, OutputType>(input, output);
+                return;
 		}
 		break;
 

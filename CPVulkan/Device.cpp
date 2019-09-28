@@ -870,6 +870,7 @@ void Device::ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t
 	FATAL_ERROR();
 }
 
+#if defined(VK_KHR_external_memory_win32)
 VkResult Device::GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle)
 {
 	FATAL_ERROR();
@@ -879,11 +880,14 @@ VkResult Device::GetMemoryWin32HandleProperties(VkExternalMemoryHandleTypeFlagBi
 {
 	FATAL_ERROR();
 }
+#endif
 
+#if defined(VK_NV_external_memory_win32)
 VkResult Device::GetMemoryWin32HandleNV(VkDeviceMemory memory, VkExternalMemoryHandleTypeFlagsNV handleType, HANDLE* pHandle)
 {
 	FATAL_ERROR();
 }
+#endif
 
 VkResult Device::AcquireFullScreenExclusiveMode(VkSwapchainKHR swapchain)
 {

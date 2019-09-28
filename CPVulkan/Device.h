@@ -196,22 +196,28 @@ public:
 
 	VKAPI_ATTR void VKAPI_PTR ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount);
 
-#if defined(VK_USE_PLATFORM_WIN32_KHR)
+#if defined(VK_KHR_external_memory_win32)
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle);
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandleProperties(VkExternalMemoryHandleTypeFlagBits handleType, HANDLE handle, VkMemoryWin32HandlePropertiesKHR* pMemoryWin32HandleProperties);
-								  
+#endif
+
+#if defined(VK_KHR_external_semaphore_win32)
 	VKAPI_ATTR VkResult VKAPI_PTR ImportSemaphoreWin32Handle(const VkImportSemaphoreWin32HandleInfoKHR* pImportSemaphoreWin32HandleInfo);
 	VKAPI_ATTR VkResult VKAPI_PTR GetSemaphoreWin32Handle(const VkSemaphoreGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle);
-								  
+#endif
+
+#if defined(VK_KHR_external_fence_win32)
 	VKAPI_ATTR VkResult VKAPI_PTR ImportFenceWin32Handle(const VkImportFenceWin32HandleInfoKHR* pImportFenceWin32HandleInfo);
 	VKAPI_ATTR VkResult VKAPI_PTR GetFenceWin32Handle(const VkFenceGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle);
-								  
+#endif
+
+#if defined(VK_NV_external_memory_win32)
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandleNV(VkDeviceMemory memory, VkExternalMemoryHandleTypeFlagsNV handleType, HANDLE* pHandle);
+#endif
 								  
 	VKAPI_ATTR VkResult VKAPI_PTR AcquireFullScreenExclusiveMode(VkSwapchainKHR swapchain);
 	VKAPI_ATTR VkResult VKAPI_PTR ReleaseFullScreenExclusiveMode(VkSwapchainKHR swapchain);
 	VKAPI_ATTR VkResult VKAPI_PTR GetDeviceGroupSurfacePresentModes2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkDeviceGroupPresentModeFlagsKHR* pModes);
-#endif
 
 	static VkResult Create(const Instance* instance, const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice);
 

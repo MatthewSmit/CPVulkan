@@ -21,7 +21,7 @@ inline void strcpy_s(char* destination, const char* source)
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
-static std::unordered_map<std::string, void*> functions{}; // TODO: Attach to SpirvJit
+static std::unordered_map<std::string, FunctionPointer> functions{}; // TODO: Attach to SpirvJit
 
 class SpirvCompiledModule
 {
@@ -47,7 +47,7 @@ static llvm::orc::SymbolNameSet GetSpirvFunctions(llvm::orc::JITDylib& parent, c
 		
 		std::string tmp((*name).data(), (*name).size());
 		auto functionPtr = functions.find(tmp);
-		void* function;
+        FunctionPointer function;
 		if (functionPtr != functions.end())
 		{
 			function = functionPtr->second;
@@ -167,7 +167,7 @@ void* SpirvJit::getPointer(SpirvCompiledModule* module, const std::string& name)
 	return impl->getPointer(module, name);
 }
 
-SpirvJit::FunctionPointer SpirvJit::getFunctionPointer(SpirvCompiledModule* module, const std::string& name)
+FunctionPointer SpirvJit::getFunctionPointer(SpirvCompiledModule* module, const std::string& name)
 {
 	return reinterpret_cast<FunctionPointer>(getPointer(module, name));
 }
@@ -181,7 +181,7 @@ SpirvCompiledModule::SpirvCompiledModule(llvm::Module* module, llvm::orc::Thread
 
 SpirvCompiledModule::~SpirvCompiledModule() = default;
 
-void __declspec(dllexport) AddSpirvFunction(const std::string& name, void* pointer)
+void DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer)
 {
 	functions.insert(std::make_pair(name, pointer));
 }
