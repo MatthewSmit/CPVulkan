@@ -48,8 +48,13 @@ namespace SPIRV
 {
 	SPIRVType* SPIRVType::getArrayElementType() const
 	{
+		if (OpCode == OpTypeRuntimeArray)
+		{
+			return static_cast<const SPIRVTypeRuntimeArray*>(this)->getElementType();
+		}
+		
 		assert(OpCode == OpTypeArray && "Not array type");
-		return static_cast<const SPIRVTypeArray *>(this)->getElementType();
+		return static_cast<const SPIRVTypeArray*>(this)->getElementType();
 	}
 
 	uint64_t SPIRVType::getArrayLength() const
@@ -57,7 +62,7 @@ namespace SPIRV
 		assert(OpCode == OpTypeArray && "Not array type");
 		return static_cast<const SPIRVTypeArray *>(this)
 		       ->getLength()
-		       ->getZExtIntValue();
+		       ->getInt64Value();
 	}
 
 	SPIRVWord SPIRVType::getBitWidth() const
@@ -169,8 +174,7 @@ namespace SPIRV
 
 	bool SPIRVType::isTypeOCLImage() const
 	{
-		return isTypeImage() &&
-			static_cast<const SPIRVTypeImage *>(this)->isOCLImage();
+		return isTypeImage() && static_cast<const SPIRVTypeImage*>(this)->isOCLImage();
 	}
 
 	bool SPIRVType::isTypePipe() const { return OpCode == OpTypePipe; }
@@ -270,11 +274,12 @@ namespace SPIRV
 		SPIRVTypeArray::validate();
 	}
 
-	void SPIRVTypeArray::validate() const {
+	void SPIRVTypeArray::validate() const
+	{
 		SPIRVEntry::validate();
 		ElemType->validate();
 		assert(getValue(Length)->getType()->isTypeInt() &&
-			get<SPIRVConstant>(Length)->getZExtIntValue() > 0);
+			get<SPIRVConstant>(Length)->getInt64Value() > 0);
 	}
 
 	SPIRVConstant* SPIRVTypeArray::getLength() const

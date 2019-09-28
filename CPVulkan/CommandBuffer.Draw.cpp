@@ -7,10 +7,10 @@
 #include "Formats.h"
 #include "Framebuffer.h"
 #include "Image.h"
+#include "ImageSampler.h"
 #include "ImageView.h"
 #include "Pipeline.h"
 #include "RenderPass.h"
-#include "Sampler.h"
 #include "Util.h"
 
 #include <Converter.h>
@@ -426,14 +426,17 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 
 	std::vector<const void*> pointers{};
 	LoadUniforms(deviceState, module, uniformPointers, pointers);
-		 
+
+	struct
+	{
+		int32_t vertexIndex;
+		int32_t instanceIndex;
+	} builtinInput{};
+	*static_cast<void**>(builtinInputPointer) = &builtinInput;
+	
 	for (auto i = 0u; i < vertexCount; i++)
 	{
-		struct
-		{
-		} builtinInput;
-
-		*static_cast<void**>(builtinInputPointer) = &builtinInput;
+		builtinInput.vertexIndex = i;
 		*static_cast<void**>(builtinOutputPointer) = &output.builtinData[i];
 
 		for (auto j = 0; j < outputPointers.size(); j++)

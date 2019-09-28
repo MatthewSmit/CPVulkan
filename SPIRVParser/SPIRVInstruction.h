@@ -366,7 +366,7 @@ namespace SPIRV
 			if (!hasExecScope())
 				return ScopeInvocation;
 			return static_cast<Scope>(
-				static_cast<SPIRVConstant *>(getValue(Ops[0]))->getZExtIntValue());
+				static_cast<SPIRVConstant *>(getValue(Ops[0]))->getInt32Value());
 		}
 
 		bool hasVariableWordCount() const { return HasVariWC; }

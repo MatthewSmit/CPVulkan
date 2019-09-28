@@ -511,6 +511,11 @@ void Platform::Initialise()
     }
 }
 
+bool Platform::SupportsSparse()
+{
+	return true;
+}
+
 void* Platform::CreateMutex(bool initialState, bool manualReset)
 {
     const auto event = neosmart::CreateEvent(manualReset, initialState);

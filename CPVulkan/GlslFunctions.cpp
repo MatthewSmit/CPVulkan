@@ -1,9 +1,9 @@
 #include "GlslFunctions.h"
 
 #include "Base.h"
-#include "CommandBuffer.Internal.h"
 #include "Formats.h"
 #include "Image.h"
+#include "ImageSampler.h"
 #include "ImageView.h"
 #include "Sampler.h"
 
@@ -114,7 +114,8 @@ static void ImageSampleLod(ReturnType* result, VkDescriptorImageInfo* sampledIma
 	
 	const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth() + 0.5);
 	const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight() + 0.5);
-	
+
+	// TODO: Use SampleImage
 	float values[4];
 	GetPixel(formatInformation, imageView->getImage(), x, y, 0, values);
 	*result = glm::vec4(values[0], values[1], values[2], values[3]);

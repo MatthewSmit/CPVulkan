@@ -24,7 +24,15 @@ public:
 	[[nodiscard]] uint32_t getHeight() const { return extent.height; }
 	[[nodiscard]] uint32_t getDepth() const { return extent.depth; }
 
-	[[nodiscard]] uint8_t* getData() const noexcept { return data.data(); }
+	[[nodiscard]] gsl::span<uint8_t> getData(uint64_t offset, uint64_t size) const noexcept
+	{
+		return data.subspan(offset, size);
+	}
+
+	[[nodiscard]] uint8_t* getDataPtr(uint64_t offset, uint64_t size) const noexcept
+	{
+		return getData(offset, size).data();
+	}
 
 private:
 	VkImageCreateFlags flags{};

@@ -16,6 +16,11 @@ void Platform::Initialise()
 	}
 }
 
+bool Platform::SupportsSparse()
+{
+	return false;
+}
+
 #undef CreateMutex
 void* Platform::CreateMutex(bool initialState, bool manualReset)
 {

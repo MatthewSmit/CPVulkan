@@ -24,6 +24,7 @@ using DWORD = unsigned long; // NOLINT(google-runtime-int)
 // ReSharper disable once CppUnusedIncludeDirective
 
 #undef VK_KHR_external_memory_fd
+#undef VK_EXT_external_memory_dma_buf
 #undef VK_KHR_external_semaphore_fd
 #undef VK_KHR_external_fence_fd
 #include <vulkan/vulkan_win32.h>

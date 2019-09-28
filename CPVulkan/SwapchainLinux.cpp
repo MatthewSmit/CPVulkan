@@ -57,7 +57,7 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
                                          image32,
                                          image->getWidth() * image->getHeight() * 4,
                                          image32);
-        memcpy(xcbImage->data, image->getData(), image->getWidth() * image->getHeight() * 4);
+        memcpy(xcbImage->data, image->getDataPtr(0, 1), image->getWidth() * image->getHeight() * 4);
         auto gc = xcb_generate_id(xcbSurface->connection);
         auto mask = XCB_GC_FOREGROUND | XCB_GC_BACKGROUND;
         uint32_t values[]

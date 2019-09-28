@@ -56,84 +56,93 @@ public:
 
 	void Process(DeviceState*) override
 	{
-		const auto& format = GetFormatInformation(srcImage->getFormat());
-		if (srcImage->getFormat() != dstImage->getFormat())
-		{
-			FATAL_ERROR();
-		}
+		const auto& srcFormat = GetFormatInformation(srcImage->getFormat());
+		const auto& dstFormat = GetFormatInformation(dstImage->getFormat());
 		
 		for (const auto& region : regions)
 		{
-			if (region.srcSubresource.baseArrayLayer != 0)
+			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
+				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || srcFormat.GreenOffset != -1) &&
+				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || srcFormat.GreenOffset != -1))
 			{
 				FATAL_ERROR();
 			}
 
-			if (region.srcSubresource.mipLevel != 0)
+			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
+				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || dstFormat.GreenOffset != -1) &&
+				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || dstFormat.GreenOffset != -1))
 			{
 				FATAL_ERROR();
 			}
 
-			if (region.srcSubresource.layerCount != 1)
+			const auto width = region.extent.width;
+			const auto height = region.extent.height;
+			const auto depth = region.extent.depth;
+			auto srcBaseZ = region.srcOffset.z;
+			auto dstBaseZ = region.dstOffset.z;
+
+			if (region.srcSubresource.baseArrayLayer > 0)
+			{
+				if (srcBaseZ == 0)
+				{
+					srcBaseZ = region.srcSubresource.baseArrayLayer;
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+			}
+
+			if (region.dstSubresource.baseArrayLayer > 0)
+			{
+				if (dstBaseZ == 0)
+				{
+					dstBaseZ = region.dstSubresource.baseArrayLayer;
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+			}
+
+			uint64_t srcOffset;
+			uint64_t srcPlaneStride;
+			uint64_t srcLineStride;
+			GetFormatStrides(srcFormat, srcOffset, srcPlaneStride, srcLineStride, region.srcSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight());
+
+			uint64_t srcLineStart;
+			uint64_t srcLineSize;
+			GetFormatLineSize(srcFormat, srcLineStart, srcLineSize, region.srcOffset.x, width);
+
+			uint64_t dstOffset;
+			uint64_t dstPlaneStride;
+			uint64_t dstLineStride;
+			GetFormatStrides(dstFormat, dstOffset, dstPlaneStride, dstLineStride, region.dstSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight());
+
+			uint64_t dstLineStart;
+			uint64_t dstLineSize;
+			GetFormatLineSize(dstFormat, dstLineStart, dstLineSize, region.dstOffset.x, width);
+
+			if (srcLineSize != dstLineSize)
 			{
 				FATAL_ERROR();
 			}
-
-			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-			{
-				FATAL_ERROR();
-			}
-
-			if (region.dstSubresource.baseArrayLayer != 0)
-			{
-				FATAL_ERROR();
-			}
-
-			if (region.dstSubresource.mipLevel != 0)
-			{
-				FATAL_ERROR();
-			}
-
-			if (region.dstSubresource.layerCount != 1)
-			{
-				FATAL_ERROR();
-			}
-
-			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-			{
-				FATAL_ERROR();
-			}
-
-			const auto srcData = srcImage->getData();
-			const auto dstData = dstImage->getData();
-			const auto srcImageLineSize = size_t{srcImage->getWidth()} * format.TotalSize;
-			const auto srcImagePlaneSize = srcImageLineSize * srcImage->getHeight();
-			const auto dstImageLineSize = size_t{dstImage->getWidth()} * format.TotalSize;
-			const auto dstImagePlaneSize = srcImageLineSize * dstImage->getHeight();
 			
 			// TODO: Detect when both memories are contiguous
-			for (auto z = 0u; z < region.extent.depth; z++)
+			for (auto z = 0u; z < depth; z++)
 			{
-				const auto srcZ = z + region.srcOffset.z;
-				const auto dstZ = z + region.dstOffset.z;
+				const auto srcZ = z + srcBaseZ;
+				const auto dstZ = z + dstBaseZ;
 				
-				for (auto y = 0u; y < region.extent.height; y++)
+				for (auto y = 0u; y < height; y++)
 				{
 					const auto srcY = y + region.srcOffset.y;
 					const auto dstY = y + region.dstOffset.y;
 					
-					const auto srcLineStart = region.srcOffset.x * format.TotalSize;
-					const auto dstLineStart = region.dstOffset.x * format.TotalSize;
-					const auto lineSize = region.extent.width * format.TotalSize;
-					const auto src = srcData +
-						static_cast<uint64_t>(srcZ) * srcImagePlaneSize +
-						static_cast<uint64_t>(srcY) * srcImageLineSize +
-						srcLineStart;
-					const auto dst = dstData +
-						static_cast<uint64_t>(dstZ) * dstImagePlaneSize +
-						static_cast<uint64_t>(dstY) * dstImageLineSize +
-						dstLineStart;
-					memcpy(dst, src, lineSize);
+					const auto src = srcImage->getData(static_cast<uint64_t>(srcZ) * srcPlaneStride + static_cast<uint64_t>(srcY) * srcLineStride + srcLineStart, srcLineSize);
+					const auto dst = dstImage->getData(static_cast<uint64_t>(dstZ) * dstPlaneStride + static_cast<uint64_t>(dstY) * dstLineStride + dstLineStart, dstLineSize);
+					
+					memcpy(dst.data(), src.data(), dstLineSize);
 				}
 			}
 		}
@@ -205,9 +214,33 @@ public:
 				FATAL_ERROR();
 			}
 
-			const auto dstWidth = region.dstOffsets[1].x - region.dstOffsets[0].x;
-			const auto dstHeight = region.dstOffsets[1].y - region.dstOffsets[0].y;
-			const auto dstDepth = region.dstOffsets[1].z - region.dstOffsets[0].z;
+			// TODO: Handle region.dstOffsets[1] < region.dstOffsets[0]
+			auto dstWidth = region.dstOffsets[1].x - region.dstOffsets[0].x;
+			auto dstHeight = region.dstOffsets[1].y - region.dstOffsets[0].y;
+			auto dstDepth = region.dstOffsets[1].z - region.dstOffsets[0].z;
+
+			auto negativeWidth = false;
+			auto negativeHeight = false;
+			auto negativeDepth = false;
+
+			if (dstWidth < 0)
+			{
+				negativeWidth = true;
+				dstWidth = -dstWidth;
+			}
+
+			if (dstHeight < 0)
+			{
+				negativeHeight = true;
+				dstHeight = -dstHeight;
+			}
+
+			if (dstDepth < 0)
+			{
+				negativeDepth = true;
+				dstDepth = -dstDepth;
+			}
+			
 			constexpr auto currentArray = 0;
 			for (auto z = 0; z < dstDepth; z++)
 			{
@@ -215,17 +248,22 @@ public:
 				{
 					for (auto x = 0; x < dstWidth; x++)
 					{
-						auto u = (x + 0.5f - region.dstOffsets[0].x) * (float(region.srcOffsets[1].x - region.srcOffsets[0].x) / (region.dstOffsets[1].x - region.dstOffsets[0].x)) + region.srcOffsets[0].x;
-						auto v = (y + 0.5f - region.dstOffsets[0].y) * (float(region.srcOffsets[1].y - region.srcOffsets[0].y) / (region.dstOffsets[1].y - region.dstOffsets[0].y)) + region.srcOffsets[0].y;
-						auto w = (z + 0.5f - region.dstOffsets[0].z) * (float(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
-						auto q = region.srcSubresource.mipLevel;
-						auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
+						const auto dstX = negativeWidth ? x + region.dstOffsets[1].x : x + region.dstOffsets[0].x;
+						const auto dstY = negativeHeight ? y + region.dstOffsets[1].y : y + region.dstOffsets[0].y;
+						const auto dstZ = negativeDepth ? z + region.dstOffsets[1].z : z + region.dstOffsets[0].z;
+						
+						const auto u = (dstX + 0.5f - region.dstOffsets[0].x) * (float(region.srcOffsets[1].x - region.srcOffsets[0].x) / (region.dstOffsets[1].x - region.dstOffsets[0].x)) + region.srcOffsets[0].x;
+						const auto v = (dstY + 0.5f - region.dstOffsets[0].y) * (float(region.srcOffsets[1].y - region.srcOffsets[0].y) / (region.dstOffsets[1].y - region.dstOffsets[0].y)) + region.srcOffsets[0].y;
+						const auto w = (dstZ + 0.5f - region.dstOffsets[0].z) * (float(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
+						const auto q = region.srcSubresource.mipLevel;
+						const auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
 
 						// TODO: Use appropriate data type depending on source/dest formats
 						auto pixels = SampleImage<glm::vec4>(srcImage, u, v, w, q, a, filter, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 						uint64_t tmp[4];
-						Convert(dstFormat, &pixels.x, tmp);
-						SetPixel(dstFormat, dstImage, x + region.dstOffsets[0].x, y + region.dstOffsets[0].y, z + region.dstOffsets[0].z, tmp);
+						ConvertPixelsToTemp(dstFormat, &pixels.x, tmp);
+						
+						SetPixel(dstFormat, dstImage, dstX, dstY, dstZ, tmp);
 					}
 				}
 			}
@@ -239,6 +277,86 @@ private:
 	VkImageLayout dstImageLayout;
 	std::vector<VkImageBlit> regions;
 	VkFilter filter;
+};
+
+class CopyBufferToImageCommand final : public Command
+{
+public:
+	CopyBufferToImageCommand(Buffer* srcBuffer, Image* dstImage, VkImageLayout dstImageLayout, std::vector<VkBufferImageCopy> regions):
+		srcBuffer{srcBuffer},
+		dstImage{dstImage},
+		dstImageLayout{dstImageLayout},
+		regions{std::move(regions)}
+	{
+	}
+
+	void Process(DeviceState*) override
+	{
+		const auto& format = GetFormatInformation(dstImage->getFormat());
+		
+		for (const auto& region : regions)
+		{
+			if (region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.GreenOffset != -1) && 
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.GreenOffset != -1))
+			{
+				FATAL_ERROR();
+			}
+
+			const auto width = region.imageExtent.width;
+			const auto height = region.imageExtent.height;
+			auto depth = region.imageExtent.depth;
+			auto baseZ = region.imageOffset.z;
+
+			if (region.imageSubresource.baseArrayLayer > 0 || region.imageSubresource.layerCount != 1)
+			{
+				if (baseZ == 0 && depth == 1)
+				{
+					baseZ = region.imageSubresource.baseArrayLayer;
+					depth = region.imageSubresource.layerCount;
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+			}
+
+			uint64_t srcOffset;
+			uint64_t srcPlaneStride;
+			uint64_t srcLineStride;
+			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, 
+			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
+			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight);
+			srcOffset = region.bufferOffset;
+
+			uint64_t dstOffset;
+			uint64_t dstPlaneStride;
+			uint64_t dstLineStride;
+			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight());
+
+			uint64_t lineStart;
+			uint64_t lineSize;
+			GetFormatLineSize(format, lineStart, lineSize, region.imageOffset.x, width);
+			
+			// TODO: Detect when both memories are contiguous
+			for (auto z = baseZ; z < baseZ + static_cast<int32_t>(depth); z++)
+			{
+				for (auto y = region.imageOffset.y; y < region.imageOffset.y + static_cast<int32_t>(height); y++)
+				{
+					const auto src = srcBuffer->getData(srcOffset + z * srcPlaneStride + y * srcLineStride + lineStart, lineSize);
+					const auto dst = dstImage->getData(dstOffset + z * dstPlaneStride + y * dstLineStride + lineStart, lineSize);
+					
+					memcpy(dst.data(), src.data(), lineSize);
+				}
+			}
+		}
+	}
+
+private:
+	Buffer* srcBuffer;
+	Image* dstImage;
+	VkImageLayout dstImageLayout;
+	std::vector<VkBufferImageCopy> regions;
 };
 
 class CopyImageToBufferCommand final : public Command
@@ -255,49 +373,59 @@ public:
 	void Process(DeviceState*) override
 	{
 		const auto& format = GetFormatInformation(srcImage->getFormat());
-		
 		for (const auto& region : regions)
 		{
-			if (region.imageSubresource.baseArrayLayer)
+			if (region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.GreenOffset != -1) && 
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.GreenOffset != -1))
 			{
 				FATAL_ERROR();
 			}
 
-			if (region.imageSubresource.mipLevel)
+			const auto width = region.imageExtent.width;
+			const auto height = region.imageExtent.height;
+			auto depth = region.imageExtent.depth;
+			auto baseZ = region.imageOffset.z;
+
+			if (region.imageSubresource.baseArrayLayer > 0 || region.imageSubresource.layerCount != 1)
 			{
-				FATAL_ERROR();
+				if (baseZ == 0 && depth == 1)
+				{
+					baseZ = region.imageSubresource.baseArrayLayer;
+					depth = region.imageSubresource.layerCount;
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
 			}
 
-			if (region.imageSubresource.layerCount != 1)
-			{
-				FATAL_ERROR();
-			}
+			uint64_t srcOffset;
+			uint64_t srcPlaneStride;
+			uint64_t srcLineStride;
+			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight());
 
-			if (region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-			{
-				FATAL_ERROR();
-			}
+			uint64_t dstOffset;
+			uint64_t dstPlaneStride;
+			uint64_t dstLineStride;
+			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, 
+			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
+			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight);
+			dstOffset = region.bufferOffset;
 
-			const auto bufferOffset = region.bufferOffset;
-			const auto data = srcImage->getData();
-			const auto imageLineSize = size_t{srcImage->getWidth()} * format.TotalSize;
-			const auto imagePlaneSize = imageLineSize * srcImage->getHeight();
-			const auto bufferLineSize = size_t{region.bufferRowLength == 0 ? region.imageExtent.width : region.bufferRowLength} * format.TotalSize;
-			const auto bufferPlaneSize = size_t{region.bufferImageHeight == 0 ? region.imageExtent.height : region.bufferImageHeight} * bufferLineSize;
+			uint64_t lineStart;
+			uint64_t lineSize;
+			GetFormatLineSize(format, lineStart, lineSize, region.imageOffset.x, width);
 			
 			// TODO: Detect when both memories are contiguous
-			for (auto z = region.imageOffset.z; z < region.imageOffset.z + static_cast<int32_t>(region.imageExtent.depth); z++)
+			for (auto z = baseZ; z < baseZ + static_cast<int32_t>(depth); z++)
 			{
-				for (auto y = region.imageOffset.y; y < region.imageOffset.y + static_cast<int32_t>(region.imageExtent.height); y++)
+				for (auto y = region.imageOffset.y; y < region.imageOffset.y + static_cast<int32_t>(height); y++)
 				{
-					const auto lineStart = region.imageOffset.x * format.TotalSize;
-					const auto lineSize = region.imageExtent.width * format.TotalSize;
-					const auto src = data +
-						static_cast<uint64_t>(z) * imagePlaneSize +
-						static_cast<uint64_t>(y) * imageLineSize +
-						lineStart;
-					const auto dst = dstBuffer->getDataPtr(bufferOffset + z * bufferPlaneSize + y * bufferLineSize + lineStart, lineSize);
-					memcpy(dst, src, lineSize);
+					const auto src = srcImage->getData(srcOffset + z * srcPlaneStride + y * srcLineStride + lineStart, lineSize);
+					const auto dst = dstBuffer->getData(dstOffset + z * dstPlaneStride + y * dstLineStride + lineStart, lineSize);
+
+					memcpy(dst.data(), src.data(), lineSize);
 				}
 			}
 		}
@@ -533,6 +661,12 @@ void CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, Vk
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<BlitImageCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions), filter));
+}
+
+void CommandBuffer::CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<CopyBufferToImageCommand>(UnwrapVulkan<Buffer>(srcBuffer), UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions)));
 }
 
 void CommandBuffer::CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions)

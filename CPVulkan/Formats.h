@@ -45,4 +45,7 @@ struct FormatInformation
 
 const FormatInformation& GetFormatInformation(VkFormat format);
 
+void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint64_t width, uint64_t height);
+void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_t& size, uint64_t x, uint64_t width);
+
 bool NeedsYCBCRConversion(VkFormat format);

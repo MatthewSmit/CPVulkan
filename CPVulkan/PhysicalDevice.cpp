@@ -2,10 +2,13 @@
 
 #include "Device.h"
 #include "Formats.h"
+#include "Platform.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+
+constexpr auto MAX_COLOUR_ATTACHMENTS = 4;
 
 static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkImageTiling tiling, VkFlags usage, VkFlags flags, VkImageFormatProperties* pImageFormatProperties)
 {
@@ -130,15 +133,15 @@ void PhysicalDevice::GetFeatures(VkPhysicalDeviceFeatures* pFeatures)
 	pFeatures->shaderInt16 = true;
 	pFeatures->shaderResourceResidency = true;
 	pFeatures->shaderResourceMinLod = true;
-	pFeatures->sparseBinding = true;
-	pFeatures->sparseResidencyBuffer = true;
-	pFeatures->sparseResidencyImage2D = true;
-	pFeatures->sparseResidencyImage3D = true;
-	pFeatures->sparseResidency2Samples = true;
-	pFeatures->sparseResidency4Samples = true;
-	pFeatures->sparseResidency8Samples = true;
-	pFeatures->sparseResidency16Samples = true;
-	pFeatures->sparseResidencyAliased = true;
+	pFeatures->sparseBinding = Platform::SupportsSparse();
+	pFeatures->sparseResidencyBuffer = Platform::SupportsSparse();
+	pFeatures->sparseResidencyImage2D = Platform::SupportsSparse();
+	pFeatures->sparseResidencyImage3D = Platform::SupportsSparse();
+	pFeatures->sparseResidency2Samples = Platform::SupportsSparse();
+	pFeatures->sparseResidency4Samples = Platform::SupportsSparse();
+	pFeatures->sparseResidency8Samples = Platform::SupportsSparse();
+	pFeatures->sparseResidency16Samples = Platform::SupportsSparse();
+	pFeatures->sparseResidencyAliased = Platform::SupportsSparse();
 	pFeatures->variableMultisampleRate = true;
 	pFeatures->inheritedQueries = true;
 }
@@ -257,15 +260,15 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.framebufferDepthSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 	pProperties->limits.framebufferStencilSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 	pProperties->limits.framebufferNoAttachmentsSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
-	pProperties->limits.maxColorAttachments = 4;
+	pProperties->limits.maxColorAttachments = MAX_COLOUR_ATTACHMENTS;
 	pProperties->limits.sampledImageColorSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 	pProperties->limits.sampledImageIntegerSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 	pProperties->limits.sampledImageDepthSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 	pProperties->limits.sampledImageStencilSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 	pProperties->limits.storageImageSampleCounts = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 	pProperties->limits.maxSampleMaskWords = 1;
-	pProperties->limits.timestampComputeAndGraphics = 0;
-	pProperties->limits.timestampPeriod = 0;
+	pProperties->limits.timestampComputeAndGraphics = true;
+	pProperties->limits.timestampPeriod = 1;
 	pProperties->limits.maxClipDistances = 8;
 	pProperties->limits.maxCullDistances = 8;
 	pProperties->limits.maxCombinedClipAndCullDistances = 8;
@@ -294,9 +297,13 @@ void PhysicalDevice::GetQueueFamilyProperties(uint32_t* pQueueFamilyPropertyCoun
 	{
 		if (*pQueueFamilyPropertyCount > 0)
 		{
-			pQueueFamilyProperties->queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT | VK_QUEUE_PROTECTED_BIT | VK_QUEUE_SPARSE_BINDING_BIT;
+			pQueueFamilyProperties->queueFlags = VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT | VK_QUEUE_TRANSFER_BIT | VK_QUEUE_PROTECTED_BIT;
+			if (Platform::SupportsSparse())
+			{
+				pQueueFamilyProperties->queueFlags |= VK_QUEUE_SPARSE_BINDING_BIT;
+			}
 			pQueueFamilyProperties->queueCount = 1;
-			pQueueFamilyProperties->timestampValidBits = 0;
+			pQueueFamilyProperties->timestampValidBits = 64;
 			pQueueFamilyProperties->minImageTransferGranularity = VkExtent3D{0, 0, 0};
 			*pQueueFamilyPropertyCount = 1;
 		}
@@ -738,16 +745,28 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceBlendOperationAdvancedPropertiesEXT*>(next);
+				properties->advancedBlendMaxColorAttachments = MAX_COLOUR_ATTACHMENTS;
+				properties->advancedBlendIndependentBlend = true;
+				properties->advancedBlendNonPremultipliedSrcColor = true;
+				properties->advancedBlendNonPremultipliedDstColor = true;
+				properties->advancedBlendCorrelatedOverlap = true;
+				properties->advancedBlendAllOperations = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceConservativeRasterizationPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_PROPERTIES_NV:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceCooperativeMatrixFeaturesNV*>(next);
-				properties->cooperativeMatrix = true;
-				properties->cooperativeMatrixRobustBufferAccess = true;
+				const auto properties = static_cast<VkPhysicalDeviceCooperativeMatrixPropertiesNV*>(next);
+				properties->cooperativeMatrixSupportedStages = VK_SHADER_STAGE_ALL;
 				break;
 			}
 
@@ -762,10 +781,18 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceDescriptorIndexingPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DISCARD_RECTANGLE_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceDiscardRectanglePropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR:
 			{
@@ -781,7 +808,11 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceExternalMemoryHostPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR:
 			{
@@ -807,24 +838,36 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceFragmentDensityMapPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES:
 			{
 				const auto properties = static_cast<VkPhysicalDeviceIDProperties*>(next);
 				memset(properties->deviceUUID, 0, VK_UUID_SIZE);
 				memset(properties->driverUUID, 0, VK_UUID_SIZE);
-				memset(properties->deviceLUID, 0, VK_UUID_SIZE);
+				memset(properties->deviceLUID, 0, VK_LUID_SIZE);
 				properties->deviceNodeMask = 0;
 				properties->deviceLUIDValid = false;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceInlineUniformBlockPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceLineRasterizationPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES:
 			{
@@ -835,10 +878,18 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceMeshShaderPropertiesNV*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PER_VIEW_ATTRIBUTES_PROPERTIES_NVX:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PROPERTIES:
 			{
@@ -849,7 +900,11 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDevicePCIBusInfoPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_POINT_CLIPPING_PROPERTIES:
 			{
@@ -873,25 +928,54 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceRayTracingPropertiesNV*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLE_LOCATIONS_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceSampleLocationsPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_FILTER_MINMAX_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT*>(next);
+				properties->filterMinmaxSingleComponentFormats = true;
+				properties->filterMinmaxImageComponentMapping = true;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_2_AMD:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceShaderCoreProperties2AMD*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceShaderCorePropertiesAMD*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SM_BUILTINS_PROPERTIES_NV:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceShaderSMBuiltinsPropertiesNV*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_PROPERTIES_NV:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceShadingRateImagePropertiesNV*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES:
 			{
@@ -905,16 +989,32 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceSubgroupSizeControlPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceTransformFeedbackPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT:
-			FATAL_ERROR();
+			{
+				const auto properties = static_cast<VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT*>(next);
+				FATAL_ERROR();
+				break;
+			}
 		}
 		next = static_cast<VkBaseOutStructure*>(next)->pNext;
 	}

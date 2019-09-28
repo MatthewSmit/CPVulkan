@@ -40,11 +40,13 @@ static void HandleTypeDecorate(const std::pair<const Decoration, const SPIRV::SP
 	switch (decorate.first)
 	{
 	case DecorationBlock:
+	case DecorationBufferBlock:
 	case DecorationBuiltIn:
 	case DecorationColMajor:
 		break;
 		
 	case DecorationMatrixStride:
+	case DecorationArrayStride:
 	case DecorationOffset:
 		// TODO
 		break;
@@ -152,7 +154,10 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, const 
 		break;
 
 	case OpTypeRuntimeArray:
-		FATAL_ERROR();
+		llvmType = llvm::StructType::get(state.context, {
+			                                 llvm::Type::getInt64Ty(state.context),
+			                                 llvm::PointerType::get(ConvertType(state, spirvType->getArrayElementType()), 0),
+		                                 }, false);
 		break;
 
 	case OpTypeStruct:
@@ -675,7 +680,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 
 				for (auto spirvValue : indices)
 				{
-					const auto index = static_cast<SPIRV::SPIRVConstant*>(spirvValue)->getIntValue();
+					const auto index = static_cast<SPIRV::SPIRVConstant*>(spirvValue)->getInt32Value();
 					if (accessChain->isInBounds())
 					{
 						llvmValue = state.builder.CreateConstInBoundsGEP2_32(nullptr, llvmValue, 0, index);
@@ -1233,32 +1238,31 @@ static void AddBuiltin(State& state, ExecutionModel executionModel)
 	switch (executionModel)
 	{
 	case ExecutionModelVertex:
+		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
+		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
+		
 		outputMembers.push_back(llvm::VectorType::get(llvm::Type::getFloatTy(state.context), 4));
 		outputMembers.push_back(llvm::Type::getFloatTy(state.context));
 		outputMembers.push_back(llvm::ArrayType::get(llvm::Type::getFloatTy(state.context), 1));
 		break;
 
 	case ExecutionModelTessellationControl:
-		FATAL_ERROR();
 		break;
 
 	case ExecutionModelTessellationEvaluation:
-		FATAL_ERROR();
 		break;
 
 	case ExecutionModelGeometry:
-		FATAL_ERROR();
 		break;
 		
 	case ExecutionModelFragment:
 		break;
 		
 	case ExecutionModelGLCompute:
-		FATAL_ERROR();
+		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
 		break;
 
 	case ExecutionModelKernel:
-		FATAL_ERROR();
 		break;
 		
 	default:

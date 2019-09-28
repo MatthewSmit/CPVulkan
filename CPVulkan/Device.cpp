@@ -115,8 +115,13 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 		FATAL_ERROR();
 	}
 
-	WrapVulkan(AllocateSized(pAllocator, pAllocateInfo->allocationSize, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE), pMemory);
-
+	const auto memory = AllocateSized(pAllocator, pAllocateInfo->allocationSize, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!memory)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
+	
+	WrapVulkan(memory, pMemory);
 	return VK_SUCCESS;
 }
 

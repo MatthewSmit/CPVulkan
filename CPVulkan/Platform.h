@@ -5,6 +5,8 @@ namespace Platform
 {
 	void Initialise();
 
+	bool SupportsSparse();
+
 	void* CreateMutex(bool initialState, bool manualReset);
 	void CloseMutex(void* mutex) noexcept;
 	void SignalMutex(void* mutex);

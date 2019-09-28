@@ -489,10 +489,15 @@ VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t
 {
 	for (auto i = 0u; i < createInfoCount; i++)
 	{
+		pPipelines[i] = nullptr;
+	}
+	
+	for (auto i = 0u; i < createInfoCount; i++)
+	{
 		const auto result = Pipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
 		if (result != VK_SUCCESS)
 		{
-			FATAL_ERROR();
+			return result;
 		}
 	}
 
@@ -503,10 +508,15 @@ VkResult Device::CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t 
 {
 	for (auto i = 0u; i < createInfoCount; i++)
 	{
+		pPipelines[i] = nullptr;
+	}
+
+	for (auto i = 0u; i < createInfoCount; i++)
+	{
 		const auto result = Pipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
 		if (result != VK_SUCCESS)
 		{
-			FATAL_ERROR();
+			return result;
 		}
 	}
 

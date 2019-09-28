@@ -41,7 +41,7 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
 	if (StretchDIBits(dc,
 	                  0, 0, width, height,
 	                  0, 0, image->getWidth(), image->getHeight(),
-	                  image->getData(), &bmi, 0, SRCCOPY) == 0)
+	                  image->getDataPtr(0, 1), &bmi, 0, SRCCOPY) == 0)
 	{
 		FATAL_ERROR();
 	}

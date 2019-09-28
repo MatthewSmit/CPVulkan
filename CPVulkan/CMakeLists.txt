@@ -15,6 +15,7 @@ set(FILES
 		"CommandBuffer.Binding.cpp"
 		"CommandBuffer.Draw.cpp"
 		"CommandBuffer.cpp"
+		"CommandBuffer.Query.cpp"
 		"CommandBuffer.h"
 		"CommandBuffer.Internal.h"
 
