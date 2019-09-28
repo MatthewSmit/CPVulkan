@@ -5,6 +5,8 @@
 #include <functional>
 #include <vector>
 
+constexpr auto REQUIRED_ALIGNMENT = 32;
+
 struct DeviceMemory
 {
 	ptrdiff_t Size;
@@ -12,7 +14,7 @@ struct DeviceMemory
 
 	gsl::span<uint8_t> getSpan() noexcept
 	{
-		return gsl::span<uint8_t>{Data, gsl::span<uint8_t>::index_type{ Size }};
+		return gsl::span<uint8_t>{Data, gsl::span<uint8_t>::index_type{Size}};
 	}
 };
 
@@ -23,8 +25,8 @@ static DeviceMemory* AllocateSized(const VkAllocationCallbacks* pAllocator, uint
 	assert(realSize <= uint64_t{std::numeric_limits<ptrdiff_t>::max()});
 
 	const auto deviceMemory = static_cast<DeviceMemory*>(pAllocator
-		                                                     ? pAllocator->pfnAllocation(pAllocator->pUserData, realSize, 4096, allocationScope)
-		                                                     : Platform::AlignedMalloc(realSize, 4096));
+		                                                     ? pAllocator->pfnAllocation(pAllocator->pUserData, realSize, REQUIRED_ALIGNMENT, allocationScope)
+		                                                     : Platform::AlignedMalloc(realSize, REQUIRED_ALIGNMENT));
 	
 	if (deviceMemory)
 	{

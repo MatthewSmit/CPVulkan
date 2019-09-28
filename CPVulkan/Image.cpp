@@ -30,8 +30,19 @@ void Image::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) con
 	pMemoryRequirements->memoryTypeBits = 1;
 }
 
+void Device::GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMemoryRequirements)
+{
+	UnwrapVulkan<Image>(image)->GetMemoryRequirements(pMemoryRequirements);
+}
+
+void Device::GetImageSparseMemoryRequirements(VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements)
+{
+	FATAL_ERROR();
+}
+
 void Image::GetSubresourceLayout(const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout)
 {
+	// TODO: Use InformationFormat
 	if (tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)
 	{
 		FATAL_ERROR();
@@ -67,16 +78,6 @@ void Image::GetSubresourceLayout(const VkImageSubresource* pSubresource, VkSubre
 	pLayout->depthPitch = getHeight() * pLayout->rowPitch;
 	pLayout->arrayPitch = getDepth() * pLayout->depthPitch;
 	pLayout->size = arrayLayers * pLayout->arrayPitch;
-}
-
-void Device::GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMemoryRequirements)
-{
-	UnwrapVulkan<Image>(image)->GetMemoryRequirements(pMemoryRequirements);
-}
-
-void Device::GetImageSparseMemoryRequirements(VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements)
-{
-	FATAL_ERROR();
 }
 
 void Device::GetImageSubresourceLayout(VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout)
@@ -146,12 +147,8 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 		FATAL_ERROR();
 	}
 
-	image->size = image->extent.width * image->extent.height * image->extent.depth * image->arrayLayers * GetFormatInformation(image->format).TotalSize;
+	image->size = GetFormatSize(GetFormatInformation(image->format), image->extent.width, image->extent.height, image->extent.depth, image->arrayLayers, image->mipLevels);
 	if (image->size == 0)
-	{
-		FATAL_ERROR();
-	}
-	if (image->mipLevels > 1)
 	{
 		FATAL_ERROR();
 	}
