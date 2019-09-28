@@ -387,12 +387,40 @@ const FormatInformation& GetFormatInformation(VkFormat format)
 	return extraFormatInformation[format];
 }
 
-void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint64_t width, uint64_t height)
+static uint64_t GetRawSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth)
 {
-	if (mipLevel)
+	if (format.Type == FormatType::Compressed)
+	{
+		return format.TotalSize * width * height * depth / (format.RedOffset * format.GreenOffset);
+	}
+	return format.TotalSize * width * height * depth;
+}
+
+uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
+{
+	// TODO: Different for corner-sampled
+
+	const auto maxMip = static_cast<uint32_t>(std::floor(std::log2(std::max(std::max(width, height), depth)))) + 1;
+	if (maxMip > mipLevels)
 	{
 		FATAL_ERROR();
 	}
+	
+	uint64_t size = 0;
+	for (auto i = 0u; i < mipLevels; i++)
+	{
+		size += GetRawSize(format, width, height, depth);
+
+		width = std::max(width / 2, 1u);
+		height = std::max(height / 2, 1u);
+		depth = std::max(depth / 2, 1u);
+	}
+	return size * arrayLayers;
+}
+
+void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint32_t width, uint32_t height, uint32_t depth)
+{
+	offset = GetFormatMipmapOffset(format, width, height, depth, mipLevel);
 
 	if (format.Type == FormatType::Compressed)
 	{
@@ -400,12 +428,11 @@ void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_
 		height /= format.GreenOffset;
 	}
 
-	offset = 0;
 	lineStride = width * format.TotalSize;
 	planeStride = lineStride * height;
 }
 
-void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_t& size, uint64_t x, uint64_t width)
+void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_t& size, uint32_t x, uint32_t width)
 {
 	if (format.Type == FormatType::Compressed)
 	{
@@ -415,6 +442,50 @@ void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_
 
 	start = x * format.TotalSize;
 	size = width * format.TotalSize;
+}
+
+uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t mipLevel)
+{
+	if (format.Type == FormatType::Compressed)
+	{
+		FATAL_ERROR();
+	}
+	
+	uint64_t size = 0;
+	for (auto i = 0u; i < mipLevel; i++)
+	{
+		size += GetRawSize(format, width, height, depth);
+
+		width = std::max(width / 2, 1u);
+		height = std::max(height / 2, 1u);
+		depth = std::max(depth / 2, 1u);
+	}
+	return size;
+}
+
+uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel)
+{
+	uint64_t offset = 0;
+	if (mipLevel > 0)
+	{
+		offset = GetFormatMipmapOffset(format, width, height, depth, mipLevel);
+	}
+
+	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
+	const auto stride = width * pixelSize;
+	const auto pane = height * stride;
+
+	return offset + k * pane + j * stride + i * pixelSize;
+}
+
+void* GetFormatPixelOffset(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel)
+{
+	return static_cast<uint8_t*>(data) + GetFormatPixelOffset(format, i, j, k, width, height, depth, mipLevel);
+}
+
+const void* GetFormatPixelOffset(const FormatInformation& format, const void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel)
+{
+	return static_cast<const uint8_t*>(data) + GetFormatPixelOffset(format, i, j, k, width, height, depth, mipLevel);
 }
 
 bool NeedsYCBCRConversion(VkFormat format)

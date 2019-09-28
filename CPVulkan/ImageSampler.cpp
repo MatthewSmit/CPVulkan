@@ -16,6 +16,12 @@ static T lerp(T min, T max, float delta)
 	return min + (max - min) * delta;
 }
 
+template<>
+glm::ivec4 lerp(glm::ivec4 min, glm::ivec4 max, float delta)
+{
+	return glm::dvec4(min) + glm::dvec4(max - min) * double(delta);
+}
+
 static int32_t Wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 {
 	switch (addressMode)
@@ -62,6 +68,46 @@ void ConvertPixelsFromTemp<uint16_t>(const uint64_t input[4], float output[4])
 }
 
 template<>
+void ConvertPixelsFromTemp<uint8_t>(const uint64_t input[4], int32_t output[4])
+{
+	output[0] = static_cast<uint8_t>(input[0]);
+	output[1] = static_cast<uint8_t>(input[1]);
+	output[2] = static_cast<uint8_t>(input[2]);
+	output[3] = static_cast<uint8_t>(input[3]);
+}
+
+template<typename OutputType>
+void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input[4], OutputType output[])
+{
+	switch (format.Base)
+	{
+	case BaseType::UNorm:
+	case BaseType::UInt:
+		switch (format.ElementSize)
+		{
+            case 1:
+                ConvertPixelsFromTemp<uint8_t, OutputType>(input, output);
+                return;
+            case 2:
+                ConvertPixelsFromTemp<uint16_t, OutputType>(input, output);
+                return;
+		}
+		break;
+
+	case BaseType::SNorm: break;
+	case BaseType::UScaled: break;
+	case BaseType::SScaled: break;
+	case BaseType::SInt: break;
+	case BaseType::UFloat: break;
+	case BaseType::SFloat: break;
+	case BaseType::SRGB: break;
+	}
+
+	FATAL_ERROR();
+}
+
+
+template<>
 void ConvertPixelsToTemp<float, uint8_t>(const float input[4], uint64_t output[4])
 {
 	output[0] = static_cast<uint64_t>(input[0] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max()));
@@ -79,33 +125,18 @@ void ConvertPixelsToTemp<float, float>(const float input[4], uint64_t output[4])
 	output[3] = *reinterpret_cast<const uint64_t*>(&input[3]);
 }
 
-template<typename OutputType>
-void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input[4], OutputType output[])
+template<>
+void ConvertPixelsToTemp<int32_t, uint8_t>(const int32_t input[4], uint64_t output[4])
 {
-	switch (format.Base)
-	{
-	case BaseType::UNorm:
-		switch (format.ElementSize)
-		{
-            case 1:
-                ConvertPixelsFromTemp<uint8_t, OutputType>(input, output);
-                return;
-            case 2:
-                ConvertPixelsFromTemp<uint16_t, OutputType>(input, output);
-                return;
-		}
-		break;
+	output[0] = static_cast<uint8_t>(input[0]);
+	output[1] = static_cast<uint8_t>(input[1]);
+	output[2] = static_cast<uint8_t>(input[2]);
+	output[3] = static_cast<uint8_t>(input[3]);
+}
 
-	case BaseType::SNorm: break;
-	case BaseType::UScaled: break;
-	case BaseType::SScaled: break;
-	case BaseType::UInt: break;
-	case BaseType::SInt: break;
-	case BaseType::UFloat: break;
-	case BaseType::SFloat: break;
-	case BaseType::SRGB: break;
-	}
-
+template<>
+void ConvertPixelsToTemp<int32_t, float>(const int32_t input[4], uint64_t output[4])
+{
 	FATAL_ERROR();
 }
 
@@ -115,6 +146,7 @@ void ConvertPixelsToTemp(const FormatInformation& format, const InputType input[
 	switch (format.Base)
 	{
 	case BaseType::UNorm:
+	case BaseType::UInt:
 		switch (format.ElementSize)
 		{
 		case 1:
@@ -126,7 +158,6 @@ void ConvertPixelsToTemp(const FormatInformation& format, const InputType input[
 	case BaseType::SNorm: break;
 	case BaseType::UScaled: break;
 	case BaseType::SScaled: break;
-	case BaseType::UInt: break;
 	case BaseType::SInt: break;
 	case BaseType::UFloat: break;
 		
@@ -149,7 +180,7 @@ template void ConvertPixelsToTemp(const FormatInformation& format, const float i
 
 
 template<typename Size>
-static void GetPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
+void GetPixel(const FormatInformation& format, const void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
 	static_assert(!std::numeric_limits<Size>::is_signed);
@@ -159,15 +190,7 @@ static void GetPixel(const FormatInformation& format, void* data, uint32_t i, ui
 		FATAL_ERROR();
 	}
 
-	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
-	const auto stride = width * pixelSize;
-	const auto pane = height * stride;
-
-	auto pixel = reinterpret_cast<Size*>(reinterpret_cast<uint8_t*>(data) +
-		static_cast<uint64_t>(k) * pane +
-		static_cast<uint64_t>(j) * stride +
-		static_cast<uint64_t>(i) * pixelSize);
-
+	const auto pixel = reinterpret_cast<const Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, 0));
 	if (format.RedOffset != -1) values[0] = static_cast<uint64_t>(pixel[format.RedOffset]);
 	if (format.GreenOffset != -1) values[1] = static_cast<uint64_t>(pixel[format.GreenOffset]);
 	if (format.BlueOffset != -1) values[2] = static_cast<uint64_t>(pixel[format.BlueOffset]);
@@ -175,13 +198,13 @@ static void GetPixel(const FormatInformation& format, void* data, uint32_t i, ui
 }
 
 template<typename OutputType>
-void GetPixel(const FormatInformation& format, Image* image, int32_t i, int32_t j, int32_t k, OutputType output[4])
+void GetPixel(const FormatInformation& format, const Image* image, int32_t i, int32_t j, int32_t k, OutputType output[4])
 {
 	// TODO: Border colour
 	assert(i >= 0 && j >= 0 && k >= 0 && i < image->getWidth() && j < image->getHeight() && k < image->getDepth());
 
-	uint64_t rawValues[4];
-	if (format.Base == BaseType::UNorm)
+	uint64_t rawValues[4]{};
+	if (format.Base == BaseType::UNorm || format.Base == BaseType::UInt)
 	{
 		if (format.ElementSize == 1)
 		{
@@ -205,7 +228,7 @@ void GetPixel(const FormatInformation& format, Image* image, int32_t i, int32_t 
 }
 
 template<typename OutputType>
-OutputType GetPixel(const FormatInformation& format, Image* image, int32_t i, int32_t j, int32_t k)
+OutputType GetPixel(const FormatInformation& format, const Image* image, int32_t i, int32_t j, int32_t k)
 {
 	static_assert(OutputType::length() == 4);
 	OutputType result{};
@@ -215,7 +238,7 @@ OutputType GetPixel(const FormatInformation& format, Image* image, int32_t i, in
 
 
 template<typename Size>
-void SetPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, const uint64_t values[4])
+void SetPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel, const uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
 	static_assert(!std::numeric_limits<Size>::is_signed);
@@ -224,16 +247,8 @@ void SetPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t 
 	{
 		FATAL_ERROR();
 	}
-	
-	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
-	const auto stride = width * pixelSize;
-	const auto pane = height * stride;
-	
-	auto pixel = reinterpret_cast<Size*>(reinterpret_cast<uint8_t*>(data) +
-		static_cast<uint64_t>(k) * pane +
-		static_cast<uint64_t>(j) * stride +
-		static_cast<uint64_t>(i) * pixelSize);
-	
+
+	const auto pixel = reinterpret_cast<Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, mipLevel));
 	if (format.RedOffset != -1) pixel[format.RedOffset] = static_cast<Size>(values[0]);
 	if (format.GreenOffset != -1) pixel[format.GreenOffset] = static_cast<Size>(values[1]);
 	if (format.BlueOffset != -1) pixel[format.BlueOffset] = static_cast<Size>(values[2]);
@@ -241,24 +256,16 @@ void SetPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t 
 }
 
 template<typename Size>
-static void SetPackedPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
+static void SetPackedPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel, uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
 	static_assert(!std::numeric_limits<Size>::is_signed);
 
-	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
-	const auto stride = width * pixelSize;
-	const auto pane = height * stride;
-
-	auto pixel = reinterpret_cast<Size*>(reinterpret_cast<uint8_t*>(data) +
-		static_cast<uint64_t>(k) * pane +
-		static_cast<uint64_t>(j) * stride +
-		static_cast<uint64_t>(i) * pixelSize);
-
+	const auto pixel = reinterpret_cast<Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, mipLevel));
 	*pixel = static_cast<Size>(values[0]);
 }
 
-void SetPixel(const FormatInformation& format, Image* image, uint32_t i, uint32_t j, uint32_t k, uint64_t values[4])
+void SetPixel(const FormatInformation& format, Image* image, uint32_t i, uint32_t j, uint32_t k, uint32_t mipLevel, uint64_t values[4])
 {
 	const auto width = image->getWidth();
 	const auto height = image->getHeight();
@@ -280,27 +287,27 @@ void SetPixel(const FormatInformation& format, Image* image, uint32_t i, uint32_
 	
 	if (format.ElementSize == 0 && format.TotalSize == 1)
 	{
-		SetPackedPixel<uint8_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, values);
+		SetPackedPixel<uint8_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
 	}
 	else if (format.ElementSize == 0 && format.TotalSize == 2)
 	{
-		SetPackedPixel<uint16_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, values);
+		SetPackedPixel<uint16_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
 	}
 	else if (format.ElementSize == 0 && format.TotalSize == 4)
 	{
-		SetPackedPixel<uint32_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, values);
+		SetPackedPixel<uint32_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
 	}
 	else if (format.ElementSize == 1)
 	{
-		SetPixel<uint8_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, values);
+		SetPixel<uint8_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
 	}
 	else if (format.ElementSize == 2)
 	{
-		SetPixel<uint16_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, values);
+		SetPixel<uint16_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
 	}
 	else if (format.ElementSize == 4)
 	{
-		SetPixel<uint32_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, values);
+		SetPixel<uint32_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
 	}
 	else
 	{
@@ -309,8 +316,15 @@ void SetPixel(const FormatInformation& format, Image* image, uint32_t i, uint32_
 }
 
 
+template<typename OutputType>
+void SampleImage(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4])
+{
+	auto pixels = SampleImage<OutputType>(image, u, v, w, q, a, filter, mipmapMode, addressMode);
+	ConvertPixelsToTemp(format, &pixels.x, output);
+}
+
 template<typename ReturnType>
-ReturnType SampleImage(Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode)
+ReturnType SampleImage(const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode)
 {
 	// TODO: Optimise for 1D/2D
 	const auto& format = GetFormatInformation(image->getFormat());
@@ -398,4 +412,8 @@ ReturnType SampleImage(Image* image, float u, float v, float w, float q, float a
 	FATAL_ERROR();
 }
 
-template glm::vec4 SampleImage(Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);
+template void SampleImage<glm::vec4>(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
+template glm::vec4 SampleImage(const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);
+
+template void SampleImage<glm::ivec4>(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
+template glm::ivec4 SampleImage(const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);

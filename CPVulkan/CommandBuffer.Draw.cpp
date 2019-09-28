@@ -40,7 +40,7 @@ struct VertexOutput
 	uint32_t vertexCount;
 };
 
-static void ClearImage(Image* image, const FormatInformation& format, uint64_t values[4])
+static void ClearImage(Image* image, const FormatInformation& format, uint32_t mipLevel, uint64_t values[4])
 {
 	for (auto z = 0u; z < image->getDepth(); z++)
 	{
@@ -48,7 +48,7 @@ static void ClearImage(Image* image, const FormatInformation& format, uint64_t v
 		{
 			for (auto x = 0u; x < image->getWidth(); x++)
 			{
-				SetPixel(format, image, x, y, z, values);
+				SetPixel(format, image, x, y, z, mipLevel, values);
 			}
 		}
 	}
@@ -707,7 +707,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 						{
 							const auto& format = GetFormatInformation(images[j].first.format);
 							GetImageColour(values, format, *reinterpret_cast<VkClearColorValue*>(outputData.get() + 128 * j));
-							SetPixel(format, images[j].second, x, y, 0, values);
+							SetPixel(format, images[j].second, x, y, 0, 0, values);
 						}
 					}
 					
@@ -718,7 +718,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 							{depth, 0, 0, 0}
 						};
 						GetImageColour(values, depthFormat, input);
-						SetPixel(depthFormat, depthImage.second, x, y, 0, values);
+						SetPixel(depthFormat, depthImage.second, x, y, 0, 0, values);
 					}
 				}
 			}
@@ -797,39 +797,24 @@ public:
 	{
 	}
 
-	void Process(DeviceState* deviceState) override
+	void Process(DeviceState*) override
 	{
-		if (ranges.size() != 1)
+		for (const auto& range : ranges)
 		{
-			FATAL_ERROR();
+			auto levels = range.levelCount;
+			if (levels == VK_REMAINING_MIP_LEVELS)
+			{
+				levels = image->getMipLevels() - range.baseMipLevel;
+			}
+			if (range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				ClearImage(image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, colour);
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
 		}
-
-		if (ranges[0].aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-		{
-			FATAL_ERROR();
-		}
-
-		if (ranges[0].baseMipLevel != 0)
-		{
-			FATAL_ERROR();
-		}
-
-		if (ranges[0].baseArrayLayer != 0)
-		{
-			FATAL_ERROR();
-		}
-
-		if (ranges[0].layerCount != 1)
-		{
-			FATAL_ERROR();
-		}
-
-		if (ranges[0].levelCount != 1)
-		{
-			FATAL_ERROR();
-		}
-		
-		ClearImage(image, image->getFormat(), colour);
 	}
 
 private:
@@ -894,7 +879,7 @@ public:
 				{
 					for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
 					{
-						SetPixel(formatInformation, image, x, y, 0, values);
+						SetPixel(formatInformation, image, x, y, 0, 0, values);
 					}
 				}
 			}
@@ -924,12 +909,26 @@ void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAtta
 	commands.push_back(std::make_unique<ClearAttachmentsCommand>(ArrayToVector(attachmentCount, pAttachments), ArrayToVector(rectCount, pRects)));
 }
 
-void ClearImage(Image* image, VkFormat format, VkClearColorValue colour)
+void ClearImage(Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkClearColorValue colour)
 {
+	if (baseArrayLayer != 0)
+	{
+		FATAL_ERROR();
+	}
+
+	if (layerCount != 1)
+	{
+		FATAL_ERROR();
+	}
+	
 	const auto& information = GetFormatInformation(format);
 	uint64_t values[4];
 	GetImageColour(values, information, colour);
-	ClearImage(image, information, values);
+
+	for (auto level = 0; level < levelCount; level++)
+	{
+		ClearImage(image, information, level, values);
+	}
 }
 
 void ClearImage(Image* image, VkFormat format, VkClearDepthStencilValue colour)
@@ -947,5 +946,5 @@ void ClearImage(Image* image, VkFormat format, VkClearDepthStencilValue colour)
 		FATAL_ERROR();
 	}
 
-	ClearImage(image, information, data);
+	ClearImage(image, information, 0, data);
 }

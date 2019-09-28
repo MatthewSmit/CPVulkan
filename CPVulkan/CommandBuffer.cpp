@@ -108,7 +108,7 @@ public:
 			uint64_t srcOffset;
 			uint64_t srcPlaneStride;
 			uint64_t srcLineStride;
-			GetFormatStrides(srcFormat, srcOffset, srcPlaneStride, srcLineStride, region.srcSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight());
+			GetFormatStrides(srcFormat, srcOffset, srcPlaneStride, srcLineStride, region.srcSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth());
 
 			uint64_t srcLineStart;
 			uint64_t srcLineSize;
@@ -117,7 +117,7 @@ public:
 			uint64_t dstOffset;
 			uint64_t dstPlaneStride;
 			uint64_t dstLineStride;
-			GetFormatStrides(dstFormat, dstOffset, dstPlaneStride, dstLineStride, region.dstSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight());
+			GetFormatStrides(dstFormat, dstOffset, dstPlaneStride, dstLineStride, region.dstSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth());
 
 			uint64_t dstLineStart;
 			uint64_t dstLineSize;
@@ -172,6 +172,33 @@ public:
 	void Process(DeviceState*) override
 	{
 		const auto& dstFormat = GetFormatInformation(dstImage->getFormat());
+
+		SampleImageType sampleImage;
+		switch (dstFormat.Base)
+		{
+		case BaseType::UNorm:
+		case BaseType::SNorm:
+			// TODO: Use dvec4 if > 32 bits
+			sampleImage = SampleImage<glm::vec4>;
+			break;
+			
+			// case BaseType::UScaled: break;
+			// case BaseType::SScaled: break;
+			 
+		case BaseType::UInt:
+			// TODO: Use long vec4 if > 32 bits
+			sampleImage = SampleImage<glm::ivec4>;
+			break;
+			
+			// case BaseType::SInt: break;
+			// case BaseType::UFloat: break;
+			// case BaseType::SFloat: break;
+			// case BaseType::SRGB: break;
+			
+		default:
+			FATAL_ERROR();
+		}
+		
 		for (const auto& region : regions)
 		{
 			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
@@ -240,7 +267,8 @@ public:
 				negativeDepth = true;
 				dstDepth = -dstDepth;
 			}
-			
+
+			uint64_t tmp[4];
 			constexpr auto currentArray = 0;
 			for (auto z = 0; z < dstDepth; z++)
 			{
@@ -258,12 +286,9 @@ public:
 						const auto q = region.srcSubresource.mipLevel;
 						const auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
 
-						// TODO: Use appropriate data type depending on source/dest formats
-						auto pixels = SampleImage<glm::vec4>(srcImage, u, v, w, q, a, filter, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-						uint64_t tmp[4];
-						ConvertPixelsToTemp(dstFormat, &pixels.x, tmp);
+						sampleImage(dstFormat, srcImage, u, v, w, q, a, filter, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, tmp);
 						
-						SetPixel(dstFormat, dstImage, dstX, dstY, dstZ, tmp);
+						SetPixel(dstFormat, dstImage, dstX, dstY, dstZ, 0, tmp);
 					}
 				}
 			}
@@ -326,13 +351,14 @@ public:
 			uint64_t srcLineStride;
 			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, 
 			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
-			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight);
+			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight,
+			                 depth);
 			srcOffset = region.bufferOffset;
 
 			uint64_t dstOffset;
 			uint64_t dstPlaneStride;
 			uint64_t dstLineStride;
-			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight());
+			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth());
 
 			uint64_t lineStart;
 			uint64_t lineSize;
@@ -403,14 +429,15 @@ public:
 			uint64_t srcOffset;
 			uint64_t srcPlaneStride;
 			uint64_t srcLineStride;
-			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight());
+			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth());
 
 			uint64_t dstOffset;
 			uint64_t dstPlaneStride;
 			uint64_t dstLineStride;
 			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, 
 			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
-			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight);
+			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight,
+			                 depth);
 			dstOffset = region.bufferOffset;
 
 			uint64_t lineStart;
@@ -494,14 +521,13 @@ public:
 			FATAL_ERROR();
 		}
 
-		for (auto i = 0u; i < renderPass->getSubpasses()[0].ColourAttachments.size(); i++)
+		for (auto attachmentReference : renderPass->getSubpasses()[0].ColourAttachments)
 		{
-			auto attachmentReference = renderPass->getSubpasses()[0].ColourAttachments[i];
 			if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 			{
 				auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
 				auto imageView = framebuffer->getAttachments()[attachmentReference.attachment];
-				ClearImage(imageView->getImage(), attachment.format, clearValues[attachmentReference.attachment].color);
+				ClearImage(imageView->getImage(), attachment.format, 0, 1, 0, 1, clearValues[attachmentReference.attachment].color);
 			}
 		}
 
