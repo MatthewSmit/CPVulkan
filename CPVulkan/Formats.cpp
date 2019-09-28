@@ -1,5 +1,6 @@
 #include "Formats.h"
 
+#include <cmath>
 #include <unordered_map>
 
 static constexpr VkFormatFeatureFlags GetFeatures(FormatType type)
@@ -401,7 +402,7 @@ uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t
 	// TODO: Different for corner-sampled
 
 	const auto maxMip = static_cast<uint32_t>(std::floor(std::log2(std::max(std::max(width, height), depth)))) + 1;
-	if (maxMip > mipLevels)
+	if (maxMip < mipLevels)
 	{
 		FATAL_ERROR();
 	}

@@ -76,6 +76,15 @@ void ConvertPixelsFromTemp<uint8_t>(const uint64_t input[4], int32_t output[4])
 	output[3] = static_cast<uint8_t>(input[3]);
 }
 
+template<>
+void ConvertPixelsFromTemp<uint16_t>(const uint64_t input[4], int32_t output[4])
+{
+	output[0] = static_cast<uint16_t>(input[0]);
+	output[1] = static_cast<uint16_t>(input[1]);
+	output[2] = static_cast<uint16_t>(input[2]);
+	output[3] = static_cast<uint16_t>(input[3]);
+}
+
 template<typename OutputType>
 void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input[4], OutputType output[])
 {
