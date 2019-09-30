@@ -25,6 +25,11 @@ struct imemstream final : virtual membuf, std::istream
 	}
 };
 
+ShaderModule::~ShaderModule()
+{
+    delete module;
+}
+
 VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO);
