@@ -1,7 +1,7 @@
 #pragma once
 
 #if defined(_MSC_VER)
-#define DLL_EXPORT __declspec(dllexport)
+#define STL_DLL_EXPORT __declspec(dllexport)
 #else
-#define DLL_EXPORT
+#define STL_DLL_EXPORT
 #endif
