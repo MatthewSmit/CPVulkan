@@ -354,7 +354,7 @@ VULKAN_FUNCTION(CreateXlibSurface, VkResult, Instance, void*, const VkXlibSurfac
 VULKAN_FUNCTION(GetPhysicalDeviceXlibPresentationSupport, VkBool32, PhysicalDevice, void*, uint32_t, Display*, VisualID)
 #endif
 
-#if defined(VK_USE_PLATFORM_XLIB_XRANDR_EXT)
+#if defined(VK_USE_PLATFORM_XLIB_XRANDR_EXT) && defined(VK_EXT_acquire_xlib_display)
 VULKAN_FUNCTION(AcquireXlibDisplay, VkResult, PhysicalDevice, void*, Display*, VkDisplayKHR)
 VULKAN_FUNCTION(GetRandROutputDisplay, VkResult, PhysicalDevice, void*, Display*, RROutput, VkDisplayKHR*)
 #endif
