@@ -2,6 +2,7 @@
 #include "Base.h"
 
 #include <memory>
+#include <vector>
 
 struct DeviceState;
 

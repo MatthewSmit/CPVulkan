@@ -1,6 +1,8 @@
 #pragma once
 #include "Base.h"
 
+#include <vector>
+
 struct Subpass
 {
 	VkSubpassDescriptionFlags Flags;
