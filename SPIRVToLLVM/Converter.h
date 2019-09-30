@@ -1,14 +1,14 @@
 #pragma once
 #include "spirv.hpp"
 
-#if defined(_MSC_VER)
-#define DLL_EXPORT __declspec(dllexport)
-#else
-#define DLL_EXPORT
-#endif
-
 #include <memory>
 #include <string>
+
+#if defined(_MSC_VER) && defined(SPIRVToLLVM_EXPORTS)
+#define STL_DLL_EXPORT __declspec(dllexport)
+#else
+#define STL_DLL_EXPORT
+#endif
 
 namespace llvm
 {
@@ -25,7 +25,7 @@ class SpirvCompiledModule;
 
 using FunctionPointer = void (*)();
 
-class DLL_EXPORT SpirvJit
+class STL_DLL_EXPORT SpirvJit
 {
 public:
 	SpirvJit();
@@ -41,6 +41,6 @@ private:
 	Impl* impl;
 };
 
-void DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer);
+void STL_DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer);
 
 std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel);

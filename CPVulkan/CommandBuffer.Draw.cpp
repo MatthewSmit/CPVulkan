@@ -40,15 +40,21 @@ struct VertexOutput
 	uint32_t vertexCount;
 };
 
-static void ClearImage(Image* image, const FormatInformation& format, uint32_t mipLevel, uint64_t values[4])
+static void ClearImage(Image* image, const FormatInformation& format, uint32_t layer, uint32_t mipLevel, uint64_t values[4])
 {
-	for (auto z = 0u; z < image->getDepth(); z++)
+	auto width = image->getWidth();
+	auto height = image->getHeight();
+	auto depth = image->getDepth();
+	const auto layers = image->getArrayLayers();
+	GetFormatMipmapOffset(format, width, height, depth, layers, mipLevel);
+
+	for (auto z = 0u; z < depth; z++)
 	{
-		for (auto y = 0u; y < image->getHeight(); y++)
+		for (auto y = 0u; y < height; y++)
 		{
-			for (auto x = 0u; x < image->getWidth(); x++)
+			for (auto x = 0u; x < width; x++)
 			{
-				SetPixel(format, image, x, y, z, mipLevel, values);
+				SetPixel(format, image, x, y, z, mipLevel, layer, values);
 			}
 		}
 	}
@@ -59,171 +65,21 @@ static void GetImageColour(uint64_t output[4], const FormatInformation& format, 
 	switch (format.Base)
 	{
 	case BaseType::UNorm:
-		if (format.ElementSize == 0)
-		{
-			output[0] = 0;
-			if (format.RedPack)
-			{
-				const auto size = (1 << format.RedPack) - 1;
-				const auto value = static_cast<uint64_t>(input.float32[0] * size);
-				output[0] |= value << format.RedOffset;
-			}
-			if (format.GreenPack)
-			{
-				const auto size = (1 << format.GreenPack) - 1;
-				const auto value = static_cast<uint64_t>(input.float32[1] * size);
-				output[0] |= value << format.GreenOffset;
-			}
-			if (format.BluePack)
-			{
-				const auto size = (1 << format.BluePack) - 1;
-				const auto value = static_cast<uint64_t>(input.float32[2] * size);
-				output[0] |= value << format.BlueOffset;
-			}
-			if (format.AlphaPack)
-			{
-				const auto size = (1 << format.AlphaPack) - 1;
-				const auto value = static_cast<uint64_t>(input.float32[3] * size);
-				output[0] |= value << format.AlphaOffset;
-			}
-		}
-		else if (format.ElementSize == 1)
-		{
-			output[0] = static_cast<uint64_t>(std::round(input.float32[0] * std::numeric_limits<uint8_t>::max()));
-			output[1] = static_cast<uint64_t>(std::round(input.float32[1] * std::numeric_limits<uint8_t>::max()));
-			output[2] = static_cast<uint64_t>(std::round(input.float32[2] * std::numeric_limits<uint8_t>::max()));
-			output[3] = static_cast<uint64_t>(std::round(input.float32[3] * std::numeric_limits<uint8_t>::max()));
-		}
-		else if (format.ElementSize == 2)
-		{
-			output[0] = static_cast<uint64_t>(std::round(input.float32[0] * std::numeric_limits<uint16_t>::max()));
-			output[1] = static_cast<uint64_t>(std::round(input.float32[1] * std::numeric_limits<uint16_t>::max()));
-			output[2] = static_cast<uint64_t>(std::round(input.float32[2] * std::numeric_limits<uint16_t>::max()));
-			output[3] = static_cast<uint64_t>(std::round(input.float32[3] * std::numeric_limits<uint16_t>::max()));
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
-		break;
-		
 	case BaseType::SNorm:
-		if (format.ElementSize == 0)
-		{
-			output[0] = 0;
-			if (format.RedPack)
-			{
-				const auto size = (1 << (format.RedPack - 1)) - 1;
-				const auto value = static_cast<int64_t>(input.float32[0] * size);
-				output[0] |= value << format.RedOffset;
-			}
-			if (format.GreenPack)
-			{
-				const auto size = (1 << (format.GreenPack - 1)) - 1;
-				const auto value = static_cast<int64_t>(input.float32[1] * size);
-				output[0] |= value << format.GreenOffset;
-			}
-			if (format.BluePack)
-			{
-				const auto size = (1 << (format.BluePack - 1)) - 1;
-				const auto value = static_cast<int64_t>(input.float32[2] * size);
-				output[0] |= value << format.BlueOffset;
-			}
-			if (format.AlphaPack)
-			{
-				const auto size = (1 << (format.AlphaPack - 1)) - 1;
-				const auto value = static_cast<int64_t>(input.float32[3] * size);
-				output[0] |= value << format.AlphaOffset;
-			}
-		}
-		else if (format.ElementSize == 1)
-		{
-			output[0] = static_cast<int64_t>(std::round(input.float32[0] * std::numeric_limits<int8_t>::max()));
-			output[1] = static_cast<int64_t>(std::round(input.float32[1] * std::numeric_limits<int8_t>::max()));
-			output[2] = static_cast<int64_t>(std::round(input.float32[2] * std::numeric_limits<int8_t>::max()));
-			output[3] = static_cast<int64_t>(std::round(input.float32[3] * std::numeric_limits<int8_t>::max()));
-		}
-		else if (format.ElementSize == 2)
-		{
-			output[0] = static_cast<int64_t>(std::round(input.float32[0] * std::numeric_limits<int16_t>::max()));
-			output[1] = static_cast<int64_t>(std::round(input.float32[1] * std::numeric_limits<int16_t>::max()));
-			output[2] = static_cast<int64_t>(std::round(input.float32[2] * std::numeric_limits<int16_t>::max()));
-			output[3] = static_cast<int64_t>(std::round(input.float32[3] * std::numeric_limits<int16_t>::max()));
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
-		break;
-		
-	case BaseType::UScaled:
-		if (format.ElementSize == 0)
-		{
-			FATAL_ERROR();
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
-		break;
-		
-	case BaseType::SScaled:
-		if (format.ElementSize == 0)
-		{
-			FATAL_ERROR();
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
-		break;
-		
-	case BaseType::UInt:
-	case BaseType::SInt:
-		if (format.ElementSize == 0)
-		{
-			FATAL_ERROR();
-		}
-		else
-		{
-			output[0] = input.uint32[0];
-			output[1] = input.uint32[1];
-			output[2] = input.uint32[2];
-			output[3] = input.uint32[3];
-		}
-		break;
-		
 	case BaseType::UFloat:
-		if (format.ElementSize == 0)
-		{
-			FATAL_ERROR();
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
-		break;
-		
 	case BaseType::SFloat:
-		if (format.ElementSize == 0)
-		{
-			FATAL_ERROR();
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
+	case BaseType::SRGB:
+		ConvertPixelsToTemp(format, input.float32, output);
+		break;
+
+	case BaseType::UInt:
+	case BaseType::UScaled:
+		ConvertPixelsToTemp(format, input.uint32, output);
 		break;
 		
-	case BaseType::SRGB:
-		if (format.ElementSize == 0)
-		{
-			FATAL_ERROR();
-		}
-		else
-		{
-			FATAL_ERROR();
-		}
+	case BaseType::SInt:
+	case BaseType::SScaled:
+		ConvertPixelsToTemp(format, input.int32, output);
 		break;
 		
 	default:
@@ -707,7 +563,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 						{
 							const auto& format = GetFormatInformation(images[j].first.format);
 							GetImageColour(values, format, *reinterpret_cast<VkClearColorValue*>(outputData.get() + 128 * j));
-							SetPixel(format, images[j].second, x, y, 0, 0, values);
+							SetPixel(format, images[j].second, x, y, 0, 0, 0, values);
 						}
 					}
 					
@@ -718,7 +574,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 							{depth, 0, 0, 0}
 						};
 						GetImageColour(values, depthFormat, input);
-						SetPixel(depthFormat, depthImage.second, x, y, 0, 0, values);
+						SetPixel(depthFormat, depthImage.second, x, y, 0, 0, 0, values);
 					}
 				}
 			}
@@ -789,9 +645,8 @@ private:
 class ClearColourImageCommand final : public Command
 {
 public:
-	ClearColourImageCommand(Image* image, VkImageLayout imageLayout, VkClearColorValue colour, std::vector<VkImageSubresourceRange> ranges):
+	ClearColourImageCommand(Image* image, VkClearColorValue colour, std::vector<VkImageSubresourceRange> ranges):
 		image{image},
-		imageLayout{imageLayout},
 		colour{colour},
 		ranges{std::move(ranges)}
 	{
@@ -819,7 +674,6 @@ public:
 
 private:
 	Image* image;
-	VkImageLayout imageLayout;
 	VkClearColorValue colour;
 	std::vector<VkImageSubresourceRange> ranges;
 };
@@ -879,7 +733,7 @@ public:
 				{
 					for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
 					{
-						SetPixel(formatInformation, image, x, y, 0, 0, values);
+						SetPixel(formatInformation, image, x, y, 0, 0, 0, values);
 					}
 				}
 			}
@@ -897,10 +751,10 @@ void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t 
 	commands.push_back(std::make_unique<DrawCommand>(vertexCount, instanceCount, firstVertex, firstInstance));
 }
 
-void CommandBuffer::ClearColorImage(VkImage image, VkImageLayout imageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
+void CommandBuffer::ClearColorImage(VkImage image, VkImageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<ClearColourImageCommand>(UnwrapVulkan<Image>(image), imageLayout, *pColor, ArrayToVector(rangeCount, pRanges)));
+	commands.push_back(std::make_unique<ClearColourImageCommand>(UnwrapVulkan<Image>(image), *pColor, ArrayToVector(rangeCount, pRanges)));
 }
 
 void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
@@ -911,23 +765,16 @@ void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAtta
 
 void ClearImage(Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkClearColorValue colour)
 {
-	if (baseArrayLayer != 0)
-	{
-		FATAL_ERROR();
-	}
-
-	if (layerCount != 1)
-	{
-		FATAL_ERROR();
-	}
-	
 	const auto& information = GetFormatInformation(format);
 	uint64_t values[4];
 	GetImageColour(values, information, colour);
 
-	for (auto level = 0; level < levelCount; level++)
+	for (auto layer = 0u; layer < layerCount; layer++)
 	{
-		ClearImage(image, information, level, values);
+		for (auto level = 0u; level < levelCount; level++)
+		{
+			ClearImage(image, information, baseArrayLayer + layer, baseMipLevel + level, values);
+		}
 	}
 }
 
@@ -946,5 +793,5 @@ void ClearImage(Image* image, VkFormat format, VkClearDepthStencilValue colour)
 		FATAL_ERROR();
 	}
 
-	ClearImage(image, information, 0, data);
+	ClearImage(image, information, 0, 0, data);
 }

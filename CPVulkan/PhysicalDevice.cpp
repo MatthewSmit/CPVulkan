@@ -8,6 +8,21 @@
 #include <cassert>
 #include <cmath>
 
+template<typename T>
+T* GetStructure(VkBaseOutStructure* structure, VkStructureType type)
+{
+	while (structure->pNext)
+	{
+		structure = reinterpret_cast<VkBaseOutStructure*>(structure->pNext);
+		if (structure->sType == type)
+		{
+			return reinterpret_cast<T*>(structure);
+		}
+	}
+
+	return nullptr;
+}
+
 constexpr auto MAX_COLOUR_ATTACHMENTS = 4;
 
 static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkImageTiling tiling, VkFlags usage, VkFlags flags, VkImageFormatProperties* pImageFormatProperties)
@@ -21,22 +36,22 @@ static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, 
 		pImageFormatProperties->maxExtent.height = 1;
 		pImageFormatProperties->maxExtent.depth = 1;
 		pImageFormatProperties->maxArrayLayers = 256;
-		pImageFormatProperties->maxMipLevels = 1 + std::floor(std::log2(pImageFormatProperties->maxExtent.width));
+		pImageFormatProperties->maxMipLevels = 1 + std::floorf(std::log2f(pImageFormatProperties->maxExtent.width));
 		break;
 	case VK_IMAGE_TYPE_2D:
 		pImageFormatProperties->maxExtent.width = 4096;
 		pImageFormatProperties->maxExtent.height = 4096;
 		pImageFormatProperties->maxExtent.depth = 1;
 		pImageFormatProperties->maxArrayLayers = 256;
-		pImageFormatProperties->maxMipLevels = 1 + std::floor(std::log2(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height)));
+		pImageFormatProperties->maxMipLevels = 1 + std::floorf(std::log2f(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height)));
 		break;
 	case VK_IMAGE_TYPE_3D:
 		pImageFormatProperties->maxExtent.width = 256;
 		pImageFormatProperties->maxExtent.height = 256;
 		pImageFormatProperties->maxExtent.depth = 256;
 		pImageFormatProperties->maxArrayLayers = 1;
-		pImageFormatProperties->maxMipLevels = std::floor(std::log2(std::max(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height),
-		                                                                     pImageFormatProperties->maxExtent.depth))) + 1;
+		pImageFormatProperties->maxMipLevels = std::floorf(std::log2f(std::max(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height),
+		                                                                       pImageFormatProperties->maxExtent.depth))) + 1;
 		break;
 	default: FATAL_ERROR();
 	}
@@ -727,6 +742,9 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 				features->samplerYcbcrConversion = true;
 				break;
 			}
+
+		default:
+			break;
 		}
 		next = static_cast<VkPhysicalDeviceFeatures2*>(next)->pNext;
 	}
@@ -1015,6 +1033,9 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 				FATAL_ERROR();
 				break;
 			}
+
+		default:
+			break;
 		}
 		next = static_cast<VkBaseOutStructure*>(next)->pNext;
 	}
@@ -1034,6 +1055,9 @@ void PhysicalDevice::GetFormatProperties2(VkFormat format, VkFormatProperties2* 
 		{
 		case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT:
 			FATAL_ERROR();
+
+		default:
+			break;
 		}
 		next = static_cast<VkBaseOutStructure*>(next)->pNext;
 	}
@@ -1064,51 +1088,48 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 				FATAL_ERROR();
 
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO:
-				FATAL_ERROR();
+				{
+					const auto info = reinterpret_cast<const VkPhysicalDeviceExternalImageFormatInfo*>(next);
+					const auto property = GetStructure<VkExternalImageFormatProperties>(reinterpret_cast<VkBaseOutStructure*>(pImageFormatProperties), VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES);
+					assert(property);
+
+#if defined(VK_KHR_external_memory_win32)
+					if (info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+					{
+						property->externalMemoryProperties.exportFromImportedHandleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+						property->externalMemoryProperties.compatibleHandleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+						property->externalMemoryProperties.externalMemoryFeatures = VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
+						break;
+					}
+#endif
+
+#if defined(VK_KHR_external_memory_fd)
+					if (info->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT)
+					{
+						FATAL_ERROR();
+					}
+#endif
+					
+					property->externalMemoryProperties.exportFromImportedHandleTypes = 0;
+					property->externalMemoryProperties.compatibleHandleTypes = 0;
+					property->externalMemoryProperties.externalMemoryFeatures = 0;
+					break;
+				}
 
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT:
 				FATAL_ERROR();
 
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_VIEW_IMAGE_FORMAT_INFO_EXT:
 				FATAL_ERROR();
+
+			default:
+				break;
 			}
 			next = static_cast<const VkBaseInStructure*>(next)->pNext;
 		}
 	}
 
-	const auto result = GetImageFormatPropertiesImpl(format, formatType, tiling, usage, flags, &pImageFormatProperties->imageFormatProperties);
-	if (result != VK_SUCCESS)
-	{
-		return result;
-	}
-	
-	{
-		auto next = pImageFormatProperties->pNext;
-		while (next)
-		{
-			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-			switch (type)
-			{
-			case VK_STRUCTURE_TYPE_ANDROID_HARDWARE_BUFFER_USAGE_ANDROID:
-				FATAL_ERROR();
-				
-			case VK_STRUCTURE_TYPE_EXTERNAL_IMAGE_FORMAT_PROPERTIES:
-				FATAL_ERROR();
-				
-			case VK_STRUCTURE_TYPE_FILTER_CUBIC_IMAGE_VIEW_IMAGE_FORMAT_PROPERTIES_EXT:
-				FATAL_ERROR();
-				
-			case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_IMAGE_FORMAT_PROPERTIES:
-				FATAL_ERROR();
-				
-			case VK_STRUCTURE_TYPE_TEXTURE_LOD_GATHER_FORMAT_PROPERTIES_AMD:
-				FATAL_ERROR();
-			}
-			next = static_cast<VkBaseOutStructure*>(next)->pNext;
-		}
-	}
-	
-	return result;
+	return GetImageFormatPropertiesImpl(format, formatType, tiling, usage, flags, &pImageFormatProperties->imageFormatProperties);
 }
 
 void PhysicalDevice::GetQueueFamilyProperties2(uint32_t* pQueueFamilyPropertyCount, VkQueueFamilyProperties2* pQueueFamilyProperties)
@@ -1129,6 +1150,9 @@ void PhysicalDevice::GetQueueFamilyProperties2(uint32_t* pQueueFamilyPropertyCou
 				{
 				case VK_STRUCTURE_TYPE_QUEUE_FAMILY_CHECKPOINT_PROPERTIES_NV:
 					FATAL_ERROR();
+
+				default:
+					break;
 				}
 				next = static_cast<VkBaseOutStructure*>(next)->pNext;
 			}
@@ -1155,7 +1179,7 @@ void PhysicalDevice::GetMemoryProperties2(VkPhysicalDeviceMemoryProperties2* pMe
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT:
 			{
 				auto memoryProperties = static_cast<VkPhysicalDeviceMemoryBudgetPropertiesEXT*>(next);
-				memoryProperties->heapBudget[0] = 0x100000000;
+				memoryProperties->heapBudget[0] = 0x100000000; // TODO: Real memory size?
 				memoryProperties->heapUsage[0] = 0;
 				for (auto i = 1u; i < VK_MAX_MEMORY_HEAPS; i++)
 				{
@@ -1164,6 +1188,9 @@ void PhysicalDevice::GetMemoryProperties2(VkPhysicalDeviceMemoryProperties2* pMe
 				}
 				break;
 			}
+
+		default:
+			break;
 		}
 		next = static_cast<VkBaseOutStructure*>(next)->pNext;
 	}
@@ -1193,24 +1220,85 @@ void PhysicalDevice::GetSparseImageFormatProperties2(const VkPhysicalDeviceSpars
 	}
 }
 
-void PhysicalDevice::GetExternalBufferProperties(
-	const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo,
-	VkExternalBufferProperties* pExternalBufferProperties)
+void PhysicalDevice::GetExternalBufferProperties(const VkPhysicalDeviceExternalBufferInfo* pExternalBufferInfo, VkExternalBufferProperties* pExternalBufferProperties)
 {
-	FATAL_ERROR();
+	assert(pExternalBufferInfo->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_BUFFER_INFO);
+	assert(pExternalBufferProperties->sType == VK_STRUCTURE_TYPE_EXTERNAL_BUFFER_PROPERTIES);
+
+#if defined(VK_KHR_external_memory_win32)
+	if (pExternalBufferInfo->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+	{
+		pExternalBufferProperties->externalMemoryProperties.exportFromImportedHandleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		pExternalBufferProperties->externalMemoryProperties.compatibleHandleTypes = VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		pExternalBufferProperties->externalMemoryProperties.externalMemoryFeatures = VK_EXTERNAL_MEMORY_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_MEMORY_FEATURE_IMPORTABLE_BIT;
+		return;
+	}
+#endif
+
+#if defined(VK_KHR_external_memory_fd)
+	if (pExternalBufferInfo->handleType == VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT)
+	{
+		FATAL_ERROR();
+	}
+#endif
+
+	pExternalBufferProperties->externalMemoryProperties.exportFromImportedHandleTypes = 0;
+	pExternalBufferProperties->externalMemoryProperties.compatibleHandleTypes = 0;
+	pExternalBufferProperties->externalMemoryProperties.externalMemoryFeatures = 0;
 }
 
-void PhysicalDevice::GetExternalFenceProperties(
-	const VkPhysicalDeviceExternalFenceInfo* pExternalFenceInfo, VkExternalFenceProperties* pExternalFenceProperties)
+void PhysicalDevice::GetExternalFenceProperties(const VkPhysicalDeviceExternalFenceInfo* pExternalFenceInfo, VkExternalFenceProperties* pExternalFenceProperties)
 {
-	FATAL_ERROR();
+	assert(pExternalFenceInfo->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_FENCE_INFO);
+	assert(pExternalFenceProperties->sType == VK_STRUCTURE_TYPE_EXTERNAL_FENCE_PROPERTIES);
+
+#if defined(VK_KHR_external_fence_win32)
+	if (pExternalFenceInfo->handleType == VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+	{
+		pExternalFenceProperties->exportFromImportedHandleTypes = VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		pExternalFenceProperties->compatibleHandleTypes = VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		pExternalFenceProperties->externalFenceFeatures = VK_EXTERNAL_FENCE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_FENCE_FEATURE_IMPORTABLE_BIT;
+		return;
+	}
+#endif
+
+#if defined(VK_KHR_external_fence_fd)
+	if (pExternalFenceInfo->handleType == VK_EXTERNAL_FENCE_HANDLE_TYPE_OPAQUE_FD_BIT)
+	{
+		FATAL_ERROR();
+	}
+#endif
+
+	pExternalFenceProperties->exportFromImportedHandleTypes = 0;
+	pExternalFenceProperties->compatibleHandleTypes = 0;
+	pExternalFenceProperties->externalFenceFeatures = 0;
 }
 
-void PhysicalDevice::GetExternalSemaphoreProperties(
-	const VkPhysicalDeviceExternalSemaphoreInfo* pExternalSemaphoreInfo,
-	VkExternalSemaphoreProperties* pExternalSemaphoreProperties)
+void PhysicalDevice::GetExternalSemaphoreProperties(const VkPhysicalDeviceExternalSemaphoreInfo* pExternalSemaphoreInfo, VkExternalSemaphoreProperties* pExternalSemaphoreProperties)
 {
-	FATAL_ERROR();
+	assert(pExternalSemaphoreInfo->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_SEMAPHORE_INFO);
+	assert(pExternalSemaphoreProperties->sType == VK_STRUCTURE_TYPE_EXTERNAL_SEMAPHORE_PROPERTIES);
+	
+#if defined(VK_KHR_external_semaphore_win32)
+	if (pExternalSemaphoreInfo->handleType == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT)
+	{
+		pExternalSemaphoreProperties->exportFromImportedHandleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		pExternalSemaphoreProperties->compatibleHandleTypes = VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_WIN32_BIT;
+		pExternalSemaphoreProperties->externalSemaphoreFeatures = VK_EXTERNAL_SEMAPHORE_FEATURE_EXPORTABLE_BIT | VK_EXTERNAL_SEMAPHORE_FEATURE_IMPORTABLE_BIT;
+		return;
+	}
+#endif
+	
+#if defined(VK_KHR_external_semaphore_fd)
+	if (pExternalSemaphoreInfo->handleType == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_OPAQUE_FD_BIT || pExternalSemaphoreInfo->handleType == VK_EXTERNAL_SEMAPHORE_HANDLE_TYPE_SYNC_FD_BIT)
+	{
+		FATAL_ERROR();
+	}
+#endif
+
+	pExternalSemaphoreProperties->exportFromImportedHandleTypes = 0;
+	pExternalSemaphoreProperties->compatibleHandleTypes = 0;
+	pExternalSemaphoreProperties->externalSemaphoreFeatures = 0;
 }
 
 VkResult PhysicalDevice::CreateDevice(const VkDeviceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDevice* pDevice)
@@ -1252,9 +1340,9 @@ VkResult PhysicalDevice::GetSurfaceFormats(VkSurfaceKHR surface, uint32_t* pSurf
 {
 	if (pSurfaceFormats)
 	{
-		if (*pSurfaceFormatCount != 1)
+		if (*pSurfaceFormatCount == 0)
 		{
-			FATAL_ERROR();
+			return VK_INCOMPLETE;
 		}
 		
 		pSurfaceFormats->format = VK_FORMAT_B8G8R8A8_UNORM;
@@ -1273,9 +1361,9 @@ VkResult PhysicalDevice::GetSurfacePresentModes(VkSurfaceKHR surface, uint32_t* 
 {
 	if (pPresentModes)
 	{
-		if (*pPresentModeCount != 1)
+		if (*pPresentModeCount == 0)
 		{
-			FATAL_ERROR();
+			return VK_INCOMPLETE;
 		}
 
 		*pPresentModes = VK_PRESENT_MODE_FIFO_KHR;
@@ -1284,6 +1372,59 @@ VkResult PhysicalDevice::GetSurfacePresentModes(VkSurfaceKHR surface, uint32_t* 
 	else
 	{
 		*pPresentModeCount = 1;
+	}
+
+	return VK_SUCCESS;
+}
+
+VkResult PhysicalDevice::GetSurfaceCapabilities2KHR(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkSurfaceCapabilities2KHR* pSurfaceCapabilities)
+{
+	assert(pSurfaceInfo->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR);
+
+	const auto result = GetSurfaceCapabilities(pSurfaceInfo->surface, &pSurfaceCapabilities->surfaceCapabilities);
+	if (result != VK_SUCCESS)
+	{
+		return result;
+	}
+
+	auto next = static_cast<const VkBaseInStructure*>(pSurfaceInfo->pNext);
+	while (next)
+	{
+		switch (next->sType)
+		{
+		case VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT:
+			FATAL_ERROR();
+
+		case VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT:
+			FATAL_ERROR();
+
+		default:
+			break;
+		}
+		next = next->pNext;
+	}
+
+	return VK_SUCCESS;
+}
+
+VkResult PhysicalDevice::GetSurfaceFormats2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pSurfaceFormatCount, VkSurfaceFormat2KHR* pSurfaceFormats)
+{
+	assert(pSurfaceInfo->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR);
+
+	if (pSurfaceFormats)
+	{
+		if (*pSurfaceFormatCount == 0)
+		{
+			return VK_INCOMPLETE;
+		}
+
+		pSurfaceFormats->surfaceFormat.format = VK_FORMAT_B8G8R8A8_UNORM;
+		pSurfaceFormats->surfaceFormat.colorSpace = VK_COLOR_SPACE_PASS_THROUGH_EXT;
+		*pSurfaceFormatCount = 1;
+	}
+	else
+	{
+		*pSurfaceFormatCount = 1;
 	}
 
 	return VK_SUCCESS;

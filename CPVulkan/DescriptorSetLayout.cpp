@@ -45,5 +45,8 @@ VkResult Device::CreateDescriptorSetLayout(const VkDescriptorSetLayoutCreateInfo
 
 void Device::DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayout, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<DescriptorSetLayout>(descriptorSetLayout), pAllocator);
+	if (descriptorSetLayout)
+	{
+		Free(UnwrapVulkan<DescriptorSetLayout>(descriptorSetLayout), pAllocator);
+	}
 }

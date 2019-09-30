@@ -68,7 +68,7 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO:
-			FATAL_ERROR();
+			break;
 
 		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_NV:
 			FATAL_ERROR();
@@ -127,7 +127,10 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 
 void Device::FreeMemory(VkDeviceMemory memory, const VkAllocationCallbacks* pAllocator)
 {
-	FreeSized(UnwrapVulkan<DeviceMemory>(memory), pAllocator);
+	if (memory)
+	{
+		FreeSized(UnwrapVulkan<DeviceMemory>(memory), pAllocator);
+	}
 }
 
 VkResult Device::MapMemory(VkDeviceMemory memory, VkDeviceSize offset, VkDeviceSize size, VkMemoryMapFlags flags, void** ppData)
@@ -509,6 +512,9 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 				// TODO
 				break;
 			}
+
+		default:
+			break;
 		}
 		next = static_cast<const VkPhysicalDeviceFeatures2*>(next)->pNext;
 	}
@@ -612,7 +618,15 @@ void Device::GetImageSparseMemoryRequirements2(const VkImageSparseMemoryRequirem
 
 VkResult Device::GetDeviceGroupPresentCapabilities(VkDeviceGroupPresentCapabilitiesKHR* pDeviceGroupPresentCapabilities)
 {
-	FATAL_ERROR();
+	assert(pDeviceGroupPresentCapabilities->sType == VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_CAPABILITIES_KHR);
+
+	for (auto i = 0; i < VK_MAX_DEVICE_GROUP_SIZE; i++)
+	{
+		pDeviceGroupPresentCapabilities->presentMask[i] = 0;
+	}
+	pDeviceGroupPresentCapabilities->modes = VK_DEVICE_GROUP_PRESENT_MODE_LOCAL_BIT_KHR;
+
+	return VK_SUCCESS;
 }
 
 VkResult Device::GetDeviceGroupSurfacePresentModes(VkSurfaceKHR surface, VkDeviceGroupPresentModeFlagsKHR* pModes)

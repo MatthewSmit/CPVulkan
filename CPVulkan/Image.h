@@ -26,6 +26,11 @@ public:
 	[[nodiscard]] uint32_t getArrayLayers() const { return arrayLayers; }
 	[[nodiscard]] uint32_t getMipLevels() const { return mipLevels; }
 
+	[[nodiscard]] gsl::span<uint8_t> getData() const noexcept
+	{
+		return data;
+	}
+
 	[[nodiscard]] gsl::span<uint8_t> getData(uint64_t offset, uint64_t size) const noexcept
 	{
 		return data.subspan(offset, size);

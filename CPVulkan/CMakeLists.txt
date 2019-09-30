@@ -54,6 +54,8 @@ set(FILES
 		"GlslFunctions.cpp"
 		"GlslFunctions.h"
 
+		"half.h"
+
 		"Image.cpp"
 		"Image.h"
 

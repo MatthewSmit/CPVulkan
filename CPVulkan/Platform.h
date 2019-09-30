@@ -8,6 +8,7 @@ namespace Platform
 	bool SupportsSparse();
 
 	void* CreateMutex(bool initialState, bool manualReset);
+	void* CreateSemaphoreExport(bool initialState, bool manualReset, const void* exportSemaphore);
 	void CloseMutex(void* mutex) noexcept;
 	void SignalMutex(void* mutex);
 	void ResetMutex(void* mutex);

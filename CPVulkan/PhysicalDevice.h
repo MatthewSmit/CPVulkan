@@ -72,8 +72,8 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR CreateDisplayMode(VkDisplayKHR display, const VkDisplayModeCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDisplayModeKHR* pMode) { FATAL_ERROR(); }
 	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayPlaneCapabilities(VkDisplayModeKHR mode, uint32_t planeIndex, VkDisplayPlaneCapabilitiesKHR* pCapabilities) { FATAL_ERROR(); }
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceCapabilities2KHR(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkSurfaceCapabilities2KHR* pSurfaceCapabilities) { FATAL_ERROR(); }
-	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceFormats2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pSurfaceFormatCount, VkSurfaceFormat2KHR* pSurfaceFormats) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceCapabilities2KHR(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkSurfaceCapabilities2KHR* pSurfaceCapabilities);
+	VKAPI_ATTR VkResult VKAPI_PTR GetSurfaceFormats2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, uint32_t* pSurfaceFormatCount, VkSurfaceFormat2KHR* pSurfaceFormats);
 
 	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayProperties2(uint32_t* pPropertyCount, VkDisplayProperties2KHR* pProperties) { FATAL_ERROR(); }
 	VKAPI_ATTR VkResult VKAPI_PTR GetDisplayPlaneProperties2(uint32_t* pPropertyCount, VkDisplayPlaneProperties2KHR* pProperties) { FATAL_ERROR(); }

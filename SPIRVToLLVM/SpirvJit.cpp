@@ -181,7 +181,7 @@ SpirvCompiledModule::SpirvCompiledModule(llvm::Module* module, llvm::orc::Thread
 
 SpirvCompiledModule::~SpirvCompiledModule() = default;
 
-void DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer)
+void STL_DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer)
 {
 	functions.insert(std::make_pair(name, pointer));
 }

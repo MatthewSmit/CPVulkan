@@ -15,16 +15,6 @@ VkResult PipelineLayout::Create(const VkPipelineLayoutCreateInfo* pCreateInfo, c
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	auto next = pCreateInfo->pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
-	}
-
 	// TODO
 
 	WrapVulkan(pipelineLayout, pPipelineLayout);
@@ -38,5 +28,8 @@ VkResult Device::CreatePipelineLayout(const VkPipelineLayoutCreateInfo* pCreateI
 
 void Device::DestroyPipelineLayout(VkPipelineLayout pipelineLayout, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<PipelineLayout>(pipelineLayout), pAllocator);
+	if (pipelineLayout)
+	{
+		Free(UnwrapVulkan<PipelineLayout>(pipelineLayout), pAllocator);
+	}
 }

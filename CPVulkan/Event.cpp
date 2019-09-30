@@ -58,7 +58,10 @@ VkResult Device::CreateEvent(const VkEventCreateInfo* pCreateInfo, const VkAlloc
 
 void Device::DestroyEvent(VkEvent event, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<Event>(event), pAllocator);
+	if (event)
+	{
+		Free(UnwrapVulkan<Event>(event), pAllocator);
+	}
 }
 
 VkResult Device::GetEventStatus(VkEvent event)

@@ -71,7 +71,10 @@ VkResult Device::CreateFence(const VkFenceCreateInfo* pCreateInfo, const VkAlloc
 
 void Device::DestroyFence(VkFence fence, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<Fence>(fence), pAllocator);
+	if (fence)
+	{
+		Free(UnwrapVulkan<Fence>(fence), pAllocator);
+	}
 }
 
 VkResult Device::ResetFences(uint32_t fenceCount, const VkFence* pFences)

@@ -70,6 +70,11 @@ VkResult Instance::CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreate
 	assert(pCreateInfo->flags == 0);
 
 	auto surface = Allocate<VkIcdSurfaceWin32>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+	if (!surface)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
+	
 	surface->base.platform = VK_ICD_WSI_PLATFORM_WIN32;
 	surface->hinstance = pCreateInfo->hinstance;
 	surface->hwnd = pCreateInfo->hwnd;

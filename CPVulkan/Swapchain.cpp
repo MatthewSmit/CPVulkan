@@ -161,8 +161,11 @@ VkResult Device::CreateSwapchain(const VkSwapchainCreateInfoKHR* pCreateInfo, co
 
 void Device::DestroySwapchain(VkSwapchainKHR swapchain, const VkAllocationCallbacks* pAllocator)
 {
-	UnwrapVulkan<Swapchain>(swapchain)->DeleteImages(pAllocator);
-	Free(UnwrapVulkan<Swapchain>(swapchain), pAllocator);
+	if (swapchain)
+	{
+		UnwrapVulkan<Swapchain>(swapchain)->DeleteImages(pAllocator);
+		Free(UnwrapVulkan<Swapchain>(swapchain), pAllocator);
+	}
 }
 
 VkResult Device::GetSwapchainImages(VkSwapchainKHR swapchain, uint32_t* pSwapchainImageCount, VkImage* pSwapchainImages)

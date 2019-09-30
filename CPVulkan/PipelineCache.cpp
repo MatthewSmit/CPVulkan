@@ -38,7 +38,10 @@ VkResult Device::CreatePipelineCache(const VkPipelineCacheCreateInfo* pCreateInf
 
 void Device::DestroyPipelineCache(VkPipelineCache pipelineCache, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<PipelineCache>(pipelineCache), pAllocator);
+	if (pipelineCache)
+	{
+		Free(UnwrapVulkan<PipelineCache>(pipelineCache), pAllocator);
+	}
 }
 
 VkResult Device::MergePipelineCaches(VkPipelineCache dstCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches)

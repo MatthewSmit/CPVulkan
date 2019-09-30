@@ -73,6 +73,9 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 
 			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT:
 				FATAL_ERROR();
+
+			default:
+				break;
 			}
 			next = static_cast<const VkBaseInStructure*>(next)->pNext;
 		}
@@ -130,6 +133,9 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 		{
 		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT:
 			FATAL_ERROR();
+
+		default:
+			break;
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -150,7 +156,10 @@ VkResult Device::FreeDescriptorSets(VkDescriptorPool descriptorPool, uint32_t de
 {
 	for (auto i = 0u; i < descriptorSetCount; i++)
 	{
-		Free(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]), nullptr);
+		if (pDescriptorSets[i])
+		{
+			Free(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]), nullptr);
+		}
 	}
 
 	return VK_SUCCESS;

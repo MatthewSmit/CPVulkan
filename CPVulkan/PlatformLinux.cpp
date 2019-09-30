@@ -505,6 +505,13 @@ namespace neosmart {
 
 void Platform::Initialise()
 {
+	static auto initialised = false;
+	if (initialised)
+	{
+		return;
+	}
+	initialised = true;
+
     if (getpagesize() != 4096)
     {
         FATAL_ERROR();

@@ -1315,5 +1315,5 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	llvmModule->print(DumpStream, nullptr);
 	std::cout << dump << std::endl;
 	
-	return std::move(llvmModule);
+	return llvmModule;
 }

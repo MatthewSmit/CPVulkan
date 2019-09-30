@@ -140,6 +140,7 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 	if (result != VK_SUCCESS)
 	{
 		Free(instance, pAllocator);
+		*pInstance = nullptr;
 		return result;
 	}
 

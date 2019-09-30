@@ -6,11 +6,6 @@
 
 #include <cassert>
 
-void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator)
-{
-	Free(UnwrapVulkan<Image>(image), pAllocator);
-}
-
 VkResult Image::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
 	const auto memorySpan = UnwrapVulkan<DeviceMemory>(memory)->getSpan();
@@ -160,6 +155,14 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 VkResult Device::CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage)
 {
 	return Image::Create(pCreateInfo, pAllocator, pImage);
+}
+
+void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator)
+{
+	if (image)
+	{
+		Free(UnwrapVulkan<Image>(image), pAllocator);
+	}
 }
 
 VkResult Device::BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos)

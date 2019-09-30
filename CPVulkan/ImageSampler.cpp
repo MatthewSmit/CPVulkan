@@ -1,6 +1,7 @@
 #include "ImageSampler.h"
 
 #include "Formats.h"
+#include "half.h"
 #include "Image.h"
 
 #include <glm/glm.hpp>
@@ -46,6 +47,76 @@ static int32_t Wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 	}
 	
 	FATAL_ERROR();
+}
+
+template<typename T>
+static void LinearToSRGB(const T input[4], T output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
+static void LinearToSRGB(const float input[4], float output[4])
+{
+	output[0] = input[0] <= 0.0031308 ? input[0] * 12.92f : 1.055f * std::pow(input[0], 1.0f / 2.4f) - 0.055f;
+	output[1] = input[1] <= 0.0031308 ? input[1] * 12.92f : 1.055f * std::pow(input[1], 1.0f / 2.4f) - 0.055f;
+	output[2] = input[2] <= 0.0031308 ? input[2] * 12.92f : 1.055f * std::pow(input[2], 1.0f / 2.4f) - 0.055f;
+	output[3] = input[3];
+}
+
+template<typename T>
+static void SRGBToLinear(const T input[4], T output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
+static void SRGBToLinear(const float input[4], float output[4])
+{
+	output[0] = input[0] <= 0.04045 ? input[0] / 12.92f : std::pow((input[0] + 0.055f) / 1.055f, 2.4f);
+	output[1] = input[1] <= 0.04045 ? input[1] / 12.92f : std::pow((input[1] + 0.055f) / 1.055f, 2.4f);
+	output[2] = input[2] <= 0.04045 ? input[2] / 12.92f : std::pow((input[2] + 0.055f) / 1.055f, 2.4f);
+	output[3] = input[3];
+}
+
+static uint32_t PackB10G11R11(const float input[4])
+{
+	const auto r = ConvertBits<float, UF11>(input[0]);
+	const auto g = ConvertBits<float, UF11>(input[1]);
+	const auto b = ConvertBits<float, UF10>(input[2]);
+	return r | g << 11 | b << 22;
+}
+
+static uint32_t PackE5B9G9R9(const float input[4])
+{
+	constexpr auto EXPONENT_SHIFT = FloatFormat<UF14>::MANTISSA_BITS;
+	constexpr auto EXPONENT_MASK = (1 << FloatFormat<UF14>::EXPONENT_BITS) - 1;
+	constexpr auto EXPONENT_BIAS = (1 << (FloatFormat<UF14>::EXPONENT_BITS - 1)) - 1;
+	constexpr auto MANTISSA_MASK = (1 << FloatFormat<UF14>::MANTISSA_BITS) - 1;
+	
+	const auto r = ConvertBits<float, UF14>(input[0]);
+	const auto g = ConvertBits<float, UF14>(input[1]);
+	const auto b = ConvertBits<float, UF14>(input[2]);
+
+	const auto rExponent = static_cast<int>((r >> EXPONENT_SHIFT) & EXPONENT_MASK) - EXPONENT_BIAS;
+	const auto gExponent = static_cast<int>((g >> EXPONENT_SHIFT) & EXPONENT_MASK) - EXPONENT_BIAS;
+	const auto bExponent = static_cast<int>((b >> EXPONENT_SHIFT) & EXPONENT_MASK) - EXPONENT_BIAS;
+
+	auto rMantissa = r & MANTISSA_MASK;
+	auto gMantissa = g & MANTISSA_MASK;
+	auto bMantissa = b & MANTISSA_MASK;
+
+	auto exponent = std::max(std::max(rExponent, gExponent), bExponent);
+
+	const auto rExponentShift = exponent - rExponent;
+	const auto gExponentShift = exponent - gExponent;
+	const auto bExponentShift = exponent - bExponent;
+
+	rMantissa >>= rExponentShift;
+	gMantissa >>= gExponentShift;
+	bMantissa >>= bExponentShift;
+
+	return (static_cast<uint32_t>(exponent + EXPONENT_BIAS) << EXPONENT_SHIFT) | (bMantissa << 18) | (gMantissa << 9) << rMantissa;
 }
 
 
@@ -94,12 +165,12 @@ void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input
 	case BaseType::UInt:
 		switch (format.ElementSize)
 		{
-            case 1:
-                ConvertPixelsFromTemp<uint8_t, OutputType>(input, output);
-                return;
-            case 2:
-                ConvertPixelsFromTemp<uint16_t, OutputType>(input, output);
-                return;
+		case 1:
+			ConvertPixelsFromTemp<uint8_t, OutputType>(input, output);
+			return;
+		case 2:
+			ConvertPixelsFromTemp<uint16_t, OutputType>(input, output);
+			return;
 		}
 		break;
 
@@ -117,21 +188,96 @@ void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input
 
 
 template<>
-void ConvertPixelsToTemp<float, uint8_t>(const float input[4], uint64_t output[4])
+void ConvertPixelsToTemp<float, half>(const float input[4], uint64_t output[4])
 {
-	output[0] = static_cast<uint64_t>(input[0] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max()));
-	output[1] = static_cast<uint64_t>(input[1] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max()));
-	output[2] = static_cast<uint64_t>(input[2] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max()));
-	output[3] = static_cast<uint64_t>(input[3] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max()));
+	output[0] = *reinterpret_cast<const uint16_t*>(&half{input[0]});
+	output[1] = *reinterpret_cast<const uint16_t*>(&half{input[1]});
+	output[2] = *reinterpret_cast<const uint16_t*>(&half{input[2]});
+	output[3] = *reinterpret_cast<const uint16_t*>(&half{input[3]});
 }
 
 template<>
 void ConvertPixelsToTemp<float, float>(const float input[4], uint64_t output[4])
 {
-	output[0] = *reinterpret_cast<const uint64_t*>(&input[0]);
-	output[1] = *reinterpret_cast<const uint64_t*>(&input[1]);
-	output[2] = *reinterpret_cast<const uint64_t*>(&input[2]);
-	output[3] = *reinterpret_cast<const uint64_t*>(&input[3]);
+	output[0] = *reinterpret_cast<const uint32_t*>(&input[0]);
+	output[1] = *reinterpret_cast<const uint32_t*>(&input[1]);
+	output[2] = *reinterpret_cast<const uint32_t*>(&input[2]);
+	output[3] = *reinterpret_cast<const uint32_t*>(&input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<float, int8_t>(const float input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint64_t>(std::round(input[0] * static_cast<int64_t>(std::numeric_limits<int8_t>::max())));
+	output[1] = static_cast<uint64_t>(std::round(input[1] * static_cast<int64_t>(std::numeric_limits<int8_t>::max())));
+	output[2] = static_cast<uint64_t>(std::round(input[2] * static_cast<int64_t>(std::numeric_limits<int8_t>::max())));
+	output[3] = static_cast<uint64_t>(std::round(input[3] * static_cast<int64_t>(std::numeric_limits<int8_t>::max())));
+}
+
+template<>
+void ConvertPixelsToTemp<float, uint8_t>(const float input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint64_t>(std::round(input[0] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())));
+	output[1] = static_cast<uint64_t>(std::round(input[1] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())));
+	output[2] = static_cast<uint64_t>(std::round(input[2] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())));
+	output[3] = static_cast<uint64_t>(std::round(input[3] * static_cast<uint64_t>(std::numeric_limits<uint8_t>::max())));
+}
+
+template<>
+void ConvertPixelsToTemp<float, int16_t>(const float input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint64_t>(std::round(input[0] * static_cast<int64_t>(std::numeric_limits<int16_t>::max())));
+	output[1] = static_cast<uint64_t>(std::round(input[1] * static_cast<int64_t>(std::numeric_limits<int16_t>::max())));
+	output[2] = static_cast<uint64_t>(std::round(input[2] * static_cast<int64_t>(std::numeric_limits<int16_t>::max())));
+	output[3] = static_cast<uint64_t>(std::round(input[3] * static_cast<int64_t>(std::numeric_limits<int16_t>::max())));
+}
+
+template<>
+void ConvertPixelsToTemp<float, uint16_t>(const float input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint64_t>(std::round(input[0] * static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())));
+	output[1] = static_cast<uint64_t>(std::round(input[1] * static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())));
+	output[2] = static_cast<uint64_t>(std::round(input[2] * static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())));
+	output[3] = static_cast<uint64_t>(std::round(input[3] * static_cast<uint64_t>(std::numeric_limits<uint16_t>::max())));
+}
+
+template<>
+void ConvertPixelsToTemp<float, int32_t>(const float input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint64_t>(std::round(input[0] * static_cast<double>(std::numeric_limits<int32_t>::max())));
+	output[1] = static_cast<uint64_t>(std::round(input[1] * static_cast<double>(std::numeric_limits<int32_t>::max())));
+	output[2] = static_cast<uint64_t>(std::round(input[2] * static_cast<double>(std::numeric_limits<int32_t>::max())));
+	output[3] = static_cast<uint64_t>(std::round(input[3] * static_cast<double>(std::numeric_limits<int32_t>::max())));
+}
+
+template<>
+void ConvertPixelsToTemp<float, uint32_t>(const float input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint64_t>(std::round(input[0] * static_cast<double>(std::numeric_limits<uint32_t>::max())));
+	output[1] = static_cast<uint64_t>(std::round(input[1] * static_cast<double>(std::numeric_limits<uint32_t>::max())));
+	output[2] = static_cast<uint64_t>(std::round(input[2] * static_cast<double>(std::numeric_limits<uint32_t>::max())));
+	output[3] = static_cast<uint64_t>(std::round(input[3] * static_cast<double>(std::numeric_limits<uint32_t>::max())));
+}
+
+template<>
+void ConvertPixelsToTemp<int32_t, half>(const int32_t input[4], uint64_t output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
+void ConvertPixelsToTemp<int32_t, float>(const int32_t input[4], uint64_t output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
+void ConvertPixelsToTemp<int32_t, int8_t>(const int32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<int8_t>(input[0]);
+	output[1] = static_cast<int8_t>(input[1]);
+	output[2] = static_cast<int8_t>(input[2]);
+	output[3] = static_cast<int8_t>(input[3]);
 }
 
 template<>
@@ -144,52 +290,377 @@ void ConvertPixelsToTemp<int32_t, uint8_t>(const int32_t input[4], uint64_t outp
 }
 
 template<>
-void ConvertPixelsToTemp<int32_t, float>(const int32_t input[4], uint64_t output[4])
+void ConvertPixelsToTemp<int32_t, int16_t>(const int32_t input[4], uint64_t output[4])
 {
+	output[0] = static_cast<int16_t>(input[0]);
+	output[1] = static_cast<int16_t>(input[1]);
+	output[2] = static_cast<int16_t>(input[2]);
+	output[3] = static_cast<int16_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<int32_t, uint16_t>(const int32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint16_t>(input[0]);
+	output[1] = static_cast<uint16_t>(input[1]);
+	output[2] = static_cast<uint16_t>(input[2]);
+	output[3] = static_cast<uint16_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<int32_t, int32_t>(const int32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<int32_t>(input[0]);
+	output[1] = static_cast<int32_t>(input[1]);
+	output[2] = static_cast<int32_t>(input[2]);
+	output[3] = static_cast<int32_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<int32_t, uint32_t>(const int32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint32_t>(input[0]);
+	output[1] = static_cast<uint32_t>(input[1]);
+	output[2] = static_cast<uint32_t>(input[2]);
+	output[3] = static_cast<uint32_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, half>(const uint32_t input[4], uint64_t output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, float>(const uint32_t input[4], uint64_t output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, int8_t>(const uint32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<int8_t>(input[0]);
+	output[1] = static_cast<int8_t>(input[1]);
+	output[2] = static_cast<int8_t>(input[2]);
+	output[3] = static_cast<int8_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, uint8_t>(const uint32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint8_t>(input[0]);
+	output[1] = static_cast<uint8_t>(input[1]);
+	output[2] = static_cast<uint8_t>(input[2]);
+	output[3] = static_cast<uint8_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, int16_t>(const uint32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<int16_t>(input[0]);
+	output[1] = static_cast<int16_t>(input[1]);
+	output[2] = static_cast<int16_t>(input[2]);
+	output[3] = static_cast<int16_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, uint16_t>(const uint32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint16_t>(input[0]);
+	output[1] = static_cast<uint16_t>(input[1]);
+	output[2] = static_cast<uint16_t>(input[2]);
+	output[3] = static_cast<uint16_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, int32_t>(const uint32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<int32_t>(input[0]);
+	output[1] = static_cast<int32_t>(input[1]);
+	output[2] = static_cast<int32_t>(input[2]);
+	output[3] = static_cast<int32_t>(input[3]);
+}
+
+template<>
+void ConvertPixelsToTemp<uint32_t, uint32_t>(const uint32_t input[4], uint64_t output[4])
+{
+	output[0] = static_cast<uint32_t>(input[0]);
+	output[1] = static_cast<uint32_t>(input[1]);
+	output[2] = static_cast<uint32_t>(input[2]);
+	output[3] = static_cast<uint32_t>(input[3]);
+}
+
+template<typename InputType>
+void ConvertPixelsToPackedTemp(const FormatInformation& format, const InputType input[4], uint64_t output[4]);
+
+template<>
+void ConvertPixelsToPackedTemp(const FormatInformation& format, const float input[4], uint64_t output[4])
+{
+	output[0] = 0;
+	switch (format.Base)
+	{
+	case BaseType::UNorm:
+		if (format.RedBits)
+		{
+			const auto size = (1 << format.RedBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[0] * size));
+			output[0] |= value << format.RedOffset;
+		}
+		if (format.GreenBits)
+		{
+			const auto size = (1 << format.GreenBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[1] * size));
+			output[0] |= value << format.GreenOffset;
+		}
+		if (format.BlueBits)
+		{
+			const auto size = (1 << format.BlueBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[2] * size));
+			output[0] |= value << format.BlueOffset;
+		}
+		if (format.AlphaBits)
+		{
+			const auto size = (1 << format.AlphaBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[3] * size));
+			output[0] |= value << format.AlphaOffset;
+		}
+		return;
+
+	case BaseType::SNorm:
+		if (format.RedBits)
+		{
+			const auto size = (1 << (format.RedBits - 1)) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[0] * size));
+			output[0] |= value << format.RedOffset;
+		}
+		if (format.GreenBits)
+		{
+			const auto size = (1 << (format.GreenBits - 1)) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[1] * size));
+			output[0] |= value << format.GreenOffset;
+		}
+		if (format.BlueBits)
+		{
+			const auto size = (1 << (format.BlueBits - 1)) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[2] * size));
+			output[0] |= value << format.BlueOffset;
+		}
+		if (format.AlphaBits)
+		{
+			const auto size = (1 << (format.AlphaBits - 1)) - 1;
+			const auto value = static_cast<uint64_t>(std::round(input[3] * size));
+			output[0] |= value << format.AlphaOffset;
+		}
+		return;
+
+	case BaseType::UFloat:
+		switch (format.Format)
+		{
+		case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+			output[0] = PackB10G11R11(input);
+			return;
+		case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+			output[0] = PackE5B9G9R9(input);
+			return;
+		}
+		break;
+
+	case BaseType::SRGB:
+		float converted[4];
+		LinearToSRGB(input, converted);
+		if (format.RedBits)
+		{
+			const auto size = (1 << format.RedBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(converted[0] * size));
+			output[0] |= value << format.RedOffset;
+		}
+		if (format.GreenBits)
+		{
+			const auto size = (1 << format.GreenBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(converted[1] * size));
+			output[0] |= value << format.GreenOffset;
+		}
+		if (format.BlueBits)
+		{
+			const auto size = (1 << format.BlueBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(converted[2] * size));
+			output[0] |= value << format.BlueOffset;
+		}
+		if (format.AlphaBits)
+		{
+			const auto size = (1 << format.AlphaBits) - 1;
+			const auto value = static_cast<uint64_t>(std::round(converted[3] * size));
+			output[0] |= value << format.AlphaOffset;
+		}
+		return;
+	}
+
+	FATAL_ERROR();
+}
+
+template<>
+void ConvertPixelsToPackedTemp(const FormatInformation& format, const int32_t input[4], uint64_t output[4])
+{
+	output[0] = 0;
+	switch (format.Base)
+	{
+	case BaseType::SScaled:
+	case BaseType::SInt:
+		if (format.RedBits)
+		{
+			const auto mask = (1 << (format.RedBits - 1)) - 1;
+			output[0] |= (static_cast<uint64_t>(input[0]) & mask) << format.RedOffset;
+		}
+		if (format.GreenBits)
+		{
+			const auto mask = (1 << (format.GreenBits - 1)) - 1;
+			output[0] |= (static_cast<uint64_t>(input[1]) & mask) << format.GreenOffset;
+		}
+		if (format.BlueBits)
+		{
+			const auto mask = (1 << (format.BlueBits - 1)) - 1;
+			output[0] |= (static_cast<uint64_t>(input[2]) & mask) << format.BlueOffset;
+		}
+		if (format.AlphaBits)
+		{
+			const auto mask = (1 << (format.AlphaBits - 1)) - 1;
+			output[0] |= (static_cast<uint64_t>(input[3]) & mask) << format.AlphaOffset;
+		}
+		return;
+	}
+	
+	FATAL_ERROR();
+}
+
+template<>
+void ConvertPixelsToPackedTemp(const FormatInformation& format, const uint32_t input[4], uint64_t output[4])
+{
+	output[0] = 0;
+	switch (format.Base)
+	{
+	case BaseType::UScaled:
+	case BaseType::UInt:
+		if (format.RedBits)
+		{
+			const auto mask = (1 << format.RedBits) - 1;
+			output[0] |= (static_cast<uint64_t>(input[0]) & mask) << format.RedOffset;
+		}
+		if (format.GreenBits)
+		{
+			const auto mask = (1 << format.GreenBits) - 1;
+			output[0] |= (static_cast<uint64_t>(input[1]) & mask) << format.GreenOffset;
+		}
+		if (format.BlueBits)
+		{
+			const auto mask = (1 << format.BlueBits) - 1;
+			output[0] |= (static_cast<uint64_t>(input[2]) & mask) << format.BlueOffset;
+		}
+		if (format.AlphaBits)
+		{
+			const auto mask = (1 << format.AlphaBits) - 1;
+			output[0] |= (static_cast<uint64_t>(input[3]) & mask) << format.AlphaOffset;
+		}
+		return;
+	}
+	
 	FATAL_ERROR();
 }
 
 template<typename InputType>
 void ConvertPixelsToTemp(const FormatInformation& format, const InputType input[4], uint64_t output[4])
 {
+	if (format.ElementSize == 0)
+	{
+		ConvertPixelsToPackedTemp(format, input, output);
+		return;
+	}
+	
 	switch (format.Base)
 	{
 	case BaseType::UNorm:
+	case BaseType::UScaled:
 	case BaseType::UInt:
 		switch (format.ElementSize)
 		{
 		case 1:
 			ConvertPixelsToTemp<InputType, uint8_t>(input, output);
 			return;
+
+		case 2:
+			ConvertPixelsToTemp<InputType, uint16_t>(input, output);
+			return;
+
+		case 4:
+			ConvertPixelsToTemp<InputType, uint32_t>(input, output);
+			return;
 		}
 		break;
-		
-	case BaseType::SNorm: break;
-	case BaseType::UScaled: break;
-	case BaseType::SScaled: break;
-	case BaseType::SInt: break;
+
+	case BaseType::SNorm:
+	case BaseType::SScaled:
+	case BaseType::SInt:
+		switch (format.ElementSize)
+		{
+		case 1:
+			ConvertPixelsToTemp<InputType, int8_t>(input, output);
+			return;
+
+		case 2:
+			ConvertPixelsToTemp<InputType, int16_t>(input, output);
+			return;
+
+		case 4:
+			ConvertPixelsToTemp<InputType, int32_t>(input, output);
+			return;
+		}
+		break;
+
 	case BaseType::UFloat: break;
-		
+
 	case BaseType::SFloat:
 		switch (format.ElementSize)
 		{
+		case 2:
+			ConvertPixelsToTemp<InputType, half>(input, output);
+			return;
+			
 		case 4:
 			ConvertPixelsToTemp<InputType, float>(input, output);
 			return;
 		}
 		break;
-		
-	case BaseType::SRGB: break;
+
+	case BaseType::SRGB:
+		InputType converted[4];
+		LinearToSRGB(input, converted);
+		switch (format.ElementSize)
+		{
+		case 1:
+			ConvertPixelsToTemp<InputType, uint8_t>(converted, output);
+			return;
+
+		case 2:
+			ConvertPixelsToTemp<InputType, uint16_t>(converted, output);
+			return;
+
+		case 4:
+			ConvertPixelsToTemp<InputType, uint32_t>(converted, output);
+			return;
+		}
+		break;
 	}
-	
+
 	FATAL_ERROR();
 }
 
 template void ConvertPixelsToTemp(const FormatInformation& format, const float input[4], uint64_t output[4]);
+template void ConvertPixelsToTemp(const FormatInformation& format, const int32_t input[4], uint64_t output[4]);
+template void ConvertPixelsToTemp(const FormatInformation& format, const uint32_t input[4], uint64_t output[4]);
 
 
 template<typename Size>
-void GetPixel(const FormatInformation& format, const void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint64_t values[4])
+void GetPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
 	static_assert(!std::numeric_limits<Size>::is_signed);
@@ -199,7 +670,7 @@ void GetPixel(const FormatInformation& format, const void* data, uint32_t i, uin
 		FATAL_ERROR();
 	}
 
-	const auto pixel = reinterpret_cast<const Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, 0));
+	const auto pixel = reinterpret_cast<const Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, 0, 0));
 	if (format.RedOffset != -1) values[0] = static_cast<uint64_t>(pixel[format.RedOffset]);
 	if (format.GreenOffset != -1) values[1] = static_cast<uint64_t>(pixel[format.GreenOffset]);
 	if (format.BlueOffset != -1) values[2] = static_cast<uint64_t>(pixel[format.BlueOffset]);
@@ -217,11 +688,11 @@ void GetPixel(const FormatInformation& format, const Image* image, int32_t i, in
 	{
 		if (format.ElementSize == 1)
 		{
-			GetPixel<uint8_t>(format, image->getDataPtr(0, 1), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), rawValues);
+			GetPixel<uint8_t>(format, image->getData(), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), rawValues);
 		}
 		else if (format.ElementSize == 2)
 		{
-			GetPixel<uint16_t>(format, image->getDataPtr(0, 1), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), rawValues);
+			GetPixel<uint16_t>(format, image->getData(), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), rawValues);
 		}
 		else
 		{
@@ -247,7 +718,7 @@ OutputType GetPixel(const FormatInformation& format, const Image* image, int32_t
 
 
 template<typename Size>
-void SetPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel, const uint64_t values[4])
+void SetPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer, const uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
 	static_assert(!std::numeric_limits<Size>::is_signed);
@@ -257,66 +728,53 @@ void SetPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t 
 		FATAL_ERROR();
 	}
 
-	const auto pixel = reinterpret_cast<Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, mipLevel));
-	if (format.RedOffset != -1) pixel[format.RedOffset] = static_cast<Size>(values[0]);
-	if (format.GreenOffset != -1) pixel[format.GreenOffset] = static_cast<Size>(values[1]);
-	if (format.BlueOffset != -1) pixel[format.BlueOffset] = static_cast<Size>(values[2]);
-	if (format.AlphaOffset != -1) pixel[format.AlphaOffset] = static_cast<Size>(values[3]);
+	const auto pixel = reinterpret_cast<uint8_t*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, mipLevel, layer));
+	if (format.RedOffset != -1) *reinterpret_cast<Size*>(pixel + format.RedOffset) = static_cast<Size>(values[0]);
+	if (format.GreenOffset != -1) *reinterpret_cast<Size*>(pixel + format.GreenOffset) = static_cast<Size>(values[1]);
+	if (format.BlueOffset != -1) *reinterpret_cast<Size*>(pixel + format.BlueOffset) = static_cast<Size>(values[2]);
+	if (format.AlphaOffset != -1) *reinterpret_cast<Size*>(pixel + format.AlphaOffset) = static_cast<Size>(values[3]);
 }
 
 template<typename Size>
-static void SetPackedPixel(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel, uint64_t values[4])
+static void SetPackedPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer, uint64_t values[4])
 {
 	static_assert(std::numeric_limits<Size>::is_integer);
 	static_assert(!std::numeric_limits<Size>::is_signed);
 
-	const auto pixel = reinterpret_cast<Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, mipLevel));
+	const auto pixel = reinterpret_cast<Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, mipLevel, layer));
 	*pixel = static_cast<Size>(values[0]);
 }
 
-void SetPixel(const FormatInformation& format, Image* image, uint32_t i, uint32_t j, uint32_t k, uint32_t mipLevel, uint64_t values[4])
+void SetPixel(const FormatInformation& format, Image* image, uint32_t i, uint32_t j, uint32_t k, uint32_t mipLevel, uint32_t layer, uint64_t values[4])
 {
 	const auto width = image->getWidth();
 	const auto height = image->getHeight();
 	const auto depth = image->getDepth();
-	
-	assert(i < width);
-	assert(j < height);
-	assert(k < depth);
-	
-	switch (format.Base)
-	{
-	case BaseType::UScaled:
-	case BaseType::SScaled:
-		FATAL_ERROR();
-	
-	case BaseType::SRGB:
-		FATAL_ERROR();
-	}
+	const auto arrayLayers = image->getArrayLayers();
 	
 	if (format.ElementSize == 0 && format.TotalSize == 1)
 	{
-		SetPackedPixel<uint8_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
+		SetPackedPixel<uint8_t>(format, image->getData(), i, j, k, width, height, depth, arrayLayers, mipLevel, layer, values);
 	}
 	else if (format.ElementSize == 0 && format.TotalSize == 2)
 	{
-		SetPackedPixel<uint16_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
+		SetPackedPixel<uint16_t>(format, image->getData(), i, j, k, width, height, depth, arrayLayers, mipLevel, layer, values);
 	}
 	else if (format.ElementSize == 0 && format.TotalSize == 4)
 	{
-		SetPackedPixel<uint32_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
+		SetPackedPixel<uint32_t>(format, image->getData(), i, j, k, width, height, depth, arrayLayers, mipLevel, layer, values);
 	}
 	else if (format.ElementSize == 1)
 	{
-		SetPixel<uint8_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
+		SetPixel<uint8_t>(format, image->getData(), i, j, k, width, height, depth, arrayLayers, mipLevel, layer, values);
 	}
 	else if (format.ElementSize == 2)
 	{
-		SetPixel<uint16_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
+		SetPixel<uint16_t>(format, image->getData(), i, j, k, width, height, depth, arrayLayers, mipLevel, layer, values);
 	}
 	else if (format.ElementSize == 4)
 	{
-		SetPixel<uint32_t>(format, image->getDataPtr(0, 1), i, j, k, width, height, depth, mipLevel, values);
+		SetPixel<uint32_t>(format, image->getData(), i, j, k, width, height, depth, arrayLayers, mipLevel, layer, values);
 	}
 	else
 	{

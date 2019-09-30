@@ -25,6 +25,9 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 			
 		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO:
 			FATAL_ERROR();
+
+		default:
+			break;
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -57,5 +60,8 @@ VkResult Device::CreateSampler(const VkSamplerCreateInfo* pCreateInfo, const VkA
 
 void Device::DestroySampler(VkSampler sampler, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<Sampler>(sampler), pAllocator);
+	if (sampler)
+	{
+		Free(UnwrapVulkan<Sampler>(sampler), pAllocator);
+	}
 }

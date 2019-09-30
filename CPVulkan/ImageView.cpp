@@ -28,6 +28,9 @@ VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAll
 
 		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
 			FATAL_ERROR();
+
+		default:
+			break;
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -54,5 +57,8 @@ VkResult Device::CreateImageView(const VkImageViewCreateInfo* pCreateInfo, const
 
 void Device::DestroyImageView(VkImageView imageView, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<ImageView>(imageView), pAllocator);
+	if (imageView)
+	{
+		Free(UnwrapVulkan<ImageView>(imageView), pAllocator);
+	}
 }

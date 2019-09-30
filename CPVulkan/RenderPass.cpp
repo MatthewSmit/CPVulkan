@@ -95,7 +95,10 @@ VkResult Device::CreateRenderPass(const VkRenderPassCreateInfo* pCreateInfo, con
 
 void Device::DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<RenderPass>(renderPass), pAllocator);
+	if (renderPass)
+	{
+		Free(UnwrapVulkan<RenderPass>(renderPass), pAllocator);
+	}
 }
 
 VkResult Device::CreateRenderPass2(const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)

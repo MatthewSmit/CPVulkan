@@ -229,7 +229,7 @@ T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope all
 		return new(data) T(std::forward<Types>(args)...);
 	}
 
-	*static_cast<uintptr_t*>(static_cast<void*>(data)) = 0x01CDC0DE;
+	*static_cast<uintptr_t*>(static_cast<void*>(data)) = ICD_LOADER_MAGIC;
 	return new(data + 16) T(std::forward<Types>(args)...);
 }
 

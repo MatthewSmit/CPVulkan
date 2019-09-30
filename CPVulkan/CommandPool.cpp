@@ -28,14 +28,17 @@ void CommandPool::FreeCommandBuffers(uint32_t commandBufferCount, const VkComman
 {
 	for (auto i = 0u; i < commandBufferCount; i++)
 	{
-		auto commandBuffer = UnwrapVulkan<CommandBuffer>(pCommandBuffers[i]);
-		auto commandBufferPtr = std::find(commandBuffers.begin(), commandBuffers.end(), commandBuffer);
-		if (commandBufferPtr == commandBuffers.end())
+		if (pCommandBuffers[i])
 		{
-			FATAL_ERROR();
+			auto commandBuffer = UnwrapVulkan<CommandBuffer>(pCommandBuffers[i]);
+			auto commandBufferPtr = std::find(commandBuffers.begin(), commandBuffers.end(), commandBuffer);
+			if (commandBufferPtr == commandBuffers.end())
+			{
+				FATAL_ERROR();
+			}
+			commandBuffers.erase(commandBufferPtr);
+			Free(commandBuffer, nullptr);
 		}
-		commandBuffers.erase(commandBufferPtr);
-		Free(commandBuffer, nullptr);
 	}
 }
 
@@ -79,8 +82,11 @@ VkResult Device::CreateCommandPool(const VkCommandPoolCreateInfo* pCreateInfo, c
 
 void Device::DestroyCommandPool(VkCommandPool commandPool, const VkAllocationCallbacks* pAllocator)
 {
-	// TODO: Destroying a pool object implicitly frees all objects allocated from that pool. Specifically, destroying VkCommandPool frees all VkCommandBuffer objects that were allocated from it, and destroying VkDescriptorPool frees all VkDescriptorSet objects that were allocated from it.
-	Free(UnwrapVulkan<CommandPool>(commandPool), pAllocator);
+	if (commandPool)
+	{
+		// TODO: Destroying a pool object implicitly frees all objects allocated from that pool. Specifically, destroying VkCommandPool frees all VkCommandBuffer objects that were allocated from it, and destroying VkDescriptorPool frees all VkDescriptorSet objects that were allocated from it.
+		Free(UnwrapVulkan<CommandPool>(commandPool), pAllocator);
+	}
 }
 
 VkResult Device::ResetCommandPool(VkCommandPool commandPool, VkCommandPoolResetFlags flags)

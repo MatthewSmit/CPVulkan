@@ -45,11 +45,9 @@ private:
 class CopyImageCommand final : public Command
 {
 public:
-	CopyImageCommand(Image* srcImage, VkImageLayout srcImageLayout, Image* dstImage, VkImageLayout dstImageLayout, std::vector<VkImageCopy> regions):
+	CopyImageCommand(Image* srcImage, Image* dstImage, std::vector<VkImageCopy> regions):
 		srcImage{srcImage},
-		srcImageLayout{srcImageLayout},
 		dstImage{dstImage},
-		dstImageLayout{dstImageLayout},
 		regions{std::move(regions)}
 	{
 	}
@@ -108,7 +106,7 @@ public:
 			uint64_t srcOffset;
 			uint64_t srcPlaneStride;
 			uint64_t srcLineStride;
-			GetFormatStrides(srcFormat, srcOffset, srcPlaneStride, srcLineStride, region.srcSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth());
+			GetFormatStrides(srcFormat, srcOffset, srcPlaneStride, srcLineStride, region.srcSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth(), srcImage->getArrayLayers());
 
 			uint64_t srcLineStart;
 			uint64_t srcLineSize;
@@ -117,7 +115,7 @@ public:
 			uint64_t dstOffset;
 			uint64_t dstPlaneStride;
 			uint64_t dstLineStride;
-			GetFormatStrides(dstFormat, dstOffset, dstPlaneStride, dstLineStride, region.dstSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth());
+			GetFormatStrides(dstFormat, dstOffset, dstPlaneStride, dstLineStride, region.dstSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth(), dstImage->getArrayLayers());
 
 			uint64_t dstLineStart;
 			uint64_t dstLineSize;
@@ -150,20 +148,16 @@ public:
 
 private:
 	Image* srcImage;
-	VkImageLayout srcImageLayout;
 	Image* dstImage;
-	VkImageLayout dstImageLayout;
 	std::vector<VkImageCopy> regions;
 };
 
 class BlitImageCommand final : public Command
 {
 public:
-	BlitImageCommand(Image* srcImage, VkImageLayout srcImageLayout, Image* dstImage, VkImageLayout dstImageLayout, std::vector<VkImageBlit> regions, VkFilter filter):
+	BlitImageCommand(Image* srcImage, Image* dstImage, std::vector<VkImageBlit> regions, VkFilter filter):
 		srcImage{srcImage},
-		srcImageLayout{srcImageLayout},
 		dstImage{dstImage},
-		dstImageLayout{dstImageLayout},
 		regions{std::move(regions)},
 		filter{filter}
 	{
@@ -288,7 +282,7 @@ public:
 
 						sampleImage(dstFormat, srcImage, u, v, w, q, a, filter, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, tmp);
 						
-						SetPixel(dstFormat, dstImage, dstX, dstY, dstZ, 0, tmp);
+						SetPixel(dstFormat, dstImage, dstX, dstY, dstZ, 0, 0, tmp);
 					}
 				}
 			}
@@ -297,9 +291,7 @@ public:
 
 private:
 	Image* srcImage;
-	VkImageLayout srcImageLayout;
 	Image* dstImage;
-	VkImageLayout dstImageLayout;
 	std::vector<VkImageBlit> regions;
 	VkFilter filter;
 };
@@ -307,10 +299,9 @@ private:
 class CopyBufferToImageCommand final : public Command
 {
 public:
-	CopyBufferToImageCommand(Buffer* srcBuffer, Image* dstImage, VkImageLayout dstImageLayout, std::vector<VkBufferImageCopy> regions):
+	CopyBufferToImageCommand(Buffer* srcBuffer, Image* dstImage, std::vector<VkBufferImageCopy> regions):
 		srcBuffer{srcBuffer},
 		dstImage{dstImage},
-		dstImageLayout{dstImageLayout},
 		regions{std::move(regions)}
 	{
 	}
@@ -338,7 +329,6 @@ public:
 				if (baseZ == 0 && depth == 1)
 				{
 					baseZ = region.imageSubresource.baseArrayLayer;
-					depth = region.imageSubresource.layerCount;
 				}
 				else
 				{
@@ -352,13 +342,13 @@ public:
 			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, 
 			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
 			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight,
-			                 depth);
+			                 depth, region.imageSubresource.layerCount);
 			srcOffset = region.bufferOffset;
 
 			uint64_t dstOffset;
 			uint64_t dstPlaneStride;
 			uint64_t dstLineStride;
-			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth());
+			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth(), dstImage->getArrayLayers());
 
 			uint64_t lineStart;
 			uint64_t lineSize;
@@ -381,16 +371,14 @@ public:
 private:
 	Buffer* srcBuffer;
 	Image* dstImage;
-	VkImageLayout dstImageLayout;
 	std::vector<VkBufferImageCopy> regions;
 };
 
 class CopyImageToBufferCommand final : public Command
 {
 public:
-	CopyImageToBufferCommand(Image* srcImage, VkImageLayout srcImageLayout, Buffer* dstBuffer, std::vector<VkBufferImageCopy> regions):
+	CopyImageToBufferCommand(Image* srcImage, Buffer* dstBuffer, std::vector<VkBufferImageCopy> regions):
 		srcImage{srcImage},
-		srcImageLayout{srcImageLayout},
 		dstBuffer{dstBuffer},
 		regions{std::move(regions)}
 	{
@@ -429,7 +417,7 @@ public:
 			uint64_t srcOffset;
 			uint64_t srcPlaneStride;
 			uint64_t srcLineStride;
-			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth());
+			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth(), srcImage->getArrayLayers());
 
 			uint64_t dstOffset;
 			uint64_t dstPlaneStride;
@@ -437,7 +425,7 @@ public:
 			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, 
 			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
 			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight,
-			                 depth);
+			                 depth, region.imageSubresource.layerCount);
 			dstOffset = region.bufferOffset;
 
 			uint64_t lineStart;
@@ -460,7 +448,6 @@ public:
 
 private:
 	Image* srcImage;
-	VkImageLayout srcImageLayout;
 	Buffer* dstBuffer;
 	std::vector<VkBufferImageCopy> regions;
 };
@@ -563,7 +550,7 @@ public:
 class ExecuteCommandsCommand final : public Command
 {
 public:
-	ExecuteCommandsCommand(std::vector<CommandBuffer*> commands):
+	explicit ExecuteCommandsCommand(std::vector<CommandBuffer*> commands):
 		commands{std::move(commands)}
 	{
 	}
@@ -604,6 +591,9 @@ VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* pBeginInfo)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_COMMAND_BUFFER_BEGIN_INFO:
 			FATAL_ERROR();
+
+		default:
+			break;
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -629,6 +619,9 @@ VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* pBeginInfo)
 			{
 			case VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT:
 				FATAL_ERROR();
+
+			default:
+				break;
 			}
 			next = static_cast<const VkBaseInStructure*>(next)->pNext;
 		}
@@ -677,28 +670,28 @@ void CommandBuffer::CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t 
 	commands.push_back(std::make_unique<CopyBufferCommand>(UnwrapVulkan<Buffer>(srcBuffer), UnwrapVulkan<Buffer>(dstBuffer), ArrayToVector(regionCount, pRegions)));
 }
 
-void CommandBuffer::CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageCopy* pRegions)
+void CommandBuffer::CopyImage(VkImage srcImage, VkImageLayout, VkImage dstImage, VkImageLayout, uint32_t regionCount, const VkImageCopy* pRegions)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<CopyImageCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions)));
+	commands.push_back(std::make_unique<CopyImageCommand>(UnwrapVulkan<Image>(srcImage), UnwrapVulkan<Image>(dstImage), ArrayToVector(regionCount, pRegions)));
 }
 
-void CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter)
+void CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout, VkImage dstImage, VkImageLayout, uint32_t regionCount, const VkImageBlit* pRegions, VkFilter filter)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<BlitImageCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions), filter));
+	commands.push_back(std::make_unique<BlitImageCommand>(UnwrapVulkan<Image>(srcImage), UnwrapVulkan<Image>(dstImage), ArrayToVector(regionCount, pRegions), filter));
 }
 
-void CommandBuffer::CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions)
+void CommandBuffer::CopyBufferToImage(VkBuffer srcBuffer, VkImage dstImage, VkImageLayout, uint32_t regionCount, const VkBufferImageCopy* pRegions)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<CopyBufferToImageCommand>(UnwrapVulkan<Buffer>(srcBuffer), UnwrapVulkan<Image>(dstImage), dstImageLayout, ArrayToVector(regionCount, pRegions)));
+	commands.push_back(std::make_unique<CopyBufferToImageCommand>(UnwrapVulkan<Buffer>(srcBuffer), UnwrapVulkan<Image>(dstImage), ArrayToVector(regionCount, pRegions)));
 }
 
-void CommandBuffer::CopyImageToBuffer(VkImage srcImage, VkImageLayout srcImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions)
+void CommandBuffer::CopyImageToBuffer(VkImage srcImage, VkImageLayout, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferImageCopy* pRegions)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<CopyImageToBufferCommand>(UnwrapVulkan<Image>(srcImage), srcImageLayout, UnwrapVulkan<Buffer>(dstBuffer), ArrayToVector(regionCount, pRegions)));
+	commands.push_back(std::make_unique<CopyImageToBufferCommand>(UnwrapVulkan<Image>(srcImage), UnwrapVulkan<Buffer>(dstBuffer), ArrayToVector(regionCount, pRegions)));
 }
 
 void CommandBuffer::SetEvent(VkEvent event, VkPipelineStageFlags stageMask)
@@ -750,6 +743,9 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 			
 		case VK_STRUCTURE_TYPE_RENDER_PASS_SAMPLE_LOCATIONS_BEGIN_INFO_EXT:
 			FATAL_ERROR();
+
+		default:
+			break;
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}

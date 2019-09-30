@@ -7,6 +7,15 @@
 
 void Platform::Initialise()
 {
+	static auto initialised = false;
+	if (initialised)
+	{
+		return;
+	}
+	initialised = true;
+	
+	_CrtSetDbgFlag(_CRTDBG_CHECK_ALWAYS_DF);
+
 	SYSTEM_INFO systemInfo{};
 	GetSystemInfo(&systemInfo);
 
@@ -25,6 +34,18 @@ bool Platform::SupportsSparse()
 void* Platform::CreateMutex(bool initialState, bool manualReset)
 {
 	const auto event = CreateEventW(nullptr, manualReset, initialState, nullptr);
+	if (event == nullptr)
+	{
+		FATAL_ERROR();
+	}
+	return event;
+}
+
+void* Platform::CreateSemaphoreExport(bool initialState, bool manualReset, const void* exportSemaphore)
+{
+	// TODO: dwAccess?
+	const auto createInfo = reinterpret_cast<const VkExportSemaphoreWin32HandleInfoKHR*>(exportSemaphore);
+	const auto event = CreateEventW(const_cast<LPSECURITY_ATTRIBUTES>(createInfo->pAttributes), manualReset, initialState, createInfo->name);
 	if (event == nullptr)
 	{
 		FATAL_ERROR();
@@ -59,7 +80,7 @@ bool Platform::Wait(void* mutex, uint64_t timeout)
 	{
 		return false;
 	}
-	
+
 	FATAL_ERROR();
 }
 

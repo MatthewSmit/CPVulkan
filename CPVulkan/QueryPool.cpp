@@ -44,7 +44,10 @@ VkResult Device::CreateQueryPool(const VkQueryPoolCreateInfo* pCreateInfo, const
 
 void Device::DestroyQueryPool(VkQueryPool queryPool, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<QueryPool>(queryPool), pAllocator);
+	if (queryPool)
+	{
+		Free(UnwrapVulkan<QueryPool>(queryPool), pAllocator);
+	}
 }
 
 VkResult Device::GetQueryPoolResults(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, size_t dataSize, void* pData, VkDeviceSize stride, VkQueryResultFlags flags)

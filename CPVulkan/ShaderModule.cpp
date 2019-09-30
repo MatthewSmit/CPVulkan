@@ -83,5 +83,8 @@ VkResult Device::CreateShaderModule(const VkShaderModuleCreateInfo* pCreateInfo,
 
 void Device::DestroyShaderModule(VkShaderModule shaderModule, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<ShaderModule>(shaderModule), pAllocator);
+	if (shaderModule)
+	{
+		Free(UnwrapVulkan<ShaderModule>(shaderModule), pAllocator);
+	}
 }

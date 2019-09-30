@@ -72,24 +72,6 @@ static constexpr FormatInformation MakeFormatInformation(VkFormat format, Format
 	};
 }
 
-static constexpr FormatInformation MakeCompressedFormatInformation(VkFormat format, uint32_t totalSize, BaseType baseType, uint32_t width, uint32_t height)
-{
-	constexpr auto features = GetFeatures(FormatType::Compressed);
-	return FormatInformation
-	{
-		format,
-		FormatType::Compressed,
-		features,
-		features,
-		0,
-		totalSize,
-		0,
-		baseType,
-		width,
-		height,
-	};
-}
-
 static constexpr FormatInformation MakeFormatInformation(VkFormat format, FormatType type, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
                                                          uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset)
 {
@@ -115,44 +97,62 @@ static constexpr FormatInformation MakeFormatInformation(VkFormat format, Format
 	};
 }
 
-static constexpr FormatInformation MakeFormatInformation(VkFormat format, FormatType type,
-                                                         uint32_t totalSize, uint32_t elementSize, BaseType baseType,
-                                                         uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset,
-                                                         uint32_t redPack, uint32_t greenPack, uint32_t bluePack, uint32_t alphaPack)
+static constexpr FormatInformation MakeCompressedFormatInformation(VkFormat format, uint32_t totalSize, BaseType baseType, uint32_t width, uint32_t height)
 {
-	const auto features = GetFeatures(type);
+	constexpr auto features = GetFeatures(FormatType::Compressed);
 	return FormatInformation
 	{
 		format,
-		type,
+		FormatType::Compressed,
 		features,
 		features,
-		type != FormatType::Normal ? static_cast<VkFormatFeatureFlags>(0) : features,
+		0,
 		totalSize,
-		elementSize,
+		0,
+		baseType,
+		width,
+		height,
+	};
+}
+
+static constexpr FormatInformation MakePackedFormatInformation(VkFormat format,
+                                                               uint32_t totalSize, BaseType baseType,
+                                                               uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset,
+                                                               uint32_t redBits, uint32_t greenBits, uint32_t blueBits, uint32_t alphaBits)
+{
+	const auto features = GetFeatures(FormatType::Normal);
+	return FormatInformation
+	{
+		format,
+		FormatType::Normal,
+		features,
+		features,
+		features,
+		totalSize,
+		0,
 		baseType,
 		redOffset,
 		greenOffset,
 		blueOffset,
 		alphaOffset,
-		redPack,
-		greenPack,
-		bluePack,
-		alphaPack,
+		redBits,
+		greenBits,
+		blueBits,
+		alphaBits,
 	};
 }
 
 static constexpr FormatInformation formatInformation[]
 {
 	MakeFormatInformation(VK_FORMAT_UNDEFINED, FormatType::Normal, 0),
-	MakeFormatInformation(VK_FORMAT_R4G4_UNORM_PACK8, FormatType::Normal, 1, 0, BaseType::UNorm, 4, 0, 0, 0, 4, 4, 0, 0),
-	MakeFormatInformation(VK_FORMAT_R4G4B4A4_UNORM_PACK16, FormatType::Normal, 2, 0, BaseType::UNorm, 12, 8, 4, 0, 4, 4, 4, 4),
-	MakeFormatInformation(VK_FORMAT_B4G4R4A4_UNORM_PACK16, FormatType::Normal, 2, 0, BaseType::UNorm, 4, 8, 12, 0, 4, 4, 4, 4),
-	MakeFormatInformation(VK_FORMAT_R5G6B5_UNORM_PACK16, FormatType::Normal, 2, 0, BaseType::UNorm, 11, 5, 0, 0, 5, 6, 5, 0),
-	MakeFormatInformation(VK_FORMAT_B5G6R5_UNORM_PACK16, FormatType::Normal, 2, 0, BaseType::UNorm, 0, 5, 11, 0, 5, 6, 5, 0),
-	MakeFormatInformation(VK_FORMAT_R5G5B5A1_UNORM_PACK16, FormatType::Normal, 2, 0, BaseType::UNorm, 11, 6, 1, 0, 5, 5, 5, 1),
-	MakeFormatInformation(VK_FORMAT_B5G5R5A1_UNORM_PACK16, FormatType::Normal, 2, 0, BaseType::UNorm, 1, 6, 11, 0, 5, 5, 5, 1),
-	MakeFormatInformation(VK_FORMAT_A1R5G5B5_UNORM_PACK16, FormatType::Normal, 2, 0, BaseType::UNorm, 10, 5, 0, 15, 5, 5, 5, 1),
+	MakePackedFormatInformation(VK_FORMAT_R4G4_UNORM_PACK8, 1, BaseType::UNorm, 4, 0, 0, 0, 4, 4, 0, 0),
+	MakePackedFormatInformation(VK_FORMAT_R4G4B4A4_UNORM_PACK16, 2, BaseType::UNorm, 12, 8, 4, 0, 4, 4, 4, 4),
+	MakePackedFormatInformation(VK_FORMAT_B4G4R4A4_UNORM_PACK16, 2, BaseType::UNorm, 4, 8, 12, 0, 4, 4, 4, 4),
+	MakePackedFormatInformation(VK_FORMAT_R5G6B5_UNORM_PACK16, 2, BaseType::UNorm, 11, 5, 0, 0, 5, 6, 5, 0),
+	MakePackedFormatInformation(VK_FORMAT_B5G6R5_UNORM_PACK16, 2, BaseType::UNorm, 0, 5, 11, 0, 5, 6, 5, 0),
+	MakePackedFormatInformation(VK_FORMAT_R5G5B5A1_UNORM_PACK16, 2, BaseType::UNorm, 11, 6, 1, 0, 5, 5, 5, 1),
+	MakePackedFormatInformation(VK_FORMAT_B5G5R5A1_UNORM_PACK16, 2, BaseType::UNorm, 1, 6, 11, 0, 5, 5, 5, 1),
+	MakePackedFormatInformation(VK_FORMAT_A1R5G5B5_UNORM_PACK16, 2, BaseType::UNorm, 10, 5, 0, 15, 5, 5, 5, 1),
 	MakeFormatInformation(VK_FORMAT_R8_UNORM, FormatType::Normal, 1, 1, BaseType::UNorm, 0, -1, -1, -1),
 	MakeFormatInformation(VK_FORMAT_R8_SNORM, FormatType::Normal, 1, 1, BaseType::SNorm, 0, -1, -1, -1),
 	MakeFormatInformation(VK_FORMAT_R8_USCALED, FormatType::Normal, 1, 1, BaseType::UScaled, 0, -1, -1, -1),
@@ -189,31 +189,31 @@ static constexpr FormatInformation formatInformation[]
 	MakeFormatInformation(VK_FORMAT_R8G8B8A8_SINT, FormatType::Normal, 4, 1, BaseType::SInt, 0, 1, 2, 3),
 	MakeFormatInformation(VK_FORMAT_R8G8B8A8_SRGB, FormatType::Normal, 4, 1, BaseType::SRGB, 0, 1, 2, 3),
 	MakeFormatInformation(VK_FORMAT_B8G8R8A8_UNORM, FormatType::Normal, 4, 1, BaseType::UNorm, 2, 1, 0, 3),
-	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SNORM, FormatType::Normal, 4, 1, BaseType::SNorm, 0, 1, 2, 3),
-	MakeFormatInformation(VK_FORMAT_B8G8R8A8_USCALED, FormatType::Normal, 4, 1, BaseType::UScaled, 0, 1, 2, 3),
-	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SSCALED, FormatType::Normal, 4, 1, BaseType::SScaled, 0, 1, 2, 3),
-	MakeFormatInformation(VK_FORMAT_B8G8R8A8_UINT, FormatType::Normal, 4, 1, BaseType::UInt, 0, 1, 2, 3),
-	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SINT, FormatType::Normal, 4, 1, BaseType::SInt, 0, 1, 2, 3),
-	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SRGB, FormatType::Normal, 4, 1, BaseType::SRGB, 0, 1, 2, 3),
-	MakeFormatInformation(VK_FORMAT_A8B8G8R8_UNORM_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A8B8G8R8_SNORM_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A8B8G8R8_USCALED_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A8B8G8R8_SSCALED_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A8B8G8R8_UINT_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A8B8G8R8_SINT_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A8B8G8R8_SRGB_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2R10G10B10_UNORM_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2R10G10B10_SNORM_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2R10G10B10_USCALED_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2R10G10B10_SSCALED_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2R10G10B10_UINT_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2R10G10B10_SINT_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2B10G10R10_UNORM_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2B10G10R10_SNORM_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2B10G10R10_USCALED_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2B10G10R10_SSCALED_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2B10G10R10_UINT_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_A2B10G10R10_SINT_PACK32, FormatType::Normal, 4),
+	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SNORM, FormatType::Normal, 4, 1, BaseType::SNorm, 2, 1, 0, 3),
+	MakeFormatInformation(VK_FORMAT_B8G8R8A8_USCALED, FormatType::Normal, 4, 1, BaseType::UScaled, 2, 1, 0, 3),
+	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SSCALED, FormatType::Normal, 4, 1, BaseType::SScaled, 2, 1, 0, 3),
+	MakeFormatInformation(VK_FORMAT_B8G8R8A8_UINT, FormatType::Normal, 4, 1, BaseType::UInt, 2, 1, 0, 3),
+	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SINT, FormatType::Normal, 4, 1, BaseType::SInt, 2, 1, 0, 3),
+	MakeFormatInformation(VK_FORMAT_B8G8R8A8_SRGB, FormatType::Normal, 4, 1, BaseType::SRGB, 2, 1, 0, 3),
+	MakePackedFormatInformation(VK_FORMAT_A8B8G8R8_UNORM_PACK32, 4, BaseType::UNorm, 0, 8, 16, 24, 8, 8, 8, 8),
+	MakePackedFormatInformation(VK_FORMAT_A8B8G8R8_SNORM_PACK32, 4, BaseType::SNorm, 0, 8, 16, 24, 8, 8, 8, 8),
+	MakePackedFormatInformation(VK_FORMAT_A8B8G8R8_USCALED_PACK32, 4, BaseType::UScaled, 0, 8, 16, 24, 8, 8, 8, 8),
+	MakePackedFormatInformation(VK_FORMAT_A8B8G8R8_SSCALED_PACK32, 4, BaseType::SScaled, 0, 8, 16, 24, 8, 8, 8, 8),
+	MakePackedFormatInformation(VK_FORMAT_A8B8G8R8_UINT_PACK32, 4, BaseType::UInt, 0, 8, 16, 24, 8, 8, 8, 8),
+	MakePackedFormatInformation(VK_FORMAT_A8B8G8R8_SINT_PACK32, 4, BaseType::SInt, 0, 8, 16, 24, 8, 8, 8, 8),
+	MakePackedFormatInformation(VK_FORMAT_A8B8G8R8_SRGB_PACK32, 4, BaseType::SRGB, 0, 8, 16, 24, 8, 8, 8, 8),
+	MakePackedFormatInformation(VK_FORMAT_A2R10G10B10_UNORM_PACK32, 4, BaseType::UNorm, 20, 10, 0, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2R10G10B10_SNORM_PACK32, 4, BaseType::SNorm, 20, 10, 0, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2R10G10B10_USCALED_PACK32, 4, BaseType::UScaled, 20, 10, 0, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2R10G10B10_SSCALED_PACK32, 4, BaseType::SScaled, 20, 10, 0, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2R10G10B10_UINT_PACK32, 4, BaseType::UInt, 20, 10, 0, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2R10G10B10_SINT_PACK32, 4, BaseType::SInt, 20, 10, 0, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2B10G10R10_UNORM_PACK32, 4, BaseType::UNorm, 0, 10, 20, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2B10G10R10_SNORM_PACK32, 4, BaseType::SNorm, 0, 10, 20, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2B10G10R10_USCALED_PACK32, 4, BaseType::UScaled, 0, 10, 20, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2B10G10R10_SSCALED_PACK32, 4, BaseType::SScaled, 0, 10, 20, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2B10G10R10_UINT_PACK32, 4, BaseType::UInt, 0, 10, 20, 30, 10, 10, 10, 2),
+	MakePackedFormatInformation(VK_FORMAT_A2B10G10R10_SINT_PACK32, 4, BaseType::SInt, 0, 10, 20, 30, 10, 10, 10, 2),
 	MakeFormatInformation(VK_FORMAT_R16_UNORM, FormatType::Normal, 2, 2, BaseType::UNorm, 0, -1, -1, -1),
 	MakeFormatInformation(VK_FORMAT_R16_SNORM, FormatType::Normal, 2, 2, BaseType::SNorm, 0, -1, -1, -1),
 	MakeFormatInformation(VK_FORMAT_R16_USCALED, FormatType::Normal, 2, 2, BaseType::UScaled, 0, -1, -1, -1),
@@ -266,8 +266,8 @@ static constexpr FormatInformation formatInformation[]
 	MakeFormatInformation(VK_FORMAT_R64G64B64A64_UINT, FormatType::Normal, 32, 8, BaseType::UInt, 0, 8, 16, 24),
 	MakeFormatInformation(VK_FORMAT_R64G64B64A64_SINT, FormatType::Normal, 32, 8, BaseType::SInt, 0, 8, 16, 24),
 	MakeFormatInformation(VK_FORMAT_R64G64B64A64_SFLOAT, FormatType::Normal, 32, 8, BaseType::SFloat, 0, 8, 16, 24),
-	MakeFormatInformation(VK_FORMAT_B10G11R11_UFLOAT_PACK32, FormatType::Normal, 4),
-	MakeFormatInformation(VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, FormatType::Normal, 4),
+	MakePackedFormatInformation(VK_FORMAT_B10G11R11_UFLOAT_PACK32, 4, BaseType::UFloat, 0, 11, 22, -1, 11, 11, 10, -1),
+	MakePackedFormatInformation(VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, 4, BaseType::UFloat, 0, 9, 18, 27, 9, 9, 9, 5),
 	MakeFormatInformation(VK_FORMAT_D16_UNORM, FormatType::Normal, 2, 2, BaseType::UNorm, 0, -1, -1, -1),
 	MakeFormatInformation(VK_FORMAT_X8_D24_UNORM_PACK32, FormatType::Normal, 4),
 	MakeFormatInformation(VK_FORMAT_D32_SFLOAT, FormatType::Normal, 4, 4, BaseType::SFloat, 0, -1, -1, -1),
@@ -388,13 +388,13 @@ const FormatInformation& GetFormatInformation(VkFormat format)
 	return extraFormatInformation[format];
 }
 
-static uint64_t GetRawSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth)
+static uint64_t GetRawSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers)
 {
 	if (format.Type == FormatType::Compressed)
 	{
-		return format.TotalSize * width * height * depth / (format.RedOffset * format.GreenOffset);
+		return format.TotalSize * width * height * depth * arrayLayers / (format.RedOffset * format.GreenOffset);
 	}
-	return format.TotalSize * width * height * depth;
+	return format.TotalSize * width * height * depth * arrayLayers;
 }
 
 uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
@@ -410,18 +410,18 @@ uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t
 	uint64_t size = 0;
 	for (auto i = 0u; i < mipLevels; i++)
 	{
-		size += GetRawSize(format, width, height, depth);
+		size += GetRawSize(format, width, height, depth, arrayLayers);
 
 		width = std::max(width / 2, 1u);
 		height = std::max(height / 2, 1u);
 		depth = std::max(depth / 2, 1u);
 	}
-	return size * arrayLayers;
+	return size;
 }
 
-void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint32_t width, uint32_t height, uint32_t depth)
+void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers)
 {
-	offset = GetFormatMipmapOffset(format, width, height, depth, mipLevel);
+	offset = GetFormatMipmapOffset(format, width, height, depth, arrayLayers, mipLevel);
 
 	if (format.Type == FormatType::Compressed)
 	{
@@ -445,7 +445,7 @@ void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_
 	size = width * format.TotalSize;
 }
 
-uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t mipLevel)
+uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel)
 {
 	if (format.Type == FormatType::Compressed)
 	{
@@ -455,7 +455,7 @@ uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width,
 	uint64_t size = 0;
 	for (auto i = 0u; i < mipLevel; i++)
 	{
-		size += GetRawSize(format, width, height, depth);
+		size += GetRawSize(format, width, height, depth, arrayLayers);
 
 		width = std::max(width / 2, 1u);
 		height = std::max(height / 2, 1u);
@@ -464,29 +464,25 @@ uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width,
 	return size;
 }
 
-uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel)
+uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer)
 {
 	uint64_t offset = 0;
 	if (mipLevel > 0)
 	{
-		offset = GetFormatMipmapOffset(format, width, height, depth, mipLevel);
+		offset = GetFormatMipmapOffset(format, width, height, depth, arrayLayers, mipLevel);
 	}
 
 	const auto pixelSize = static_cast<uint64_t>(format.TotalSize);
 	const auto stride = width * pixelSize;
 	const auto pane = height * stride;
+	const auto slice = depth * pane;
 
-	return offset + k * pane + j * stride + i * pixelSize;
+	return offset + layer * slice + k * pane + j * stride + i * pixelSize;
 }
 
-void* GetFormatPixelOffset(const FormatInformation& format, void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel)
+void* GetFormatPixelOffset(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer)
 {
-	return static_cast<uint8_t*>(data) + GetFormatPixelOffset(format, i, j, k, width, height, depth, mipLevel);
-}
-
-const void* GetFormatPixelOffset(const FormatInformation& format, const void* data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t mipLevel)
-{
-	return static_cast<const uint8_t*>(data) + GetFormatPixelOffset(format, i, j, k, width, height, depth, mipLevel);
+	return data.subspan(GetFormatPixelOffset(format, i, j, k, width, height, depth, arrayLayers, mipLevel, layer), format.TotalSize).data();
 }
 
 bool NeedsYCBCRConversion(VkFormat format)

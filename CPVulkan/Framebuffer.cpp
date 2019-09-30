@@ -40,11 +40,7 @@ VkResult Framebuffer::Create(const VkFramebufferCreateInfo* pCreateInfo, const V
 
 	framebuffer->width = pCreateInfo->width;
 	framebuffer->height = pCreateInfo->height;
-
-	if (pCreateInfo->layers != 1)
-	{
-		FATAL_ERROR();
-	}
+	framebuffer->layers = pCreateInfo->layers;
 
 	WrapVulkan(framebuffer, pFramebuffer);
 	return VK_SUCCESS;
@@ -57,5 +53,8 @@ VkResult Device::CreateFramebuffer(const VkFramebufferCreateInfo* pCreateInfo, c
 
 void Device::DestroyFramebuffer(VkFramebuffer framebuffer, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<Framebuffer>(framebuffer), pAllocator);
+	if (framebuffer)
+	{
+		Free(UnwrapVulkan<Framebuffer>(framebuffer), pAllocator);
+	}
 }

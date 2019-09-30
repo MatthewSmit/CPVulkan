@@ -39,6 +39,9 @@ void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) c
 				memoryRequirements->requiresDedicatedAllocation = false;
 				break;
 			}
+			
+		default:
+			break;
 		}
 		next = static_cast<VkMemoryRequirements2*>(next)->pNext;
 	}
@@ -76,7 +79,10 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 			FATAL_ERROR();
 			
 		case VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO:
-			FATAL_ERROR();
+			break;
+
+		default:
+			break;
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -112,7 +118,10 @@ VkResult Device::CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAll
 
 void Device::DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<Buffer>(buffer), pAllocator);
+	if (buffer)
+	{
+		Free(UnwrapVulkan<Buffer>(buffer), pAllocator);
+	}
 }
 
 VkResult Device::BindBufferMemory2(uint32_t bindInfoCount, const VkBindBufferMemoryInfo* pBindInfos)

@@ -525,5 +525,8 @@ VkResult Device::CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t 
 
 void Device::DestroyPipeline(VkPipeline pipeline, const VkAllocationCallbacks* pAllocator)
 {
-	Free(UnwrapVulkan<Pipeline>(pipeline), pAllocator);
+	if (pipeline)
+	{
+		Free(UnwrapVulkan<Pipeline>(pipeline), pAllocator);
+	}
 }

@@ -19,6 +19,11 @@ public:
 
 	static VkResult Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer);
 
+	[[nodiscard]] gsl::span<uint8_t> getData() const noexcept
+	{
+		return data;
+	}
+
 	[[nodiscard]] gsl::span<uint8_t> getData(uint64_t offset, uint64_t size) const noexcept
 	{
 		return data.subspan(offset, size);
