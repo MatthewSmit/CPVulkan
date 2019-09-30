@@ -9,7 +9,7 @@
 
 VkResult Swapchain::Present(uint32_t pImageIndex)
 {
-    // TODO: Y flip
+	// TODO: Y flip
 	const auto win32Surface = UnwrapVulkan<VkIcdSurfaceWin32>(surface);
 	const auto image = images[pImageIndex];
 

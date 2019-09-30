@@ -21,11 +21,16 @@ Device::Device() noexcept :
 Device::~Device()
 {
 	delete state->jit;
+}
+
+void Device::OnDelete(const VkAllocationCallbacks* pAllocator)
+{
 	for (auto& queue : queues)
 	{
 		const auto queuePtr = queue.release();
-		Free(queuePtr, nullptr);
+		Free(queuePtr, pAllocator);
 	}
+	queues.clear();
 }
 
 PFN_vkVoidFunction Device::GetProcAddress(const char* pName) const
@@ -521,7 +526,7 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 
 	for (auto i = 0u; i < pCreateInfo->queueCreateInfoCount; i++)
 	{
-		device->queues.push_back(std::unique_ptr<Queue>{Queue::Create(&pCreateInfo->pQueueCreateInfos[i], nullptr)});
+		device->queues.push_back(std::unique_ptr<Queue>{Queue::Create(&pCreateInfo->pQueueCreateInfos[i], pAllocator)});
 	}
 
 	std::vector<const char*> enabledExtensions{};

@@ -30,6 +30,10 @@ public:
 	CommandBuffer(DeviceState* deviceState, VkCommandBufferLevel level, VkCommandPoolCreateFlags poolFlags);
 	~CommandBuffer();
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	VKAPI_ATTR VkResult VKAPI_PTR Begin(const VkCommandBufferBeginInfo* pBeginInfo);
 	VKAPI_ATTR VkResult VKAPI_PTR End();
 	VKAPI_ATTR VkResult VKAPI_PTR Reset(VkCommandBufferResetFlags flags);

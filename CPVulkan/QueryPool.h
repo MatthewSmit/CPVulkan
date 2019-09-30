@@ -12,6 +12,10 @@ public:
 	QueryPool& operator=(const QueryPool&) = delete;
 	QueryPool&& operator=(const QueryPool&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	static VkResult Create(const VkQueryPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkQueryPool* pQueryPool);
 
 private:

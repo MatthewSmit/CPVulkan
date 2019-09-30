@@ -20,6 +20,10 @@ public:
 
 	DescriptorSet& operator=(const DescriptorSet&) = delete;
 	DescriptorSet&& operator=(const DescriptorSet&&) = delete;
+
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
 	
 	void Update(const VkWriteDescriptorSet& descriptorWrite);
 

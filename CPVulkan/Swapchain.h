@@ -16,15 +16,17 @@ public:
 	Swapchain& operator=(const Swapchain&) = delete;
 	Swapchain&& operator=(const Swapchain&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks* pAllocator);
+
 	VkResult GetImages(uint32_t* pSwapchainImageCount, VkImage* vkImage) const;
 
 	VkResult AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex);
-
-	void DeleteImages(const VkAllocationCallbacks* pAllocator);
 	
 	VkResult Present(uint32_t pImageIndex);
 
 	static VkResult Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain);
+
+	[[nodiscard]] Image* getImage(uint32_t index) const { return images[index]; }
 
 private:
 	DeviceMemory* data{};

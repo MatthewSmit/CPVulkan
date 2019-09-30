@@ -12,6 +12,10 @@ public:
 	Fence& operator=(const Fence&) = delete;
 	Fence&& operator=(const Fence&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	VkResult Signal();
 	VkResult Reset();
 	VkResult Wait(uint64_t timeout);

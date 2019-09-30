@@ -15,6 +15,17 @@ Swapchain::~Swapchain()
 	assert(images.empty());
 }
 
+void Swapchain::OnDelete(const VkAllocationCallbacks* pAllocator)
+{
+	for (auto image : images)
+	{
+		Free(image, pAllocator);
+	}
+	images.clear();
+	FreeSized(data, pAllocator);
+	data = nullptr;
+}
+
 VkResult Swapchain::GetImages(uint32_t* pSwapchainImageCount, VkImage* vkImage) const
 {
 	return HandleEnumeration<VkImage, Image*>(pSwapchainImageCount, vkImage, images, [](Image* image)
@@ -37,17 +48,6 @@ VkResult Swapchain::AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, Vk
 		UnwrapVulkan<Fence>(fence)->Signal();
 	}
 	return VK_SUCCESS;
-}
-
-void Swapchain::DeleteImages(const VkAllocationCallbacks* pAllocator)
-{
-	for (auto image : images)
-	{
-		Free(image, pAllocator);
-	}
-	images.clear();
-	FreeSized(data, pAllocator);
-	data = nullptr;
 }
 
 VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
@@ -136,7 +136,8 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 		const auto result = Image::Create(&imageCreate, pAllocator, &image);
 		if (result != VK_SUCCESS)
 		{
-			FATAL_ERROR();
+			Free(swapchain, pAllocator);
+			return result;
 		}
 
 		VkDeviceMemory deviceMemory;
@@ -163,7 +164,6 @@ void Device::DestroySwapchain(VkSwapchainKHR swapchain, const VkAllocationCallba
 {
 	if (swapchain)
 	{
-		UnwrapVulkan<Swapchain>(swapchain)->DeleteImages(pAllocator);
 		Free(UnwrapVulkan<Swapchain>(swapchain), pAllocator);
 	}
 }

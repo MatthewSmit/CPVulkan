@@ -12,6 +12,10 @@ public:
 	Queue& operator=(const Queue&) = delete;
 	Queue&& operator=(const Queue&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	VKAPI_ATTR VkResult VKAPI_PTR Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFence fence);
 	VKAPI_ATTR VkResult VKAPI_PTR WaitIdle();
 	VKAPI_ATTR VkResult VKAPI_PTR BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence);

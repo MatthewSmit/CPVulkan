@@ -168,12 +168,16 @@ VULKAN_FUNCTION(GetDeviceGroupPresentCapabilities, VkResult, Device, void*, VkDe
 VULKAN_FUNCTION(GetDeviceGroupSurfacePresentModes, VkResult, Device, void*, VkSurfaceKHR, VkDeviceGroupPresentModeFlagsKHR*)
 VULKAN_FUNCTION(GetPresentRectangles, VkResult, PhysicalDevice, void*, VkSurfaceKHR, uint32_t*, VkRect2D*)
 VULKAN_FUNCTION(AcquireNextImage2, VkResult, Device, void*, const VkAcquireNextImageInfoKHR*, uint32_t*)
+
+#if defined(VK_KHR_display)
 VULKAN_FUNCTION(GetDisplayProperties, VkResult, PhysicalDevice, void*, uint32_t*, VkDisplayPropertiesKHR*)
 VULKAN_FUNCTION(GetDisplayPlaneProperties, VkResult, PhysicalDevice, void*, uint32_t*, VkDisplayPlanePropertiesKHR*)
 VULKAN_FUNCTION(GetDisplayPlaneSupportedDisplays, VkResult, PhysicalDevice, void*, uint32_t, uint32_t*, VkDisplayKHR*)
 VULKAN_FUNCTION(GetDisplayModeProperties, VkResult, PhysicalDevice, void*, VkDisplayKHR, uint32_t*, VkDisplayModePropertiesKHR*)
 VULKAN_FUNCTION(CreateDisplayMode, VkResult, PhysicalDevice, void*, VkDisplayKHR, const VkDisplayModeCreateInfoKHR*, const VkAllocationCallbacks*, VkDisplayModeKHR*)
 VULKAN_FUNCTION(GetDisplayPlaneCapabilities, VkResult, PhysicalDevice, void*, VkDisplayModeKHR, uint32_t, VkDisplayPlaneCapabilitiesKHR*)
+#endif
+
 VULKAN_FUNCTION(CreateDisplayPlaneSurface, VkResult, Instance, void*, const VkDisplaySurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*)
 VULKAN_FUNCTION(CreateSharedSwapchains, VkResult, Device, void*, uint32_t, const VkSwapchainCreateInfoKHR*, const VkAllocationCallbacks*, VkSwapchainKHR*)
 VULKAN_FUNCTION(GetFeatures2, void, PhysicalDevice, void*, VkPhysicalDeviceFeatures2*)

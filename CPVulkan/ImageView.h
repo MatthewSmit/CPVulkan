@@ -14,6 +14,10 @@ public:
 	ImageView& operator=(const ImageView&) = delete;
 	ImageView&& operator=(const ImageView&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	static VkResult Create(const VkImageViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImageView* pView);
 	
 	[[nodiscard]] Image* getImage() { return image; }

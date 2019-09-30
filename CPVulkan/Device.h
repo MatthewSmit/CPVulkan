@@ -21,6 +21,8 @@ public:
 	Device& operator=(const Device&) = delete;
 	Device&& operator=(const Device&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks* pAllocator);
+
 	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName) const;
 	VKAPI_ATTR void VKAPI_PTR DestroyDevice(const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR void VKAPI_PTR GetDeviceQueue(uint32_t queueFamilyIndex, uint32_t queueIndex, VkQueue* pQueue);

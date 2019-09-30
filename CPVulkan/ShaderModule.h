@@ -17,6 +17,10 @@ public:
 	ShaderModule& operator=(const ShaderModule&) = delete;
 	ShaderModule&& operator=(const ShaderModule&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	static VkResult Create(const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule);
 
 	// [[nodiscard]] const spirv_cross::ParsedIR& getIr() const { return ir; }

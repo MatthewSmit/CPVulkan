@@ -12,6 +12,10 @@ public:
 	Buffer& operator=(const Buffer&) = delete;
 	Buffer&& operator=(const Buffer&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	VkResult BindMemory(VkDeviceMemory memory, uint64_t memoryOffset);
 
 	void GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const noexcept;

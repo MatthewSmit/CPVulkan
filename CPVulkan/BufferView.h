@@ -13,6 +13,10 @@ public:
 
 	BufferView& operator=(const BufferView&) = delete;
 	BufferView&& operator=(const BufferView&&) = delete;
+
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
 	
 	static VkResult Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView);
 

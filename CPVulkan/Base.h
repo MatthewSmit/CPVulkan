@@ -65,6 +65,7 @@ typedef XID RROutput;
 #include <gsl/gsl>
 
 #undef VK_EXT_pci_bus_info
+#undef VK_KHR_display
 
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 
@@ -150,15 +151,15 @@ VK_TYPE_HELPER(VkDescriptorUpdateTemplate, DescriptorUpdateTemplate, true);
 #if defined(VK_KHR_surface)
 VK_TYPE_HELPER(VkSurfaceKHR, VkIcdSurfaceBase, true);
 
-#ifdef VK_USE_PLATFORM_WIN32_KHR
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
 VK_TYPE_HELPER(VkSurfaceKHR, VkIcdSurfaceWin32, true);
 #endif
 
-#ifdef VK_USE_PLATFORM_XCB_KHR
+#if defined(VK_USE_PLATFORM_XCB_KHR)
 VK_TYPE_HELPER(VkSurfaceKHR, VkIcdSurfaceXcb, true);
 #endif
 
-#ifdef VK_USE_PLATFORM_XLIB_KHR
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
 VK_TYPE_HELPER(VkSurfaceKHR, VkIcdSurfaceXlib, true);
 #endif
 #endif
@@ -236,6 +237,7 @@ T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope all
 template<typename T>
 void Free(T* value, const VkAllocationCallbacks* pAllocator) noexcept
 {
+	value->OnDelete(pAllocator);
 	value->~T();
 	const auto data = static_cast<uint8_t*>(static_cast<void*>(value)) - (VulkanTypeHelper<T>::IsNonDispatchable ? 0 : 16);
 	
@@ -248,6 +250,51 @@ void Free(T* value, const VkAllocationCallbacks* pAllocator) noexcept
 		free(data);
 	}
 }
+
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
+template<>
+inline void Free(VkIcdSurfaceWin32* value, const VkAllocationCallbacks* pAllocator) noexcept
+{
+	if (pAllocator)
+	{
+		pAllocator->pfnFree(pAllocator->pUserData, value);
+	}
+	else
+	{
+		free(value);
+	}
+}
+#endif
+
+#if defined(VK_USE_PLATFORM_XCB_KHR)
+template<>
+inline void Free(VkIcdSurfaceXcb* value, const VkAllocationCallbacks* pAllocator) noexcept
+{
+	if (pAllocator)
+	{
+		pAllocator->pfnFree(pAllocator->pUserData, value);
+	}
+	else
+	{
+		free(value);
+	}
+}
+#endif
+
+#if defined(VK_USE_PLATFORM_XLIB_KHR)
+template<>
+inline void Free(VkIcdSurfaceXlib* value, const VkAllocationCallbacks* pAllocator) noexcept
+{
+	if (pAllocator)
+	{
+		pAllocator->pfnFree(pAllocator->pUserData, value);
+	}
+	else
+	{
+		free(value);
+	}
+}
+#endif
 
 template<bool IsNonDispatchable>
 void WrapVulkan(void* local, uint64_t* vulkan) noexcept;

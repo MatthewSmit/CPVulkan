@@ -2,6 +2,7 @@
 
 #include "Device.h"
 #include "Formats.h"
+#include "Swapchain.h"
 #include "Util.h"
 
 #include <cassert>
@@ -10,6 +11,12 @@ VkResult Image::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
 	const auto memorySpan = UnwrapVulkan<DeviceMemory>(memory)->getSpan();
 	data = memorySpan.subspan(memoryOffset, size);
+	return VK_SUCCESS;
+}
+
+VkResult Image::BindSwapchainMemory(Swapchain* swapchain, uint32_t imageIndex)
+{
+	data = swapchain->getImage(imageIndex)->data;
 	return VK_SUCCESS;
 }
 
@@ -90,10 +97,10 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	auto next = pCreateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV:
@@ -122,8 +129,11 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 
 		case VK_STRUCTURE_TYPE_IMAGE_SWAPCHAIN_CREATE_INFO_KHR:
 			break;
+			
+		default:
+			break;
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	image->flags = pCreateInfo->flags;
@@ -136,11 +146,6 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 	image->tiling = pCreateInfo->tiling;
 	image->usage = pCreateInfo->usage;
 	image->layout = pCreateInfo->initialLayout;
-
-	if (pCreateInfo->sharingMode != VK_SHARING_MODE_EXCLUSIVE)
-	{
-		FATAL_ERROR();
-	}
 
 	image->size = GetFormatSize(GetFormatInformation(image->format), image->extent.width, image->extent.height, image->extent.depth, image->arrayLayers, image->mipLevels);
 	if (image->size == 0)
@@ -167,5 +172,55 @@ void Device::DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator
 
 VkResult Device::BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemoryInfo* pBindInfos)
 {
-	FATAL_ERROR();
+	for (auto i = 0u; i < bindInfoCount; i++)
+	{
+		assert(pBindInfos[i].sType == VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_INFO);
+		
+		VkSwapchainKHR swapchain = VK_NULL_HANDLE;
+		uint32_t imageIndex = 0;
+
+		auto next = static_cast<const VkBaseInStructure*>(pBindInfos[i].pNext);
+		while (next)
+		{
+			const auto type = next->sType;
+			switch (type)
+			{
+			case VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_DEVICE_GROUP_INFO:
+				FATAL_ERROR();
+				
+			case VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR:
+				{
+					const auto bindInfo = reinterpret_cast<const VkBindImageMemorySwapchainInfoKHR*>(next);
+					swapchain = bindInfo->swapchain;
+					imageIndex = bindInfo->imageIndex;
+					break;
+				}
+				
+			case VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO:
+				FATAL_ERROR();
+				
+			default:
+				break;
+			}
+			next = next->pNext;
+		}
+
+		VkResult result;
+		
+		if (swapchain == VK_NULL_HANDLE)
+		{
+			result = UnwrapVulkan<Image>(pBindInfos[i].image)->BindMemory(pBindInfos[i].memory, pBindInfos[i].memoryOffset);
+		}
+		else
+		{
+			result = UnwrapVulkan<Image>(pBindInfos[i].image)->BindSwapchainMemory(UnwrapVulkan<Swapchain>(swapchain), imageIndex);
+		}
+		
+		if (result != VK_SUCCESS)
+		{
+			return result;
+		}
+	}
+
+	return VK_SUCCESS;
 }

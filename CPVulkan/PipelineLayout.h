@@ -12,5 +12,9 @@ public:
 	PipelineLayout& operator=(const PipelineLayout&) = delete;
 	PipelineLayout&& operator=(const PipelineLayout&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	static VkResult Create(const VkPipelineLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineLayout* pPipelineLayout);
 };

@@ -12,6 +12,10 @@ public:
 	Event& operator=(const Event&) = delete;
 	Event&& operator=(const Event&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	VkResult Signal();
 	VkResult Reset();
 	VkResult Wait(uint64_t timeout);

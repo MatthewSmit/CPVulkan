@@ -11,6 +11,10 @@ public:
 
 	DescriptorPool& operator=(const DescriptorPool&) = delete;
 	DescriptorPool&& operator=(const DescriptorPool&&) = delete;
+
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
 	
 	VkResult Reset(VkFlags flags);
 

@@ -23,6 +23,10 @@ public:
 	RenderPass& operator=(const RenderPass&) = delete;
 	RenderPass&& operator=(const RenderPass&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	static VkResult Create(const VkRenderPassCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass);
 
 	[[nodiscard]] const std::vector<VkAttachmentDescription>& getAttachments() const { return attachments; }

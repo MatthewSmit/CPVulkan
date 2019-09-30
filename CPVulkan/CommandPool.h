@@ -16,6 +16,10 @@ public:
 	CommandPool& operator=(const CommandPool&) = delete;
 	CommandPool&& operator=(const CommandPool&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	VkResult AllocateCommandBuffers(const VkCommandBufferAllocateInfo* pAllocateInfo, VkCommandBuffer* pCommandBuffers);
 	void FreeCommandBuffers(uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers);
 	

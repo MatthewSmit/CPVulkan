@@ -11,6 +11,10 @@ public:
 
 	Sampler& operator=(const Sampler&) = delete;
 	Sampler&& operator=(const Sampler&&) = delete;
+
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
 	
 	static VkResult Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSampler* pSampler);
 	

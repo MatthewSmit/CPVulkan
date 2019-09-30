@@ -1704,8 +1704,6 @@ namespace SPIRV
 		void setExtSetKindById() {
 			assert(Module && "Invalid module");
 			ExtSetKind = Module->getBuiltinSet(ExtSetId);
-			assert((ExtSetKind == SPIRVEIS_OpenCL || ExtSetKind == SPIRVEIS_Debug) &&
-				"not supported");
 		}
 		void encode(spv_ostream &O) const override {
 			getEncoder(O) << Type << Id << ExtSetId;

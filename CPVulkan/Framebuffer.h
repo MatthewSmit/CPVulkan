@@ -14,6 +14,10 @@ public:
 	Framebuffer& operator=(const Framebuffer&) = delete;
 	Framebuffer&& operator=(const Framebuffer&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	static VkResult Create(const VkFramebufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFramebuffer* pFramebuffer);
 
 	[[nodiscard]] const std::vector<ImageView*>& getAttachments() const { return attachments; }

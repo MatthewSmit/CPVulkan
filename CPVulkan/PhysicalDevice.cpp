@@ -1377,6 +1377,13 @@ VkResult PhysicalDevice::GetSurfacePresentModes(VkSurfaceKHR surface, uint32_t* 
 	return VK_SUCCESS;
 }
 
+#if defined(VK_KHR_display)
+VkResult PhysicalDevice::GetDisplayProperties(uint32_t* pPropertyCount, VkDisplayPropertiesKHR* pProperties)
+{
+	FATAL_ERROR();
+}
+#endif
+
 VkResult PhysicalDevice::GetSurfaceCapabilities2KHR(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkSurfaceCapabilities2KHR* pSurfaceCapabilities)
 {
 	assert(pSurfaceInfo->sType == VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SURFACE_INFO_2_KHR);

@@ -88,19 +88,19 @@ static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T1* outputValu
 	{
 		if (*count < inputValues.size())
 		{
-			FATAL_ERROR();
-		}
-		else if (*count == inputValues.size())
-		{
-			for (auto i = 0; i < inputValues.size(); i++)
+			for (auto i = 0; i < *count; i++)
 			{
 				outputValues[i] = conversion(inputValues[i]);
 			}
+			return VK_INCOMPLETE;
 		}
-		else
+
+		for (auto i = 0; i < inputValues.size(); i++)
 		{
-			FATAL_ERROR();
+			outputValues[i] = conversion(inputValues[i]);
 		}
+		*count = inputValues.size();
+		return VK_SUCCESS;
 	}
 
 	return VK_SUCCESS;

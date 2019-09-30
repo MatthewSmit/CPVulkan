@@ -12,7 +12,12 @@ public:
 	Image& operator=(const Image&) = delete;
 	Image&& operator=(const Image&&) = delete;
 
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
+
 	VkResult BindMemory(VkDeviceMemory memory, uint64_t memoryOffset);
+	VkResult BindSwapchainMemory(Swapchain* swapchain, uint32_t imageIndex);
 	
 	void GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const;
 	void GetSubresourceLayout(const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout);

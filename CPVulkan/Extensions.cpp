@@ -1287,7 +1287,7 @@ ExtensionGroup& GetInitialExtensions()
 			{
 				VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME,
 				VK_EXT_SWAPCHAIN_COLOR_SPACE_SPEC_VERSION,
-				true,
+				false,
 				{
 				}
 			},
@@ -1855,7 +1855,7 @@ ExtensionGroup& GetInitialExtensions()
 			{
 				VK_EXT_VALIDATION_FEATURES_EXTENSION_NAME,
 				VK_EXT_VALIDATION_FEATURES_SPEC_VERSION,
-				true,
+				false,
 				{
 				}
 			},

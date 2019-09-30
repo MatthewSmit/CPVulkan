@@ -11,6 +11,10 @@ public:
 
 	PipelineCache& operator=(const PipelineCache&) = delete;
 	PipelineCache&& operator=(const PipelineCache&&) = delete;
+
+	void OnDelete(const VkAllocationCallbacks*)
+	{
+	}
 	
 	VkResult GetData(size_t* pDataSize, void* pData);
 

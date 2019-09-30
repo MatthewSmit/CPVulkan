@@ -8,13 +8,15 @@ class PhysicalDevice;
 class Instance final
 {
 public:
-	Instance();
+	Instance(const VkAllocationCallbacks* pAllocator);
 	Instance(const Instance&) = delete;
 	Instance(Instance&&) = delete;
-	~Instance();
+	~Instance() = default;
 
 	Instance& operator=(const Instance&) = delete;
 	Instance&& operator=(const Instance&&) = delete;
+
+	void OnDelete(const VkAllocationCallbacks* pAllocator);
 
 	VKAPI_ATTR PFN_vkVoidFunction VKAPI_CALL GetProcAddress(const char* pName) const;
 

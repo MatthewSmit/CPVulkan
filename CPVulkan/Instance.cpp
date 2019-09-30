@@ -10,15 +10,16 @@
 #include <cassert>
 #include <vector>
 
-Instance::Instance()
+Instance::Instance(const VkAllocationCallbacks* pAllocator)
 {
-	physicalDevice = Allocate<PhysicalDevice>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, this);
+	physicalDevice = Allocate<PhysicalDevice>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, this);
 	assert(physicalDevice);
 }
 
-Instance::~Instance()
+void Instance::OnDelete(const VkAllocationCallbacks* pAllocator)
 {
-	Free(physicalDevice, nullptr);
+	Free(physicalDevice, pAllocator);
+	physicalDevice = nullptr;
 }
 
 PFN_vkVoidFunction Instance::GetProcAddress(const char* pName) const
@@ -78,7 +79,7 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 
 	Platform::Initialise();
 
-	auto instance = Allocate<Instance>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+	auto instance = Allocate<Instance>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, pAllocator);
 	if (!instance)
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;

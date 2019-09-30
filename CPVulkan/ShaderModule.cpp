@@ -27,7 +27,7 @@ struct imemstream final : virtual membuf, std::istream
 
 ShaderModule::~ShaderModule()
 {
-    delete module;
+	delete module;
 }
 
 VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule)
