@@ -1,5 +1,7 @@
 #include "SpirvFunctions.h"
 
+#include "Converter.h"
+
 #include <glm/glm.hpp>
 
 template<typename Matrix, typename Vector>
@@ -8,11 +10,11 @@ static void ColumnMultiplication(typename Matrix::col_type* result, const Matrix
 	*result = *matrix * *vector;
 }
 
-std::unordered_map<std::string, void*>& getSpirvFunctions()
+std::unordered_map<std::string, FunctionPointer>& getSpirvFunctions()
 {
-	static std::unordered_map<std::string, void*> functions
-	{
-		{"_Matrix_Vector_Mult_4_4_F32_Col", ColumnMultiplication<glm::mat4x4, glm::vec4>},
-	};
+    static std::unordered_map<std::string, FunctionPointer> functions
+    {
+        {"_Matrix_Vector_Mult_4_4_F32_Col", reinterpret_cast<FunctionPointer>(ColumnMultiplication<glm::mat4x4, glm::vec4>)},
+    };
 	return functions;
 }

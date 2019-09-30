@@ -2,12 +2,11 @@
 
 #include "SpirvFunctions.h"
 
-#include <llvm/ExecutionEngine/Orc/LLJIT.h>
-
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
 #include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>
 #include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
 #include <llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h>
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 
@@ -21,7 +20,7 @@ inline void strcpy_s(char* destination, const char* source)
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
-static std::unordered_map<std::string, void*> functions{}; // TODO: Attach to SpirvJit
+static std::unordered_map<std::string, FunctionPointer> functions{}; // TODO: Attach to SpirvJit
 
 class SpirvCompiledModule
 {
@@ -47,7 +46,7 @@ static llvm::orc::SymbolNameSet GetSpirvFunctions(llvm::orc::JITDylib& parent, c
 		
 		std::string tmp((*name).data(), (*name).size());
 		auto functionPtr = functions.find(tmp);
-		void* function;
+        FunctionPointer function;
 		if (functionPtr != functions.end())
 		{
 			function = functionPtr->second;
@@ -83,7 +82,7 @@ static llvm::orc::SymbolNameSet GetSpirvFunctions(llvm::orc::JITDylib& parent, c
 class SpirvJit::Impl
 {
 public:
-	Impl(llvm::orc::JITTargetMachineBuilder targetMachineBuilder, const llvm::DataLayout& dataLayout)
+	Impl(llvm::orc::JITTargetMachineBuilder&& targetMachineBuilder, llvm::DataLayout&& dataLayout)
 		: objectLayer(executionSession, []() { return std::make_unique<llvm::SectionMemoryManager>(); }),
 		  compileLayer(executionSession, objectLayer, llvm::orc::ConcurrentIRCompiler(std::move(targetMachineBuilder))),
 		  dataLayout(dataLayout),
@@ -180,7 +179,7 @@ SpirvCompiledModule::SpirvCompiledModule(llvm::Module* module, llvm::orc::Thread
 
 SpirvCompiledModule::~SpirvCompiledModule() = default;
 
-void __declspec(dllexport) AddSpirvFunction(const std::string& name, void* pointer)
+void DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer)
 {
 	functions.insert(std::make_pair(name, pointer));
 }

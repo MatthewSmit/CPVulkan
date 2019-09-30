@@ -765,6 +765,7 @@ void Device::ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t
 	FATAL_ERROR();
 }
 
+#if defined(VK_USE_PLATFORM_WIN32_KHR)
 VkResult Device::GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle)
 {
 	FATAL_ERROR();
@@ -794,3 +795,4 @@ VkResult Device::GetDeviceGroupSurfacePresentModes2(const VkPhysicalDeviceSurfac
 {
 	FATAL_ERROR();
 }
+#endif

@@ -6,6 +6,8 @@
 #include <memory>
 #include <string>
 
+using FunctionPointer = void (*)();
+
 namespace llvm
 {
 	class LLVMContext;
@@ -37,6 +39,6 @@ private:
 	Impl* impl;
 };
 
-void __declspec(dllexport) AddSpirvFunction(const std::string& name, void* pointer);
+void DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer);
 
 std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel);

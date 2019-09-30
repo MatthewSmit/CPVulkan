@@ -147,6 +147,8 @@ VK_TYPE_HELPER(VkDescriptorUpdateTemplate, DescriptorUpdateTemplate, true);
 #endif
 
 #if defined(VK_KHR_surface)
+VK_TYPE_HELPER(VkSurfaceKHR, VkIcdSurfaceBase, true);
+
 #ifdef VK_USE_PLATFORM_WIN32_KHR
 VK_TYPE_HELPER(VkSurfaceKHR, VkIcdSurfaceWin32, true);
 #endif
@@ -166,10 +168,10 @@ VK_TYPE_HELPER(VkSwapchainKHR, Swapchain, true);
 #endif
 
 #if defined(VK_KHR_display)
-class Display;
+class VDisplay;
 class DisplayMode;
 
-VK_TYPE_HELPER(VkDisplayKHR, Display, true);
+VK_TYPE_HELPER(VkDisplayKHR, VDisplay, true);
 VK_TYPE_HELPER(VkDisplayModeKHR, DisplayMode, true);
 #endif
 
