@@ -2,12 +2,11 @@
 
 #include "SpirvFunctions.h"
 
-#include <llvm/ExecutionEngine/Orc/LLJIT.h>
-
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
 #include <llvm/ExecutionEngine/Orc/ExecutionUtils.h>
 #include <llvm/ExecutionEngine/Orc/IRCompileLayer.h>
 #include <llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h>
+#include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
 
@@ -83,7 +82,7 @@ static llvm::orc::SymbolNameSet GetSpirvFunctions(llvm::orc::JITDylib& parent, c
 class SpirvJit::Impl
 {
 public:
-	Impl(llvm::orc::JITTargetMachineBuilder targetMachineBuilder, const llvm::DataLayout& dataLayout)
+	Impl(llvm::orc::JITTargetMachineBuilder&& targetMachineBuilder, llvm::DataLayout&& dataLayout)
 		: objectLayer(executionSession, []() { return std::make_unique<llvm::SectionMemoryManager>(); }),
 		  compileLayer(executionSession, objectLayer, llvm::orc::ConcurrentIRCompiler(std::move(targetMachineBuilder))),
 		  dataLayout(dataLayout),

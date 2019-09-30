@@ -6,8 +6,7 @@
 #include "PhysicalDevice.h"
 
 #if defined(VK_USE_PLATFORM_XCB_KHR)
-#include <xcb/xcb.h>
-#include <xcb/xcb_image.h>
+#include "xcb/XcbHelper.h"
 #endif
 
 #if defined(VK_USE_PLATFORM_XLIB_KHR)

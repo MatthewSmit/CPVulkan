@@ -112,7 +112,7 @@ set(FILES
 		)
 
 set(DEFINES VK_NO_PROTOTYPES)
-set(INCLUDES)
+set(INCLUDES "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
 set(LINKS glm SPIRVParser SPIRVToLLVM Threads::Threads)
 
 if(WIN32)
@@ -124,10 +124,13 @@ if(WIN32)
 else()
 	list(APPEND FILES
 			"PlatformLinux.cpp"
-			"SwapchainLinux.cpp")
+			"SwapchainLinux.cpp"
+
+			"xcb/XcbHelper.cpp"
+			"xcb/XcbHelper.h")
 	list(APPEND DEFINES VK_USE_PLATFORM_XCB_KHR VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XLIB_XRANDR_EXT)
-	list(APPEND INCLUDES "/home/programmdude/1.1.121.0/x86_64/include/")
-	list(APPEND LINKS xcb xcb-image X11)
+	list(APPEND INCLUDES "/home/cosc/student/mjs351/vulkan/1.1.121.1/x86_64/include/")
+	list(APPEND LINKS xcb X11)
 endif()
 
 add_library(CPVulkan SHARED	${FILES})

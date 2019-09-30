@@ -500,7 +500,7 @@ bool GLSLtoSPV(const VkShaderStageFlagBits shader_type, const char *pshader, std
     EShLanguage stage = FindLanguage(shader_type);
     glslang::TShader shader(stage);
     glslang::TProgram program;
-    const char *shaderStrings[1];
+    const char *shaderStrings[100]; // TODO: Debug stack error
     TBuiltInResource Resources = {};
     init_resources(Resources);
 

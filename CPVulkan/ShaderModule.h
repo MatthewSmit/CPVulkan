@@ -12,7 +12,7 @@ public:
 	ShaderModule() = default;
 	ShaderModule(const ShaderModule&) = delete;
 	ShaderModule(ShaderModule&&) = delete;
-	~ShaderModule() = default;
+	~ShaderModule();
 
 	ShaderModule& operator=(const ShaderModule&) = delete;
 	ShaderModule&& operator=(const ShaderModule&&) = delete;
