@@ -1,6 +1,8 @@
 #pragma once
 #include "Base.h"
 
+#include <vector>
+
 class ImageView;
 
 class Framebuffer final

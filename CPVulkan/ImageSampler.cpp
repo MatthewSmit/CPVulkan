@@ -6,9 +6,11 @@
 
 #include <glm/glm.hpp>
 
+#include <algorithm>
+
 static float frac(float value)
 {
-	return value - floor(value);
+	return value - std::floor(value);
 }
 
 template<typename T>
@@ -44,19 +46,20 @@ static int32_t Wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 		
 	case VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE:
 		return std::clamp(v >= 0 ? v : -(1 + v), 0, size - 1);
+
+    default:
+        FATAL_ERROR();
 	}
-	
-	FATAL_ERROR();
 }
 
 template<typename T>
-static void LinearToSRGB(const T input[4], T output[4])
+void LinearToSRGB(const T input[4], T output[4])
 {
 	FATAL_ERROR();
 }
 
 template<>
-static void LinearToSRGB(const float input[4], float output[4])
+void LinearToSRGB(const float input[4], float output[4])
 {
 	output[0] = input[0] <= 0.0031308 ? input[0] * 12.92f : 1.055f * std::pow(input[0], 1.0f / 2.4f) - 0.055f;
 	output[1] = input[1] <= 0.0031308 ? input[1] * 12.92f : 1.055f * std::pow(input[1], 1.0f / 2.4f) - 0.055f;
@@ -65,13 +68,13 @@ static void LinearToSRGB(const float input[4], float output[4])
 }
 
 template<typename T>
-static void SRGBToLinear(const T input[4], T output[4])
+void SRGBToLinear(const T input[4], T output[4])
 {
 	FATAL_ERROR();
 }
 
 template<>
-static void SRGBToLinear(const float input[4], float output[4])
+void SRGBToLinear(const float input[4], float output[4])
 {
 	output[0] = input[0] <= 0.04045 ? input[0] / 12.92f : std::pow((input[0] + 0.055f) / 1.055f, 2.4f);
 	output[1] = input[1] <= 0.04045 ? input[1] / 12.92f : std::pow((input[1] + 0.055f) / 1.055f, 2.4f);
@@ -234,10 +237,18 @@ void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input
 template<>
 void ConvertPixelsToTemp<float, half>(const float input[4], uint64_t output[4])
 {
-	output[0] = *reinterpret_cast<const uint16_t*>(&half{input[0]});
-	output[1] = *reinterpret_cast<const uint16_t*>(&half{input[1]});
-	output[2] = *reinterpret_cast<const uint16_t*>(&half{input[2]});
-	output[3] = *reinterpret_cast<const uint16_t*>(&half{input[3]});
+    half tmp[4]
+    {
+        input[0],
+        input[1],
+        input[2],
+        input[3],
+    };
+
+	output[0] = *reinterpret_cast<const uint16_t*>(&tmp[0]);
+	output[1] = *reinterpret_cast<const uint16_t*>(&tmp[1]);
+	output[2] = *reinterpret_cast<const uint16_t*>(&tmp[2]);
+	output[3] = *reinterpret_cast<const uint16_t*>(&tmp[3]);
 }
 
 template<>

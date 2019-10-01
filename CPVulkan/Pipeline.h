@@ -2,6 +2,7 @@
 #include "Base.h"
 
 #include <array>
+#include <vector>
 
 namespace SPIRV
 {

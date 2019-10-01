@@ -8,7 +8,7 @@ class PhysicalDevice;
 class Instance final
 {
 public:
-	Instance(const VkAllocationCallbacks* pAllocator);
+	Instance(PhysicalDevice* physicalDevice);
 	Instance(const Instance&) = delete;
 	Instance(Instance&&) = delete;
 	~Instance() = default;

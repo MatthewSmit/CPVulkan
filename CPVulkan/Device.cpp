@@ -526,7 +526,13 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 
 	for (auto i = 0u; i < pCreateInfo->queueCreateInfoCount; i++)
 	{
-		device->queues.push_back(std::unique_ptr<Queue>{Queue::Create(&pCreateInfo->pQueueCreateInfos[i], pAllocator)});
+	    auto queue = Queue::Create(&pCreateInfo->pQueueCreateInfos[i], pAllocator);
+	    if (!queue)
+        {
+	        Free(device, pAllocator);
+	        return VK_ERROR_OUT_OF_HOST_MEMORY;
+        }
+		device->queues.push_back(std::unique_ptr<Queue>{queue});
 	}
 
 	std::vector<const char*> enabledExtensions{};

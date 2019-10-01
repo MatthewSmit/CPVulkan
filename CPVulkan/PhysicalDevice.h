@@ -6,11 +6,7 @@ class Instance;
 class PhysicalDevice final
 {
 public:
-	explicit PhysicalDevice(Instance* instance) :
-		instance{instance}
-	{
-	}
-	
+	PhysicalDevice() = default;
 	PhysicalDevice(const PhysicalDevice&) = delete;
 	PhysicalDevice(PhysicalDevice&&) = delete;
 	~PhysicalDevice() = default;
@@ -118,6 +114,8 @@ public:
     VKAPI_ATTR VkResult VKAPI_PTR AcquireXlibDisplay(Display* dpy, VkDisplayKHR display) { FATAL_ERROR(); }
     VKAPI_ATTR VkResult VKAPI_PTR GetRandROutputDisplay(Display* dpy, RROutput rrOutput, VkDisplayKHR* pDisplay) { FATAL_ERROR(); }
 #endif
+
+    void setInstance(Instance* instance) { this->instance = instance; }
 
 private:
 	Instance* instance;

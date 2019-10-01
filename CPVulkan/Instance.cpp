@@ -10,10 +10,9 @@
 #include <cassert>
 #include <vector>
 
-Instance::Instance(const VkAllocationCallbacks* pAllocator)
+Instance::Instance(PhysicalDevice* physicalDevice) :
+    physicalDevice{physicalDevice}
 {
-	physicalDevice = Allocate<PhysicalDevice>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, this);
-	assert(physicalDevice);
 }
 
 void Instance::OnDelete(const VkAllocationCallbacks* pAllocator)
@@ -79,11 +78,20 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 
 	Platform::Initialise();
 
-	auto instance = Allocate<Instance>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, pAllocator);
+	auto physicalDevice = Allocate<PhysicalDevice>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
+	if (!physicalDevice)
+    {
+        return VK_ERROR_OUT_OF_HOST_MEMORY;
+    }
+
+	auto instance = Allocate<Instance>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, physicalDevice);
 	if (!instance)
 	{
+	    Free(physicalDevice, pAllocator);
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
+
+    physicalDevice->setInstance(instance);
 
 	auto next = pCreateInfo->pNext;
 	while (next)

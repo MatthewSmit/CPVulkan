@@ -22,21 +22,21 @@ static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, 
 		pImageFormatProperties->maxExtent.height = 1;
 		pImageFormatProperties->maxExtent.depth = 1;
 		pImageFormatProperties->maxArrayLayers = 256;
-		pImageFormatProperties->maxMipLevels = 1 + std::floorf(std::log2f(pImageFormatProperties->maxExtent.width));
+		pImageFormatProperties->maxMipLevels = 1 + std::floor(std::log2f(pImageFormatProperties->maxExtent.width));
 		break;
 	case VK_IMAGE_TYPE_2D:
 		pImageFormatProperties->maxExtent.width = 4096;
 		pImageFormatProperties->maxExtent.height = 4096;
 		pImageFormatProperties->maxExtent.depth = 1;
 		pImageFormatProperties->maxArrayLayers = 256;
-		pImageFormatProperties->maxMipLevels = 1 + std::floorf(std::log2f(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height)));
+		pImageFormatProperties->maxMipLevels = 1 + std::floor(std::log2f(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height)));
 		break;
 	case VK_IMAGE_TYPE_3D:
 		pImageFormatProperties->maxExtent.width = 256;
 		pImageFormatProperties->maxExtent.height = 256;
 		pImageFormatProperties->maxExtent.depth = 256;
 		pImageFormatProperties->maxArrayLayers = 1;
-		pImageFormatProperties->maxMipLevels = std::floorf(std::log2f(std::max(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height),
+		pImageFormatProperties->maxMipLevels = std::floor(std::log2f(std::max(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height),
 		                                                                       pImageFormatProperties->maxExtent.depth))) + 1;
 		break;
 	default: FATAL_ERROR();

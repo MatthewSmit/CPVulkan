@@ -66,6 +66,11 @@ typedef XID RROutput;
 
 #undef VK_EXT_pci_bus_info
 #undef VK_KHR_display
+#undef VK_KHR_display_swapchain
+#undef VK_EXT_direct_mode_display
+#undef VK_EXT_acquire_xlib_display
+#undef VK_EXT_display_surface_counter
+#undef VK_EXT_display_control
 
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 
