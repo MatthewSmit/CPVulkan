@@ -839,14 +839,14 @@ void SetPixel(const FormatInformation& format, Image* image, uint32_t i, uint32_
 
 
 template<typename OutputType>
-void SampleImage(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4])
+void SampleImage(const FormatInformation& format, const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4])
 {
 	auto pixels = SampleImage<OutputType>(image, u, v, w, q, a, filter, mipmapMode, addressMode);
 	ConvertPixelsToTemp(format, &pixels.x, output);
 }
 
 template<typename ReturnType>
-ReturnType SampleImage(const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode)
+ReturnType SampleImage(const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode)
 {
 	// TODO: Optimise for 1D/2D
 	const auto& format = GetFormatInformation(image->getFormat());
@@ -934,8 +934,8 @@ ReturnType SampleImage(const Image* image, float u, float v, float w, float q, f
 	FATAL_ERROR();
 }
 
-template void SampleImage<glm::vec4>(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
-template glm::vec4 SampleImage(const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);
+template void SampleImage<glm::vec4>(const FormatInformation& format, const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
+template glm::vec4 SampleImage(const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);
 
-template void SampleImage<glm::ivec4>(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
-template glm::ivec4 SampleImage(const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);
+template void SampleImage<glm::ivec4>(const FormatInformation& format, const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
+template glm::ivec4 SampleImage(const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);

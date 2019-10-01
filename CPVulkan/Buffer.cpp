@@ -136,5 +136,31 @@ void Device::DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAlloca
 
 VkResult Device::BindBufferMemory2(uint32_t bindInfoCount, const VkBindBufferMemoryInfo* pBindInfos)
 {
-	FATAL_ERROR();
+	for (auto i = 0u; i < bindInfoCount; i++)
+	{
+		assert(pBindInfos[i].sType == VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_INFO);
+		
+		auto next = static_cast<const VkBaseInStructure*>(pBindInfos[i].pNext);
+		while (next)
+		{
+			const auto type = next->sType;
+			switch (type)
+			{
+			case VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_DEVICE_GROUP_INFO:
+				FATAL_ERROR();
+
+			default:
+				break;
+			}
+			next = next->pNext;
+		}
+
+		const auto result = UnwrapVulkan<Buffer>(pBindInfos[i].buffer)->BindMemory(pBindInfos[i].memory, pBindInfos[i].memoryOffset);
+		if (result != VK_SUCCESS)
+		{
+			return result;
+		}
+	}
+
+	return VK_SUCCESS;
 }

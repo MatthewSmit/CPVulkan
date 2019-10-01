@@ -678,6 +678,41 @@ private:
 	std::vector<VkImageSubresourceRange> ranges;
 };
 
+class ClearDepthStencilImageCommand final : public Command
+{
+public:
+	ClearDepthStencilImageCommand(Image* image, VkClearDepthStencilValue colour, std::vector<VkImageSubresourceRange> ranges):
+		image{image},
+		colour{colour},
+		ranges{std::move(ranges)}
+	{
+	}
+
+	void Process(DeviceState*) override
+	{
+		for (const auto& range : ranges)
+		{
+			auto levels = range.levelCount;
+			if (levels == VK_REMAINING_MIP_LEVELS)
+			{
+				levels = image->getMipLevels() - range.baseMipLevel;
+			}
+
+			if ((range.aspectMask & ~(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0)
+			{
+				FATAL_ERROR();
+			}
+
+			ClearImage(image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, range.aspectMask, colour);
+		}
+	}
+
+private:
+	Image* image;
+	VkClearDepthStencilValue colour;
+	std::vector<VkImageSubresourceRange> ranges;
+};
+
 class ClearAttachmentsCommand final : public Command
 {
 public:
@@ -757,6 +792,12 @@ void CommandBuffer::ClearColorImage(VkImage image, VkImageLayout, const VkClearC
 	commands.push_back(std::make_unique<ClearColourImageCommand>(UnwrapVulkan<Image>(image), *pColor, ArrayToVector(rangeCount, pRanges)));
 }
 
+void CommandBuffer::ClearDepthStencilImage(VkImage image, VkImageLayout, const VkClearDepthStencilValue* pDepthStencil, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<ClearDepthStencilImageCommand>(UnwrapVulkan<Image>(image), *pDepthStencil, ArrayToVector(rangeCount, pRanges)));
+}
+
 void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAttachment* pAttachments, uint32_t rectCount, const VkClearRect* pRects)
 {
 	assert(state == State::Recording);
@@ -778,20 +819,59 @@ void ClearImage(Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t l
 	}
 }
 
-void ClearImage(Image* image, VkFormat format, VkClearDepthStencilValue colour)
+void ClearImage(Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspects, VkClearDepthStencilValue colour)
 {
 	const auto& information = GetFormatInformation(format);
-	uint64_t data[4];
+	uint64_t values[4];
 	switch (format)
 	{
 	case VK_FORMAT_D16_UNORM:
-	case VK_FORMAT_D16_UNORM_S8_UINT:
-		data[0] = static_cast<uint64_t>(colour.depth * std::numeric_limits<uint16_t>::max());
-		data[1] = colour.stencil;
+		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
+		values[0] = static_cast<uint64_t>(colour.depth * std::numeric_limits<uint16_t>::max());
 		break;
+		
+	case VK_FORMAT_X8_D24_UNORM_PACK32:
+		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
+		values[0] = static_cast<uint64_t>(colour.depth * 0x00FFFFFF);
+		break;
+		
+	case VK_FORMAT_D32_SFLOAT:
+		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
+		values[0] = *reinterpret_cast<uint32_t*>(&colour.depth);
+		break;
+		
+	case VK_FORMAT_S8_UINT:
+		assert(aspects == VK_IMAGE_ASPECT_STENCIL_BIT);
+		values[0] = colour.stencil;
+		break;
+		
+	case VK_FORMAT_D16_UNORM_S8_UINT:
+		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+		values[0] = static_cast<uint64_t>(colour.depth * std::numeric_limits<uint16_t>::max());
+		values[1] = colour.stencil;
+		break;
+		
+	case VK_FORMAT_D24_UNORM_S8_UINT:
+		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+		values[0] = static_cast<uint64_t>(colour.depth * 0x00FFFFFF);
+		values[1] = colour.stencil;
+		break;
+		
+	case VK_FORMAT_D32_SFLOAT_S8_UINT:
+		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
+		values[0] = *reinterpret_cast<uint32_t*>(&colour.depth);
+		values[1] = colour.stencil;
+		break;
+		
 	default:
 		FATAL_ERROR();
 	}
 
-	ClearImage(image, information, 0, 0, data);
+	for (auto layer = 0u; layer < layerCount; layer++)
+	{
+		for (auto level = 0u; level < levelCount; level++)
+		{
+			ClearImage(image, information, baseArrayLayer + layer, baseMipLevel + level, values);
+		}
+	}
 }

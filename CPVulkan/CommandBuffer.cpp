@@ -336,14 +336,18 @@ public:
 				}
 			}
 
-			uint64_t srcOffset;
-			uint64_t srcPlaneStride;
-			uint64_t srcLineStride;
-			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, 
-			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
-			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight,
-			                 depth, region.imageSubresource.layerCount);
-			srcOffset = region.bufferOffset;
+			const auto srcOffset = region.bufferOffset;
+			auto srcLineStride = (region.bufferRowLength == 0 ? width : region.bufferRowLength) * format.TotalSize;
+			if (format.Type == FormatType::Compressed)
+			{
+				srcLineStride /= format.RedOffset;
+			}
+
+			auto srcPlaneStride = (region.bufferImageHeight == 0 ? height : region.bufferImageHeight) * srcLineStride;
+			if (format.Type == FormatType::Compressed)
+			{
+				srcPlaneStride /= format.GreenOffset;
+			}
 
 			uint64_t dstOffset;
 			uint64_t dstPlaneStride;
@@ -419,14 +423,18 @@ public:
 			uint64_t srcLineStride;
 			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth(), srcImage->getArrayLayers());
 
-			uint64_t dstOffset;
-			uint64_t dstPlaneStride;
-			uint64_t dstLineStride;
-			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, 
-			                 region.bufferRowLength == 0 ? width : region.bufferRowLength,
-			                 region.bufferImageHeight == 0 ? height : region.bufferImageHeight,
-			                 depth, region.imageSubresource.layerCount);
-			dstOffset = region.bufferOffset;
+			const auto dstOffset = region.bufferOffset;
+			auto dstLineStride = (region.bufferRowLength == 0 ? width : region.bufferRowLength) * format.TotalSize;
+			if (format.Type == FormatType::Compressed)
+			{
+				dstLineStride /= format.RedOffset;
+			}
+			
+			auto dstPlaneStride = (region.bufferImageHeight == 0 ? height : region.bufferImageHeight) * dstLineStride;
+			if (format.Type == FormatType::Compressed)
+			{
+				dstPlaneStride /= format.GreenOffset;
+			}
 
 			uint64_t lineStart;
 			uint64_t lineSize;
@@ -523,7 +531,21 @@ public:
 			auto attachmentReference = renderPass->getSubpasses()[0].DepthStencilAttachment;
 			auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
 			auto imageView = framebuffer->getAttachments()[attachmentReference.attachment];
-			ClearImage(imageView->getImage(), attachment.format, clearValues[attachmentReference.attachment].depthStencil);
+			auto formatInformation = GetFormatInformation(attachment.format);
+			VkImageAspectFlags aspects;
+			if (formatInformation.Format == VK_FORMAT_S8_UINT)
+			{
+				aspects = VK_IMAGE_ASPECT_STENCIL_BIT;
+			}
+			else if (formatInformation.GreenOffset == -1)
+			{
+				aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
+			}
+			else
+			{
+				aspects = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
+			}
+			ClearImage(imageView->getImage(), attachment.format, 0, 1, 0, 1, aspects, clearValues[attachmentReference.attachment].depthStencil);
 		}
 
 		deviceState->renderPass = renderPass;

@@ -33,10 +33,10 @@ void SetPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t
 void SetPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y, uint32_t z, uint32_t mipLevel, uint32_t layer, uint64_t values[4]);
 
 
-using SampleImageType = void(*)(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
+using SampleImageType = void(*)(const FormatInformation& format, const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
 
 template<typename OutputType>
-void SampleImage(const FormatInformation& format, const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
+void SampleImage(const FormatInformation& format, const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode, uint64_t output[4]);
 
 template<typename ReturnType>
-ReturnType SampleImage(const Image* image, float u, float v, float w, float q, float a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);
+ReturnType SampleImage(const Image* image, float u, float v, float w, float q, uint32_t a, VkFilter filter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressMode);
