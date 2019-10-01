@@ -244,7 +244,7 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.viewportBoundsRange[1] = 8192;
 	pProperties->limits.viewportSubPixelBits = 0;
 	pProperties->limits.minMemoryMapAlignment = 64;
-	pProperties->limits.minTexelBufferOffsetAlignment = 256;
+	pProperties->limits.minTexelBufferOffsetAlignment = 256; // TODO: Lower to 16?
 	pProperties->limits.minUniformBufferOffsetAlignment = 256;
 	pProperties->limits.minStorageBufferOffsetAlignment = 256;
 	pProperties->limits.minTexelOffset = -8;
