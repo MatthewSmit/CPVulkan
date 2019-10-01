@@ -130,3 +130,18 @@ std::vector<T1> ArrayToVector(uint32_t count, const T2* data, std::function<T1(T
 	}
 	return result;
 }
+
+template<typename T>
+T* GetStructure(VkBaseOutStructure* structure, VkStructureType type)
+{
+	while (structure->pNext)
+	{
+		structure = reinterpret_cast<VkBaseOutStructure*>(structure->pNext);
+		if (structure->sType == type)
+		{
+			return reinterpret_cast<T*>(structure);
+		}
+	}
+
+	return nullptr;
+}

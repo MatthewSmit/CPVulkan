@@ -3,25 +3,11 @@
 #include "Device.h"
 #include "Formats.h"
 #include "Platform.h"
+#include "Util.h"
 
 #include <algorithm>
 #include <cassert>
 #include <cmath>
-
-template<typename T>
-T* GetStructure(VkBaseOutStructure* structure, VkStructureType type)
-{
-	while (structure->pNext)
-	{
-		structure = reinterpret_cast<VkBaseOutStructure*>(structure->pNext);
-		if (structure->sType == type)
-		{
-			return reinterpret_cast<T*>(structure);
-		}
-	}
-
-	return nullptr;
-}
 
 constexpr auto MAX_COLOUR_ATTACHMENTS = 4;
 

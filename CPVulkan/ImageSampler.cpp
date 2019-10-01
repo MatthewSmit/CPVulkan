@@ -714,11 +714,11 @@ void GetPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t
 		FATAL_ERROR();
 	}
 
-	const auto pixel = reinterpret_cast<const Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, 0, 0));
-	if (format.RedOffset != -1) values[0] = static_cast<uint64_t>(pixel[format.RedOffset]);
-	if (format.GreenOffset != -1) values[1] = static_cast<uint64_t>(pixel[format.GreenOffset]);
-	if (format.BlueOffset != -1) values[2] = static_cast<uint64_t>(pixel[format.BlueOffset]);
-	if (format.AlphaOffset != -1) values[3] = static_cast<uint64_t>(pixel[format.AlphaOffset]);
+	const auto pixel = reinterpret_cast<const uint8_t*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, 0, 0));
+	if (format.RedOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.RedOffset);
+	if (format.GreenOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.GreenOffset);
+	if (format.BlueOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.BlueOffset);
+	if (format.AlphaOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.AlphaOffset);
 }
 
 template<typename OutputType>

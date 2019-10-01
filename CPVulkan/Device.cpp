@@ -176,344 +176,344 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	auto next = pCreateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES:
 			{
-				const auto features = static_cast<const VkPhysicalDevice16BitStorageFeatures*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDevice16BitStorageFeatures*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES_KHR:
 			{
-				const auto features = static_cast<const VkPhysicalDevice8BitStorageFeaturesKHR*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDevice8BitStorageFeaturesKHR*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ASTC_DECODE_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceASTCDecodeFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceASTCDecodeFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceBlendOperationAdvancedFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceBufferDeviceAddressFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceBufferDeviceAddressFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceCoherentMemoryFeaturesAMD*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceCoherentMemoryFeaturesAMD*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_SHADER_DERIVATIVES_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceComputeShaderDerivativesFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceComputeShaderDerivativesFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONDITIONAL_RENDERING_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceConditionalRenderingFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceConditionalRenderingFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceCooperativeMatrixFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceCooperativeMatrixFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CORNER_SAMPLED_IMAGE_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceCornerSampledImageFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceCornerSampledImageFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COVERAGE_REDUCTION_MODE_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceCoverageReductionModeFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceCoverageReductionModeFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEDICATED_ALLOCATION_IMAGE_ALIASING_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceDedicatedAllocationImageAliasingFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 			
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceDepthClipEnableFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceDepthClipEnableFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceDescriptorIndexingFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceDescriptorIndexingFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXCLUSIVE_SCISSOR_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceExclusiveScissorFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceExclusiveScissorFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceFragmentDensityMapFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceFragmentDensityMapFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceFragmentShaderBarycentricFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceHostQueryResetFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceHostQueryResetFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGELESS_FRAMEBUFFER_FEATURES_KHR:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceImagelessFramebufferFeaturesKHR*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceImagelessFramebufferFeaturesKHR*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INDEX_TYPE_UINT8_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceIndexTypeUint8FeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceIndexTypeUint8FeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceInlineUniformBlockFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceInlineUniformBlockFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceLineRasterizationFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceLineRasterizationFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 			
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceMemoryPriorityFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceMemoryPriorityFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceMeshShaderFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceMeshShaderFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_FEATURES:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceMultiviewFeatures*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceMultiviewFeatures*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR:
 			{
-				const auto features = static_cast<const VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_FEATURES:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceProtectedMemoryFeatures*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceProtectedMemoryFeatures*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_REPRESENTATIVE_FRAGMENT_TEST_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceRepresentativeFragmentTestFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_YCBCR_CONVERSION_FEATURES:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SCALAR_BLOCK_LAYOUT_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceScalarBlockLayoutFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceScalarBlockLayoutFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_ATOMIC_INT64_FEATURES_KHR:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShaderAtomicInt64FeaturesKHR*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderAtomicInt64FeaturesKHR*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderDemoteToHelperInvocationFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DRAW_PARAMETERS_FEATURES:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShaderDrawParametersFeatures*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderDrawParametersFeatures*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShaderFloat16Int8FeaturesKHR*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderFloat16Int8FeaturesKHR*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_IMAGE_FOOTPRINT_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShaderImageFootprintFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderImageFootprintFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_FUNCTIONS_2_FEATURES_INTEL:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShaderIntegerFunctions2FeaturesINTEL*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderIntegerFunctions2FeaturesINTEL*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SM_BUILTINS_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShaderSMBuiltinsFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderSMBuiltinsFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_FEATURES_NV:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceShadingRateImageFeaturesNV*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShadingRateImageFeaturesNV*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceSubgroupSizeControlFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceTexelBufferAlignmentFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceTexelBufferAlignmentFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXTURE_COMPRESSION_ASTC_HDR_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceTextureCompressionASTCHDRFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceTransformFeedbackFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceTransformFeedbackFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFORM_BUFFER_STANDARD_LAYOUT_FEATURES_KHR:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceUniformBufferStandardLayoutFeaturesKHR*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VARIABLE_POINTERS_FEATURES:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceVariablePointersFeatures*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceVariablePointersFeatures*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_MEMORY_MODEL_FEATURES_KHR:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceVulkanMemoryModelFeaturesKHR*>(next);
 				// TODO
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_YCBCR_IMAGE_ARRAYS_FEATURES_EXT:
 			{
-				const auto features = static_cast<const VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
+				const auto features = reinterpret_cast<const VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
 				// TODO
 				break;
 			}
@@ -521,7 +521,7 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 		default:
 			break;
 		}
-		next = static_cast<const VkPhysicalDeviceFeatures2*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	for (auto i = 0u; i < pCreateInfo->queueCreateInfoCount; i++)
@@ -607,16 +607,6 @@ void Device::GetDescriptorSetLayoutSupport(const VkDescriptorSetLayoutCreateInfo
 }
 
 void Device::GetDeviceGroupPeerMemoryFeatures(uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex, VkPeerMemoryFeatureFlags* pPeerMemoryFeatures)
-{
-	FATAL_ERROR();
-}
-
-void Device::GetImageMemoryRequirements2(const VkImageMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements)
-{
-	FATAL_ERROR();
-}
-
-void Device::GetImageSparseMemoryRequirements2(const VkImageSparseMemoryRequirementsInfo2* pInfo, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements2* pSparseMemoryRequirements)
 {
 	FATAL_ERROR();
 }

@@ -224,3 +224,55 @@ VkResult Device::BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemor
 
 	return VK_SUCCESS;
 }
+
+void Device::GetImageMemoryRequirements2(const VkImageMemoryRequirementsInfo2* pInfo, VkMemoryRequirements2* pMemoryRequirements)
+{
+	assert(pInfo->sType == VK_STRUCTURE_TYPE_IMAGE_MEMORY_REQUIREMENTS_INFO_2);
+	assert(pMemoryRequirements->sType == VK_STRUCTURE_TYPE_MEMORY_REQUIREMENTS_2);
+
+	{
+		auto next = reinterpret_cast<const VkBaseInStructure*>(pInfo->pNext);
+		while (next)
+		{
+			const auto type = next->sType;
+			switch (type)
+			{
+			case VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO:
+				FATAL_ERROR();
+
+			default:
+				break;
+			}
+			next = next->pNext;
+		}
+	}
+
+	{
+		auto next = static_cast<VkBaseOutStructure*>(pMemoryRequirements->pNext);
+		while (next)
+		{
+			const auto type = next->sType;
+			switch (type)
+			{
+			case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
+				{
+					const auto memoryRequirements = reinterpret_cast<VkMemoryDedicatedRequirements*>(next);
+					memoryRequirements->prefersDedicatedAllocation = false;
+					memoryRequirements->requiresDedicatedAllocation = false;
+					break;
+				}
+
+			default:
+				break;
+			}
+			next = next->pNext;
+		}
+	}
+
+	UnwrapVulkan<Image>(pInfo->image)->GetMemoryRequirements(&pMemoryRequirements->memoryRequirements);
+}
+
+void Device::GetImageSparseMemoryRequirements2(const VkImageSparseMemoryRequirementsInfo2* pInfo, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements2* pSparseMemoryRequirements)
+{
+	FATAL_ERROR();
+}

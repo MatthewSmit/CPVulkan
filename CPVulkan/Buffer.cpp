@@ -20,21 +20,31 @@ VkResult Device::BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDevi
 void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const noexcept
 {
 	pMemoryRequirements->size = size;
-	pMemoryRequirements->alignment = 16;
+	if (usage & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | 
+		VK_BUFFER_USAGE_STORAGE_TEXEL_BUFFER_BIT |
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT |
+		VK_BUFFER_USAGE_STORAGE_BUFFER_BIT))
+	{
+		pMemoryRequirements->alignment = 256;
+	}
+	else
+	{
+		pMemoryRequirements->alignment = 16;
+	}
 	pMemoryRequirements->memoryTypeBits = 1;
 }
 
 void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) const noexcept
 {
-	auto next = pMemoryRequirements->pNext;
+	auto next = static_cast<VkBaseOutStructure*>(pMemoryRequirements->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_REQUIREMENTS:
 			{
-				const auto memoryRequirements = static_cast<VkMemoryDedicatedRequirements*>(next);
+				const auto memoryRequirements = reinterpret_cast<VkMemoryDedicatedRequirements*>(next);
 				memoryRequirements->prefersDedicatedAllocation = false;
 				memoryRequirements->requiresDedicatedAllocation = false;
 				break;
@@ -43,7 +53,7 @@ void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) c
 		default:
 			break;
 		}
-		next = static_cast<VkMemoryRequirements2*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	GetMemoryRequirements(&pMemoryRequirements->memoryRequirements);
