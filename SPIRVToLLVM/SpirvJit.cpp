@@ -46,7 +46,7 @@ static llvm::orc::SymbolNameSet GetSpirvFunctions(llvm::orc::JITDylib& parent, c
 		
 		std::string tmp((*name).data(), (*name).size());
 		auto functionPtr = functions.find(tmp);
-        FunctionPointer function;
+		FunctionPointer function;
 		if (functionPtr != functions.end())
 		{
 			function = functionPtr->second;

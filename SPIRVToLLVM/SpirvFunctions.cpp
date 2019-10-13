@@ -4,6 +4,8 @@
 
 #include <glm/glm.hpp>
 
+#define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
+
 template<typename Matrix, bool MatrixColumn, typename Vector>
 static void MultiplicationMV(typename Matrix::col_type* result, const Matrix* matrix, Vector* vector)
 {

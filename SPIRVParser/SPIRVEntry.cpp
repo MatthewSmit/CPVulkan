@@ -322,6 +322,18 @@ bool SPIRVEntry::hasDecorate(Decoration Kind, size_t Index,
   return true;
 }
 
+bool SPIRVEntry::hasMemberDecorate(Decoration Kind) const
+{
+	for (const auto decorate : MemberDecorates)
+	{
+		if (decorate.first.second == Kind)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 // Get literals of all decorations of Kind at Index.
 std::set<SPIRVWord> SPIRVEntry::getDecorate(Decoration Kind,
                                             size_t Index) const {
