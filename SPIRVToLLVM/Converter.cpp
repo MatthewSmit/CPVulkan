@@ -768,6 +768,56 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 	FATAL_ERROR();
 }
 
+std::vector<llvm::Value*> MapBuiltin(State& state, BuiltIn builtin, const std::vector<std::pair<BuiltIn, uint32_t>>& builtinMapping)
+{
+	for (const auto mapping : builtinMapping)
+	{
+		if (mapping.first == builtin)
+		{
+			return std::vector<llvm::Value*>
+			{
+				llvm::ConstantInt::get(llvm::Type::getInt32Ty(state.context), mapping.second, false)
+			};
+		}
+	}
+	
+	FATAL_ERROR();
+}
+
+std::vector<llvm::Value*> MapBuiltin(State& state, const std::vector<llvm::Value*>& indices, SPIRV::SPIRVType* type, const std::vector<std::pair<BuiltIn, uint32_t>>& builtinMapping)
+{
+	if (indices.size() != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto structType = type->getPointerElementType();
+	if (!structType->isTypeStruct())
+	{
+		FATAL_ERROR();
+	}
+
+	auto decorates = static_cast<SPIRV::SPIRVTypeStruct*>(structType)->getMemberDecorates();
+	
+	if (const auto constant = llvm::dyn_cast<llvm::Constant>(indices[0]))
+	{
+		const auto index = constant->getUniqueInteger().getLimitedValue(0xFFFFFFFF);
+		for (const auto decorate : decorates)
+		{
+			if (decorate.first.first == index && decorate.first.second == DecorationBuiltIn)
+			{
+				return MapBuiltin(state, static_cast<BuiltIn>(decorate.second->getLiteral(0)), builtinMapping);
+			}
+		}
+		
+		FATAL_ERROR();
+	}
+	else
+	{
+		FATAL_ERROR();
+	}
+}
+
 static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
 {
 	for (const auto decorate : spirvBasicBlock->getDecorates())
@@ -849,6 +899,16 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				const auto accessChain = reinterpret_cast<SPIRV::SPIRVAccessChainBase*>(instruction);
 				const auto base = ConvertValue(state, accessChain->getBase());
 				auto indices = ConvertValue(state, accessChain->getIndices());
+
+				if (base->getType() == state.builtinInputVariable->getType()->getPointerElementType())
+				{
+					indices = MapBuiltin(state, indices, accessChain->getBase()->getType(), state.builtinInputMapping);
+				}
+				
+				if (base->getType() == state.builtinOutputVariable->getType()->getPointerElementType())
+				{
+					indices = MapBuiltin(state, indices, accessChain->getBase()->getType(), state.builtinOutputMapping);
+				}
 
 				if (!accessChain->hasPtrIndex())
 				{
