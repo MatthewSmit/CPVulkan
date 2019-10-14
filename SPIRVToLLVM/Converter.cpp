@@ -95,6 +95,67 @@ static bool IsBuiltinStruct(SPIRV::SPIRVType* spirvType)
 	return false;
 }
 
+static std::string GetTypeName(const char* baseName, const std::string& postfixes)
+{
+	if (postfixes.empty())
+	{
+		return baseName;
+	}
+
+	return std::string{baseName} + "_" + postfixes;
+}
+
+static std::string GetSampledImageTypeName(const SPIRV::SPIRVTypeImage* imageType)
+{
+	const char* sampledType;
+	switch (imageType->getSampledType()->getOpCode())
+	{
+	case OpTypeFloat:
+		switch (imageType->getSampledType()->getFloatBitWidth())
+		{
+		case 32:
+			sampledType = "float";
+			break;
+			
+		default:
+			FATAL_ERROR();
+		}
+		break;
+		
+	case OpTypeInt:
+		FATAL_ERROR();
+		
+	default:
+		FATAL_ERROR();
+	}
+
+	const auto& descriptor = imageType->getDescriptor();
+	
+	std::string postfixStr;
+	llvm::raw_string_ostream outputStream(postfixStr);
+	outputStream << sampledType
+		<< '_' << descriptor.Dim
+		<< '_' << descriptor.Depth
+		<< '_' << descriptor.Arrayed
+		<< '_' << descriptor.MS
+		<< '_' << descriptor.Sampled
+		<< '_' << descriptor.Format
+		<< '_' << (imageType->hasAccessQualifier() ? imageType->getAccessQualifier() : AccessQualifierReadOnly);
+
+	return GetTypeName("SampledImage", outputStream.str());
+}
+
+llvm::Type* CreateOpaquePointerType(State& state, const std::string& name)
+{
+	auto opaqueType = state.module->getTypeByName(name);
+	if (!opaqueType)
+	{
+		opaqueType = llvm::StructType::create(state.module->getContext(), name);
+	}
+
+	return llvm::PointerType::get(opaqueType, 0);
+}
+
 static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool isClassMember = false)
 {
 	const auto cachedType = state.typeMapping.find(spirvType->getId());
@@ -192,10 +253,9 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 		
 	case OpTypeSampledImage:
 		{
-			//   auto ST = static_cast<SPIRVTypeSampledImage *>(T);
-			//   return mapType(
-			//       T, getOrCreateOpaquePtrType(M, transOCLSampledImageTypeName(ST)));
-			FATAL_ERROR();
+			const auto sampledImage = static_cast<SPIRV::SPIRVTypeSampledImage*>(spirvType);
+			llvmType = CreateOpaquePointerType(state, GetSampledImageTypeName(sampledImage->getImageType()));
+			break;
 		}
 		
 	case OpTypeStruct:
@@ -376,7 +436,7 @@ static std::string ConvertName(SPIRV::SPIRVVariable* variable)
 	switch (variable->getStorageClass())
 	{
 	case StorageClassUniformConstant:
-		return variable->getName();
+		return "_uniformc_" + variable->getName();
 		
 	case StorageClassInput:
 		return "_input_" + variable->getName();
@@ -390,16 +450,23 @@ static std::string ConvertName(SPIRV::SPIRVVariable* variable)
 	case StorageClassWorkgroup:
 	case StorageClassCrossWorkgroup:
 	case StorageClassPrivate:
+		FATAL_ERROR();
+		
 	case StorageClassFunction:
+		return variable->getName();
+		
 	case StorageClassGeneric:
 	case StorageClassPushConstant:
 	case StorageClassAtomicCounter:
 	case StorageClassImage:
 	case StorageClassStorageBuffer:
+		
 	default:
 		FATAL_ERROR();
 	}
 }
+
+static llvm::Value* ConvertValue(State& state, SPIRV::SPIRVValue* spirvValue);
 
 static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* spirvValue)
 {
@@ -418,38 +485,39 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 
 			case OpTypeFloat:
 				{
-					// 	const llvm::fltSemantics* FS = nullptr;
-					// 	switch (BT->getFloatBitWidth()) {
-					// 	case 16:
-					// 		FS = &APFloat::IEEEhalf();
-					// 		break;
-					// 	case 32:
-					// 		FS = &APFloat::IEEEsingle();
-					// 		break;
-					// 	case 64:
-					// 		FS = &APFloat::IEEEdouble();
-					// 		break;
-					// 	default:
-					// 		llvm_unreachable("invalid float type");
-					// 	}
-					// 	return mapValue(
-					// 		BV, ConstantFP::get(*Context,
-					// 		                    APFloat(*FS, APInt(BT->getFloatBitWidth(),
-					// 		                                       BConst->getZExtIntValue()))));
-					FATAL_ERROR();
+					const llvm::fltSemantics* semantics;
+					switch (spirvType->getFloatBitWidth())
+					{
+					case 16:
+						semantics = &llvm::APFloat::IEEEhalf();
+						break;
+						
+					case 32:
+						semantics = &llvm::APFloat::IEEEsingle();
+						break;
+						
+					case 64:
+						semantics = &llvm::APFloat::IEEEdouble();
+						break;
+						
+					default:
+						FATAL_ERROR();
+					}
+					
+					return llvm::ConstantFP::get(llvmType, llvm::APFloat(*semantics,
+					                                                     llvm::APInt(spirvType->getFloatBitWidth(), spirvConstant->getInt64Value())));
 				}
-			}
 
-			FATAL_ERROR();
+			default:
+				FATAL_ERROR();
+			}
 		}
 
 	case OpConstantTrue:
-		// return mapValue(BV, ConstantInt::getTrue(*Context));
-		FATAL_ERROR();
+		return llvm::ConstantInt::getTrue(state.context);
 
 	case OpConstantFalse:
-		// return mapValue(BV, ConstantInt::getFalse(*Context));
-		FATAL_ERROR();
+		return llvm::ConstantInt::getFalse(state.context);
 
 	case OpConstantNull:
 		{
@@ -460,44 +528,49 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 
 	case OpConstantComposite:
 		{
-			// auto BCC = static_cast<SPIRVConstantComposite*>(BV);
-			// std::vector<Constant*> CV;
-			// for (auto& I : BCC->getElements())
-			// 	CV.push_back(dyn_cast<Constant>(transValue(I, F, BB)));
-			// switch (BV->getType()->getOpCode()) {
-			// case OpTypeVector:
-			// 	return mapValue(BV, ConstantVector::get(CV));
-			// case OpTypeArray:
-			// 	return mapValue(
-			// 		BV, ConstantArray::get(dyn_cast<ArrayType>(transType(BCC->getType())),
-			// 		                       CV));
-			// case OpTypeStruct: {
-			// 	auto BCCTy = dyn_cast<StructType>(transType(BCC->getType()));
-			// 	auto Members = BCCTy->getNumElements();
-			// 	auto Constants = CV.size();
-			// 	// if we try to initialize constant TypeStruct, add bitcasts
-			// 	// if src and dst types are both pointers but to different types
-			// 	if (Members == Constants) {
-			// 		for (unsigned I = 0; I < Members; ++I) {
-			// 			if (CV[I]->getType() == BCCTy->getElementType(I))
-			// 				continue;
-			// 			if (!CV[I]->getType()->isPointerTy() ||
-			// 				!BCCTy->getElementType(I)->isPointerTy())
-			// 				continue;
-			//
-			// 			CV[I] = ConstantExpr::getBitCast(CV[I], BCCTy->getElementType(I));
-			// 		}
-			// 	}
-			//
-			// 	return mapValue(BV,
-			// 	                ConstantStruct::get(
-			// 		                dyn_cast<StructType>(transType(BCC->getType())), CV));
-			// }
-			// default:
-			// 	llvm_unreachable("not implemented");
-			// 	return nullptr;
-			// }
-			FATAL_ERROR();
+			const auto constantComposite = static_cast<SPIRV::SPIRVConstantComposite*>(spirvValue);
+			std::vector<llvm::Constant*> constants;
+			for (auto& element : constantComposite->getElements())
+			{
+				constants.push_back(llvm::dyn_cast<llvm::Constant>(ConvertValue(state, element)));
+			}
+			switch (constantComposite->getType()->getOpCode())
+			{
+			case OpTypeVector:
+				return llvm::ConstantVector::get(constants);
+
+			case OpTypeArray:
+				// 	return mapValue(
+				// 		BV, ConstantArray::get(dyn_cast<ArrayType>(transType(BCC->getType())),
+				// 		                       CV));
+				FATAL_ERROR();
+				
+			case OpTypeStruct:
+				// 	auto BCCTy = dyn_cast<StructType>(transType(BCC->getType()));
+				// 	auto Members = BCCTy->getNumElements();
+				// 	auto Constants = CV.size();
+				// 	// if we try to initialize constant TypeStruct, add bitcasts
+				// 	// if src and dst types are both pointers but to different types
+				// 	if (Members == Constants) {
+				// 		for (unsigned I = 0; I < Members; ++I) {
+				// 			if (CV[I]->getType() == BCCTy->getElementType(I))
+				// 				continue;
+				// 			if (!CV[I]->getType()->isPointerTy() ||
+				// 				!BCCTy->getElementType(I)->isPointerTy())
+				// 				continue;
+				//
+				// 			CV[I] = ConstantExpr::getBitCast(CV[I], BCCTy->getElementType(I));
+				// 		}
+				// 	}
+				//
+				// 	return mapValue(BV,
+				// 	                ConstantStruct::get(
+				// 		                dyn_cast<StructType>(transType(BCC->getType())), CV));
+				FATAL_ERROR();
+
+			default:
+				FATAL_ERROR();
+			}
 		}
 
 	case OpConstantSampler:
@@ -734,6 +807,9 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVMatrixTimesM
 static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleExplicitLod* imageSampleExplicitLod, bool& isLod)
 {
 	// TODO: Cache
+	const auto spirvImageType = static_cast<SPIRV::SPIRVTypeSampledImage*>(imageSampleExplicitLod->getOperandTypes()[0])->getImageType();
+	const auto llvmImageType = CreateOpaquePointerType(state, GetSampledImageTypeName(spirvImageType));
+	
 	const auto resultType = imageSampleExplicitLod->getType();
 	const auto coordinateType = imageSampleExplicitLod->getOpValue(1)->getType();
 	const auto operand = imageSampleExplicitLod->getOpWord(2);
@@ -754,7 +830,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 
 		llvm::Type* params[4];
 		params[0] = llvm::PointerType::get(ConvertType(state, resultType), 0);
-		params[1] = llvm::Type::getInt8PtrTy(state.context);
+		params[1] = llvmImageType;
 		params[2] = llvm::PointerType::get(ConvertType(state, coordinateType), 0);
 		params[3] = llvm::Type::getFloatTy(state.context);
 
@@ -818,14 +894,21 @@ std::vector<llvm::Value*> MapBuiltin(State& state, const std::vector<llvm::Value
 	}
 }
 
-static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
+static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
 {
+	const auto cachedType = state.valueMapping.find(spirvBasicBlock->getId());
+	if (cachedType != state.valueMapping.end())
+	{
+		return static_cast<llvm::BasicBlock*>(cachedType->second);
+	}
+
 	for (const auto decorate : spirvBasicBlock->getDecorates())
 	{
 		FATAL_ERROR();
 	}
 	
 	const auto llvmBasicBlock = llvm::BasicBlock::Create(state.context, spirvBasicBlock->getName(), llvmFunction);
+	state.valueMapping[spirvBasicBlock->getId()] = llvmBasicBlock;
 	state.builder.SetInsertPoint(llvmBasicBlock);
 
 	for (auto i = 0u; i < spirvBasicBlock->getNumInst(); i++)
@@ -858,7 +941,12 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpFunctionParameter: break;
 			// case OpFunctionEnd: break;
 			// case OpFunctionCall: break;
-			// case OpVariable: break;
+
+		case OpVariable:
+			// TODO: Alloca?
+			llvmValue = ConvertValueNoDecoration(state, instruction);
+			break;
+
 			// case OpImageTexelPointer: break;
 
 		case OpLoad:
@@ -876,8 +964,8 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 		case OpStore:
 			{
 				const auto store = reinterpret_cast<SPIRV::SPIRVStore*>(instruction);
-				llvmValue = state.builder.CreateAlignedStore(ConvertValue(state, store->getSrc()), 
-				                                             ConvertValue(state, store->getDst()), 
+				llvmValue = state.builder.CreateAlignedStore(ConvertValue(state, store->getSrc()),
+				                                             ConvertValue(state, store->getDst()),
 				                                             ALIGNMENT,
 				                                             store->SPIRVMemoryAccess::isVolatile());
 				if (store->isNonTemporal())
@@ -890,7 +978,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 
 			// case OpCopyMemory: break;
 			// case OpCopyMemorySized: break;
-			 
+
 		case OpAccessChain:
 		case OpInBoundsAccessChain:
 		case OpPtrAccessChain:
@@ -904,7 +992,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				{
 					indices = MapBuiltin(state, indices, accessChain->getBase()->getType(), state.builtinInputMapping);
 				}
-				
+
 				if (base->getType() == state.builtinOutputVariable->getType()->getPointerElementType())
 				{
 					indices = MapBuiltin(state, indices, accessChain->getBase()->getType(), state.builtinOutputMapping);
@@ -923,7 +1011,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				{
 					llvmValue = state.builder.CreateGEP(nullptr, base, indices, accessChain->getName());
 				}
-				
+
 				break;
 			}
 
@@ -937,7 +1025,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpVectorExtractDynamic: break;
 			// case OpVectorInsertDynamic: break;
 			// case OpVectorShuffle: break;
-			 
+
 		case OpCompositeConstruct:
 			{
 				// const auto compositeConstruct = reinterpret_cast<SPIRV::SPIRVCompositeConstruct*>(instruction);
@@ -954,12 +1042,12 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				// {
 				// 	FATAL_ERROR();
 				// }
-				 
+
 				FATAL_ERROR();
-				
+
 				break;
 			}
-			 
+
 		case OpCompositeExtract:
 			{
 				// const auto compositeExtract = reinterpret_cast<SPIRV::SPIRVCompositeExtract*>(instruction);
@@ -981,10 +1069,10 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				// }
 
 				FATAL_ERROR();
-				
+
 				break;
 			}
-			
+
 			// case OpCompositeInsert: break;
 			// case OpCopyObject: break;
 			// case OpTranspose: break;
@@ -993,36 +1081,34 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 
 		case OpImageSampleExplicitLod:
 			{
-				// const auto imageSampleExplicitLod = reinterpret_cast<SPIRV::SPIRVImageSampleExplicitLod*>(instruction);
-				// bool isLod;
-				// const auto function = GetInbuildFunction(state, imageSampleExplicitLod, isLod);
-				//
-				// if (isLod)
-				// {
-				// 	llvm::Value* args[4];
-				// 	args[1] = ConvertValue(state, imageSampleExplicitLod->getOpValue(0));
-				// 	args[2] = ConvertValue(state, imageSampleExplicitLod->getOpValue(1));
-				// 	args[3] = ConvertValue(state, imageSampleExplicitLod->getOpValue(3));
-				//
-				// 	const auto tmp0 = state.builder.CreateAlloca(ConvertType(state, imageSampleExplicitLod->getType()));
-				// 	const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
-				// 	state.builder.CreateStore(args[2], tmp2);
-				// 	args[0] = tmp0;
-				// 	args[2] = tmp2;
-				//
-				// 	state.builder.CreateCall(function, args);
-				// 	llvmValue = state.builder.CreateLoad(tmp0);
-				// }
-				// else
-				// {
-				// 	FATAL_ERROR();
-				// }
+				const auto imageSampleExplicitLod = reinterpret_cast<SPIRV::SPIRVImageSampleExplicitLod*>(instruction);
+				bool isLod;
+				const auto function = GetInbuiltFunction(state, imageSampleExplicitLod, isLod);
 
-				FATAL_ERROR();
-				
+				if (isLod)
+				{
+					llvm::Value* args[4];
+					args[1] = ConvertValue(state, imageSampleExplicitLod->getOpValue(0));
+					args[2] = ConvertValue(state, imageSampleExplicitLod->getOpValue(1));
+					args[3] = ConvertValue(state, imageSampleExplicitLod->getOpValue(3));
+
+					const auto tmp0 = state.builder.CreateAlloca(ConvertType(state, imageSampleExplicitLod->getType()));
+					const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
+					state.builder.CreateStore(args[2], tmp2);
+					args[0] = tmp0;
+					args[2] = tmp2;
+
+					state.builder.CreateCall(function, args);
+					llvmValue = state.builder.CreateLoad(tmp0);
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
+
 				break;
 			}
-			
+
 			// case OpImageSampleDrefImplicitLod: break;
 			// case OpImageSampleDrefExplicitLod: break;
 			// case OpImageSampleProjImplicitLod: break;
@@ -1065,7 +1151,14 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpISub: break;
 			// case OpFSub: break;
 			// case OpIMul: break;
-			// case OpFMul: break;
+			 
+		case OpFMul:
+			{
+				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
+				llvmValue = state.builder.CreateFMul(ConvertValue(state, op->getOperand(0)), ConvertValue(state, op->getOperand(1)));
+				break;
+			}
+			
 			// case OpUDiv: break;
 			// case OpSDiv: break;
 			// case OpFDiv: break;
@@ -1077,7 +1170,7 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpVectorTimesScalar: break;
 			// case OpMatrixTimesScalar: break;
 			// case OpVectorTimesMatrix: break;
-			 
+
 		case OpMatrixTimesVector:
 			{
 				const auto matrixTimesVector = reinterpret_cast<SPIRV::SPIRVMatrixTimesVector*>(instruction);
@@ -1086,22 +1179,22 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				args[2] = ConvertValue(state, matrixTimesVector->getVector());
 
 				const auto function = GetInbuiltFunction(state, matrixTimesVector);
-				
+
 				const auto tmp0 = state.builder.CreateAlloca(function->getFunctionType()->getParamType(0)->getPointerElementType());
 				const auto tmp1 = state.builder.CreateAlloca(args[1]->getType());
 				const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
 				state.builder.CreateStore(args[1], tmp1);
 				state.builder.CreateStore(args[2], tmp2);
-				
+
 				args[0] = tmp0;
 				args[1] = tmp1;
 				args[2] = tmp2;
-				
+
 				state.builder.CreateCall(function, args);
 				llvmValue = state.builder.CreateLoad(tmp0);
 				break;
 			}
-			 
+
 		case OpMatrixTimesMatrix:
 			{
 				// const auto matrixTimesMatrix = reinterpret_cast<SPIRV::SPIRVMatrixTimesMatrix*>(instruction);
@@ -1123,10 +1216,10 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 				// llvmValue = state.builder.CreateLoad(tmp0);
 
 				FATAL_ERROR();
-				
+
 				break;
 			}
-			
+
 			// case OpMatrixTimesMatrix: break;
 			// case OpOuterProduct: break;
 			// case OpDot: break;
@@ -1148,7 +1241,14 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpLogicalNotEqual: break;
 			// case OpLogicalOr: break;
 			// case OpLogicalAnd: break;
-			// case OpLogicalNot: break;
+
+		case OpLogicalNot:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateNot(ConvertValue(state, op->getOperand(0)));
+				break;
+			}
+
 			// case OpSelect: break;
 			// case OpIEqual: break;
 			// case OpINotEqual: break;
@@ -1164,9 +1264,23 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpFUnordEqual: break;
 			// case OpFOrdNotEqual: break;
 			// case OpFUnordNotEqual: break;
-			// case OpFOrdLessThan: break;
+
+		case OpFOrdLessThan:
+			{
+				const auto op = static_cast<SPIRV::SPIRVCompare*>(instruction);
+				llvmValue = state.builder.CreateFCmpOLT(ConvertValue(state, op->getOperand(0)), ConvertValue(state, op->getOperand(1)));
+				break;
+			}
+
 			// case OpFUnordLessThan: break;
-			// case OpFOrdGreaterThan: break;
+
+		case OpFOrdGreaterThan:
+			{
+				const auto op = static_cast<SPIRV::SPIRVCompare*>(instruction);
+				llvmValue = state.builder.CreateFCmpOGT(ConvertValue(state, op->getOperand(0)), ConvertValue(state, op->getOperand(1)));
+				break;
+			}
+
 			// case OpFUnordGreaterThan: break;
 			// case OpFOrdLessThanEqual: break;
 			// case OpFUnordLessThanEqual: break;
@@ -1215,12 +1329,58 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			// case OpAtomicAnd: break;
 			// case OpAtomicOr: break;
 			// case OpAtomicXor: break;
-			// case OpPhi: break;
-			// case OpLoopMerge: break;
-			// case OpSelectionMerge: break;
-			// case OpLabel: break;
-			// case OpBranch: break;
-			// case OpBranchConditional: break;
+
+		case OpPhi:
+			{
+				auto phi = static_cast<SPIRV::SPIRVPhi*>(instruction);
+				auto llvmPhi = state.builder.CreatePHI(ConvertType(state, phi->getType()), phi->getPairs().size() / 2);
+				phi->foreachPair([&](SPIRV::SPIRVValue* incomingValue, SPIRV::SPIRVBasicBlock* incomingBasicBlock, size_t)
+				{
+					const auto translated = ConvertValue(state, incomingValue);
+					llvmPhi->addIncoming(translated, ConvertBasicBlock(state, llvmFunction, incomingBasicBlock));
+				});
+				state.builder.SetInsertPoint(llvmBasicBlock);
+				llvmValue = llvmPhi;
+				break;
+			}
+			
+		case OpLoopMerge:
+		case OpSelectionMerge:
+		case OpLabel:
+			llvmValue = nullptr;
+			break;
+			
+		case OpBranch:
+			{
+				const auto branch = static_cast<SPIRV::SPIRVBranch*>(instruction);
+				const auto block = ConvertBasicBlock(state, llvmFunction, branch->getTargetLabel());
+				state.builder.SetInsertPoint(llvmBasicBlock);
+				llvmValue = state.builder.CreateBr(block);
+				if (branch->getPrevious() && branch->getPrevious()->getOpCode() == OpLoopMerge)
+				{
+					//auto LM = static_cast<SPIRVLoopMerge *>(Prev);
+					//setLLVMLoopMetadata(LM, BI);
+					FATAL_ERROR();
+				}
+				break;
+			}
+			 
+		case OpBranchConditional:
+			{
+				const auto branch = static_cast<SPIRV::SPIRVBranchConditional*>(instruction);
+				const auto trueBlock = ConvertBasicBlock(state, llvmFunction, branch->getTrueLabel());
+				const auto falseBlock = ConvertBasicBlock(state, llvmFunction, branch->getFalseLabel());
+				state.builder.SetInsertPoint(llvmBasicBlock);
+				llvmValue = state.builder.CreateCondBr(ConvertValue(state, branch->getCondition()), trueBlock, falseBlock);
+				if (branch->getPrevious() && branch->getPrevious()->getOpCode() == OpLoopMerge)
+				{
+					//auto LM = static_cast<SPIRVLoopMerge *>(Prev);
+					//setLLVMLoopMetadata(LM, BI);
+					FATAL_ERROR();
+				}
+				break;
+			}
+			
 			// case OpSwitch: break;
 			// case OpKill: break;
 			 
@@ -1445,6 +1605,8 @@ static void ConvertBasicBlock(State& state, llvm::Function* llvmFunction, const 
 			state.valueMapping[instruction->getId()] = llvmValue;
 		}
 	}
+
+	return llvmBasicBlock;
 }
 
 static llvm::Function* ConvertFunction(State& state, const SPIRV::SPIRVFunction* spirvFunction)
