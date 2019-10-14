@@ -14,6 +14,7 @@
 template<typename ReturnType, typename CoordinateType>
 static void ImageSampleLod(ReturnType* result, VkDescriptorImageInfo* sampledImage, CoordinateType* coordinate, float lod)
 {
+	// TODO: Use ImageSampler.cpp
 	auto sampler = UnwrapVulkan<Sampler>(sampledImage->sampler);
 	auto imageView = UnwrapVulkan<ImageView>(sampledImage->imageView);
 
@@ -112,8 +113,8 @@ static void ImageSampleLod(ReturnType* result, VkDescriptorImageInfo* sampledIma
 	
 	const auto& formatInformation = GetFormatInformation(imageView->getFormat());
 	
-	const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth() + 0.5);
-	const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight() + 0.5);
+	const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth());
+	const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight());
 
 	// TODO: Use SampleImage
 	float values[4];

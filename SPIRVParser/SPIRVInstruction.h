@@ -758,7 +758,7 @@ namespace SPIRV
 			setHasNoId();
 			setHasNoType();
 		}
-		SPIRVValue *getTargetLabel() const { return getValue(TargetLabelId); }
+		SPIRVLabel* getTargetLabel() const { return get<SPIRVLabel>(TargetLabelId); }
 
 	protected:
 		_SPIRV_DEF_ENCDEC1(TargetLabelId)

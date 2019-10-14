@@ -398,6 +398,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	auto outputSize = 0u;
 	auto maxLocation = -1;
 	auto inputStride = 0u;
+	// TODO: Functionify
 	for (auto i = 0u; i < module->getNumVariables(); i++)
 	{
 		const auto variable = module->getVariable(i);
