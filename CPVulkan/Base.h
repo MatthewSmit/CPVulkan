@@ -21,12 +21,12 @@ using PCWSTR = const wchar_t*;
 using DWORD = unsigned long; // NOLINT(google-runtime-int)
 #endif
 
-// ReSharper disable once CppUnusedIncludeDirective
-
 #undef VK_KHR_external_memory_fd
 #undef VK_EXT_external_memory_dma_buf
 #undef VK_KHR_external_semaphore_fd
 #undef VK_KHR_external_fence_fd
+
+// ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vulkan_win32.h>
 #endif
 
@@ -71,6 +71,7 @@ typedef XID RROutput;
 #undef VK_EXT_acquire_xlib_display
 #undef VK_EXT_display_surface_counter
 #undef VK_EXT_display_control
+#undef VK_KHR_get_display_properties2
 
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 

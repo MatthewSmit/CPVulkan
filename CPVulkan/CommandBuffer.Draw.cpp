@@ -31,6 +31,11 @@ struct VertexBuiltinOutput
 	float b[1];
 };
 
+struct FragmentBuiltinInput
+{
+	glm::vec4 fragCoord;
+};
+
 struct VertexOutput
 {
 	std::unique_ptr<VertexBuiltinOutput[]> builtinData;
@@ -38,6 +43,21 @@ struct VertexOutput
 	uint64_t builtinStride;
 	uint64_t outputStride;
 	uint32_t vertexCount;
+};
+
+struct VariableInOutData
+{
+	void* pointer;
+	uint32_t location;
+	VkFormat format;
+	uint32_t offset;
+};
+
+struct VariableUniformData
+{
+	void* pointer;
+	uint32_t binding;
+	uint32_t set;
 };
 
 static void ClearImage(Image* image, const FormatInformation& format, uint32_t layer, uint32_t mipLevel, uint64_t values[4])
@@ -99,17 +119,17 @@ static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, cons
 	FATAL_ERROR();
 }
 
-static void LoadVertexInput(uint32_t vertex, const VertexInputState& vertexInputState, const Buffer* const vertexBinding[16], const uint64_t vertexBindingOffset[16], const std::vector<std::tuple<void*, int>>& vertexInputs)
+static void LoadVertexInput(uint32_t vertex, const VertexInputState& vertexInputState, const Buffer* const vertexBinding[16], const uint64_t vertexBindingOffset[16], const std::vector<VariableInOutData>& vertexInputs)
 {
 	for (const auto& attribute : vertexInputState.VertexAttributeDescriptions)
 	{
 		for (const auto& input : vertexInputs)
 		{
-			if (std::get<1>(input) == attribute.location)
+			if (input.location == attribute.location)
 			{
 				const auto& binding = FindBinding(attribute.binding, vertexInputState);
 				const auto offset = vertexBindingOffset[binding.binding] + binding.stride * vertex + attribute.offset;
-				*static_cast<void**>(std::get<0>(input)) = vertexBinding[binding.binding]->getDataPtr(offset, GetFormatInformation(attribute.format).TotalSize);
+				*static_cast<void**>(input.pointer) = vertexBinding[binding.binding]->getDataPtr(offset, GetFormatInformation(attribute.format).TotalSize);
 				goto end;
 			}
 		}
@@ -120,27 +140,28 @@ static void LoadVertexInput(uint32_t vertex, const VertexInputState& vertexInput
 	}
 }
 
-static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* module, const std::vector<std::tuple<void*, int, int>>& uniformPointers, std::vector<const void*>& pointers)
+static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* module, const std::vector<VariableUniformData>& uniformData, std::vector<const void*>& pointers)
 {
-	for (const auto& pointer : uniformPointers)
+	for (const auto& data : uniformData)
 	{
-		const auto descriptorSet = deviceState->descriptorSets[std::get<2>(pointer)][0];
+		const auto descriptorSet = deviceState->descriptorSets[data.set][0];
 		for (const auto& binding : descriptorSet->getBindings())
 		{
-			if (std::get<1>(binding) == std::get<1>(pointer))
+			if (std::get<1>(binding) == data.binding)
 			{
 				switch (std::get<0>(binding))
 				{
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 					pointers.push_back(&std::get<2>(binding).ImageInfo);
-					*static_cast<const void**>(std::get<0>(pointer)) = &pointers[pointers.size() - 1];
+					*static_cast<const void**>(data.pointer) = &pointers[pointers.size() - 1];
 					break;
 
 				case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-					FATAL_ERROR();
+					*static_cast<const void**>(data.pointer) = UnwrapVulkan<BufferView>(std::get<2>(binding).TexelBufferView);
+					break;
 
 				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-					*static_cast<void**>(std::get<0>(pointer)) = UnwrapVulkan<Buffer>(std::get<2>(binding).BufferInfo.buffer)->getDataPtr(std::get<2>(binding).BufferInfo.offset, std::get<2>(binding).BufferInfo.range);
+					*static_cast<void**>(data.pointer) = UnwrapVulkan<Buffer>(std::get<2>(binding).BufferInfo.buffer)->getDataPtr(std::get<2>(binding).BufferInfo.offset, std::get<2>(binding).BufferInfo.range);
 					break;
 
 				default:
@@ -178,6 +199,18 @@ static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
 			}
 		}
 	}
+
+	if (type->isTypeInt(32))
+	{
+		if (static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+		{
+			return VK_FORMAT_R32_SINT;
+		}
+		else
+		{
+			return VK_FORMAT_R32_UINT;
+		}
+	}
 	
 	FATAL_ERROR();
 }
@@ -189,30 +222,25 @@ static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 		return GetVariableSize(type->getVectorComponentType()) * type->getVectorComponentCount();
 	}
 
-	if (type->isTypeFloat())
+	if (type->isTypeFloat() || type->isTypeInt())
 	{
-		return type->getFloatBitWidth() / 8;
+		return type->getBitWidth() / 8;
 	}
 	
 	FATAL_ERROR();
 }
 
-static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t vertexCount)
+static void GetVariablePointers(const SPIRV::SPIRVModule* module, 
+                                const SpirvCompiledModule* llvmModule, 
+                                SpirvJit* jit, 
+                                std::vector<VariableInOutData>& inputData,
+                                std::vector<VariableUniformData>& uniformData, 
+                                std::vector<VariableInOutData>& outputData,
+                                uint32_t& outputSize)
 {
-	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(0);
-	const auto& vertexInput = deviceState->pipeline[0]->getVertexInputState();
-
-	const auto module = shaderStage->getModule();
-	const auto llvmModule = shaderStage->getLLVMModule();
-
-	std::vector<std::tuple<void*, int>> inputPointers{};
-	std::vector<std::tuple<void*, int>> outputPointers{};
-	std::vector<std::tuple<void*, int, int>> uniformPointers{};
-	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
-	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
-
-	auto outputSize = 0u;
 	auto maxLocation = -1;
+	auto inputSize = 0u;
+	
 	for (auto i = 0u; i < module->getNumVariables(); i++)
 	{
 		const auto variable = module->getVariable(i);
@@ -227,11 +255,19 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 				}
 
 				const auto location = *locations.begin();
-				inputPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_input_" + variable->getName()), location));
+				inputData.push_back(VariableInOutData
+					{
+						jit->getPointer(llvmModule, MangleName(variable)),
+						location,
+						GetVariableFormat(variable->getType()->getPointerElementType()),
+						inputSize
+					});
+				inputSize += GetVariableSize(variable->getType()->getPointerElementType());
 				break;
 			}
 
 		case StorageClassUniform:
+		case StorageClassUniformConstant:
 			{
 				auto bindingDecorate = variable->getDecorate(DecorationBinding);
 				if (bindingDecorate.size() != 1)
@@ -247,10 +283,16 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 
 				const auto binding = *bindingDecorate.begin();
 				const auto set = *setDecorate.begin();
-				uniformPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_uniform_" + variable->getName()), binding, set));
+				
+				uniformData.push_back(VariableUniformData
+					{
+						jit->getPointer(llvmModule, MangleName(variable)),
+						binding,
+						set
+					});
 				break;
 			}
-			
+
 		case StorageClassOutput:
 			{
 				auto locations = variable->getDecorate(DecorationLocation);
@@ -261,7 +303,13 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 
 				const auto location = *locations.begin();
 				maxLocation = std::max(maxLocation, int32_t(location));
-				outputPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_output_" + variable->getName()), location));
+				outputData.push_back(VariableInOutData
+					{
+						jit->getPointer(llvmModule, MangleName(variable)),
+						location,
+						GetVariableFormat(variable->getType()->getPointerElementType()),
+						outputSize
+					});
 				outputSize += GetVariableSize(variable->getType()->getPointerElementType());
 				break;
 			}
@@ -270,6 +318,24 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 			FATAL_ERROR();
 		}
 	}
+}
+
+static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t vertexCount)
+{
+	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(0);
+	const auto& vertexInput = deviceState->pipeline[0]->getVertexInputState();
+
+	const auto module = shaderStage->getModule();
+	const auto llvmModule = shaderStage->getLLVMModule();
+
+	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
+	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
+
+	auto outputSize = 0u;
+	std::vector<VariableInOutData> inputData{};
+	std::vector<VariableUniformData> uniformData{};
+	std::vector<VariableInOutData> outputData{};
+	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, outputSize);
 	
 	VertexOutput output
 	{
@@ -281,7 +347,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 	};
 
 	std::vector<const void*> pointers{};
-	LoadUniforms(deviceState, module, uniformPointers, pointers);
+	LoadUniforms(deviceState, module, uniformData, pointers);
 
 	struct
 	{
@@ -295,16 +361,12 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 		builtinInput.vertexIndex = i;
 		*static_cast<void**>(builtinOutputPointer) = &output.builtinData[i];
 
-		for (auto j = 0; j < outputPointers.size(); j++)
+		for (const auto& data : outputData)
 		{
-			if (j != 0)
-			{
-				FATAL_ERROR();
-			}
-			*static_cast<void**>(std::get<0>(outputPointers[j])) = output.outputData.get() + i * output.outputStride;
+			*static_cast<void**>(data.pointer) = output.outputData.get() + i * output.outputStride + data.offset;
 		}
 
-		LoadVertexInput(i, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputPointers);
+		LoadVertexInput(i, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
 
 		shaderStage->getEntryPoint()();
 	}
@@ -312,7 +374,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 	return output;
 }
 
-static auto GetFragmentInput(const std::vector<std::tuple<VkFormat, int>>& vertexOutputs, uint8_t* vertexData, int vertexStride, uint8_t* output,
+static auto GetFragmentInput(const std::vector<VariableInOutData>& inputData, uint8_t* vertexData, int vertexStride, uint8_t* output,
                              uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
                              const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p, float& depth) -> bool
 {
@@ -329,29 +391,29 @@ static auto GetFragmentInput(const std::vector<std::tuple<VkFormat, int>>& verte
 
 		depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
 
-		for (auto vertexOutput : vertexOutputs)
+		for (auto input : inputData)
 		{
-			const auto data0 = vertexData + p0Index * vertexStride + std::get<1>(vertexOutput);
-			const auto data1 = vertexData + p1Index * vertexStride + std::get<1>(vertexOutput);
-			const auto data2 = vertexData + p2Index * vertexStride + std::get<1>(vertexOutput);
-			switch (std::get<0>(vertexOutput))
+			const auto data0 = vertexData + p0Index * vertexStride + input.offset;
+			const auto data1 = vertexData + p1Index * vertexStride + input.offset;
+			const auto data2 = vertexData + p2Index * vertexStride + input.offset;
+			switch (input.format)
 			{
 			case VK_FORMAT_R32G32_SFLOAT:
-				*reinterpret_cast<glm::vec2*>(output + std::get<1>(vertexOutput)) = 
+				*reinterpret_cast<glm::vec2*>(output + input.offset) =
 					*reinterpret_cast<glm::vec2*>(data0) * w0 +
 					*reinterpret_cast<glm::vec2*>(data1) * w1 +
 					*reinterpret_cast<glm::vec2*>(data2) * w2;
 				break;
 				
 			case VK_FORMAT_R32G32B32_SFLOAT:
-				*reinterpret_cast<glm::vec3*>(output + std::get<1>(vertexOutput)) = 
+				*reinterpret_cast<glm::vec3*>(output + input.offset) =
 					*reinterpret_cast<glm::vec3*>(data0) * w0 +
 					*reinterpret_cast<glm::vec3*>(data1) * w1 +
 					*reinterpret_cast<glm::vec3*>(data2) * w2;
 				break;
 
 			case VK_FORMAT_R32G32B32A32_SFLOAT:
-				*reinterpret_cast<glm::vec4*>(output + std::get<1>(vertexOutput)) =
+				*reinterpret_cast<glm::vec4*>(output + input.offset) =
 					*reinterpret_cast<glm::vec4*>(data0) * w0 +
 					*reinterpret_cast<glm::vec4*>(data1) * w1 +
 					*reinterpret_cast<glm::vec4*>(data2) * w2;
@@ -388,99 +450,17 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	const auto module = shaderStage->getModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
 
-	std::vector<std::tuple<void*, int>> inputPointers{};
-	std::vector<std::tuple<void*, int>> outputPointers{};
-	std::vector<std::tuple<void*, int, int>> uniformPointers{};
 	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
 	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
-	std::vector<std::tuple<VkFormat, int>> vertexOutput{};
 
 	auto outputSize = 0u;
-	auto maxLocation = -1;
-	auto inputStride = 0u;
-	// TODO: Functionify
-	for (auto i = 0u; i < module->getNumVariables(); i++)
-	{
-		const auto variable = module->getVariable(i);
-		switch (variable->getStorageClass())
-		{
-		case StorageClassInput:
-			{
-				auto locations = variable->getDecorate(DecorationLocation);
-				if (locations.empty())
-				{
-					continue;
-				}
-
-				const auto location = *locations.begin();
-				inputPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_input_" + variable->getName()), location));
-				vertexOutput.push_back(std::make_tuple(GetVariableFormat(variable->getType()->getPointerElementType()), inputStride));
-				inputStride += GetVariableSize(variable->getType()->getPointerElementType());
-				break;
-			}
-
-		case StorageClassUniform:
-			{
-				auto bindingDecorate = variable->getDecorate(DecorationBinding);
-				if (bindingDecorate.size() != 1)
-				{
-					FATAL_ERROR();
-				}
-
-				auto setDecorate = variable->getDecorate(DecorationDescriptorSet);
-				if (setDecorate.size() != 1)
-				{
-					FATAL_ERROR();
-				}
-
-				const auto binding = *bindingDecorate.begin();
-				const auto set = *setDecorate.begin();
-				uniformPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_uniform_" + variable->getName()), binding, set));
-				break;
-			}
-
-		case StorageClassUniformConstant:
-			{
-				auto bindingDecorate = variable->getDecorate(DecorationBinding);
-				if (bindingDecorate.size() != 1)
-				{
-					FATAL_ERROR();
-				}
-
-				auto setDecorate = variable->getDecorate(DecorationDescriptorSet);
-				if (setDecorate.size() != 1)
-				{
-					FATAL_ERROR();
-				}
-
-				const auto binding = *bindingDecorate.begin();
-				const auto set = *setDecorate.begin();
-				uniformPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_uniformc_" + variable->getName()), binding, set));
-				break;
-			}
-
-		case StorageClassOutput:
-			{
-				auto locations = variable->getDecorate(DecorationLocation);
-				if (locations.empty())
-				{
-					continue;
-				}
-
-				const auto location = *locations.begin();
-				maxLocation = std::max(maxLocation, int32_t(location));
-				outputPointers.push_back(std::make_tuple(deviceState->jit->getPointer(llvmModule, "_output_" + variable->getName()), location));
-				outputSize += GetVariableSize(variable->getType()->getPointerElementType());
-				break;
-			}
-
-		default:
-			FATAL_ERROR();
-		}
-	}
+	std::vector<VariableInOutData> inputData{};
+	std::vector<VariableUniformData> uniformData{};
+	std::vector<VariableInOutData> outputData{};
+	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, outputSize);
 
 	std::vector<const void*> pointers{};
-	LoadUniforms(deviceState, module, uniformPointers, pointers);
+	LoadUniforms(deviceState, module, uniformData, pointers);
 	
 	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_ATTACHMENTS};
 	std::pair<VkAttachmentDescription, Image*> depthImage;
@@ -503,19 +483,23 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	const auto image = images[0].second;
 	const auto halfPixel = glm::vec2(1.0f / image->getWidth(), 1.0f / image->getHeight()) * 0.5f;
 
-	auto inputData = std::unique_ptr<uint8_t[]>(new uint8_t[output.outputStride]);
-	auto outputData = std::unique_ptr<uint8_t[]>(new uint8_t[MAX_FRAGMENT_ATTACHMENTS * 128]); // TODO: Use real stride
+	auto inputBytes = std::unique_ptr<uint8_t[]>(new uint8_t[output.outputStride]);
+	auto outputBytes = std::unique_ptr<uint8_t[]>(new uint8_t[MAX_FRAGMENT_ATTACHMENTS * 128]); // TODO: Use real stride
 	const auto numberTriangles = output.vertexCount / 3;
 
-	for (auto outputPointer : outputPointers)
+	for (auto data : outputData)
 	{
-		*static_cast<void**>(std::get<0>(outputPointer)) = outputData.get() + 128 * std::get<1>(outputPointer);
+		*static_cast<void**>(data.pointer) = outputBytes.get() + 128 * data.location;
 	}
 
-	for (auto inputPointer : inputPointers)
+	for (auto data : inputData)
 	{
-		*static_cast<void**>(std::get<0>(inputPointer)) = inputData.get() + std::get<1>(vertexOutput[std::get<1>(inputPointer)]);
+		*static_cast<void**>(data.pointer) = inputBytes.get() + data.offset;
 	}
+
+	FragmentBuiltinInput builtinInput{};
+	*static_cast<void**>(builtinInputPointer) = &builtinInput;
+	builtinInput.fragCoord.w = 1;
 	
 	for (auto i = 0u; i < numberTriangles; i++)
 	{
@@ -526,14 +510,16 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		for (auto y = 0u; y < image->getHeight(); y++)
 		{
 			const auto yf = (static_cast<float>(y) / image->getHeight() + halfPixel.y) * 2 - 1;
+			builtinInput.fragCoord.y = yf;
 			
 			for (auto x = 0u; x < image->getWidth(); x++)
 			{
 				const auto xf = (static_cast<float>(x) / image->getWidth() + halfPixel.x) * 2 - 1;
+				builtinInput.fragCoord.x = xf;
 				const auto p = glm::vec2(xf, yf);
 				
 				float depth;
-				if (GetFragmentInput(vertexOutput, output.outputData.get(), output.outputStride, inputData.get(), i * 3 + 2, i * 3 + 1, i * 3 + 0, p2, p1, p0, p, depth))
+				if (GetFragmentInput(inputData, output.outputData.get(), output.outputStride, inputBytes.get(), i * 3 + 2, i * 3 + 1, i * 3 + 0, p2, p1, p0, p, depth))
 				{
 					if (depthImage.second)
 					{
@@ -543,16 +529,12 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 							continue;
 						}
 					}
+					builtinInput.fragCoord.z = depth;
 
 					struct
 					{
-					} builtinInput;
+					} builtinOutput{};
 
-					struct
-					{
-					} builtinOutput;
-
-					*static_cast<void**>(builtinInputPointer) = &builtinInput;
 					*static_cast<void**>(builtinOutputPointer) = &builtinOutput;
 
 					shaderStage->getEntryPoint()();
@@ -563,7 +545,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 						if (images[j].second)
 						{
 							const auto& format = GetFormatInformation(images[j].first.format);
-							GetImageColour(values, format, *reinterpret_cast<VkClearColorValue*>(outputData.get() + 128 * j));
+							GetImageColour(values, format, *reinterpret_cast<VkClearColorValue*>(outputBytes.get() + 128 * j));
 							SetPixel(format, images[j].second, x, y, 0, 0, 0, values);
 						}
 					}

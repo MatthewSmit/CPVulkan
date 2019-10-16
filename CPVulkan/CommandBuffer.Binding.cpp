@@ -71,8 +71,8 @@ private:
 class BindDescriptorSetsCommand final : public Command
 {
 public:
-	BindDescriptorSetsCommand(int index, PipelineLayout* pipelineLayout, uint32_t firstSet, std::vector<DescriptorSet*> descriptorSets, std::vector<uint32_t> dynamicOffsets):
-		index{index},
+	BindDescriptorSetsCommand(int pipelineIndex, PipelineLayout* pipelineLayout, uint32_t firstSet, std::vector<DescriptorSet*> descriptorSets, std::vector<uint32_t> dynamicOffsets):
+		pipelineIndex{pipelineIndex},
 		pipelineLayout{pipelineLayout},
 		firstSet{firstSet},
 		descriptorSets{std::move(descriptorSets)},
@@ -84,7 +84,7 @@ public:
 	{
 		for (auto i = 0u; i < descriptorSets.size(); i++)
 		{
-			deviceState->descriptorSets[index][i + firstSet] = descriptorSets[i];
+			deviceState->descriptorSets[i + firstSet][pipelineIndex] = descriptorSets[i];
 		}
 
 		if (!dynamicOffsets.empty())
@@ -94,7 +94,7 @@ public:
 	}
 
 private:
-	int index;
+	int pipelineIndex;
 	PipelineLayout* pipelineLayout;
 	uint32_t firstSet;
 	std::vector<DescriptorSet*> descriptorSets;

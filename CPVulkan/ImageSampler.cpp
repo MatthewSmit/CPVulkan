@@ -1,7 +1,7 @@
 #include "ImageSampler.h"
 
 #include "Formats.h"
-#include "half.h"
+#include "Half.h"
 #include "Image.h"
 
 #include <glm/glm.hpp>
@@ -25,7 +25,7 @@ glm::ivec4 lerp(glm::ivec4 min, glm::ivec4 max, float delta)
 	return glm::dvec4(min) + glm::dvec4(max - min) * double(delta);
 }
 
-static int32_t Wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
+static int32_t wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 {
 	switch (addressMode)
 	{
@@ -47,9 +47,44 @@ static int32_t Wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 	case VK_SAMPLER_ADDRESS_MODE_MIRROR_CLAMP_TO_EDGE:
 		return std::clamp(v >= 0 ? v : -(1 + v), 0, size - 1);
 
-    default:
-        FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
+}
+
+static float clamp(float v, float min, float max)
+{
+	return std::min(std::max(v, min), max);
+}
+
+template<typename T>
+static void clampSInput(const T input[4], T output[4])
+{
+	FATAL_ERROR();
+}
+
+template<typename T>
+static void clampUInput(const T input[4], T output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
+static void clampSInput<float>(const float input[4], float output[4])
+{
+	output[0] = clamp(input[0], -1, 1);
+	output[1] = clamp(input[1], -1, 1);
+	output[2] = clamp(input[2], -1, 1);
+	output[3] = clamp(input[3], -1, 1);
+}
+
+template<>
+static void clampUInput<float>(const float input[4], float output[4])
+{
+	output[0] = clamp(input[0], 0, 1);
+	output[1] = clamp(input[1], 0, 1);
+	output[2] = clamp(input[2], 0, 1);
+	output[3] = clamp(input[3], 0, 1);
 }
 
 template<typename T>
@@ -630,10 +665,28 @@ void ConvertPixelsToTemp(const FormatInformation& format, const InputType input[
 		ConvertPixelsToPackedTemp(format, input, output);
 		return;
 	}
-	
+
+	InputType converted[4];
 	switch (format.Base)
 	{
 	case BaseType::UNorm:
+		clampUInput(input, converted);
+		switch (format.ElementSize)
+		{
+		case 1:
+			ConvertPixelsToTemp<InputType, uint8_t>(converted, output);
+			return;
+
+		case 2:
+			ConvertPixelsToTemp<InputType, uint16_t>(converted, output);
+			return;
+
+		case 4:
+			ConvertPixelsToTemp<InputType, uint32_t>(converted, output);
+			return;
+		}
+		break;
+
 	case BaseType::UScaled:
 	case BaseType::UInt:
 		switch (format.ElementSize)
@@ -651,8 +704,25 @@ void ConvertPixelsToTemp(const FormatInformation& format, const InputType input[
 			return;
 		}
 		break;
-
+		
 	case BaseType::SNorm:
+		clampSInput(input, converted);
+		switch (format.ElementSize)
+		{
+		case 1:
+			ConvertPixelsToTemp<InputType, int8_t>(converted, output);
+			return;
+
+		case 2:
+			ConvertPixelsToTemp<InputType, int16_t>(converted, output);
+			return;
+
+		case 4:
+			ConvertPixelsToTemp<InputType, int32_t>(converted, output);
+			return;
+		}
+		break;
+
 	case BaseType::SScaled:
 	case BaseType::SInt:
 		switch (format.ElementSize)
@@ -687,7 +757,6 @@ void ConvertPixelsToTemp(const FormatInformation& format, const InputType input[
 		break;
 
 	case BaseType::SRGB:
-		InputType converted[4];
 		LinearToSRGB(input, converted);
 		switch (format.ElementSize)
 		{
@@ -876,9 +945,9 @@ ReturnType SampleImage(const Image* image, float u, float v, float w, float q, u
 			auto j = static_cast<int32_t>(std::floor(v + shift));
 			auto k = static_cast<int32_t>(std::floor(w + shift));
 
-			i = Wrap(i, image->getWidth(), addressMode);
-			j = Wrap(j, image->getHeight(), addressMode);
-			k = Wrap(k, image->getDepth(), addressMode);
+			i = wrap(i, image->getWidth(), addressMode);
+			j = wrap(j, image->getHeight(), addressMode);
+			k = wrap(k, image->getDepth(), addressMode);
 			
 			return GetPixel<ReturnType>(format, image, i, j, k);
 		}
@@ -891,13 +960,13 @@ ReturnType SampleImage(const Image* image, float u, float v, float w, float q, u
 			auto j0 = static_cast<int32_t>(std::floor(v - shift));
 			auto k0 = static_cast<int32_t>(std::floor(w - shift));
 			
-			const auto i1 = Wrap(i0 + 1, image->getWidth(), addressMode);
-			const auto j1 = Wrap(j0 + 1, image->getHeight(), addressMode);
-			const auto k1 = Wrap(k0 + 1, image->getDepth(), addressMode);
+			const auto i1 = wrap(i0 + 1, image->getWidth(), addressMode);
+			const auto j1 = wrap(j0 + 1, image->getHeight(), addressMode);
+			const auto k1 = wrap(k0 + 1, image->getDepth(), addressMode);
 
-			i0 = Wrap(i0, image->getWidth(), addressMode);
-			j0 = Wrap(j0, image->getHeight(), addressMode);
-			k0 = Wrap(k0, image->getDepth(), addressMode);
+			i0 = wrap(i0, image->getWidth(), addressMode);
+			j0 = wrap(j0, image->getHeight(), addressMode);
+			k0 = wrap(k0, image->getDepth(), addressMode);
 			
 			const auto alpha = frac(u - shift);
 			const auto beta = frac(v - shift);

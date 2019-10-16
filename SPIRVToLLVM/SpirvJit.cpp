@@ -110,12 +110,12 @@ public:
 		return new SpirvCompiledModule(moduleValue, std::move(context), dylib);
 	}
 
-	llvm::Expected<llvm::JITEvaluatedSymbol> lookup(SpirvCompiledModule* module, llvm::StringRef name)
+	llvm::Expected<llvm::JITEvaluatedSymbol> lookup(const SpirvCompiledModule* module, llvm::StringRef name)
 	{
 		return executionSession.lookup(&module->dylib, mangle(name.str()));
 	}
 
-	void* getPointer(SpirvCompiledModule* module, const std::string& name)
+	void* getPointer(const SpirvCompiledModule* module, const std::string& name)
 	{
 		return reinterpret_cast<void*>(cantFail(lookup(module, name)).getAddress());
 	}
@@ -161,12 +161,12 @@ SpirvCompiledModule* SpirvJit::CompileModule(const SPIRV::SPIRVModule* spirvModu
 	return impl->CompileModule(spirvModule, executionModel);
 }
 
-void* SpirvJit::getPointer(SpirvCompiledModule* module, const std::string& name)
+void* SpirvJit::getPointer(const SpirvCompiledModule* module, const std::string& name)
 {
 	return impl->getPointer(module, name);
 }
 
-FunctionPointer SpirvJit::getFunctionPointer(SpirvCompiledModule* module, const std::string& name)
+FunctionPointer SpirvJit::getFunctionPointer(const SpirvCompiledModule* module, const std::string& name)
 {
 	return reinterpret_cast<FunctionPointer>(getPointer(module, name));
 }

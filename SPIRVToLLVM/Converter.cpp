@@ -8,6 +8,8 @@
 #include <llvm/IR/LLVMContext.h>
 #include <llvm-c/Target.h>
 
+#include <gsl/gsl>
+
 #include <cstdlib>
 
 #if !defined(_MSC_VER)
@@ -55,46 +57,6 @@ static std::string DumpType(llvm::Type* llvmType)
 	return rso.str();
 }
 
-static void HandleTypeDecorate(const std::pair<const Decoration, const SPIRV::SPIRVDecorateGeneric*> decorate)
-{
-	switch (decorate.first)
-	{
-	case DecorationBlock:
-	case DecorationBufferBlock:
-	case DecorationColMajor:
-		break;
-		
-	case DecorationMatrixStride:
-	case DecorationArrayStride:
-	case DecorationOffset:
-		// TODO
-		break;
-
-	default:
-		FATAL_ERROR();
-	}
-}
-
-static bool IsBuiltinStruct(SPIRV::SPIRVType* spirvType)
-{
-	const auto result = spirvType->isTypePointer() &&
-		spirvType->getPointerElementType()->isTypeStruct() &&
-		spirvType->getPointerElementType()->getStructMemberCount() > 0;
-
-	if (result)
-	{
-		for (const auto& decorate : spirvType->getPointerElementType()->getMemberDecorates())
-		{
-			if (decorate.first.second == DecorationBuiltIn)
-			{
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
-
 static std::string GetTypeName(const char* baseName, const std::string& postfixes)
 {
 	if (postfixes.empty())
@@ -103,6 +65,95 @@ static std::string GetTypeName(const char* baseName, const std::string& postfixe
 	}
 
 	return std::string{baseName} + "_" + postfixes;
+}
+
+static std::string GetTypeName(SPIRV::SPIRVType* type)
+{
+	switch (type->getOpCode())
+	{
+	case OpTypeInt:
+		return (static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned() ? "I" : "U") + std::to_string(type->getIntegerBitWidth());
+		
+	case OpTypeFloat:
+		return "F" + std::to_string(type->getFloatBitWidth());
+		
+	case OpTypeVector:
+		return GetTypeName(type->getVectorComponentType()) + "[" + std::to_string(type->getVectorComponentCount()) + "]";
+		
+	default:
+		FATAL_ERROR();
+	}
+}
+
+static std::string GetImageTypeName(const SPIRV::SPIRVTypeImage* imageType)
+{
+	static const char* accessQualifierStr[3]
+	{
+		"ro",
+		"wo",
+		"rw",
+	};
+	
+	const char* sampledType;
+	switch (imageType->getSampledType()->getOpCode())
+	{
+	case OpTypeFloat:
+		switch (imageType->getSampledType()->getFloatBitWidth())
+		{
+		case 32:
+			sampledType = "float";
+			break;
+			
+		default:
+			FATAL_ERROR();
+		}
+		break;
+		
+	case OpTypeInt:
+		if (static_cast<SPIRV::SPIRVTypeInt*>(imageType->getSampledType())->isSigned())
+		{
+			switch (imageType->getSampledType()->getIntegerBitWidth())
+			{
+			case 32:
+				sampledType = "int32";
+				break;
+
+			default:
+				FATAL_ERROR();
+			}
+		}
+		else
+		{
+			switch (imageType->getSampledType()->getIntegerBitWidth())
+			{
+			case 32:
+				sampledType = "uint32";
+				break;
+
+			default:
+				FATAL_ERROR();
+			}
+		}
+		break;
+		
+	default:
+		FATAL_ERROR();
+	}
+
+	const auto& descriptor = imageType->getDescriptor();
+	
+	std::string postfixStr;
+	llvm::raw_string_ostream outputStream(postfixStr);
+	outputStream << sampledType
+		<< '_' << descriptor.Dim
+		<< '_' << descriptor.Depth
+		<< '_' << descriptor.Arrayed
+		<< '_' << descriptor.MS
+		<< '_' << descriptor.Sampled
+		<< '_' << descriptor.Format
+		<< '_' << gsl::at(accessQualifierStr, imageType->hasAccessQualifier() ? imageType->getAccessQualifier() : AccessQualifierReadOnly);
+
+	return GetTypeName("Image", outputStream.str());
 }
 
 static std::string GetSampledImageTypeName(const SPIRV::SPIRVTypeImage* imageType)
@@ -163,16 +214,6 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 	{
 		return cachedType->second;
 	}
-	
-	// for (const auto decorate : spirvType->getDecorates())
-	// {
-	// 	HandleTypeDecorate(decorate);
-	// }
-	//
-	// for (const auto decorate : memberDecorates)
-	// {
-	// 	HandleTypeDecorate(decorate);
-	// }
 	
 	llvm::Type* llvmType;
 	
@@ -242,13 +283,9 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 		
 	case OpTypeImage:
 		{
-			//   auto ST = static_cast<SPIRVTypeImage *>(T);
-			//   if (ST->isOCLImage())
-			//     return mapType(T, getOrCreateOpaquePtrType(M, transOCLImageTypeName(ST)));
-			//   else
-			//     llvm_unreachable("Unsupported image type");
-			//   return nullptr;
-			FATAL_ERROR();
+			const auto image = static_cast<SPIRV::SPIRVTypeImage*>(spirvType);
+			llvmType = CreateOpaquePointerType(state, GetImageTypeName(image));
+			break;
 		}
 		
 	case OpTypeSampledImage:
@@ -310,81 +347,21 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 			//                                   getOCLOpaqueTypeAddrSpace(T->getOpCode())));
 			FATAL_ERROR();
 		}
-		
-		// // OpenCL Compiler does not use this instruction
-		// case OpTypeVmeImageINTEL:
-		//   return nullptr;
-		// default: {
-		//   auto OC = T->getOpCode();
-		//   if (isOpaqueGenericTypeOpCode(OC) || isSubgroupAvcINTELTypeOpCode(OC)) {
-		//     auto Name = isSubgroupAvcINTELTypeOpCode(OC)
-		//                     ? OCLSubgroupINTELTypeOpCodeMap::rmap(OC)
-		//                     : OCLOpaqueTypeOpCodeMap::rmap(OC);
-		//     return mapType(
-		//         T, getOrCreateOpaquePtrType(M, Name, getOCLOpaqueTypeAddrSpace(OC)));
-		//   }
-		//   llvm_unreachable("Not implemented");
-		// }
 
-		// case OpTypeImage:
-		// case OpTypeSampler:
-		// case OpTypeSampledImage:
-		// 	llvmType = llvm::Type::getInt8PtrTy(state.context);
-		// 	break;
-		//
-		// case OpTypeRuntimeArray:
-		// 	llvmType = llvm::StructType::get(state.context, {
-		// 		                                 llvm::Type::getInt64Ty(state.context),
-		// 		                                 llvm::PointerType::get(ConvertType(state, spirvType->getArrayElementType()), 0),
-		// 	                                 }, false);
-		// 	break;
-		//
-		// case OpTypeStruct:
-		// 	{
-		// 		std::vector<llvm::Type*> members{};
-		// 		for (auto i = 0u; i < spirvType->getStructMemberCount(); i++)
-		// 		{
-		// 			std::vector<std::pair<Decoration, const SPIRV::SPIRVMemberDecorate*>> newMemberDecorates{};
-		// 			for (const auto decorate : spirvType->getMemberDecorates())
-		// 			{
-		// 				if (decorate.first.first == i)
-		// 				{
-		// 					newMemberDecorates.emplace_back(decorate.first.second, decorate.second);
-		// 				}
-		// 			}
-		//
-		// 			const auto member = spirvType->getStructMemberType(i);
-		// 			members.push_back(ConvertType(state, member, newMemberDecorates));
-		// 		}
-		// 		llvmType = llvm::StructType::create(state.context, members, spirvType->getName());
-		// 		break;
-		// 	}
-		//
-		// case OpTypePointer:
-		// 	if (IsBuiltinStruct(spirvType))
-		// 	{
-		// 		if (spirvType->getPointerStorageClass() == StorageClassOutput)
-		// 		{
-		// 			llvmType = state.builtinOutputVariable->getType();
-		// 		}
-		// 		else if (spirvType->getPointerStorageClass() == StorageClassInput)
-		// 		{
-		// 			llvmType = state.builtinInputVariable->getType();
-		// 		}
-		// 		else
-		// 		{
-		// 			FATAL_ERROR();
-		// 		}
-		// 	}
-		// 	else if (spirvType->hasDecorate(DecorationBuiltIn))
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		// 	else
-		// 	{
-		// 		llvmType = llvm::PointerType::get(ConvertType(state, spirvType->getPointerElementType()), 0);
-		// 	}
-		// 	break;
+	case OpTypeRuntimeArray:
+		{
+			const auto runtimeArray = static_cast<SPIRV::SPIRVTypeRuntimeArray*>(spirvType);
+			const auto llvmElementType = ConvertType(state, runtimeArray->getElementType(), true);
+			const auto name = DumpType(llvmElementType) + "[]";
+
+			auto llvmStruct = llvm::StructType::create(state.context, name);
+			llvm::SmallVector<llvm::Type*, 2> types;
+			types.push_back(llvm::Type::getInt32Ty(state.context));
+			types.push_back(llvm::PointerType::get(llvmElementType, 0));
+			llvmStruct->setBody(types);
+			llvmType = llvmStruct;
+			break;
+		}
 		
 	default:
 		FATAL_ERROR();
@@ -425,41 +402,6 @@ static llvm::GlobalValue::LinkageTypes ConvertLinkage(SPIRV::SPIRVValue* value)
 		
 	case LinkageTypeInternal:
 		return llvm::GlobalValue::ExternalLinkage;
-		
-	default:
-		FATAL_ERROR();
-	}
-}
-
-static std::string ConvertName(SPIRV::SPIRVVariable* variable)
-{
-	switch (variable->getStorageClass())
-	{
-	case StorageClassUniformConstant:
-		return "_uniformc_" + variable->getName();
-		
-	case StorageClassInput:
-		return "_input_" + variable->getName();
-		
-	case StorageClassUniform:
-		return "_uniform_" + variable->getName();
-
-	case StorageClassOutput:
-		return "_output_" + variable->getName();
-
-	case StorageClassWorkgroup:
-	case StorageClassCrossWorkgroup:
-	case StorageClassPrivate:
-		FATAL_ERROR();
-		
-	case StorageClassFunction:
-		return variable->getName();
-		
-	case StorageClassGeneric:
-	case StorageClassPushConstant:
-	case StorageClassAtomicCounter:
-	case StorageClassImage:
-	case StorageClassStorageBuffer:
 		
 	default:
 		FATAL_ERROR();
@@ -604,7 +546,7 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 			const auto variable = static_cast<SPIRV::SPIRVVariable*>(spirvValue);
 			const auto llvmType = ConvertType(state, variable->getType());
 			const auto linkage = ConvertLinkage(variable);
-			const auto name = ConvertName(variable);
+			const auto name = MangleName(variable);
 			llvm::Constant* initialiser = nullptr;
 			const auto spirvInitialiser = variable->getInitializer();
 			if (spirvInitialiser)
@@ -612,14 +554,13 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 				// 	Initializer = dyn_cast<Constant>(transValue(Init, F, BB, false));
 				FATAL_ERROR();
 			}
+			else if (variable->getStorageClass() == StorageClassFunction)
+			{
+				return state.builder.CreateAlloca(llvmType->getPointerElementType());
+			}
 			else
 			{
 				initialiser = llvm::Constant::getNullValue(llvmType);
-			}
-
-			if (variable->getStorageClass() == StorageClassFunction && !initialiser)
-			{
-				FATAL_ERROR();
 			}
 
 			auto llvmVariable = new llvm::GlobalVariable(*state.module,
@@ -633,13 +574,6 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 			llvmVariable->setUnnamedAddr(variable->isConstant() && llvmType->isArrayTy() && llvmType->getArrayElementType()->isIntegerTy(8)
 				                             ? llvm::GlobalValue::UnnamedAddr::Global
 				                             : llvm::GlobalValue::UnnamedAddr::None);
-
-			SPIRV::SPIRVBuiltinVariableKind builtinKind;
-			if (variable->isBuiltin(&builtinKind))
-			{
-				// 	BuiltinGVMap[LVar] = BVKind;
-				FATAL_ERROR();
-			}
 			return llvmVariable;
 		}
 
@@ -694,6 +628,39 @@ static void ConvertDecoration(llvm::Value* llvmValue, SPIRV::SPIRVValue* spirvVa
 	}
 }
 
+static llvm::Value* ConvertBuiltin(State& state, BuiltIn builtin)
+{
+	for (const auto mapping : state.builtinInputMapping)
+	{
+		if (mapping.first == builtin)
+		{
+			const auto value = state.builder.CreateAlignedLoad(state.builtinInputVariable, ALIGNMENT);
+			llvm::Value* indices[]
+			{
+				llvm::ConstantInt::get(state.context, llvm::APInt(32, 0)),
+				llvm::ConstantInt::get(state.context, llvm::APInt(32, mapping.second)),
+			};
+			return state.builder.CreateInBoundsGEP(value, indices);
+		}
+	}
+
+	for (const auto mapping : state.builtinOutputMapping)
+	{
+		if (mapping.first == builtin)
+		{
+			const auto value = state.builder.CreateAlignedLoad(state.builtinOutputVariable, ALIGNMENT);
+			llvm::Value* indices[]
+			{
+				llvm::ConstantInt::get(state.context, llvm::APInt(32, 0)),
+				llvm::ConstantInt::get(state.context, llvm::APInt(32, mapping.second)),
+			};
+			return state.builder.CreateInBoundsGEP(value, indices);
+		}
+	}
+	
+	FATAL_ERROR();
+}
+
 static llvm::Value* ConvertValue(State& state, SPIRV::SPIRVValue* spirvValue)
 {
 	const auto cachedType = state.valueMapping.find(spirvValue->getId());
@@ -708,9 +675,14 @@ static llvm::Value* ConvertValue(State& state, SPIRV::SPIRVValue* spirvValue)
 
 	if (spirvValue->isVariable() && spirvValue->getType()->isTypePointer())
 	{
-		if (spirvValue->getType()->getPointerElementType()->hasDecorate(DecorationBuiltIn))
+		if (spirvValue->hasDecorate(DecorationBuiltIn))
 		{
-			FATAL_ERROR();
+			const auto builtin = static_cast<BuiltIn>(*spirvValue->getDecorate(DecorationBuiltIn).begin());
+			if (state.builder.GetInsertBlock() == nullptr)
+			{
+				return nullptr;
+			}
+			return ConvertBuiltin(state, builtin);
 		}
 
 		if (spirvValue->getType()->getPointerElementType()->hasMemberDecorate(DecorationBuiltIn))
@@ -821,6 +793,11 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 
 	if (operand == 2)
 	{
+		if (imageSampleExplicitLod->getOpWords().size() > 3)
+		{
+			FATAL_ERROR();
+		}
+		
 		isLod = true;
 
 		if (resultType->getVectorComponentCount() != 4 || !resultType->getVectorComponentType()->isTypeFloat(32) || coordinateType->getVectorComponentCount() != 2 || !coordinateType->getVectorComponentType()->isTypeFloat(32))
@@ -828,20 +805,50 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 			FATAL_ERROR();
 		}
 
-		llvm::Type* params[4];
-		params[0] = llvm::PointerType::get(ConvertType(state, resultType), 0);
-		params[1] = llvmImageType;
-		params[2] = llvm::PointerType::get(ConvertType(state, coordinateType), 0);
-		params[3] = llvm::Type::getFloatTy(state.context);
+		llvm::Type* params[]
+		{
+			llvm::PointerType::get(ConvertType(state, resultType), 0),
+			llvmImageType,
+			llvm::PointerType::get(ConvertType(state, coordinateType), 0),
+			llvm::Type::getFloatTy(state.context),
+		};
 
 		const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
-		auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "_Image_Sample_4_F32_2_F32_Lod", state.module);
+		auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "@Image.Sample." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + ".Lod", state.module);
 		function->addDereferenceableAttr(0, 16);
 		function->addDereferenceableAttr(2, 16);
 		return function;
 	}
 
 	FATAL_ERROR();
+}
+
+static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageFetch* imageFetch)
+{
+	// TODO: Cache
+	const auto spirvImageType = static_cast<SPIRV::SPIRVTypeImage*>(imageFetch->getOperandTypes()[0]);
+	const auto llvmImageType = CreateOpaquePointerType(state, GetImageTypeName(spirvImageType));
+	
+	const auto resultType = imageFetch->getType();
+	const auto coordinateType = imageFetch->getOpValue(1)->getType();
+
+	if (imageFetch->getOpWords().size() > 2)
+	{
+		FATAL_ERROR();
+	}
+	
+	llvm::Type* params[]
+	{
+		llvm::PointerType::get(ConvertType(state, resultType), 0),
+		llvmImageType,
+		ConvertType(state, coordinateType),
+	};
+	
+	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, "@Image.Fetch." + GetTypeName(resultType) + "." + GetTypeName(coordinateType), state.module);
+	function->addDereferenceableAttr(0, 16);
+	function->addDereferenceableAttr(2, 16);
+	return function;
 }
 
 std::vector<llvm::Value*> MapBuiltin(State& state, BuiltIn builtin, const std::vector<std::pair<BuiltIn, uint32_t>>& builtinMapping)
@@ -1050,25 +1057,19 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* llvmFun
 
 		case OpCompositeExtract:
 			{
-				// const auto compositeExtract = reinterpret_cast<SPIRV::SPIRVCompositeExtract*>(instruction);
-				// llvmValue = ConvertValue(state, compositeExtract->getComposite());
-				// auto type = compositeExtract->getComposite()->getType();
-				// auto indices = compositeExtract->getIndices();
-				//
-				// for (auto index : indices)
-				// {
-				// 	if (type->isTypeVector())
-				// 	{
-				// 		llvmValue = state.builder.CreateExtractElement(llvmValue, index);
-				// 		type = type->getVectorComponentType();
-				// 	}
-				// 	else
-				// 	{
-				// 		FATAL_ERROR();
-				// 	}
-				// }
-
-				FATAL_ERROR();
+				const auto compositeExtract = reinterpret_cast<SPIRV::SPIRVCompositeExtract*>(instruction);
+				if (compositeExtract->getComposite()->getType()->isTypeVector())
+				{
+					assert(compositeExtract->getIndices().size() == 1);
+					llvmValue = state.builder.CreateExtractElement(ConvertValue(state, compositeExtract->getComposite()), compositeExtract->getIndices()[0]);
+				}
+				else
+				{
+					// return mapValue(
+					//     BV, ExtractValueInst::Create(transValue(CE->getComposite(), F, BB),
+					//                                  CE->getIndices(), BV->getName(), BB));
+					FATAL_ERROR();
+				}
 
 				break;
 			}
@@ -1088,18 +1089,17 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* llvmFun
 				if (isLod)
 				{
 					llvm::Value* args[4];
+					args[0] = state.builder.CreateAlloca(ConvertType(state, imageSampleExplicitLod->getType()));
 					args[1] = ConvertValue(state, imageSampleExplicitLod->getOpValue(0));
 					args[2] = ConvertValue(state, imageSampleExplicitLod->getOpValue(1));
 					args[3] = ConvertValue(state, imageSampleExplicitLod->getOpValue(3));
 
-					const auto tmp0 = state.builder.CreateAlloca(ConvertType(state, imageSampleExplicitLod->getType()));
 					const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
 					state.builder.CreateStore(args[2], tmp2);
-					args[0] = tmp0;
 					args[2] = tmp2;
 
 					state.builder.CreateCall(function, args);
-					llvmValue = state.builder.CreateLoad(tmp0);
+					llvmValue = state.builder.CreateLoad(args[0]);
 				}
 				else
 				{
@@ -1115,7 +1115,21 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* llvmFun
 			// case OpImageSampleProjExplicitLod: break;
 			// case OpImageSampleProjDrefImplicitLod: break;
 			// case OpImageSampleProjDrefExplicitLod: break;
-			// case OpImageFetch: break;
+			 
+		case OpImageFetch:
+			{
+				const auto imageFetch = reinterpret_cast<SPIRV::SPIRVImageFetch*>(instruction);
+				const auto function = GetInbuiltFunction(state, imageFetch);
+				llvm::Value* args[3];
+				args[0] = state.builder.CreateAlloca(ConvertType(state, imageFetch->getType()));
+				args[1] = ConvertValue(state, imageFetch->getOpValue(0));
+				args[2] = ConvertValue(state, imageFetch->getOpValue(1));
+
+				state.builder.CreateCall(function, args);
+				llvmValue = state.builder.CreateLoad(args[0]);
+				break;
+			}
+			
 			// case OpImageGather: break;
 			// case OpImageDrefGather: break;
 			// case OpImageRead: break;
@@ -1129,7 +1143,14 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* llvmFun
 			// case OpImageQueryLevels: break;
 			// case OpImageQuerySamples: break;
 			// case OpConvertFToU: break;
-			// case OpConvertFToS: break;
+			 
+		case OpConvertFToS:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateFPToSI(ConvertValue(state, op->getOperand(0)), ConvertType(state, op->getType()));
+				break;
+			}
+			
 			// case OpConvertSToF: break;
 			// case OpConvertUToF: break;
 			// case OpUConvert: break;
@@ -1320,7 +1341,11 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* llvmFun
 			// case OpAtomicCompareExchangeWeak: break;
 			// case OpAtomicIIncrement: break;
 			// case OpAtomicIDecrement: break;
-			// case OpAtomicIAdd: break;
+			 
+		case OpAtomicIAdd:
+			FATAL_ERROR();
+			break;
+			
 			// case OpAtomicISub: break;
 			// case OpAtomicSMin: break;
 			// case OpAtomicUMin: break;
@@ -1643,16 +1668,18 @@ static void AddBuiltin(State& state, ExecutionModel executionModel)
 	switch (executionModel)
 	{
 	case ExecutionModelVertex:
-		state.builtinInputMapping.push_back(std::make_pair(BuiltInVertexId, 0));
+		state.builtinInputMapping.emplace_back(BuiltInVertexId, 0);
+		state.builtinInputMapping.emplace_back(BuiltInVertexIndex, 0);
 		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
-		state.builtinInputMapping.push_back(std::make_pair(BuiltInInstanceId, 1));
+		state.builtinInputMapping.emplace_back(BuiltInInstanceId, 1);
+		state.builtinInputMapping.emplace_back(BuiltInInstanceIndex, 1);
 		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
 
-		state.builtinOutputMapping.push_back(std::make_pair(BuiltInPosition, 0));
+		state.builtinOutputMapping.emplace_back(BuiltInPosition, 0);
 		outputMembers.push_back(llvm::VectorType::get(llvm::Type::getFloatTy(state.context), 4));
-		state.builtinOutputMapping.push_back(std::make_pair(BuiltInPointSize, 1));
+		state.builtinOutputMapping.emplace_back(BuiltInPointSize, 1);
 		outputMembers.push_back(llvm::Type::getFloatTy(state.context));
-		state.builtinOutputMapping.push_back(std::make_pair(BuiltInClipDistance, 2));
+		state.builtinOutputMapping.emplace_back(BuiltInClipDistance, 2);
 		outputMembers.push_back(llvm::ArrayType::get(llvm::Type::getFloatTy(state.context), 1));
 		break;
 
@@ -1666,13 +1693,18 @@ static void AddBuiltin(State& state, ExecutionModel executionModel)
 		break;
 
 	case ExecutionModelFragment:
+		state.builtinInputMapping.emplace_back(BuiltInFragCoord, 0);
+		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getFloatTy(state.context), 4));
 		break;
 
 	case ExecutionModelGLCompute:
+		state.builtinInputMapping.emplace_back(BuiltInGlobalInvocationId, 0);
 		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
 		break;
 
 	case ExecutionModelKernel:
+		state.builtinInputMapping.emplace_back(BuiltInGlobalInvocationId, 0);
+		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
 		break;
 
 	default:
@@ -1709,6 +1741,11 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	
 	llvm::IRBuilder<> builder(*context);
 	auto llvmModule = std::make_unique<llvm::Module>("", *context);
+
+	if (spirvModule->getAddressingModel() != AddressingModelLogical)
+	{
+		FATAL_ERROR();
+	}
 	
 	State state
 	{
@@ -1735,4 +1772,89 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	Dump(state.module);
 	
 	return llvmModule;
+}
+
+std::string STL_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
+{
+	auto name = variable->getName();
+	if (name.empty())
+	{
+		switch (variable->getStorageClass())
+		{
+		case StorageClassInput:
+		case StorageClassOutput:
+			if (variable->hasDecorate(DecorationLocation))
+			{
+				name = "@location" + std::to_string(*variable->getDecorate(DecorationLocation).begin());
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
+			break;
+
+		case StorageClassUniformConstant:
+		case StorageClassUniform:
+			if (variable->hasDecorate(DecorationDescriptorSet) && variable->hasDecorate(DecorationBinding))
+			{
+				const auto descriptorSet = *variable->getDecorate(DecorationDescriptorSet).begin();
+				const auto binding = *variable->getDecorate(DecorationBinding).begin();
+				name = "@set" + std::to_string(descriptorSet) + ":binding" + std::to_string(binding);
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
+			break;
+			
+		case StorageClassWorkgroup:
+		case StorageClassCrossWorkgroup:
+		case StorageClassPrivate:
+			FATAL_ERROR();
+			
+		case StorageClassFunction:
+			return "";
+			
+		case StorageClassGeneric:
+		case StorageClassPushConstant:
+		case StorageClassAtomicCounter:
+		case StorageClassImage:
+		case StorageClassStorageBuffer:
+
+		default:
+			FATAL_ERROR();
+		}
+	}
+	
+	switch (variable->getStorageClass())
+	{
+	case StorageClassUniformConstant:
+		return "_uniformc_" + name;
+
+	case StorageClassInput:
+		return "_input_" + name;
+
+	case StorageClassUniform:
+		return "_uniform_" + name;
+
+	case StorageClassOutput:
+		return "_output_" + name;
+
+	case StorageClassWorkgroup:
+	case StorageClassCrossWorkgroup:
+	case StorageClassPrivate:
+		FATAL_ERROR();
+
+	case StorageClassFunction:
+		return name;
+
+	case StorageClassGeneric:
+	case StorageClassPushConstant:
+	case StorageClassAtomicCounter:
+	case StorageClassImage:
+	case StorageClassStorageBuffer:
+
+	default:
+		FATAL_ERROR();
+	}
 }

@@ -37,7 +37,7 @@ static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, 
 		pImageFormatProperties->maxExtent.depth = 256;
 		pImageFormatProperties->maxArrayLayers = 1;
 		pImageFormatProperties->maxMipLevels = std::floor(std::log2f(std::max(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height),
-		                                                                       pImageFormatProperties->maxExtent.depth))) + 1;
+		                                                                      pImageFormatProperties->maxExtent.depth))) + 1;
 		break;
 	default: FATAL_ERROR();
 	}
@@ -63,6 +63,12 @@ static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, 
 
 static void GetSparseImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkSampleCountFlagBits samples, VkFlags usage, VkImageTiling tiling, uint32_t* pPropertyCount, VkSparseImageFormatProperties* pProperties)
 {
+	if (!Platform::SupportsSparse())
+	{
+		*pPropertyCount = 0;
+		return;
+	}
+	
 	if (pProperties)
 	{
 		if (*pPropertyCount > 0)
@@ -626,7 +632,7 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES_KHR:
 			{
 				const auto features = static_cast<VkPhysicalDeviceShaderFloat16Int8FeaturesKHR*>(next);
-				features->shaderFloat16 = false;
+				features->shaderFloat16 = true;
 				features->shaderInt8 = true;
 				break;
 			}
@@ -1184,6 +1190,12 @@ void PhysicalDevice::GetMemoryProperties2(VkPhysicalDeviceMemoryProperties2* pMe
 
 void PhysicalDevice::GetSparseImageFormatProperties2(const VkPhysicalDeviceSparseImageFormatInfo2* pFormatInfo, uint32_t* pPropertyCount, VkSparseImageFormatProperties2* pProperties)
 {
+	if (!Platform::SupportsSparse())
+	{
+		*pPropertyCount = 0;
+		return;
+	}
+	
 	if (pProperties)
 	{
 		if (*pPropertyCount > 0)

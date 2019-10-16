@@ -122,6 +122,10 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 		{
 			instance->version = LATEST_VERSION;
 		}
+		else if (instance->version == 0)
+		{
+			instance->version = VK_API_VERSION_1_0;
+		}
 
 		if (pCreateInfo->pApplicationInfo->pNext)
 		{

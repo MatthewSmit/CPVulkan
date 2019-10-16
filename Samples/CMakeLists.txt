@@ -47,8 +47,8 @@ add_executable(CPVulkanSamples
 	#"instance_layer_extension_properties/instance_layer_extension_properties.cpp"
 	#"instance_layer_properties/instance_layer_properties.cpp"
 	##"memory_barriers/memory_barriers.cpp"												#Multilayer clearing
-	##"multiple_sets/multiple_sets.cpp"													#SPIRV - ConvertValue - Composite constants
-	##multithreaded_command_buffers/multithreaded_command_buffers.cpp"					#ClearColourImageCommand - imagelayer > 1
+	##"multiple_sets/multiple_sets.cpp"													#TODO
+	##"multithreaded_command_buffers/multithreaded_command_buffers.cpp"					#ClearColourImageCommand - imagelayer > 1
 	##"occlusion_query/occlusion_query.cpp"												#vkResetQueryPool
 	##"pipeline_cache/pipeline_cache.cpp"												#PipelineCache::GetData
 	##"pipeline_derivative/pipeline_derivative.cpp"										#Pipeline::Create flags

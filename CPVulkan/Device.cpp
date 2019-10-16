@@ -170,10 +170,20 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 	assert(pCreateInfo->flags == 0);
 
-	auto device = Allocate<Device>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
-	if (!device)
+	if (pCreateInfo->pEnabledFeatures != nullptr && !Platform::SupportsSparse())
 	{
-		return VK_ERROR_OUT_OF_HOST_MEMORY;
+		if (pCreateInfo->pEnabledFeatures->sparseBinding ||
+			pCreateInfo->pEnabledFeatures->sparseResidencyBuffer ||
+			pCreateInfo->pEnabledFeatures->sparseResidencyImage2D ||
+			pCreateInfo->pEnabledFeatures->sparseResidencyImage3D ||
+			pCreateInfo->pEnabledFeatures->sparseResidency2Samples ||
+			pCreateInfo->pEnabledFeatures->sparseResidency4Samples ||
+			pCreateInfo->pEnabledFeatures->sparseResidency8Samples ||
+			pCreateInfo->pEnabledFeatures->sparseResidency16Samples ||
+			pCreateInfo->pEnabledFeatures->sparseResidencyAliased)
+		{
+			return VK_ERROR_FEATURE_NOT_PRESENT;
+		}
 	}
 
 	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
@@ -213,6 +223,10 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT:
 			{
 				const auto features = reinterpret_cast<const VkPhysicalDeviceBufferDeviceAddressFeaturesEXT*>(next);
+				if (features->bufferDeviceAddressCaptureReplay)
+				{
+					return VK_ERROR_FEATURE_NOT_PRESENT;
+				}
 				// TODO
 				break;
 			}
@@ -346,6 +360,10 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT:
 			{
 				const auto features = reinterpret_cast<const VkPhysicalDeviceMemoryPriorityFeaturesEXT*>(next);
+				if (features->memoryPriority)
+				{
+					return VK_ERROR_FEATURE_NOT_PRESENT;
+				}
 				// TODO
 				break;
 			}
@@ -524,14 +542,20 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 		next = next->pNext;
 	}
 
+	auto device = Allocate<Device>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	if (!device)
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
+
 	for (auto i = 0u; i < pCreateInfo->queueCreateInfoCount; i++)
 	{
-	    auto queue = Queue::Create(&pCreateInfo->pQueueCreateInfos[i], pAllocator);
-	    if (!queue)
-        {
-	        Free(device, pAllocator);
-	        return VK_ERROR_OUT_OF_HOST_MEMORY;
-        }
+		const auto queue = Queue::Create(&pCreateInfo->pQueueCreateInfos[i], pAllocator);
+		if (!queue)
+		{
+			Free(device, pAllocator);
+			return VK_ERROR_OUT_OF_HOST_MEMORY;
+		}
 		device->queues.push_back(std::unique_ptr<Queue>{queue});
 	}
 

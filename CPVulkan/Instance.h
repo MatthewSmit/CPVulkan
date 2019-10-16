@@ -58,7 +58,7 @@ public:
 	const ExtensionGroup& getEnabledExtensions() const { return enabledExtensions; }
 
 private:
-	int version = VK_API_VERSION_1_0;
+	uint32_t version = VK_API_VERSION_1_0;
 	VkDebugUtilsMessengerCreateInfoEXT debug{};
 
 	PhysicalDevice* physicalDevice{};

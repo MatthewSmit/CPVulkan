@@ -122,7 +122,14 @@ static void ImageSampleLod(ReturnType* result, VkDescriptorImageInfo* sampledIma
 	*result = glm::vec4(values[0], values[1], values[2], values[3]);
 }
 
+template<typename ReturnType, typename CoordinateType>
+static void ImageFetch(ReturnType* result, BufferView* image, CoordinateType* coordinate)
+{
+	FATAL_ERROR();
+}
+
 void AddGlslFunctions(SpirvJit* jit)
 {
-	AddSpirvFunction("_Image_Sample_4_F32_2_F32_Lod", reinterpret_cast<FunctionPointer>(ImageSampleLod<glm::vec4, glm::vec2>));
+	AddSpirvFunction("@Image.Sample.F32[4].F32[2].Lod", reinterpret_cast<FunctionPointer>(ImageSampleLod<glm::vec4, glm::vec2>));
+	AddSpirvFunction("@Image.Fetch.U32[4].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::uvec4, glm::ivec1>));
 }
