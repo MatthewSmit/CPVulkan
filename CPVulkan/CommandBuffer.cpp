@@ -320,7 +320,7 @@ public:
 			}
 
 			const auto width = region.imageExtent.width;
-			const auto height = region.imageExtent.height;
+			auto height = region.imageExtent.height;
 			auto depth = region.imageExtent.depth;
 			auto baseZ = region.imageOffset.z;
 
@@ -357,6 +357,8 @@ public:
 			uint64_t lineStart;
 			uint64_t lineSize;
 			GetFormatLineSize(format, lineStart, lineSize, region.imageOffset.x, width);
+
+			height = GetFormatHeight(format, height);
 			
 			// TODO: Detect when both memories are contiguous
 			for (auto z = baseZ; z < baseZ + static_cast<int32_t>(depth); z++)

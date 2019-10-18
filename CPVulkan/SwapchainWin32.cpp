@@ -9,7 +9,6 @@
 
 VkResult Swapchain::Present(uint32_t pImageIndex)
 {
-	// TODO: Y flip
 	const auto win32Surface = UnwrapVulkan<VkIcdSurfaceWin32>(surface);
 	const auto image = images[pImageIndex];
 
@@ -40,7 +39,7 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
 	};
 
 	if (StretchDIBits(dc,
-	                  0, 0, width, height,
+	                  0, height, width, -height,
 	                  0, 0, image->getWidth(), image->getHeight(),
 	                  image->getDataPtr(0, 1), &bmi, 0, SRCCOPY) == 0)
 	{

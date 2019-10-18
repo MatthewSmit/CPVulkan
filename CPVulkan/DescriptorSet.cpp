@@ -28,22 +28,28 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 				newBinding.ImageInfo = *descriptorWrite.pImageInfo;
 				break;
+				
 			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 				newBinding.TexelBufferView = *descriptorWrite.pTexelBufferView;
 				break;
+				
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: 
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: 
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: 
 				newBinding.BufferInfo = *descriptorWrite.pBufferInfo;
 				break;
+				
 			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
 				FATAL_ERROR();
+				
 			case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
 				FATAL_ERROR();
+				
 			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
 				FATAL_ERROR();
+				
 			default:
 				FATAL_ERROR();
 			}

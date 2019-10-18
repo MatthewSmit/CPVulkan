@@ -101,6 +101,42 @@ private:
 	std::vector<uint32_t> dynamicOffsets;
 };
 
+class BindIndexBufferCommand final : public Command
+{
+public:
+	BindIndexBufferCommand(Buffer* buffer, uint64_t offset, VkIndexType indexType) :
+		buffer{buffer},
+		offset{offset},
+		indexType{indexType}
+	{
+	}
+
+	void Process(DeviceState* deviceState) override
+	{
+		deviceState->indexBinding = buffer;
+		deviceState->indexBindingOffset = offset;
+		switch (indexType)
+		{
+		case VK_INDEX_TYPE_UINT8_EXT:
+			deviceState->indexBindingStride = 1;
+			break;
+
+		case VK_INDEX_TYPE_UINT16:
+			deviceState->indexBindingStride = 2;
+			break;
+
+		case VK_INDEX_TYPE_UINT32:
+			deviceState->indexBindingStride = 4;
+			break;
+		}
+	}
+
+private:
+	Buffer* buffer;
+	uint64_t offset;
+	VkIndexType indexType;
+};
+
 class BindVertexBuffersCommand final : public Command
 {
 public:
@@ -171,6 +207,12 @@ void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, Vk
 	memcpy(dynamicOffsets.data(), pDynamicOffsets, sizeof(uint32_t) * dynamicOffsetCount);
 
 	commands.push_back(std::make_unique<BindDescriptorSetsCommand>(static_cast<int>(pipelineBindPoint), UnwrapVulkan<PipelineLayout>(layout), firstSet, descriptorSets, dynamicOffsets));
+}
+
+void CommandBuffer::BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<BindIndexBufferCommand>(UnwrapVulkan<Buffer>(buffer), offset, indexType));
 }
 
 void CommandBuffer::BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets)

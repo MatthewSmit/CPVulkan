@@ -379,7 +379,10 @@ static uint64_t GetRawSize(const FormatInformation& format, uint32_t width, uint
 {
 	if (format.Type == FormatType::Compressed)
 	{
-		return format.TotalSize * width * height * depth * arrayLayers / (format.RedOffset * format.GreenOffset);
+		return format.TotalSize *
+			((width + format.RedOffset - 1) / format.RedOffset) *
+			((height + format.GreenOffset - 1) / format.GreenOffset) *
+			depth * arrayLayers;
 	}
 	return format.TotalSize * width * height * depth * arrayLayers;
 }
@@ -412,8 +415,8 @@ void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_
 
 	if (format.Type == FormatType::Compressed)
 	{
-		width /= format.RedOffset;
-		height /= format.GreenOffset;
+		width = (width + format.RedOffset - 1) / format.RedOffset;
+		height = (height + format.GreenOffset - 1) / format.GreenOffset;
 	}
 
 	lineStride = width * format.TotalSize;
@@ -424,8 +427,8 @@ void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_
 {
 	if (format.Type == FormatType::Compressed)
 	{
-		x /= format.RedOffset;
-		width /= format.RedOffset;
+		x = (x + format.RedOffset - 1) / format.RedOffset;
+		width = (width + format.RedOffset - 1) / format.RedOffset;
 	}
 
 	start = x * format.TotalSize;
@@ -434,11 +437,6 @@ void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_
 
 uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel)
 {
-	if (format.Type == FormatType::Compressed)
-	{
-		FATAL_ERROR();
-	}
-	
 	uint64_t size = 0;
 	for (auto i = 0u; i < mipLevel; i++)
 	{
@@ -470,6 +468,15 @@ uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint3
 void* GetFormatPixelOffset(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer)
 {
 	return data.subspan(GetFormatPixelOffset(format, i, j, k, width, height, depth, arrayLayers, mipLevel, layer), format.TotalSize).data();
+}
+
+uint32_t GetFormatHeight(const FormatInformation& format, uint32_t height)
+{
+	if (format.Type == FormatType::Compressed)
+	{
+		return (height + format.RedOffset - 1) / format.RedOffset;
+	}
+	return height;
 }
 
 bool NeedsYCBCRConversion(VkFormat format)

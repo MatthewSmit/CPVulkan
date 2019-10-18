@@ -49,10 +49,10 @@ public:
 	VKAPI_ATTR void VKAPI_PTR SetStencilWriteMask(VkStencilFaceFlags faceMask, uint32_t writeMask) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SetStencilReference(VkStencilFaceFlags faceMask, uint32_t reference) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets);
-	VKAPI_ATTR void VKAPI_PTR BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType);
 	VKAPI_ATTR void VKAPI_PTR BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets);
 	VKAPI_ATTR void VKAPI_PTR Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
-	VKAPI_ATTR void VKAPI_PTR DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
 	VKAPI_ATTR void VKAPI_PTR DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) { FATAL_ERROR(); } 

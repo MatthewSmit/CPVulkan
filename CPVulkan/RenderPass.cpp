@@ -80,7 +80,7 @@ VkResult RenderPass::Create(const VkRenderPassCreateInfo* pCreateInfo, const VkA
 
 VkExtent2D RenderPass::getRenderAreaGranularity() const
 {
-	FATAL_ERROR();
+	return VkExtent2D{1, 1};
 }
 
 void Device::GetRenderAreaGranularity(VkRenderPass renderPass, VkExtent2D* pGranularity)

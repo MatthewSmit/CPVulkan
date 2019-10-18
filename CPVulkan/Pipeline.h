@@ -60,6 +60,7 @@ struct MultisampleState
 	float MinSampleShading;
 	bool AlphaToCoverageEnable;
 	bool AlphaToOneEnable;
+	uint64_t SampleMask;
 };
 
 struct DepthStencilState

@@ -21,7 +21,10 @@ struct DeviceState
 	VkRect2D scissors[MAX_SCISSORS];
 	DescriptorSet* descriptorSets[MAX_DESCRIPTOR_SETS][MAX_PIPELINES];
 	Buffer* vertexBinding[MAX_VERTEX_BINDINGS];
-	VkDeviceSize vertexBindingOffset[MAX_VERTEX_BINDINGS];
+	uint64_t vertexBindingOffset[MAX_VERTEX_BINDINGS];
+	Buffer* indexBinding;
+	uint64_t indexBindingOffset;
+	uint32_t indexBindingStride;
 	RenderPass* renderPass;
 	Framebuffer* framebuffer;
 	VkRect2D renderArea;

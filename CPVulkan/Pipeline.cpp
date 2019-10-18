@@ -218,9 +218,17 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 		FATAL_ERROR();
 	}
 
+	auto sampleMask = 0xFFFFFFFFFFFFFFFF;
 	if (pMultisampleState->pSampleMask)
 	{
-		FATAL_ERROR();
+		if (pMultisampleState->rasterizationSamples == VK_SAMPLE_COUNT_64_BIT)
+		{
+			FATAL_ERROR();
+		}
+		else
+		{
+			sampleMask = *pMultisampleState->pSampleMask;
+		}
 	}
 
 	return MultisampleState
@@ -230,6 +238,7 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 		pMultisampleState->minSampleShading,
 		pMultisampleState->alphaToCoverageEnable != VK_FALSE,
 		pMultisampleState->alphaToOneEnable != VK_FALSE,
+		sampleMask,
 	};
 }
 
