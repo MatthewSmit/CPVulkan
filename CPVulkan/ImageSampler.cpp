@@ -203,6 +203,21 @@ static uint32_t PackE5B9G9R9(const float input[4])
 
 
 template<>
+void ConvertPixelsFromTemp<float>(const uint64_t input[4], float output[4])
+{
+	output[0] = *reinterpret_cast<const float*>(&input[0]);
+	output[1] = *reinterpret_cast<const float*>(&input[1]);
+	output[2] = *reinterpret_cast<const float*>(&input[2]);
+	output[3] = *reinterpret_cast<const float*>(&input[3]);
+}
+
+template<>
+void ConvertPixelsFromTemp<float>(const uint64_t input[4], int32_t output[4])
+{
+	FATAL_ERROR();
+}
+
+template<>
 void ConvertPixelsFromTemp<uint8_t>(const uint64_t input[4], float output[4])
 {
 	output[0] = static_cast<float>(static_cast<uint8_t>(input[0])) / std::numeric_limits<uint8_t>::max();
@@ -261,7 +276,16 @@ void ConvertPixelsFromTemp(const FormatInformation& format, const uint64_t input
 	case BaseType::SScaled: break;
 	case BaseType::SInt: break;
 	case BaseType::UFloat: break;
-	case BaseType::SFloat: break;
+		
+	case BaseType::SFloat:
+		switch (format.ElementSize)
+		{
+		case 4:
+			ConvertPixelsFromTemp<float, OutputType>(input, output);
+			return;
+		}
+		break;
+		
 	case BaseType::SRGB: break;
 	}
 
@@ -796,9 +820,9 @@ void GetPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t
 
 	const auto pixel = reinterpret_cast<const uint8_t*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, 0, 0));
 	if (format.RedOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.RedOffset);
-	if (format.GreenOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.GreenOffset);
-	if (format.BlueOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.BlueOffset);
-	if (format.AlphaOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.AlphaOffset);
+	if (format.GreenOffset != -1) values[1] = *reinterpret_cast<const Size*>(pixel + format.GreenOffset);
+	if (format.BlueOffset != -1) values[2] = *reinterpret_cast<const Size*>(pixel + format.BlueOffset);
+	if (format.AlphaOffset != -1) values[3] = *reinterpret_cast<const Size*>(pixel + format.AlphaOffset);
 }
 
 template<typename OutputType>
@@ -808,7 +832,7 @@ void GetPixel(const FormatInformation& format, const Image* image, int32_t i, in
 	assert(i >= 0 && j >= 0 && k >= 0 && i < image->getWidth() && j < image->getHeight() && k < image->getDepth());
 
 	uint64_t rawValues[4]{};
-	if (format.Base == BaseType::UNorm || format.Base == BaseType::UInt)
+	if (format.Base == BaseType::UNorm || format.Base == BaseType::UInt || format.Base == BaseType::SFloat)
 	{
 		if (format.ElementSize == 1)
 		{
@@ -817,6 +841,10 @@ void GetPixel(const FormatInformation& format, const Image* image, int32_t i, in
 		else if (format.ElementSize == 2)
 		{
 			GetPixel<uint16_t>(format, image->getData(), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), rawValues);
+		}
+		else if (format.ElementSize == 4)
+		{
+			GetPixel<uint32_t>(format, image->getData(), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), rawValues);
 		}
 		else
 		{

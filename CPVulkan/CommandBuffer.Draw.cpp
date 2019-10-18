@@ -151,18 +151,29 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 			{
 				switch (std::get<0>(binding))
 				{
+				case VK_DESCRIPTOR_TYPE_SAMPLER:
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 					pointers.push_back(&std::get<2>(binding).ImageInfo);
 					*static_cast<const void**>(data.pointer) = &pointers[pointers.size() - 1];
 					break;
-
+					
 				case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+				case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 					*static_cast<const void**>(data.pointer) = UnwrapVulkan<BufferView>(std::get<2>(binding).TexelBufferView);
 					break;
 
 				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 					*static_cast<void**>(data.pointer) = UnwrapVulkan<Buffer>(std::get<2>(binding).BufferInfo.buffer)->getDataPtr(std::get<2>(binding).BufferInfo.offset, std::get<2>(binding).BufferInfo.range);
 					break;
+
+				case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: FATAL_ERROR();
+				case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT: FATAL_ERROR();
+				case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV: FATAL_ERROR();
 
 				default:
 					FATAL_ERROR();
@@ -320,7 +331,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 	}
 }
 
-static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t vertexCount)
+static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vector<uint32_t>& assemblerOutput)
 {
 	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(0);
 	const auto& vertexInput = deviceState->pipeline[0]->getVertexInputState();
@@ -339,11 +350,11 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 	
 	VertexOutput output
 	{
-		std::unique_ptr<VertexBuiltinOutput[]>(new VertexBuiltinOutput[vertexCount]),
-		std::unique_ptr<uint8_t[]>(new uint8_t[vertexCount * outputSize]),
+		std::unique_ptr<VertexBuiltinOutput[]>(new VertexBuiltinOutput[assemblerOutput.size()]),
+		std::unique_ptr<uint8_t[]>(new uint8_t[assemblerOutput.size() * outputSize]),
 		sizeof(VertexBuiltinOutput),
 		outputSize,
-		vertexCount,
+		assemblerOutput.size(),
 	};
 
 	std::vector<const void*> pointers{};
@@ -355,8 +366,8 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t verte
 		int32_t instanceIndex;
 	} builtinInput{};
 	*static_cast<void**>(builtinInputPointer) = &builtinInput;
-	
-	for (auto i = 0u; i < vertexCount; i++)
+
+	for (auto i : assemblerOutput)
 	{
 		builtinInput.vertexIndex = i;
 		*static_cast<void**>(builtinOutputPointer) = &output.builtinData[i];
@@ -565,26 +576,57 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	}
 }
 
-static void Draw(DeviceState* deviceState, uint32_t vertexCount)
+static std::vector<uint32_t> ProcessInputAssembler(DeviceState* deviceState, uint32_t vertexCount)
 {
-	const auto vertexOutput = ProcessVertexShader(deviceState, vertexCount);
+	// TODO: Calculate offsets here too
+	std::vector<uint32_t> results(vertexCount);
+	for (auto i = 0u; i < vertexCount; i++)
+	{
+		results[i] = i;
+	}
+	return results;
+}
 
-	if (deviceState->pipeline[0]->getShaderStage(1) != nullptr)
+static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceState, uint32_t indexCount)
+{
+	// TODO: Calculate offsets here too
+	std::vector<uint32_t> results(indexCount);
+
+	if (deviceState->pipeline[0]->getInputAssemblyState().PrimitiveRestartEnable)
 	{
 		FATAL_ERROR();
 	}
 
-	if (deviceState->pipeline[0]->getShaderStage(2) != nullptr)
-	{
-		FATAL_ERROR();
-	}
+	const auto indexData = deviceState->indexBinding->getDataPtr(deviceState->indexBindingOffset, static_cast<uint64_t>(indexCount) * deviceState->indexBindingStride);
 
-	if (deviceState->pipeline[0]->getShaderStage(3) != nullptr)
+	switch (deviceState->indexBindingStride)
 	{
+	case 1:
+		for (auto i = 0u; i < indexCount; i++)
+		{
+			results[i] = indexData[i];
+		}
+		break;
+		
+	case 2:
+		for (auto i = 0u; i < indexCount; i++)
+		{
+			results[i] = reinterpret_cast<uint16_t*>(indexData)[i];
+		}
+		break;
+
+	case 4:
+		for (auto i = 0u; i < indexCount; i++)
+		{
+			results[i] = reinterpret_cast<uint32_t*>(indexData)[i];
+		}
+		break;
+		
+	default:
 		FATAL_ERROR();
 	}
 	
-	ProcessFragmentShader(deviceState, vertexOutput);
+	return results;
 }
 
 class DrawCommand final : public Command
@@ -610,18 +652,89 @@ public:
 			FATAL_ERROR();
 		}
 
-		if (firstInstance != 0)
+		const auto assemblerOutput = ProcessInputAssembler(deviceState, vertexCount);
+		const auto vertexOutput = ProcessVertexShader(deviceState, assemblerOutput);
+
+		if (deviceState->pipeline[0]->getShaderStage(1) != nullptr)
 		{
 			FATAL_ERROR();
 		}
 
-		Draw(deviceState, vertexCount);
+		if (deviceState->pipeline[0]->getShaderStage(2) != nullptr)
+		{
+			FATAL_ERROR();
+		}
+
+		if (deviceState->pipeline[0]->getShaderStage(3) != nullptr)
+		{
+			FATAL_ERROR();
+		}
+
+		ProcessFragmentShader(deviceState, vertexOutput);
 	}
 
 private:
 	uint32_t vertexCount;
 	uint32_t instanceCount;
 	uint32_t firstVertex;
+	uint32_t firstInstance;
+};
+
+class DrawIndexedCommand final : public Command
+{
+public:
+	DrawIndexedCommand(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance) :
+		indexCount{indexCount},
+		instanceCount{instanceCount},
+		firstIndex{firstIndex},
+		vertexOffset{vertexOffset},
+		firstInstance{firstInstance}
+	{
+	}
+
+	void Process(DeviceState* deviceState) override
+	{
+		if (instanceCount != 1)
+		{
+			FATAL_ERROR();
+		}
+
+		if (firstIndex != 0)
+		{
+			FATAL_ERROR();
+		}
+
+		if (vertexOffset != 0)
+		{
+			FATAL_ERROR();
+		}
+
+		const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, indexCount);
+		const auto vertexOutput = ProcessVertexShader(deviceState, assemblerOutput);
+
+		if (deviceState->pipeline[0]->getShaderStage(1) != nullptr)
+		{
+			FATAL_ERROR();
+		}
+
+		if (deviceState->pipeline[0]->getShaderStage(2) != nullptr)
+		{
+			FATAL_ERROR();
+		}
+
+		if (deviceState->pipeline[0]->getShaderStage(3) != nullptr)
+		{
+			FATAL_ERROR();
+		}
+
+		ProcessFragmentShader(deviceState, vertexOutput);
+	}
+
+private:
+	uint32_t indexCount;
+	uint32_t instanceCount;
+	uint32_t firstIndex;
+	int32_t vertexOffset;
 	uint32_t firstInstance;
 };
 
@@ -767,6 +880,12 @@ void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t 
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<DrawCommand>(vertexCount, instanceCount, firstVertex, firstInstance));
+}
+
+void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<DrawIndexedCommand>(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance));
 }
 
 void CommandBuffer::ClearColorImage(VkImage image, VkImageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)

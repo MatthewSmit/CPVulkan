@@ -30,7 +30,7 @@ add_executable(CPVulkanSamples
 	#"12-init_frame_buffers/12-init_frame_buffers.cpp"
 	#"13-init_vertex_buffer/13-init_vertex_buffer.cpp"
 	#"14-init_pipeline/14-init_pipeline.cpp"
-	"15-draw_cube/15-draw_cube.cpp"
+	#"15-draw_cube/15-draw_cube.cpp"
 	#"16-vulkan_1_1/16-vulkan_1_1.cpp"
 	#"copy_blit_image/copy_blit_image.cpp"
 	#"create_debug_report_callback/create_debug_report_callback.cpp"
@@ -52,7 +52,7 @@ add_executable(CPVulkanSamples
 	##"occlusion_query/occlusion_query.cpp"												#vkResetQueryPool
 	##"pipeline_cache/pipeline_cache.cpp"												#PipelineCache::GetData
 	##"pipeline_derivative/pipeline_derivative.cpp"										#Pipeline::Create flags
-	##"push_constants/push_constants.cpp"												#vkCmdPushConstants
+	"push_constants/push_constants.cpp"												#vkCmdPushConstants
 	##"push_descriptors/push_descriptors.cpp"											#DescriptorSetLayout::Create flags
 	#"secondary_command_buffer/secondary_command_buffer.cpp"
 	##"separate_image_sampler/separate_image_sampler.cpp"								#SPIRV Function Variables
