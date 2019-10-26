@@ -27,6 +27,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
 				newBinding.ImageInfo = *descriptorWrite.pImageInfo;
 				break;
 				
@@ -45,9 +46,6 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 					newBinding.BufferInfo.range = UnwrapVulkan<Buffer>(newBinding.BufferInfo.buffer)->getSize() - newBinding.BufferInfo.offset;
 				}
 				break;
-				
-			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-				FATAL_ERROR();
 				
 			case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
 				FATAL_ERROR();

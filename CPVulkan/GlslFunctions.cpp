@@ -96,6 +96,80 @@ static T VClamp(T value, T min, T max)
 	return result;
 }
 
+template<typename T>
+static T FindILsb(T value)
+{
+	static_assert(sizeof(T) == 4);
+	if (value == 0)
+	{
+		return -1;
+	}
+	return __builtin_ctz(value);
+}
+
+template<typename T>
+static T VFindILsb(T value)
+{
+	T result{};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = FindILsb(value[i]);
+	}
+	return result;
+}
+
+template<typename T>
+static T FindSMsb(T value)
+{
+	static_assert(sizeof(T) == 4);
+	static_assert(std::numeric_limits<T>::is_signed);
+	
+	if (value < 0)
+	{
+		value = ~value;
+	}
+	
+	if (value == 0)
+	{
+		return -1;
+	}
+	
+	return 31 - __builtin_clz(value);
+}
+
+template<typename T>
+static T VFindSMsb(T value)
+{
+	T result{};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = FindSMsb(value[i]);
+	}
+	return result;
+}
+
+template<typename T>
+static T FindUMsb(T value)
+{
+	static_assert(sizeof(T) == 4);
+	if (value == 0)
+	{
+		return -1;
+	}
+	return 31 - __builtin_clz(value);
+}
+
+template<typename T>
+static T VFindUMsb(T value)
+{
+	T result{};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = FindUMsb(value[i]);
+	}
+	return result;
+}
+
 
 template<typename ReturnType, typename CoordinateType>
 static void ImageSampleImplicitLod(ReturnType* result, VkDescriptorImageInfo* sampledImage, CoordinateType* coordinate)
@@ -533,9 +607,26 @@ void AddGlslFunctions(SpirvJit* jit)
 	// FaceForward = 70,
 	// Reflect = 71,
 	// Refract = 72,
-	// FindILsb = 73,
-	// FindSMsb = 74,
-	// FindUMsb = 75,
+
+	AddSpirvFunction("@FindILsb.I32", reinterpret_cast<FunctionPointer>(FindILsb<int32_t>));
+	AddSpirvFunction("@FindILsb.I32[2]", reinterpret_cast<FunctionPointer>(VFindILsb<glm::i32vec2>));
+	AddSpirvFunction("@FindILsb.I32[3]", reinterpret_cast<FunctionPointer>(VFindILsb<glm::i32vec3>));
+	AddSpirvFunction("@FindILsb.I32[4]", reinterpret_cast<FunctionPointer>(VFindILsb<glm::i32vec4>));
+	AddSpirvFunction("@FindILsb.U32", reinterpret_cast<FunctionPointer>(FindILsb<uint32_t>));
+	AddSpirvFunction("@FindILsb.U32[2]", reinterpret_cast<FunctionPointer>(VFindILsb<glm::u32vec2>));
+	AddSpirvFunction("@FindILsb.U32[3]", reinterpret_cast<FunctionPointer>(VFindILsb<glm::u32vec3>));
+	AddSpirvFunction("@FindILsb.U32[4]", reinterpret_cast<FunctionPointer>(VFindILsb<glm::u32vec4>));
+
+	AddSpirvFunction("@FindSMsb.I32", reinterpret_cast<FunctionPointer>(FindSMsb<int32_t>));
+	AddSpirvFunction("@FindSMsb.I32[2]", reinterpret_cast<FunctionPointer>(VFindSMsb<glm::i32vec2>));
+	AddSpirvFunction("@FindSMsb.I32[3]", reinterpret_cast<FunctionPointer>(VFindSMsb<glm::i32vec3>));
+	AddSpirvFunction("@FindSMsb.I32[4]", reinterpret_cast<FunctionPointer>(VFindSMsb<glm::i32vec4>));
+
+	AddSpirvFunction("@FindUMsb.U32", reinterpret_cast<FunctionPointer>(FindUMsb<uint32_t>));
+	AddSpirvFunction("@FindUMsb.U32[2]", reinterpret_cast<FunctionPointer>(VFindUMsb<glm::u32vec2>));
+	AddSpirvFunction("@FindUMsb.U32[3]", reinterpret_cast<FunctionPointer>(VFindUMsb<glm::u32vec3>));
+	AddSpirvFunction("@FindUMsb.U32[4]", reinterpret_cast<FunctionPointer>(VFindUMsb<glm::u32vec4>));
+
 	// InterpolateAtCentroid = 76,
 	// InterpolateAtSample = 77,
 	// InterpolateAtOffset = 78,
