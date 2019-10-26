@@ -9,8 +9,6 @@
 #include <cassert>
 #include <cmath>
 
-constexpr auto MAX_COLOUR_ATTACHMENTS = 4;
-
 static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkImageTiling tiling, VkFlags usage, VkFlags flags, VkImageFormatProperties* pImageFormatProperties)
 {
 	const auto& information = GetFormatInformation(format);
@@ -96,61 +94,61 @@ static void GetSparseImageFormatPropertiesImpl(VkFormat format, VkImageType type
 
 void PhysicalDevice::GetFeatures(VkPhysicalDeviceFeatures* pFeatures)
 {
-	pFeatures->robustBufferAccess = true;
-	pFeatures->fullDrawIndexUint32 = true;
-	pFeatures->imageCubeArray = true;
-	pFeatures->independentBlend = true;
-	pFeatures->geometryShader = true;
-	pFeatures->tessellationShader = true;
-	pFeatures->sampleRateShading = true;
-	pFeatures->dualSrcBlend = true;
-	pFeatures->logicOp = true;
-	pFeatures->multiDrawIndirect = true;
-	pFeatures->drawIndirectFirstInstance = true;
-	pFeatures->depthClamp = true;
-	pFeatures->depthBiasClamp = true;
-	pFeatures->fillModeNonSolid = true;
-	pFeatures->depthBounds = true;
-	pFeatures->wideLines = true;
-	pFeatures->largePoints = true;
-	pFeatures->alphaToOne = true;
-	pFeatures->multiViewport = true;
-	pFeatures->samplerAnisotropy = true;
-	pFeatures->textureCompressionETC2 = true;
-	pFeatures->textureCompressionASTC_LDR = true;
-	pFeatures->textureCompressionBC = true;
-	pFeatures->occlusionQueryPrecise = true;
-	pFeatures->pipelineStatisticsQuery = true;
-	pFeatures->vertexPipelineStoresAndAtomics = true;
-	pFeatures->fragmentStoresAndAtomics = true;
-	pFeatures->shaderTessellationAndGeometryPointSize = true;
-	pFeatures->shaderImageGatherExtended = true;
-	pFeatures->shaderStorageImageExtendedFormats = true;
-	pFeatures->shaderStorageImageMultisample = true;
-	pFeatures->shaderStorageImageReadWithoutFormat = true;
-	pFeatures->shaderStorageImageWriteWithoutFormat = true;
-	pFeatures->shaderUniformBufferArrayDynamicIndexing = true;
-	pFeatures->shaderSampledImageArrayDynamicIndexing = true;
-	pFeatures->shaderStorageBufferArrayDynamicIndexing = true;
-	pFeatures->shaderStorageImageArrayDynamicIndexing = true;
-	pFeatures->shaderClipDistance = true;
-	pFeatures->shaderCullDistance = true;
-	pFeatures->shaderFloat64 = true;
-	pFeatures->shaderInt64 = true;
-	pFeatures->shaderInt16 = true;
-	pFeatures->shaderResourceResidency = true;
-	pFeatures->shaderResourceMinLod = true;
-	pFeatures->sparseBinding = Platform::SupportsSparse();
-	pFeatures->sparseResidencyBuffer = Platform::SupportsSparse();
-	pFeatures->sparseResidencyImage2D = Platform::SupportsSparse();
-	pFeatures->sparseResidencyImage3D = Platform::SupportsSparse();
-	pFeatures->sparseResidency2Samples = Platform::SupportsSparse();
-	pFeatures->sparseResidency4Samples = Platform::SupportsSparse();
-	pFeatures->sparseResidency8Samples = Platform::SupportsSparse();
-	pFeatures->sparseResidency16Samples = Platform::SupportsSparse();
-	pFeatures->sparseResidencyAliased = Platform::SupportsSparse();
-	pFeatures->variableMultisampleRate = true;
-	pFeatures->inheritedQueries = true;
+	pFeatures->robustBufferAccess = ROBUST_BUFFER_ACCESS;
+	pFeatures->fullDrawIndexUint32 = FULL_DRAW_INDEX_UINT32;
+	pFeatures->imageCubeArray = IMAGE_CUBE_ARRAY;
+	pFeatures->independentBlend = INDEPENDENT_BLEND;
+	pFeatures->geometryShader = GEOMETRY_SHADER;
+	pFeatures->tessellationShader = TESSELLATION_SHADER;
+	pFeatures->sampleRateShading = SAMPLE_RATE_SHADING;
+	pFeatures->dualSrcBlend = DUAL_SOURCE_BLEND;
+	pFeatures->logicOp = LOGIC_OPERATION;
+	pFeatures->multiDrawIndirect = MULTI_DRAW_INDIRECT;
+	pFeatures->drawIndirectFirstInstance = DRAW_INDIRECT_FIRST_INSTANCE;
+	pFeatures->depthClamp = DEPTH_BIAS_CLAMP;
+	pFeatures->depthBiasClamp = DEPTH_BIAS_CLAMP;
+	pFeatures->fillModeNonSolid = FILL_MODE_NON_SOLID;
+	pFeatures->depthBounds = DEPTH_BOUNDS;
+	pFeatures->wideLines = WIDE_LINES;
+	pFeatures->largePoints = LARGE_POINTS;
+	pFeatures->alphaToOne = ALPHA_TO_ONE;
+	pFeatures->multiViewport = MULTI_VIEWPORT;
+	pFeatures->samplerAnisotropy = SAMPLER_ANISOTROPY;
+	pFeatures->textureCompressionETC2 = TEXTURE_COMPRESSION_ETC2;
+	pFeatures->textureCompressionASTC_LDR = TEXTURE_COMPRESSION_ASTC_LDR;
+	pFeatures->textureCompressionBC = TEXTURE_COMPRESSION_BC;
+	pFeatures->occlusionQueryPrecise = OCCLUSION_QUERY_PRECISE;
+	pFeatures->pipelineStatisticsQuery = PIPELINE_STATISTICS_QUERY;
+	pFeatures->vertexPipelineStoresAndAtomics = VERTEX_PIPELINE_STORES_AND_ATOMICS;
+	pFeatures->fragmentStoresAndAtomics = FRAGMENT_STORES_AND_ATOMICS;
+	pFeatures->shaderTessellationAndGeometryPointSize = SHADER_TESSELLATION_AND_GEOMETRY_POINT_SIZE;
+	pFeatures->shaderImageGatherExtended = SHADER_IMAGE_GATHER_EXTENDED;
+	pFeatures->shaderStorageImageExtendedFormats = SHADER_STORAGE_IMAGE_EXTENDED_FORMATS;
+	pFeatures->shaderStorageImageMultisample = SHADER_STORAGE_IMAGE_MULTISAMPLE;
+	pFeatures->shaderStorageImageReadWithoutFormat = SHADER_STORAGE_IMAGE_READ_WITHOUT_FORMAT;
+	pFeatures->shaderStorageImageWriteWithoutFormat = SHADER_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT;
+	pFeatures->shaderUniformBufferArrayDynamicIndexing = SHADER_UNIFORM_BUFFER_ARRAY_DYNAMIC_INDEXING;
+	pFeatures->shaderSampledImageArrayDynamicIndexing = SHADER_SAMPLED_IMAGE_ARRAY_DYNAMIC_INDEXING;
+	pFeatures->shaderStorageBufferArrayDynamicIndexing = SHADER_STORAGE_BUFFER_ARRAY_DYNAMIC_INDEXING;
+	pFeatures->shaderStorageImageArrayDynamicIndexing = SHADER_STORAGE_IMAGE_ARRAY_DYNAMIC_INDEXING;
+	pFeatures->shaderClipDistance = SHADER_CLIP_DISTANCE;
+	pFeatures->shaderCullDistance = SHADER_CULL_DISTANCE;
+	pFeatures->shaderFloat64 = SHADER_FLOAT64;
+	pFeatures->shaderInt64 = SHADER_INT64;
+	pFeatures->shaderInt16 = SHADER_INT16;
+	pFeatures->shaderResourceResidency = SHADER_RESOURCE_RESIDENCY;
+	pFeatures->shaderResourceMinLod = SHADER_RESOURCE_MIN_LOD;
+	pFeatures->sparseBinding = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidencyBuffer = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidencyImage2D = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidencyImage3D = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidency2Samples = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidency4Samples = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidency8Samples = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidency16Samples = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->sparseResidencyAliased = SPARSE_BINDING && Platform::SupportsSparse();
+	pFeatures->variableMultisampleRate = VARIABLE_MULTISAMPLE_RATE;
+	pFeatures->inheritedQueries = INHERITED_QUERIES;
 }
 
 void PhysicalDevice::GetFormatProperties(VkFormat format, VkFormatProperties* pFormatProperties)
@@ -172,10 +170,10 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	
 	pProperties->apiVersion = LATEST_VERSION;
 	pProperties->driverVersion = VK_MAKE_VERSION(1, 0, 0);
-	pProperties->vendorID = 0x10000;
-	pProperties->deviceID = 0;
-	pProperties->deviceType = VK_PHYSICAL_DEVICE_TYPE_CPU;
-	strcpy_s(pProperties->deviceName, "CPVulkan");
+	pProperties->vendorID = VENDOR_ID;
+	pProperties->deviceID = DEVICE_ID;
+	pProperties->deviceType = DEVICE_TYPE;
+	strcpy_s(pProperties->deviceName, DEVICE_NAME);
 	memset(pProperties->pipelineCacheUUID, 0, VK_UUID_SIZE);
 	pProperties->limits.maxImageDimension1D = 4096;
 	pProperties->limits.maxImageDimension2D = 4096;
@@ -185,12 +183,12 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.maxTexelBufferElements = 65536;
 	pProperties->limits.maxUniformBufferRange = 16384;
 	pProperties->limits.maxStorageBufferRange = 134217728;
-	pProperties->limits.maxPushConstantsSize = 128;
+	pProperties->limits.maxPushConstantsSize = MAX_PUSH_CONSTANTS_SIZE;
 	pProperties->limits.maxMemoryAllocationCount = 4096;
 	pProperties->limits.maxSamplerAllocationCount = 4000;
 	pProperties->limits.bufferImageGranularity = 1;
 	pProperties->limits.sparseAddressSpaceSize = std::numeric_limits<size_t>::max();
-	pProperties->limits.maxBoundDescriptorSets = 4;
+	pProperties->limits.maxBoundDescriptorSets = MAX_BOUND_DESCRIPTOR_SETS;
 	pProperties->limits.maxPerStageDescriptorSamplers = 32;
 	pProperties->limits.maxPerStageDescriptorUniformBuffers = 32;
 	pProperties->limits.maxPerStageDescriptorStorageBuffers = 32;
@@ -207,7 +205,7 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.maxDescriptorSetStorageImages = pProperties->limits.maxPerStageDescriptorStorageImages * 8;
 	pProperties->limits.maxDescriptorSetInputAttachments = pProperties->limits.maxPerStageDescriptorInputAttachments;
 	pProperties->limits.maxVertexInputAttributes = 16;
-	pProperties->limits.maxVertexInputBindings = 16;
+	pProperties->limits.maxVertexInputBindings = MAX_VERTEX_INPUT_BINDINGS;
 	pProperties->limits.maxVertexInputAttributeOffset = 2047;
 	pProperties->limits.maxVertexInputBindingStride = 2048;
 	pProperties->limits.maxVertexOutputComponents = 64;
@@ -243,7 +241,7 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.maxDrawIndirectCount = 0xFFFF;
 	pProperties->limits.maxSamplerLodBias = 2;
 	pProperties->limits.maxSamplerAnisotropy = 16;
-	pProperties->limits.maxViewports = 16;
+	pProperties->limits.maxViewports = MAX_VIEWPORTS;
 	pProperties->limits.maxViewportDimensions[0] = 4096;
 	pProperties->limits.maxViewportDimensions[1] = 4096;
 	pProperties->limits.viewportBoundsRange[0] = -8192;
@@ -284,8 +282,8 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.pointSizeRange[1] = 64.0f - ULP;
 	pProperties->limits.lineWidthRange[0] = 1;
 	pProperties->limits.lineWidthRange[1] = 8.0f - ULP;
-	pProperties->limits.pointSizeGranularity = 1;
-	pProperties->limits.lineWidthGranularity = 1;
+	pProperties->limits.pointSizeGranularity = POINT_SIZE_GRANULARITY;
+	pProperties->limits.lineWidthGranularity = LINE_WIDTH_GRANULARITY;
 	pProperties->limits.strictLines = true;
 	pProperties->limits.standardSampleLocations = true;
 	pProperties->limits.optimalBufferCopyOffsetAlignment = 16;

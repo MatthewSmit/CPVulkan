@@ -60,4 +60,6 @@ private:
 
 	gsl::span<uint8_t> data{};
 	uint64_t size{};
+
+	// TODO: Cache data offsets
 };

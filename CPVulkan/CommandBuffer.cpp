@@ -500,6 +500,34 @@ private:
 	VkPipelineStageFlags stageMask;
 };
 
+class PushConstantsCommand final : public Command
+{
+public:
+	PushConstantsCommand(VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, std::unique_ptr<uint8_t[]> values) :
+		layout{layout},
+		stageFlags{stageFlags},
+		offset{offset},
+		size{size},
+		values{std::move(values)}
+	{
+	}
+
+	~PushConstantsCommand() override = default;
+
+	void Process(DeviceState* state) override
+	{
+		assert(offset + size <= MAX_PUSH_CONSTANTS_SIZE);
+		memcpy(state->pushConstants + offset, values.get(), size);
+	}
+
+private:
+	VkPipelineLayout layout;
+	VkShaderStageFlags stageFlags;
+	uint32_t offset;
+	uint32_t size;
+	std::unique_ptr<uint8_t[]> values;
+};
+
 class BeginRenderPassCommand final : public Command
 {
 public:
@@ -746,6 +774,14 @@ void CommandBuffer::PipelineBarrier(VkPipelineStageFlags srcStageMask, VkPipelin
 {
 	assert(state == State::Recording);
 	// TODO
+}
+
+void CommandBuffer::PushConstants(VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pValues)
+{
+	assert(state == State::Recording);
+	std::unique_ptr<uint8_t[]> values(new uint8_t[size]);
+	memcpy(values.get(), pValues, size);
+	commands.push_back(std::make_unique<PushConstantsCommand>(layout, stageFlags, offset, size, move(values)));
 }
 
 void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents)

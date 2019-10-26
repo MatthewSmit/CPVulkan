@@ -668,7 +668,6 @@ namespace SPIRV
 	class SPIRVBinaryInst
 		: public SPIRVInstTemplate<SPIRVBinary, OC, true, 5, false> {};
 
-	/* ToDo: SMod and FMod to be added */
 #define _SPIRV_OP(x) typedef SPIRVBinaryInst<Op##x> SPIRV##x;
 	_SPIRV_OP(IAdd)
 	_SPIRV_OP(FAdd)
@@ -682,6 +681,8 @@ namespace SPIRV
 	_SPIRV_OP(SRem)
 	_SPIRV_OP(FRem)
 	_SPIRV_OP(UMod)
+	_SPIRV_OP(SMod)
+	_SPIRV_OP(FMod)
 	_SPIRV_OP(ShiftLeftLogical)
 	_SPIRV_OP(ShiftRightLogical)
 	_SPIRV_OP(ShiftRightArithmetic)
@@ -1149,49 +1150,7 @@ namespace SPIRV
 		SPIRVId Default;
 		std::vector<SPIRVWord> Pairs;
 	};
-
-	class SPIRVFMod : public SPIRVInstruction {
-	public:
-		static const Op OC = OpFMod;
-		static const SPIRVWord FixedWordCount = 4;
-		// Complete constructor
-		SPIRVFMod(SPIRVType *TheType, SPIRVId TheId, SPIRVId TheDividend,
-		          SPIRVId TheDivisor, SPIRVBasicBlock *BB)
-			: SPIRVInstruction(5, OC, TheType, TheId, BB), Dividend(TheDividend),
-			  Divisor(TheDivisor) {
-			validate();
-			assert(BB && "Invalid BB");
-		}
-		// Incomplete constructor
-		SPIRVFMod()
-			: SPIRVInstruction(OC), Dividend(SPIRVID_INVALID),
-			  Divisor(SPIRVID_INVALID) {}
-		SPIRVValue *getDividend() const { return getValue(Dividend); }
-		SPIRVValue *getDivisor() const { return getValue(Divisor); }
-
-		std::vector<SPIRVValue *> getOperands() override {
-			std::vector<SPIRVId> Operands;
-			Operands.push_back(Dividend);
-			Operands.push_back(Divisor);
-			return getValues(Operands);
-		}
-
-		void setWordCount(SPIRVWord FixedWordCount) override {
-			SPIRVEntry::setWordCount(FixedWordCount);
-		}
-		_SPIRV_DEF_ENCDEC4(Type, Id, Dividend, Divisor)
-		void validate() const override {
-			SPIRVInstruction::validate();
-			if (getValue(Dividend)->isForward() || getValue(Divisor)->isForward())
-				return;
-			SPIRVInstruction::validate();
-		}
-
-	protected:
-		SPIRVId Dividend;
-		SPIRVId Divisor;
-	};
-
+	
 	class SPIRVVectorTimesScalar final : public SPIRVInstruction
 	{
 	public:
@@ -1635,7 +1594,7 @@ namespace SPIRV
 			Args = A;
 			setWordCount(Args.size() + FixedWordCount);
 		}
-		std::vector<SPIRVValue *> getArgumentValues() { return getValues(Args); }
+		std::vector<SPIRVValue *> getArgumentValues() const { return getValues(Args); }
 		std::vector<SPIRVType *> getArgumentValueTypes() const {
 			std::vector<SPIRVType *> ArgTypes;
 			for (auto &I : Args)
@@ -1727,6 +1686,9 @@ namespace SPIRV
 			case SPIRVEIS_OpenCL:
 				getDecoder(I) >> ExtOpOCL;
 				break;
+			case SPIRVEIS_OpenGL:
+				getDecoder(I) >> ExtOpOGL;
+				break;
 			case SPIRVEIS_Debug:
 				getDecoder(I) >> ExtOpDebug;
 				break;
@@ -1764,6 +1726,7 @@ namespace SPIRV
 		union {
 			SPIRVWord ExtOp;
 			OCLExtOpKind ExtOpOCL;
+			OGLExtOpKind ExtOpOGL;
 			SPIRVDebugExtOpKind ExtOpDebug;
 		};
 	};

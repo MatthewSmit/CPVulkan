@@ -3,6 +3,8 @@
 #include <vulkan/vk_platform.h>
 #include <vulkan/vulkan_core.h>
 
+#include "Config.h"
+
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 #ifndef DECLARE_HANDLE
 using HANDLE = void*;
@@ -20,11 +22,6 @@ using LPCWSTR = const wchar_t*;
 using PCWSTR = const wchar_t*;
 using DWORD = unsigned long; // NOLINT(google-runtime-int)
 #endif
-
-#undef VK_KHR_external_memory_fd
-#undef VK_EXT_external_memory_dma_buf
-#undef VK_KHR_external_semaphore_fd
-#undef VK_KHR_external_fence_fd
 
 // ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vulkan_win32.h>
@@ -63,15 +60,6 @@ typedef XID RROutput;
 #include <vulkan/vk_icd.h>
 
 #include <gsl/gsl>
-
-#undef VK_EXT_pci_bus_info
-#undef VK_KHR_display
-#undef VK_KHR_display_swapchain
-#undef VK_EXT_direct_mode_display
-#undef VK_EXT_acquire_xlib_display
-#undef VK_EXT_display_surface_counter
-#undef VK_EXT_display_control
-#undef VK_KHR_get_display_properties2
 
 static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
 

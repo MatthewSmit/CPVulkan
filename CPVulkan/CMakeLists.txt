@@ -22,6 +22,8 @@ set(FILES
 		"CommandPool.cpp"
 		"CommandPool.h"
 
+		"Config.h"
+
 		"CPVulkan.cpp"
 
 		"DescriptorPool.cpp"

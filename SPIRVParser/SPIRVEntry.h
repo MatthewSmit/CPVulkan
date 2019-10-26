@@ -799,7 +799,6 @@ namespace SPIRV
 	_SPIRV_OP(QuantizeToF16)
 	_SPIRV_OP(Transpose)
 	_SPIRV_OP(ArrayLength)
-	_SPIRV_OP(SMod)
 	_SPIRV_OP(OuterProduct)
 	_SPIRV_OP(IAddCarry)
 	_SPIRV_OP(ISubBorrow)

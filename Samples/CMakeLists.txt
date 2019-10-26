@@ -52,7 +52,7 @@ add_executable(CPVulkanSamples
 	##"occlusion_query/occlusion_query.cpp"												#vkResetQueryPool
 	##"pipeline_cache/pipeline_cache.cpp"												#PipelineCache::GetData
 	##"pipeline_derivative/pipeline_derivative.cpp"										#Pipeline::Create flags
-	"push_constants/push_constants.cpp"												#vkCmdPushConstants
+	"push_constants/push_constants.cpp"
 	##"push_descriptors/push_descriptors.cpp"											#DescriptorSetLayout::Create flags
 	#"secondary_command_buffer/secondary_command_buffer.cpp"
 	##"separate_image_sampler/separate_image_sampler.cpp"								#SPIRV Function Variables

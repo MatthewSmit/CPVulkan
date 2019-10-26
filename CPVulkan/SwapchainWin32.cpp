@@ -87,7 +87,8 @@ VkResult PhysicalDevice::GetSurfaceCapabilities(VkSurfaceKHR surface, VkSurfaceC
 {
 	const auto win32Surface = UnwrapVulkan<VkIcdSurfaceWin32>(surface);
 	RECT rect;
-	assert(GetClientRect(win32Surface->hwnd, &rect));
+	const auto result = GetClientRect(win32Surface->hwnd, &rect);
+	assert(result);
 
 	pSurfaceCapabilities->minImageCount = 1;
 	pSurfaceCapabilities->maxImageCount = 0;

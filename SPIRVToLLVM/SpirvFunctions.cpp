@@ -36,6 +36,7 @@ std::unordered_map<std::string, FunctionPointer>& getSpirvFunctions()
 {
 	static std::unordered_map<std::string, FunctionPointer> functions
 	{
+		{"@Matrix.Mult.F32[3,3].F32[3].col", reinterpret_cast<FunctionPointer>(MultiplicationMV<glm::mat3x3, true, glm::vec3>)},
 		{"@Matrix.Mult.F32[4,4].F32[4].col", reinterpret_cast<FunctionPointer>(MultiplicationMV<glm::mat4x4, true, glm::vec4>)},
 		{"@Matrix.Mult.F32[4,4].F32[4,4].col", reinterpret_cast<FunctionPointer>(MultiplicationMM<glm::mat4x4, true, glm::mat4x4, true>)},
 	};

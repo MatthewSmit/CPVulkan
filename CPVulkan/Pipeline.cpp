@@ -407,7 +407,32 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
-	if (pCreateInfo->flags)
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT)
+	{
+		// TODO
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISPATCH_BASE)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DEFER_COMPILE_BIT_NV)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
 	{
 		FATAL_ERROR();
 	}
@@ -429,11 +454,6 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	pipeline->depthStencilState = Parse(pCreateInfo->pDepthStencilState);
 	pipeline->colourBlendState = Parse(pCreateInfo->pColorBlendState);
 	pipeline->dynamicState = Parse(pCreateInfo->pDynamicState);
-
-	if (pCreateInfo->basePipelineHandle)
-	{
-		FATAL_ERROR();
-	}
 
 	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;

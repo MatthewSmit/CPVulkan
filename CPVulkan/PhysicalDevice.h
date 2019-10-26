@@ -115,7 +115,7 @@ public:
     VKAPI_ATTR VkResult VKAPI_PTR GetRandROutputDisplay(Display* dpy, RROutput rrOutput, VkDisplayKHR* pDisplay) { FATAL_ERROR(); }
 #endif
 
-    void setInstance(Instance* instance) { this->instance = instance; }
+	void setInstance(Instance* instance) { this->instance = instance; }
 
 private:
 	Instance* instance;
