@@ -16,6 +16,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 if(WIN32)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "C:\\Work\\CPVulkan\\out\\build\\x64-Debug\\CPVulkan\\")
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "C:\\Work\\CPVulkan\\out\\build\\x64-Debug\\CPVulkan\\")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "C:\\Work\\CPVulkan\\out\\build\\x64-Debug\\CPVulkan\\")
 endif()
 
 project("CPVulkan")
