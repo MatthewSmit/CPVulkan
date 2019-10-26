@@ -1,5 +1,6 @@
 #include "DescriptorSet.h"
 
+#include "Buffer.h"
 #include "DescriptorSetLayout.h"
 #include "Device.h"
 
@@ -39,6 +40,10 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: 
 			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: 
 				newBinding.BufferInfo = *descriptorWrite.pBufferInfo;
+				if (newBinding.BufferInfo.range == VK_WHOLE_SIZE)
+				{
+					newBinding.BufferInfo.range = UnwrapVulkan<Buffer>(newBinding.BufferInfo.buffer)->getSize() - newBinding.BufferInfo.offset;
+				}
 				break;
 				
 			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:

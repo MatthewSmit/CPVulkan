@@ -356,6 +356,59 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 	}
 }
 
+static std::vector<uint32_t> ProcessInputAssembler(DeviceState* deviceState, uint32_t vertexCount)
+{
+	// TODO: Calculate offsets here too
+	std::vector<uint32_t> results(vertexCount);
+	for (auto i = 0u; i < vertexCount; i++)
+	{
+		results[i] = i;
+	}
+	return results;
+}
+
+static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceState, uint32_t indexCount)
+{
+	// TODO: Calculate offsets here too
+	std::vector<uint32_t> results(indexCount);
+
+	if (deviceState->pipeline[0]->getInputAssemblyState().PrimitiveRestartEnable)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto indexData = deviceState->indexBinding->getDataPtr(deviceState->indexBindingOffset, static_cast<uint64_t>(indexCount) * deviceState->indexBindingStride);
+
+	switch (deviceState->indexBindingStride)
+	{
+	case 1:
+		for (auto i = 0u; i < indexCount; i++)
+		{
+			results[i] = indexData[i];
+		}
+		break;
+		
+	case 2:
+		for (auto i = 0u; i < indexCount; i++)
+		{
+			results[i] = reinterpret_cast<uint16_t*>(indexData)[i];
+		}
+		break;
+
+	case 4:
+		for (auto i = 0u; i < indexCount; i++)
+		{
+			results[i] = reinterpret_cast<uint32_t*>(indexData)[i];
+		}
+		break;
+		
+	default:
+		FATAL_ERROR();
+	}
+	
+	return results;
+}
+
 static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vector<uint32_t>& assemblerOutput)
 {
 	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(0);
@@ -411,9 +464,9 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vec
 	return output;
 }
 
-static auto GetFragmentInput(const std::vector<VariableInOutData>& inputData, uint8_t* vertexData, int vertexStride,
+static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, uint8_t* vertexData, int vertexStride,
                              uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
-                             const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p, float& depth) -> bool
+                             const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p, float& depth)
 {
 	const auto area = EdgeFunction(p0, p1, p2);
 	auto w0 = EdgeFunction(p1, p2, p);
@@ -531,7 +584,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 
 	auto builtinInput = static_cast<FragmentBuiltinInput*>(builtinInputPointer);
 	builtinInput->fragCoord = glm::vec4(0, 0, 0, 1);
-	
+
 	for (auto i = 0u; i < numberTriangles; i++)
 	{
 		const auto p0 = output.builtinData[i * 3 + 0].position / output.builtinData[i * 3 + 0].position.w;
@@ -599,59 +652,6 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 			}
 		}
 	}
-}
-
-static std::vector<uint32_t> ProcessInputAssembler(DeviceState* deviceState, uint32_t vertexCount)
-{
-	// TODO: Calculate offsets here too
-	std::vector<uint32_t> results(vertexCount);
-	for (auto i = 0u; i < vertexCount; i++)
-	{
-		results[i] = i;
-	}
-	return results;
-}
-
-static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceState, uint32_t indexCount)
-{
-	// TODO: Calculate offsets here too
-	std::vector<uint32_t> results(indexCount);
-
-	if (deviceState->pipeline[0]->getInputAssemblyState().PrimitiveRestartEnable)
-	{
-		FATAL_ERROR();
-	}
-
-	const auto indexData = deviceState->indexBinding->getDataPtr(deviceState->indexBindingOffset, static_cast<uint64_t>(indexCount) * deviceState->indexBindingStride);
-
-	switch (deviceState->indexBindingStride)
-	{
-	case 1:
-		for (auto i = 0u; i < indexCount; i++)
-		{
-			results[i] = indexData[i];
-		}
-		break;
-		
-	case 2:
-		for (auto i = 0u; i < indexCount; i++)
-		{
-			results[i] = reinterpret_cast<uint16_t*>(indexData)[i];
-		}
-		break;
-
-	case 4:
-		for (auto i = 0u; i < indexCount; i++)
-		{
-			results[i] = reinterpret_cast<uint32_t*>(indexData)[i];
-		}
-		break;
-		
-	default:
-		FATAL_ERROR();
-	}
-	
-	return results;
 }
 
 class DrawCommand final : public Command

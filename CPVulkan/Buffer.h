@@ -37,6 +37,8 @@ public:
 	{
 		return getData(offset, size).data();
 	}
+	
+	[[nodiscard]] uint64_t getSize() const noexcept { return size; }
 
 private:
 	VkBufferCreateFlags flags{};

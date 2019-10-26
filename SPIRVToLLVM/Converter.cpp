@@ -638,13 +638,12 @@ static llvm::Value* ConvertBuiltin(State& state, BuiltIn builtin)
 	{
 		if (mapping.first == builtin)
 		{
-			const auto value = state.builder.CreateAlignedLoad(state.builtinInputVariable, ALIGNMENT);
 			llvm::Value* indices[]
 			{
 				llvm::ConstantInt::get(state.context, llvm::APInt(32, 0)),
 				llvm::ConstantInt::get(state.context, llvm::APInt(32, mapping.second)),
 			};
-			return state.builder.CreateInBoundsGEP(value, indices);
+			return state.builder.CreateInBoundsGEP(state.builtinInputVariable, indices);
 		}
 	}
 
@@ -652,13 +651,12 @@ static llvm::Value* ConvertBuiltin(State& state, BuiltIn builtin)
 	{
 		if (mapping.first == builtin)
 		{
-			const auto value = state.builder.CreateAlignedLoad(state.builtinOutputVariable, ALIGNMENT);
 			llvm::Value* indices[]
 			{
 				llvm::ConstantInt::get(state.context, llvm::APInt(32, 0)),
 				llvm::ConstantInt::get(state.context, llvm::APInt(32, mapping.second)),
 			};
-			return state.builder.CreateInBoundsGEP(value, indices);
+			return state.builder.CreateInBoundsGEP(state.builtinOutputVariable, indices);
 		}
 	}
 	
