@@ -2,6 +2,7 @@
 
 #include "Base.h"
 #include "Formats.h"
+#include "Half.h"
 #include "Image.h"
 #include "ImageSampler.h"
 #include "ImageView.h"
@@ -46,6 +47,23 @@ static T VSSign(T value)
 }
 
 template<typename T>
+static T Pow(T left, T right)
+{
+	return std::pow(left, right);
+}
+
+template<typename T>
+static T VPow(T left, T right)
+{
+	T result{0};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = Pow(left[i], right[i]);
+	}
+	return result;
+}
+
+template<typename T>
 static T Min(T left, T right)
 {
 	return std::min(left, right);
@@ -54,7 +72,7 @@ static T Min(T left, T right)
 template<typename T>
 static T VMin(T left, T right)
 {
-	T result{};
+	T result{0};
 	for (auto i = 0; i < T::length(); i++)
 	{
 		result[i] = Min(left[i], right[i]);
@@ -71,7 +89,7 @@ static T Max(T left, T right)
 template<typename T>
 static T VMax(T left, T right)
 {
-	T result{};
+	T result{0};
 	for (auto i = 0; i < T::length(); i++)
 	{
 		result[i] = Max(left[i], right[i]);
@@ -94,6 +112,41 @@ static T VClamp(T value, T min, T max)
 		result[i] = Clamp(value[i], min[i], max[i]);
 	}
 	return result;
+}
+
+template<typename T>
+static T Mix(T x, T y, T a)
+{
+	return x * (1 - a) + y * a;
+}
+
+template<typename T>
+static T VMix(T x, T y, T a)
+{
+	T result{0};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = Mix(x[i], y[i], a[i]);
+	}
+	return result;
+}
+
+template<typename T>
+static T Normalise(T value)
+{
+	return std::signbit(value) ? T(1) : T(-1);
+}
+
+template<typename T>
+static T VNormalise(T value)
+{
+	return glm::normalize(value);
+}
+
+template<typename T>
+static T Reflect(T i, T n)
+{
+	return glm::reflect(i, n);
 }
 
 template<typename T>
@@ -462,7 +515,16 @@ void AddGlslFunctions(SpirvJit* jit)
 	// Acosh = 23,
 	// Atanh = 24,
 	// Atan2 = 25,
-	// Pow = 26,
+
+	AddSpirvFunction("@Pow.F16.F16", reinterpret_cast<FunctionPointer>(Pow<half>));
+	AddSpirvFunction("@Pow.F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VPow<glm::f16vec2>));
+	AddSpirvFunction("@Pow.F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VPow<glm::f16vec3>));
+	AddSpirvFunction("@Pow.F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VPow<glm::f16vec4>));
+	AddSpirvFunction("@Pow.F32.F32", reinterpret_cast<FunctionPointer>(Pow<float>));
+	AddSpirvFunction("@Pow.F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VPow<glm::f32vec2>));
+	AddSpirvFunction("@Pow.F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VPow<glm::f32vec3>));
+	AddSpirvFunction("@Pow.F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VPow<glm::f32vec4>));
+	
 	// Exp = 27,
 	// Log = 28,
 	// Exp2 = 29,
@@ -473,7 +535,19 @@ void AddGlslFunctions(SpirvJit* jit)
 	// MatrixInverse = 34,
 	// Modf = 35,
 	// ModfStruct = 36,
-	// FMin = 37,
+
+	AddSpirvFunction("@FMin.F16.F16", reinterpret_cast<FunctionPointer>(Min<half>));
+	AddSpirvFunction("@FMin.F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VMin<glm::f16vec2>));
+	AddSpirvFunction("@FMin.F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VMin<glm::f16vec3>));
+	AddSpirvFunction("@FMin.F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VMin<glm::f16vec4>));
+	AddSpirvFunction("@FMin.F32.F32", reinterpret_cast<FunctionPointer>(Min<float>));
+	AddSpirvFunction("@FMin.F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VMin<glm::f32vec2>));
+	AddSpirvFunction("@FMin.F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VMin<glm::f32vec3>));
+	AddSpirvFunction("@FMin.F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VMin<glm::f32vec4>));
+	AddSpirvFunction("@FMin.F64.F64", reinterpret_cast<FunctionPointer>(Min<double>));
+	AddSpirvFunction("@FMin.F64[2].F64[2]", reinterpret_cast<FunctionPointer>(VMin<glm::f64vec2>));
+	AddSpirvFunction("@FMin.F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VMin<glm::f64vec3>));
+	AddSpirvFunction("@FMin.F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VMin<glm::f64vec4>));
 	
 	AddSpirvFunction("@UMin.U8.U8", reinterpret_cast<FunctionPointer>(Min<uint8_t>));
 	AddSpirvFunction("@UMin.U8[2].U8[2]", reinterpret_cast<FunctionPointer>(VMin<glm::u8vec2>));
@@ -508,8 +582,19 @@ void AddGlslFunctions(SpirvJit* jit)
 	AddSpirvFunction("@SMin.I64[2].I64[2]", reinterpret_cast<FunctionPointer>(VMin<glm::i64vec2>));
 	AddSpirvFunction("@SMin.I64[3].I64[3]", reinterpret_cast<FunctionPointer>(VMin<glm::i64vec3>));
 	AddSpirvFunction("@SMin.I64[4].I64[4]", reinterpret_cast<FunctionPointer>(VMin<glm::i64vec4>));
-	
-	// FMax = 40,
+
+	AddSpirvFunction("@FMax.F16.F16", reinterpret_cast<FunctionPointer>(Max<half>));
+	AddSpirvFunction("@FMax.F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VMax<glm::f16vec2>));
+	AddSpirvFunction("@FMax.F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VMax<glm::f16vec3>));
+	AddSpirvFunction("@FMax.F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VMax<glm::f16vec4>));
+	AddSpirvFunction("@FMax.F32.F32", reinterpret_cast<FunctionPointer>(Max<float>));
+	AddSpirvFunction("@FMax.F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VMax<glm::f32vec2>));
+	AddSpirvFunction("@FMax.F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VMax<glm::f32vec3>));
+	AddSpirvFunction("@FMax.F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VMax<glm::f32vec4>));
+	AddSpirvFunction("@FMax.F64.F64", reinterpret_cast<FunctionPointer>(Max<double>));
+	AddSpirvFunction("@FMax.F64[2].F64[2]", reinterpret_cast<FunctionPointer>(VMax<glm::f64vec2>));
+	AddSpirvFunction("@FMax.F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VMax<glm::f64vec3>));
+	AddSpirvFunction("@FMax.F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VMax<glm::f64vec4>));
 	
 	AddSpirvFunction("@UMax.U8.U8", reinterpret_cast<FunctionPointer>(Max<uint8_t>));
 	AddSpirvFunction("@UMax.U8[2].U8[2]", reinterpret_cast<FunctionPointer>(VMax<glm::u8vec2>));
@@ -580,8 +665,20 @@ void AddGlslFunctions(SpirvJit* jit)
 	AddSpirvFunction("@SClamp.I64[2].I64[2].I64[2]", reinterpret_cast<FunctionPointer>(VClamp<glm::i64vec2>));
 	AddSpirvFunction("@SClamp.I64[3].I64[3].I64[3]", reinterpret_cast<FunctionPointer>(VClamp<glm::i64vec3>));
 	AddSpirvFunction("@SClamp.I64[4].I64[4].I64[4]", reinterpret_cast<FunctionPointer>(VClamp<glm::i64vec4>));
+
+	AddSpirvFunction("@FMix.F16.F16.F16", reinterpret_cast<FunctionPointer>(Mix<half>));
+	AddSpirvFunction("@FMix.F16[2].F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VMix<glm::f16vec2>));
+	AddSpirvFunction("@FMix.F16[3].F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VMix<glm::f16vec3>));
+	AddSpirvFunction("@FMix.F16[4].F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VMix<glm::f16vec4>));
+	AddSpirvFunction("@FMix.F32.F32.F32", reinterpret_cast<FunctionPointer>(Mix<float>));
+	AddSpirvFunction("@FMix.F32[2].F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VMix<glm::f32vec2>));
+	AddSpirvFunction("@FMix.F32[3].F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VMix<glm::f32vec3>));
+	AddSpirvFunction("@FMix.F32[4].F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VMix<glm::f32vec4>));
+	AddSpirvFunction("@FMix.F64.F64.F64", reinterpret_cast<FunctionPointer>(Mix<double>));
+	AddSpirvFunction("@FMix.F64[2].F64[2].F64[2]", reinterpret_cast<FunctionPointer>(VMix<glm::f64vec2>));
+	AddSpirvFunction("@FMix.F64[3].F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VMix<glm::f64vec3>));
+	AddSpirvFunction("@FMix.F64[4].F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VMix<glm::f64vec4>));
 	
-	// FMix = 46,
 	// Step = 48,
 	// SmoothStep = 49,
 	// Fma = 50,
@@ -603,9 +700,35 @@ void AddGlslFunctions(SpirvJit* jit)
 	// Length = 66,
 	// Distance = 67,
 	// Cross = 68,
-	// Normalise = 69,
+
+	AddSpirvFunction("@Normalise.F16", reinterpret_cast<FunctionPointer>(Normalise<half>));
+	AddSpirvFunction("@Normalise.F16[2]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f16vec2>));
+	AddSpirvFunction("@Normalise.F16[3]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f16vec3>));
+	AddSpirvFunction("@Normalise.F16[4]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f16vec4>));
+	AddSpirvFunction("@Normalise.F32", reinterpret_cast<FunctionPointer>(Normalise<float>));
+	AddSpirvFunction("@Normalise.F32[2]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f32vec2>));
+	AddSpirvFunction("@Normalise.F32[3]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f32vec3>));
+	AddSpirvFunction("@Normalise.F32[4]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f32vec4>));
+	AddSpirvFunction("@Normalise.F64", reinterpret_cast<FunctionPointer>(Normalise<double>));
+	AddSpirvFunction("@Normalise.F64[2]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f64vec2>));
+	AddSpirvFunction("@Normalise.F64[3]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f64vec3>));
+	AddSpirvFunction("@Normalise.F64[4]", reinterpret_cast<FunctionPointer>(VNormalise<glm::f64vec4>));
+	
 	// FaceForward = 70,
-	// Reflect = 71,
+
+	AddSpirvFunction("@Reflect.F16.F16", reinterpret_cast<FunctionPointer>(Reflect<half>));
+	AddSpirvFunction("@Reflect.F16[2].F16[2]", reinterpret_cast<FunctionPointer>(Reflect<glm::f16vec2>));
+	AddSpirvFunction("@Reflect.F16[3].F16[3]", reinterpret_cast<FunctionPointer>(Reflect<glm::f16vec3>));
+	AddSpirvFunction("@Reflect.F16[4].F16[4]", reinterpret_cast<FunctionPointer>(Reflect<glm::f16vec4>));
+	AddSpirvFunction("@Reflect.F32.F32", reinterpret_cast<FunctionPointer>(Reflect<float>));
+	AddSpirvFunction("@Reflect.F32[2].F32[2]", reinterpret_cast<FunctionPointer>(Reflect<glm::f32vec2>));
+	AddSpirvFunction("@Reflect.F32[3].F32[3]", reinterpret_cast<FunctionPointer>(Reflect<glm::f32vec3>));
+	AddSpirvFunction("@Reflect.F32[4].F32[4]", reinterpret_cast<FunctionPointer>(Reflect<glm::f32vec4>));
+	AddSpirvFunction("@Reflect.F64.F64", reinterpret_cast<FunctionPointer>(Reflect<double>));
+	AddSpirvFunction("@Reflect.F64[2].F64[2]", reinterpret_cast<FunctionPointer>(Reflect<glm::f64vec2>));
+	AddSpirvFunction("@Reflect.F64[3].F64[3]", reinterpret_cast<FunctionPointer>(Reflect<glm::f64vec3>));
+	AddSpirvFunction("@Reflect.F64[4].F64[4]", reinterpret_cast<FunctionPointer>(Reflect<glm::f64vec4>));
+	
 	// Refract = 72,
 
 	AddSpirvFunction("@FindILsb.I32", reinterpret_cast<FunctionPointer>(FindILsb<int32_t>));

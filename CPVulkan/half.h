@@ -1,4 +1,8 @@
 #pragma once
+#include "FloatFormat.h"
+
+#include <glm/glm.hpp>
+
 #include <cstdint>
 
 template<int size>
@@ -13,195 +17,160 @@ struct RequiredSize<2>
 struct half
 {
 public:
-	half()
-	{
-	}
-	
-	half(float f);
+	half() noexcept = default;
+	half(float f) noexcept;
 
-	[[nodiscard]] float toFloat() const;
+	[[nodiscard]] float toFloat() const noexcept;
+	[[nodiscard]] uint16_t toRaw() const noexcept { return value; }
 
 private:
-	uint16_t value;
+	uint16_t value = 0;
 };
 
-template<typename T>
-struct FloatFormat;
-
-struct UF10;
-
-template<>
-struct FloatFormat<UF10>
+inline half operator+(half lhs, half rhs) noexcept
 {
-	using Type = uint16_t;
-	using IntType = uint16_t;
-
-	static constexpr auto SIGN_BITS = 0;
-	static constexpr auto EXPONENT_BITS = 5;
-	static constexpr auto MANTISSA_BITS = 5;
-
-	FloatFormat(uint16_t value)
-	{
-		bits = *reinterpret_cast<uint16_t*>(&value);
-	}
-
-	static Type Convert(IntType value)
-	{
-		return value;
-	}
-
-	uint16_t bits;
-};
-
-struct UF11;
-
-template<>
-struct FloatFormat<UF11>
-{
-	using Type = uint16_t;
-	using IntType = uint16_t;
-
-	static constexpr auto SIGN_BITS = 0;
-	static constexpr auto EXPONENT_BITS = 5;
-	static constexpr auto MANTISSA_BITS = 6;
-
-	FloatFormat(uint16_t value)
-	{
-		bits = *reinterpret_cast<uint16_t*>(&value);
-	}
-
-	static Type Convert(IntType value)
-	{
-		return value;
-	}
-
-	uint16_t bits;
-};
-
-struct UF14;
-
-template<>
-struct FloatFormat<UF14>
-{
-	using Type = uint16_t;
-	using IntType = uint16_t;
-
-	static constexpr auto SIGN_BITS = 0;
-	static constexpr auto EXPONENT_BITS = 5;
-	static constexpr auto MANTISSA_BITS = 9;
-
-	FloatFormat(uint16_t value)
-	{
-		bits = *reinterpret_cast<uint16_t*>(&value);
-	}
-
-	static Type Convert(IntType value)
-	{
-		return value;
-	}
-
-	uint16_t bits;
-};
-
-template<>
-struct FloatFormat<half>
-{
-	using Type = uint16_t;
-	using IntType = uint16_t;
-
-	static constexpr auto SIGN_BITS = 1;
-	static constexpr auto EXPONENT_BITS = 5;
-	static constexpr auto MANTISSA_BITS = 10;
-
-	FloatFormat(uint16_t value)
-	{
-		bits = *reinterpret_cast<uint16_t*>(&value);
-	}
-
-	static Type Convert(IntType value)
-	{
-		return value;
-	}
-
-	uint16_t bits;
-};
-
-template<>
-struct FloatFormat<float>
-{
-	using Type = float;
-	using IntType = uint32_t;
-	
-	static constexpr auto SIGN_BITS = 1;
-	static constexpr auto EXPONENT_BITS = 8;
-	static constexpr auto MANTISSA_BITS = 23;
-
-	FloatFormat(float value)
-	{
-		bits = *reinterpret_cast<uint32_t*>(&value);
-	}
-
-	static Type Convert(IntType value)
-	{
-		return *reinterpret_cast<Type*>(&value);
-	}
-
-	uint32_t bits;
-};
-
-template<typename InputType, typename OutputType>
-typename FloatFormat<OutputType>::Type ConvertBits(typename FloatFormat<InputType>::Type input)
-{
-	constexpr auto INPUT_EXPONENT_SHIFT = FloatFormat<InputType>::MANTISSA_BITS;
-	constexpr auto INPUT_EXPONENT_MASK = (1 << FloatFormat<InputType>::EXPONENT_BITS) - 1;
-	constexpr auto INPUT_EXPONENT_BIAS = (1 << (FloatFormat<InputType>::EXPONENT_BITS - 1)) - 1;
-	constexpr auto INPUT_MANTISSA_MASK = (1 << FloatFormat<InputType>::MANTISSA_BITS) - 1;
-
-	constexpr auto OUTPUT_EXPONENT_SHIFT = FloatFormat<OutputType>::MANTISSA_BITS;
-	constexpr auto OUTPUT_EXPONENT_MASK = (1 << FloatFormat<OutputType>::EXPONENT_BITS) - 1;
-	constexpr auto OUTPUT_EXPONENT_BIAS = (1 << (FloatFormat<OutputType>::EXPONENT_BITS - 1)) - 1;
-
-	FloatFormat<InputType> format = input;
-	const auto exponent = static_cast<int32_t>((format.bits >> INPUT_EXPONENT_SHIFT) & INPUT_EXPONENT_MASK) - INPUT_EXPONENT_BIAS;
-	
-	typename FloatFormat<OutputType>::IntType result = 0;
-
-	if constexpr (FloatFormat<OutputType>::MANTISSA_BITS < FloatFormat<InputType>::MANTISSA_BITS)
-	{
-		constexpr auto SHIFT = FloatFormat<InputType>::MANTISSA_BITS - FloatFormat<OutputType>::MANTISSA_BITS;
-		result |= (format.bits & INPUT_MANTISSA_MASK) >> SHIFT;
-	}
-	else if constexpr (FloatFormat<OutputType>::MANTISSA_BITS == FloatFormat<InputType>::MANTISSA_BITS)
-	{
-		result |= format.bits & INPUT_MANTISSA_MASK;
-	}
-	else
-	{
-		constexpr auto SHIFT = FloatFormat<OutputType>::MANTISSA_BITS - FloatFormat<InputType>::MANTISSA_BITS;
-		result |= (format.bits & INPUT_MANTISSA_MASK) << SHIFT;
-	}
-
-	result |= (static_cast<typename FloatFormat<OutputType>::IntType>(exponent + OUTPUT_EXPONENT_BIAS) & OUTPUT_EXPONENT_MASK) << OUTPUT_EXPONENT_SHIFT;
-
-	if constexpr (FloatFormat<InputType>::SIGN_BITS == 1 && FloatFormat<OutputType>::SIGN_BITS == 1)
-	{
-		constexpr auto INPUT_SIGN_SHIFT = FloatFormat<InputType>::MANTISSA_BITS + FloatFormat<InputType>::EXPONENT_BITS;
-		constexpr auto OUTPUT_SIGN_SHIFT = FloatFormat<OutputType>::MANTISSA_BITS + FloatFormat<OutputType>::EXPONENT_BITS;
-		auto sign = (format.bits >> INPUT_SIGN_SHIFT) & 0x01;
-		result |= sign << OUTPUT_SIGN_SHIFT;
-	}
-
-	return FloatFormat<OutputType>::Convert(result);
+	return lhs.toFloat() + rhs.toFloat();
 }
 
-inline half::half(float f)
+inline half operator-(half lhs, half rhs) noexcept
+{
+	return lhs.toFloat() - rhs.toFloat();
+}
+
+inline half operator*(half lhs, half rhs) noexcept
+{
+	return lhs.toFloat() * rhs.toFloat();
+}
+
+inline half operator/(half lhs, half rhs) noexcept
+{
+	return lhs.toFloat() / rhs.toFloat();
+}
+
+inline bool operator<(half lhs, half rhs) noexcept
+{
+	return lhs.toFloat() < rhs.toFloat();
+}
+
+inline half::half(float f) noexcept
 {
 	value = ConvertBits<float, half>(f);
 }
 
-inline float half::toFloat() const
+inline float half::toFloat() const noexcept
 {
 	return ConvertBits<half, float>(value);
 }
 
 static_assert(sizeof(half) == 2);
+
+namespace glm
+{
+	using f16 = half;
+
+	using f16vec2 = vec<2, f16, defaultp>;
+	using f16vec3 = vec<3, f16, defaultp>;
+	using f16vec4 = vec<4, f16, defaultp>;
+}
+
+namespace std // NOLINT(cert-dcl58-cpp)
+{
+	inline float pow(half x, half y) noexcept
+	{
+		return std::pow(x.toFloat(), y.toFloat());
+	}
+	
+	inline bool signbit(half value) noexcept
+	{
+		return value.toRaw() & 0x8000;
+	}
+
+	template<>
+	class numeric_limits<half>
+	{
+	public:
+		// 	_NODISCARD static constexpr float(min)() noexcept { // return minimum value
+		// 		return FLT_MIN;
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float(max)() noexcept { // return maximum value
+		// 		return FLT_MAX;
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float lowest() noexcept { // return most negative value
+		// 		return -(max)();
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float epsilon() noexcept { // return smallest effective increment from 1.0
+		// 		return FLT_EPSILON;
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float round_error() noexcept { // return largest rounding error
+		// 		return 0.5F;
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float denorm_min() noexcept { // return minimum denormalized value
+		// 		return FLT_TRUE_MIN;
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float infinity() noexcept { // return positive infinity
+		// 		return __builtin_huge_valf();
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float quiet_NaN() noexcept { // return non-signaling NaN
+		// 		return __builtin_nanf("0");
+		// 	}
+		//
+		// 	_NODISCARD static constexpr float signaling_NaN() noexcept { // return signaling NaN
+		// 		return __builtin_nansf("1");
+		// 	}
+		//
+		// 	static constexpr int digits = FLT_MANT_DIG;
+		// 	static constexpr int digits10 = FLT_DIG;
+		// 	static constexpr int max_digits10 = 9;
+		// 	static constexpr int max_exponent = FLT_MAX_EXP;
+		// 	static constexpr int max_exponent10 = FLT_MAX_10_EXP;
+		// 	static constexpr int min_exponent = FLT_MIN_EXP;
+		// 	static constexpr int min_exponent10 = FLT_MIN_10_EXP;
+		
+		// static constexpr float_denorm_style has_denorm = denorm_present;
+		// static constexpr bool has_infinity             = true;
+		// static constexpr bool has_quiet_NaN            = true;
+		// static constexpr bool has_signaling_NaN        = true;
+		// static constexpr bool is_bounded               = true;
+		static constexpr bool is_iec559 = true;
+		// static constexpr bool is_signed                = true;
+		// static constexpr bool is_specialized           = true;
+		// static constexpr float_round_style round_style = round_to_nearest;
+		// static constexpr int radix                     = FLT_RADIX;
+
+		// static constexpr float_denorm_style has_denorm = denorm_absent;
+		// static constexpr bool has_denorm_loss          = false;
+		// static constexpr bool has_infinity             = false;
+		// static constexpr bool has_quiet_NaN            = false;
+		// static constexpr bool has_signaling_NaN        = false;
+		// static constexpr bool is_bounded               = false;
+		// static constexpr bool is_exact                 = false;
+		// static constexpr bool is_iec559                = false;
+		// static constexpr bool is_integer               = false;
+		// static constexpr bool is_modulo                = false;
+		// static constexpr bool is_signed                = false;
+		// static constexpr bool is_specialized           = false;
+		// static constexpr bool tinyness_before          = false;
+		// static constexpr bool traps                    = false;
+		// static constexpr float_round_style round_style = round_toward_zero;
+		// static constexpr int digits                    = 0;
+		// static constexpr int digits10                  = 0;
+		// static constexpr int max_digits10              = 0;
+		// static constexpr int max_exponent              = 0;
+		// static constexpr int max_exponent10            = 0;
+		// static constexpr int min_exponent              = 0;
+		// static constexpr int min_exponent10            = 0;
+		// static constexpr int radix                     = 0;
+	};
+}
+
+inline float sqrt(half value) noexcept
+{
+	return sqrtf(value.toFloat());
+}

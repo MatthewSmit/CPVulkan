@@ -47,6 +47,8 @@ set(FILES
 		"Fence.cpp"
 		"Fence.h"
 
+		"FloatFormat.h"
+
 		"Formats.cpp"
 		"Formats.h"
 

@@ -415,6 +415,7 @@ static bool IsOpaqueType(SPIRV::SPIRVType* spirvType)
 		return false;
 		
 	case OpTypeArray:
+	case OpTypeRuntimeArray:
 		if (IsOpaqueType(spirvType->getArrayElementType()))
 		{
 			FATAL_ERROR();
@@ -426,7 +427,8 @@ static bool IsOpaqueType(SPIRV::SPIRVType* spirvType)
 	case OpTypeFunction:
 	case OpTypePipe:
 	case OpTypePipeStorage:
-	case OpTypeRuntimeArray:
+		FATAL_ERROR();
+		
 	default:
 		FATAL_ERROR();
 	}
@@ -1253,7 +1255,13 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 		const auto instruction = spirvBasicBlock->getInst(i);
 		for (const auto decorate : instruction->getDecorates())
 		{
-			FATAL_ERROR();
+			if (decorate.first == DecorationRelaxedPrecision)
+			{
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
 		}
 
 		llvm::Value* llvmValue = nullptr;
@@ -1270,11 +1278,11 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				case SPIRV::SPIRVEIS_OpenCL:
 					llvmValue = ConvertOCLFromExtensionInstruction(state, extensionInstruction, currentFunction);
 					break;
-					
+
 				case SPIRV::SPIRVEIS_OpenGL:
 					llvmValue = ConvertOGLFromExtensionInstruction(state, extensionInstruction, currentFunction);
 					break;
-					
+
 				case SPIRV::SPIRVEIS_Debug:
 					llvmValue = ConvertDebugFromExtensionInstruction(state, extensionInstruction, currentFunction);
 					break;
@@ -1284,7 +1292,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				}
 				break;
 			}
-			 
+
 		case OpFunctionCall:
 			{
 				const auto functionCall = reinterpret_cast<SPIRV::SPIRVFunctionCall*>(instruction);
@@ -1374,9 +1382,24 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpDecorationGroup: break;
 			// case OpGroupDecorate: break;
 			// case OpGroupMemberDecorate: break;
-			// case OpVectorExtractDynamic: break;
-			// case OpVectorInsertDynamic: break;
 			 
+		case OpVectorExtractDynamic:
+			{
+				auto vectorExtractDynamic = static_cast<SPIRV::SPIRVVectorExtractDynamic*>(instruction);
+				llvmValue = state.builder.CreateExtractElement(ConvertValue(state, vectorExtractDynamic->getVector(), currentFunction),
+				                                               ConvertValue(state, vectorExtractDynamic->getIndex(), currentFunction));
+				break;
+			}
+			
+		case OpVectorInsertDynamic:
+			{
+				auto vectorInsertDynamic = static_cast<SPIRV::SPIRVVectorInsertDynamic*>(instruction);
+				llvmValue = state.builder.CreateInsertElement(ConvertValue(state, vectorInsertDynamic->getVector(), currentFunction),
+				                                              ConvertValue(state, vectorInsertDynamic->getComponent(), currentFunction),
+				                                              ConvertValue(state, vectorInsertDynamic->getIndex(), currentFunction));
+				break;
+			}
+
 		case OpVectorShuffle:
 			{
 				const auto vectorShuffle = reinterpret_cast<SPIRV::SPIRVVectorShuffle*>(instruction);
@@ -1424,7 +1447,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 					}
 					llvmValue = state.builder.CreateLoad(llvmValue);
 					break;
-					
+
 				case OpTypeArray:
 					//   return mapValue(
 					//       BV, ConstantArray::get(dyn_cast<ArrayType>(transType(CC->getType())),
@@ -1437,7 +1460,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 					//                   ConstantStruct::get(
 					//                       dyn_cast<StructType>(transType(CC->getType())), CV));
 					FATAL_ERROR();
-					
+
 				default:
 					FATAL_ERROR();
 				}
@@ -1461,16 +1484,34 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				break;
 			}
 
-			// case OpCompositeInsert: break;
+		case OpCompositeInsert:
+			{
+				auto compositeInsert = static_cast<SPIRV::SPIRVCompositeInsert*>(instruction);
+				if (compositeInsert->getComposite()->getType()->isTypeVector())
+				{
+					assert(compositeInsert->getIndices().size() == 1);
+					llvmValue = state.builder.CreateInsertElement(ConvertValue(state, compositeInsert->getComposite(), currentFunction),
+					                                              ConvertValue(state, compositeInsert->getObject(), currentFunction),
+					                                              state.builder.getInt32(compositeInsert->getIndices()[0]));
+				}
+				else
+				{
+					llvmValue = state.builder.CreateInsertValue(ConvertValue(state, compositeInsert->getComposite(), currentFunction),
+					                                            ConvertValue(state, compositeInsert->getObject(), currentFunction),
+					                                            compositeInsert->getIndices());
+				}
+				break;
+			}
+			
 			// case OpCopyObject: break;
 			// case OpTranspose: break;
 			// case OpSampledImage: break;
-			 
+
 		case OpImageSampleImplicitLod:
 			{
 				const auto imageSampleImplicitLod = reinterpret_cast<SPIRV::SPIRVImageSampleImplicitLod*>(instruction);
 				const auto function = GetInbuiltFunction(state, imageSampleImplicitLod);
-				
+
 				llvm::Value* args[3];
 				args[0] = state.builder.CreateAlloca(ConvertType(state, imageSampleImplicitLod->getType()));
 				args[1] = ConvertValue(state, imageSampleImplicitLod->getOpValue(0), currentFunction);
@@ -1503,7 +1544,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 
 				state.builder.CreateCall(function, args);
 				llvmValue = state.builder.CreateLoad(args[0]);
-				
+
 				break;
 			}
 
@@ -1513,7 +1554,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpImageSampleProjExplicitLod: break;
 			// case OpImageSampleProjDrefImplicitLod: break;
 			// case OpImageSampleProjDrefExplicitLod: break;
-			 
+
 		case OpImageFetch:
 			{
 				const auto imageFetch = reinterpret_cast<SPIRV::SPIRVImageFetch*>(instruction);
@@ -1527,7 +1568,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				llvmValue = state.builder.CreateLoad(args[0]);
 				break;
 			}
-			
+
 			// case OpImageGather: break;
 			// case OpImageDrefGather: break;
 			// case OpImageRead: break;
@@ -1541,18 +1582,18 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpImageQueryLevels: break;
 			// case OpImageQuerySamples: break;
 			// case OpConvertFToU: break;
-			 
+
 		case OpConvertFToS:
 			{
 				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
-				llvmValue = state.builder.CreateFPToSI(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateFPToSI(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                       ConvertType(state, op->getType()));
 				break;
 			}
-			
+
 			// case OpConvertSToF: break;
 			// case OpConvertUToF: break;
-			 
+
 		case OpUConvert:
 			{
 				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
@@ -1568,7 +1609,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				}
 				break;
 			}
-			 
+
 		case OpSConvert:
 			{
 				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
@@ -1584,7 +1625,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				}
 				break;
 			}
-			
+
 			// case OpFConvert: break;
 			// case OpQuantizeToF16: break;
 			// case OpConvertPtrToU: break;
@@ -1594,110 +1635,117 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpPtrCastToGeneric: break;
 			// case OpGenericCastToPtr: break;
 			// case OpGenericCastToPtrExplicit: break;
-			// case OpBitcast: break;
-			 
+
+		case OpBitcast:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateBitCast(ConvertValue(state, op->getOperand(0), currentFunction),
+				                                        ConvertType(state, op->getType()));
+				break;
+			}
+
 		case OpSNegate:
 			{
 				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 				llvmValue = state.builder.CreateNSWNeg(ConvertValue(state, op->getOperand(0), currentFunction));
 				break;
 			}
-			 
+
 		case OpFNegate:
 			{
 				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 				llvmValue = state.builder.CreateFNeg(ConvertValue(state, op->getOperand(0), currentFunction));
 				break;
 			}
-			 
+
 		case OpIAdd:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateAdd(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateAdd(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                    ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpFAdd:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateFAdd(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateFAdd(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpISub:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateSub(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateSub(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                    ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpFSub:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateFSub(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateFSub(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpIMul:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateMul(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateMul(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                    ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpFMul:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateFMul(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateFMul(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpUDiv:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateUDiv(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateUDiv(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpSDiv:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateSDiv(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateSDiv(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpFDiv:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateFDiv(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateFDiv(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpUMod:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateURem(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateURem(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpSRem:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateSRem(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateSRem(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpSMod:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
@@ -1708,22 +1756,31 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				llvmValue = state.builder.CreateSub(left, llvmValue);
 				break;
 			}
-			 
+
 		case OpFRem:
 			{
 				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
-				llvmValue = state.builder.CreateFRem(ConvertValue(state, op->getOperand(0), currentFunction), 
+				llvmValue = state.builder.CreateFRem(ConvertValue(state, op->getOperand(0), currentFunction),
 				                                     ConvertValue(state, op->getOperand(1), currentFunction));
 				break;
 			}
-			 
+
 		case OpFMod:
 			{
 				FATAL_ERROR();
 				break;
 			}
 
-			// case OpVectorTimesScalar: break;
+		case OpVectorTimesScalar:
+			{
+				const auto vectorTimesScalar = reinterpret_cast<SPIRV::SPIRVVectorTimesScalar*>(instruction);
+				auto vector = ConvertValue(state, vectorTimesScalar->getVector(), currentFunction);
+				auto scalar = ConvertValue(state, vectorTimesScalar->getScalar(), currentFunction);
+				llvmValue = state.builder.CreateVectorSplat(vector->getType()->getVectorNumElements(), scalar);
+				llvmValue = state.builder.CreateFMul(vector, llvmValue);
+				break;
+			}
+			
 			// case OpMatrixTimesScalar: break;
 			// case OpVectorTimesMatrix: break;
 
@@ -1806,8 +1863,27 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpISubBorrow: break;
 			// case OpUMulExtended: break;
 			// case OpSMulExtended: break;
-			// case OpAny: break;
-			// case OpAll: break;
+			 
+		case OpAny:
+			{
+				const auto op = reinterpret_cast<SPIRV::SPIRVUnary*>(instruction);
+				auto type = llvm::VectorType::get(state.builder.getInt32Ty(), op->getOperand(0)->getType()->getVectorComponentCount());
+				llvmValue = state.builder.CreateZExt(ConvertValue(state, op->getOperand(0), currentFunction), type);
+				llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::experimental_vector_reduce_or, llvmValue);
+				llvmValue = state.builder.CreateICmpNE(llvmValue, state.builder.getInt32(0));
+				break;
+			}
+			
+		case OpAll:
+			{
+				const auto op = reinterpret_cast<SPIRV::SPIRVUnary*>(instruction);
+				auto type = llvm::VectorType::get(state.builder.getInt32Ty(), op->getOperand(0)->getType()->getVectorComponentCount());
+				llvmValue = state.builder.CreateZExt(ConvertValue(state, op->getOperand(0), currentFunction), type);
+				llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::experimental_vector_reduce_and, llvmValue);
+				llvmValue = state.builder.CreateICmpNE(llvmValue, state.builder.getInt32(0));
+				break;
+			}
+			 
 			// case OpIsNan: break;
 			// case OpIsInf: break;
 			// case OpIsFinite: break;
@@ -2135,11 +2211,66 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				break;
 			}
 			
-			// case OpBitFieldInsert: break;
-			// case OpBitFieldSExtract: break;
-			// case OpBitFieldUExtract: break;
-			// case OpBitReverse: break;
-			// case OpBitCount: break;
+		case OpBitFieldInsert:
+			{
+				const auto op = static_cast<SPIRV::SPIRVBitFieldInsert*>(instruction);
+				const auto base = ConvertValue(state, op->getBase(), currentFunction);
+				const auto insert = ConvertValue(state, op->getInsert(), currentFunction);
+				auto offset = ConvertValue(state, op->getOffset(), currentFunction);
+				auto count = ConvertValue(state, op->getCount(), currentFunction);
+				llvm::Value* mask;
+				
+				if (offset->getType()->getScalarSizeInBits() < base->getType()->getScalarSizeInBits())
+				{
+					offset = state.builder.CreateZExt(offset, base->getType()->getScalarType());
+				}
+				else if (offset->getType()->getScalarSizeInBits() > base->getType()->getScalarSizeInBits())
+				{
+					offset = state.builder.CreateTrunc(offset, base->getType()->getScalarType());
+				}
+
+				if (count->getType()->getScalarSizeInBits() < base->getType()->getScalarSizeInBits())
+				{
+					count = state.builder.CreateZExt(count, base->getType()->getScalarType());
+				}
+				else if (count->getType()->getScalarSizeInBits() > base->getType()->getScalarSizeInBits())
+				{
+					count = state.builder.CreateTrunc(count, base->getType()->getScalarType());
+				}
+
+				const auto negativeOne = state.builder.getInt(llvm::APInt(base->getType()->getScalarSizeInBits(), -1, true));
+				mask = state.builder.CreateShl(negativeOne, count, "", false, true);
+				mask = state.builder.CreateXor(mask, negativeOne);
+				mask = state.builder.CreateShl(mask, offset);
+
+				llvmValue = state.builder.CreateXor(mask, negativeOne);
+				const auto lhs = state.builder.CreateAnd(llvmValue, base);
+				const auto rhs = state.builder.CreateAnd(mask, insert);
+				llvmValue = state.builder.CreateOr(lhs, rhs);
+				break;
+			}
+			
+		case OpBitFieldSExtract:
+			FATAL_ERROR();
+			
+		case OpBitFieldUExtract:
+			FATAL_ERROR();
+			
+			 
+		case OpBitReverse:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::bitreverse, ConvertValue(state, op->getOperand(0), currentFunction));
+				break;
+			}
+			
+		case OpBitCount:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::ctpop, ConvertValue(state, op->getOperand(0), currentFunction));
+				break;
+			}
+			
 			// case OpDPdx: break;
 			// case OpDPdy: break;
 			// case OpFwidth: break;
@@ -2155,26 +2286,56 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpEndStreamPrimitive: break;
 			// case OpControlBarrier: break;
 			// case OpMemoryBarrier: break;
-			// case OpAtomicLoad: break;
-			// case OpAtomicStore: break;
-			// case OpAtomicExchange: break;
-			// case OpAtomicCompareExchange: break;
-			// case OpAtomicCompareExchangeWeak: break;
-			// case OpAtomicIIncrement: break;
-			// case OpAtomicIDecrement: break;
+			 
+		case OpAtomicLoad:
+			FATAL_ERROR();
+
+		case OpAtomicStore:
+			FATAL_ERROR();
+
+		case OpAtomicExchange:
+			FATAL_ERROR();
+
+		case OpAtomicCompareExchange:
+			FATAL_ERROR();
+
+		case OpAtomicCompareExchangeWeak:
+			FATAL_ERROR();
+
+		case OpAtomicIIncrement:
+			FATAL_ERROR();
+			
+		case OpAtomicIDecrement:
+			FATAL_ERROR();
+			
 			 
 		case OpAtomicIAdd:
 			FATAL_ERROR();
-			break;
 			
-			// case OpAtomicISub: break;
-			// case OpAtomicSMin: break;
-			// case OpAtomicUMin: break;
-			// case OpAtomicSMax: break;
-			// case OpAtomicUMax: break;
-			// case OpAtomicAnd: break;
-			// case OpAtomicOr: break;
-			// case OpAtomicXor: break;
+		case OpAtomicISub:
+			FATAL_ERROR();
+			
+		case OpAtomicSMin:
+			FATAL_ERROR();
+
+		case OpAtomicUMin:
+			FATAL_ERROR();
+			
+		case OpAtomicSMax:
+			FATAL_ERROR();
+			
+		case OpAtomicUMax:
+			FATAL_ERROR();
+			
+		case OpAtomicAnd:
+			FATAL_ERROR();
+			
+		case OpAtomicOr:
+			FATAL_ERROR();
+			
+		case OpAtomicXor:
+			FATAL_ERROR();
+			
 
 		case OpPhi:
 			{
@@ -2202,12 +2363,12 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				const auto branch = static_cast<SPIRV::SPIRVBranch*>(instruction);
 				const auto block = ConvertBasicBlock(state, currentFunction, branch->getTargetLabel());
 				state.builder.SetInsertPoint(llvmBasicBlock);
-				llvmValue = state.builder.CreateBr(block);
+				const auto llvmBranch = state.builder.CreateBr(block);
+				llvmValue = llvmBranch;
 				if (branch->getPrevious() && branch->getPrevious()->getOpCode() == OpLoopMerge)
 				{
-					//auto LM = static_cast<SPIRVLoopMerge *>(Prev);
-					//setLLVMLoopMetadata(LM, BI);
-					FATAL_ERROR();
+					const auto loopMerge = static_cast<SPIRV::SPIRVLoopMerge*>(branch->getPrevious());
+					SetLLVMLoopMetadata(state, loopMerge, llvmBranch);
 				}
 				break;
 			}
@@ -2645,6 +2806,7 @@ std::string STL_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 
 		case StorageClassUniformConstant:
 		case StorageClassUniform:
+		case StorageClassStorageBuffer:
 			if (variable->hasDecorate(DecorationDescriptorSet) && variable->hasDecorate(DecorationBinding))
 			{
 				const auto descriptorSet = *variable->getDecorate(DecorationDescriptorSet).begin();
@@ -2669,7 +2831,6 @@ std::string STL_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 		case StorageClassPushConstant:
 		case StorageClassAtomicCounter:
 		case StorageClassImage:
-		case StorageClassStorageBuffer:
 
 		default:
 			FATAL_ERROR();
@@ -2708,8 +2869,10 @@ std::string STL_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 		
 	case StorageClassAtomicCounter:
 	case StorageClassImage:
-	case StorageClassStorageBuffer:
 		FATAL_ERROR();
+		
+	case StorageClassStorageBuffer:
+		return "_buffer_" + name;
 
 	default:
 		FATAL_ERROR();

@@ -41,6 +41,11 @@ struct FormatInformation
 	uint32_t GreenBits;
 	uint32_t BlueBits;
 	uint32_t AlphaBits;
+
+	uint32_t TotalBits() const
+	{
+		return RedBits + GreenBits + BlueBits + AlphaBits;
+	}
 };
 
 const FormatInformation& GetFormatInformation(VkFormat format);

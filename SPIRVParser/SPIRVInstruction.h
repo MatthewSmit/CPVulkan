@@ -1988,6 +1988,81 @@ namespace SPIRV
 		SPIRVId Size;
 	};
 
+	class SPIRVBitFieldInsert : public SPIRVInstruction {
+	public:
+		const static Op OC = OpBitFieldInsert;
+		// Incomplete constructor
+		SPIRVBitFieldInsert()
+			: SPIRVInstruction(OC),
+			BaseId(SPIRVID_INVALID),
+			InsertId(SPIRVID_INVALID),
+			OffsetId(SPIRVID_INVALID),
+			CountId(SPIRVID_INVALID)
+		{
+		}
+
+		SPIRVValue* getBase() { return getValue(BaseId); }
+		SPIRVValue* getInsert() const { return getValue(InsertId); }
+		SPIRVValue* getOffset() const { return getValue(OffsetId); }
+		SPIRVValue* getCount() const { return getValue(CountId); }
+
+	protected:
+		_SPIRV_DEF_ENCDEC6(Type, Id, BaseId, InsertId, OffsetId, CountId);
+
+		SPIRVId BaseId;
+		SPIRVId InsertId;
+		SPIRVId OffsetId;
+		SPIRVId CountId;
+	};
+
+	class SPIRVBitFieldSExtract : public SPIRVInstruction {
+	public:
+		const static Op OC = OpBitFieldSExtract;
+		// Incomplete constructor
+		SPIRVBitFieldSExtract()
+			: SPIRVInstruction(OC),
+			BaseId(SPIRVID_INVALID),
+			OffsetId(SPIRVID_INVALID),
+			CountId(SPIRVID_INVALID)
+		{
+		}
+
+		SPIRVValue* getBase() { return getValue(BaseId); }
+		SPIRVValue* getOffset() const { return getValue(OffsetId); }
+		SPIRVValue* getCount() const { return getValue(CountId); }
+
+	protected:
+		_SPIRV_DEF_ENCDEC5(Type, Id, BaseId, OffsetId, CountId);
+
+		SPIRVId BaseId;
+		SPIRVId OffsetId;
+		SPIRVId CountId;
+	};
+
+	class SPIRVBitFieldUExtract : public SPIRVInstruction {
+	public:
+		const static Op OC = OpBitFieldUExtract;
+		// Incomplete constructor
+		SPIRVBitFieldUExtract()
+			: SPIRVInstruction(OC),
+			BaseId(SPIRVID_INVALID),
+			OffsetId(SPIRVID_INVALID),
+			CountId(SPIRVID_INVALID)
+		{
+		}
+
+		SPIRVValue* getBase() { return getValue(BaseId); }
+		SPIRVValue* getOffset() const { return getValue(OffsetId); }
+		SPIRVValue* getCount() const { return getValue(CountId); }
+
+	protected:
+		_SPIRV_DEF_ENCDEC5(Type, Id, BaseId, OffsetId, CountId);
+
+		SPIRVId BaseId;
+		SPIRVId OffsetId;
+		SPIRVId CountId;
+	};
+
 	class SPIRVVectorExtractDynamic : public SPIRVInstruction {
 	public:
 		const static Op OC = OpVectorExtractDynamic;

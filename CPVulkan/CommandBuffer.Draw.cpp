@@ -297,6 +297,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 
 		case StorageClassUniform:
 		case StorageClassUniformConstant:
+		case StorageClassStorageBuffer:
 			{
 				auto bindingDecorate = variable->getDecorate(DecorationBinding);
 				if (bindingDecorate.size() != 1)

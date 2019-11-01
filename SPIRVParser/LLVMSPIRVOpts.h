@@ -57,14 +57,14 @@ namespace SPIRV
 {
 	enum class VersionNumber : uint32_t
 	{
-		// See section 2.3 of SPIR-V spec: Physical Layout of a SPIR_V Module and
-		// Instruction
+		// See section 2.3 of SPIR-V spec: Physical Layout of a SPIR_V Module and Instruction
 		SPIRV_1_0 = 0x00010000,
 		SPIRV_1_1 = 0x00010100,
-		// TODO: populate this enum with the latest versions (up to 1.4) once
-		// translator get support of correponding features
+		SPIRV_1_2 = 0x00010200,
+		SPIRV_1_3 = 0x00010300,
+		SPIRV_1_4 = 0x00010400,
 		MinimumVersion = SPIRV_1_0,
-		MaximumVersion = SPIRV_1_1
+		MaximumVersion = SPIRV_1_4
 	};
 
 	/// \brief Helper class to manage SPIR-V translation
