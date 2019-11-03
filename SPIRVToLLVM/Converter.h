@@ -29,6 +29,9 @@ public:
 	~SpirvJit();
 
 	SpirvCompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel);
+	SpirvCompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module);
+
+	void AddFunction(const std::string& name, FunctionPointer pointer);
 	
 	void* getPointer(const SpirvCompiledModule* module, const std::string& name);
 	FunctionPointer getFunctionPointer(const SpirvCompiledModule* module, const std::string& name);
@@ -37,8 +40,6 @@ private:
 	class Impl;
 	Impl* impl;
 };
-
-void STL_DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer);
 
 std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel);
 

@@ -3,6 +3,8 @@
 #include "SPIRVInstruction.h"
 #include "SPIRVModule.h"
 
+#include <Base.h>
+
 #include <llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h>
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LLVMContext.h>
@@ -12,16 +14,6 @@
 #include <gsl/gsl>
 
 #include <cstdlib>
-
-#if !defined(_MSC_VER)
-#define __debugbreak() __asm__("int3")
-
-inline void strcpy_s(char* destination, const char* source)
-{
-	strcpy(destination, source);
-}
-#endif
-#define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
 constexpr auto ALIGNMENT = 8;
 

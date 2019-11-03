@@ -73,6 +73,12 @@ inline void strcpy_s(char* destination, const char* source)
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
+#if defined(_MSC_VER)
+#define CP_DLL_EXPORT __declspec(dllexport)
+#else
+#define CP_DLL_EXPORT
+#endif
+
 #pragma warning(push)
 #pragma warning(disable: 26490 26474 26408 26409)
 

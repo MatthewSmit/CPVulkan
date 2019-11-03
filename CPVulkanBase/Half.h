@@ -138,8 +138,6 @@ namespace std // NOLINT(cert-dcl58-cpp)
 		// static constexpr bool has_quiet_NaN            = true;
 		// static constexpr bool has_signaling_NaN        = true;
 		// static constexpr bool is_bounded               = true;
-		static constexpr bool is_iec559 = true;
-		// static constexpr bool is_signed                = true;
 		// static constexpr bool is_specialized           = true;
 		// static constexpr float_round_style round_style = round_to_nearest;
 		// static constexpr int radix                     = FLT_RADIX;
@@ -151,10 +149,10 @@ namespace std // NOLINT(cert-dcl58-cpp)
 		// static constexpr bool has_signaling_NaN        = false;
 		// static constexpr bool is_bounded               = false;
 		// static constexpr bool is_exact                 = false;
-		// static constexpr bool is_iec559                = false;
-		// static constexpr bool is_integer               = false;
+		static constexpr bool is_iec559 = true;
+		static constexpr bool is_integer = false;
 		// static constexpr bool is_modulo                = false;
-		// static constexpr bool is_signed                = false;
+		static constexpr bool is_signed = true;
 		// static constexpr bool is_specialized           = false;
 		// static constexpr bool tinyness_before          = false;
 		// static constexpr bool traps                    = false;

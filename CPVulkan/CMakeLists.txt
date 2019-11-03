@@ -4,8 +4,6 @@ find_package(glm CONFIG REQUIRED)
 find_package(Threads REQUIRED)
 
 set(FILES
-		"Base.h"
-
 		"Buffer.cpp"
 		"Buffer.h"
 
@@ -21,8 +19,6 @@ set(FILES
 
 		"CommandPool.cpp"
 		"CommandPool.h"
-
-		"Config.h"
 
 		"CPVulkan.cpp"
 
@@ -47,18 +43,11 @@ set(FILES
 		"Fence.cpp"
 		"Fence.h"
 
-		"FloatFormat.h"
-
-		"Formats.cpp"
-		"Formats.h"
-
 		"Framebuffer.cpp"
 		"Framebuffer.h"
 
 		"GlslFunctions.cpp"
 		"GlslFunctions.h"
-
-		"Half.h"
 
 		"Image.cpp"
 		"Image.h"
@@ -115,16 +104,12 @@ set(FILES
 		"VulkanFunctions.h"
 		)
 
-set(DEFINES VK_NO_PROTOTYPES)
-set(INCLUDES "${_VCPKG_INSTALLED_DIR}/${VCPKG_TARGET_TRIPLET}/include")
-set(LINKS glm SPIRVParser SPIRVToLLVM Threads::Threads)
+set(LINKS glm SPIRVParser SPIRVToLLVM Threads::Threads CPVulkanBase)
 
 if(WIN32)
 	list(APPEND FILES
 			"PlatformWin32.cpp"
 			"SwapchainWin32.cpp")
-	list(APPEND DEFINES VK_USE_PLATFORM_WIN32_KHR WIN32_LEAN_AND_MEAN)
-	list(APPEND INCLUDES "C:\\VulkanSDK\\1.1.121.0\\Include\\")
 else()
 	list(APPEND FILES
 			"PlatformLinux.cpp"
@@ -132,12 +117,8 @@ else()
 
 			"xcb/XcbHelper.cpp"
 			"xcb/XcbHelper.h")
-	list(APPEND DEFINES VK_USE_PLATFORM_XCB_KHR VK_USE_PLATFORM_XLIB_KHR VK_USE_PLATFORM_XLIB_XRANDR_EXT)
-	list(APPEND INCLUDES "/home/cosc/student/mjs351/vulkan/1.1.121.1/x86_64/include/")
 	list(APPEND LINKS xcb X11)
 endif()
 
 add_library(CPVulkan SHARED	${FILES})
-target_compile_definitions(CPVulkan PRIVATE ${DEFINES})
-target_include_directories(CPVulkan PRIVATE ${INCLUDES})
 target_link_libraries(CPVulkan PRIVATE ${LINKS})

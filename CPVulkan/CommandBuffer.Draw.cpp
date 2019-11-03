@@ -67,52 +67,72 @@ struct VariableUniformData
 	uint32_t set;
 };
 
-static void ClearImage(Image* image, const FormatInformation& format, uint32_t layer, uint32_t mipLevel, uint64_t values[4])
+static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, uint32_t mipLevel, VkFormat format, VkClearColorValue colour)
 {
 	auto width = image->getWidth();
 	auto height = image->getHeight();
 	auto depth = image->getDepth();
-	const auto layers = image->getArrayLayers();
-	GetFormatMipmapOffset(format, width, height, depth, layers, mipLevel);
+	GetFormatMipmapOffset(format, width, height, depth, image->getArrayLayers(), mipLevel);
 
+	// TODO: Change to SetPixels when implemented
 	for (auto z = 0u; z < depth; z++)
 	{
 		for (auto y = 0u; y < height; y++)
 		{
 			for (auto x = 0u; x < width; x++)
 			{
-				SetPixel(format, image, x, y, z, mipLevel, layer, values);
+				SetPixel(deviceState, format, image, x, y, z, mipLevel, layer, colour);
 			}
 		}
 	}
 }
 
-static void GetImageColour(uint64_t output[4], const FormatInformation& format, const VkClearColorValue& input)
+static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, uint32_t mipLevel, VkFormat format, VkClearDepthStencilValue colour)
 {
-	switch (format.Base)
-	{
-	case BaseType::UNorm:
-	case BaseType::SNorm:
-	case BaseType::UFloat:
-	case BaseType::SFloat:
-	case BaseType::SRGB:
-		ConvertPixelsToTemp(format, input.float32, output);
-		break;
+	auto width = image->getWidth();
+	auto height = image->getHeight();
+	auto depth = image->getDepth();
+	GetFormatMipmapOffset(format, width, height, depth, image->getArrayLayers(), mipLevel);
 
-	case BaseType::UInt:
-	case BaseType::UScaled:
-		ConvertPixelsToTemp(format, input.uint32, output);
-		break;
-		
-	case BaseType::SInt:
-	case BaseType::SScaled:
-		ConvertPixelsToTemp(format, input.int32, output);
-		break;
-		
-	default:
-		FATAL_ERROR();
+	// TODO: Change to SetPixels when implemented
+	for (auto z = 0u; z < depth; z++)
+	{
+		for (auto y = 0u; y < height; y++)
+		{
+			for (auto x = 0u; x < width; x++)
+			{
+				SetPixel(deviceState, format, image, x, y, z, mipLevel, layer, colour);
+			}
+		}
 	}
 }
+
+// static void GetImageColour(uint64_t output[4], const FormatInformation& format, const VkClearColorValue& input)
+// {
+// 	switch (format.Base)
+// 	{
+// 	case BaseType::UNorm:
+// 	case BaseType::SNorm:
+// 	case BaseType::UFloat:
+// 	case BaseType::SFloat:
+// 	case BaseType::SRGB:
+// 		ConvertPixelsToTemp(format, input.float32, output);
+// 		break;
+//
+// 	case BaseType::UInt:
+// 	case BaseType::UScaled:
+// 		ConvertPixelsToTemp(format, input.uint32, output);
+// 		break;
+// 		
+// 	case BaseType::SInt:
+// 	case BaseType::SScaled:
+// 		ConvertPixelsToTemp(format, input.int32, output);
+// 		break;
+// 		
+// 	default:
+// 		FATAL_ERROR();
+// 	}
+// }
 
 static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, const VertexInputState& vertexInputState)
 {
@@ -521,13 +541,10 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, ui
 	return false;
 }
 
-static float GetDepthPixel(const FormatInformation& format, Image* image, uint32_t x, uint32_t y)
+static float GetDepthPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j)
 {
-	// TODO: Optimise so doesn't get all components
 	// TODO: Optimise so depth checking uses native type
-	float values[4];
-	GetPixel(format, image, x, y, 0, values);
-	return values[0];
+	return GetDepthPixel(deviceState, format, image, i, j, 0, 0, 0);
 }
 
 static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& output)
@@ -571,7 +588,6 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		const auto& attachment = deviceState->renderPass->getAttachments()[attachmentIndex];
 		depthImage = std::make_pair(attachment, deviceState->framebuffer->getAttachments()[attachmentIndex]->getImage());
 	}
-	const auto& depthFormat = GetFormatInformation(depthImage.first.format);
 	
 	const auto image = images[0].second;
 	const auto halfPixel = glm::vec2(1.0f / image->getWidth(), 1.0f / image->getHeight()) * 0.5f;
@@ -608,7 +624,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 				{
 					if (depthImage.second)
 					{
-						const auto currentDepth = GetDepthPixel(depthFormat, depthImage.second, x, y);
+						const auto currentDepth = GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y);
 						if (currentDepth <= depth)
 						{
 							continue;
@@ -618,7 +634,6 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 
 					shaderStage->getEntryPoint()();
 					
-					uint64_t values[4];
 					for (auto j = 0; j < MAX_FRAGMENT_ATTACHMENTS; j++)
 					{
 						if (images[j].second)
@@ -633,21 +648,19 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 								}
 							}
 							assert(dataPtr);
-							
-							const auto& format = GetFormatInformation(images[j].first.format);
-							GetImageColour(values, format, *reinterpret_cast<VkClearColorValue*>(dataPtr));
-							SetPixel(format, images[j].second, x, y, 0, 0, 0, values);
+
+							SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(dataPtr));
 						}
 					}
 					
 					if (depthImage.second)
 					{
-						const VkClearColorValue input
+						const VkClearDepthStencilValue input
 						{
-							{depth, 0, 0, 0}
+							depth,
+							0
 						};
-						GetImageColour(values, depthFormat, input);
-						SetPixel(depthFormat, depthImage.second, x, y, 0, 0, 0, values);
+						SetPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0, input);
 					}
 				}
 			}
@@ -774,7 +787,7 @@ public:
 	{
 	}
 
-	void Process(DeviceState*) override
+	void Process(DeviceState* deviceState) override
 	{
 		for (const auto& range : ranges)
 		{
@@ -785,7 +798,7 @@ public:
 			}
 			if (range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				ClearImage(image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, colour);
+				ClearImage(deviceState, image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, colour);
 			}
 			else
 			{
@@ -810,7 +823,7 @@ public:
 	{
 	}
 
-	void Process(DeviceState*) override
+	void Process(DeviceState* deviceState) override
 	{
 		for (const auto& range : ranges)
 		{
@@ -825,7 +838,7 @@ public:
 				FATAL_ERROR();
 			}
 
-			ClearImage(image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, range.aspectMask, colour);
+			ClearImage(deviceState, image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, range.aspectMask, colour);
 		}
 	}
 
@@ -867,7 +880,8 @@ public:
 			
 			if (vkAttachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				GetImageColour(values, formatInformation, vkAttachment.clearValue.color);
+				// GetImageColour(values, formatInformation, vkAttachment.clearValue.color);
+				FATAL_ERROR();
 			}
 			else
 			{
@@ -890,7 +904,8 @@ public:
 				{
 					for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
 					{
-						SetPixel(formatInformation, image, x, y, 0, 0, 0, values);
+						// SetPixel(formatInformation, image, x, y, 0, 0, 0, values);
+						FATAL_ERROR();
 					}
 				}
 			}
@@ -932,74 +947,24 @@ void CommandBuffer::ClearAttachments(uint32_t attachmentCount, const VkClearAtta
 	commands.push_back(std::make_unique<ClearAttachmentsCommand>(ArrayToVector(attachmentCount, pAttachments), ArrayToVector(rectCount, pRects)));
 }
 
-void ClearImage(Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkClearColorValue colour)
+void ClearImage(DeviceState* deviceState, Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkClearColorValue colour)
 {
-	const auto& information = GetFormatInformation(format);
-	uint64_t values[4];
-	GetImageColour(values, information, colour);
-
 	for (auto layer = 0u; layer < layerCount; layer++)
 	{
 		for (auto level = 0u; level < levelCount; level++)
 		{
-			ClearImage(image, information, baseArrayLayer + layer, baseMipLevel + level, values);
+			ClearImage(deviceState, image, baseArrayLayer + layer, baseMipLevel + level, format, colour);
 		}
 	}
 }
 
-void ClearImage(Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspects, VkClearDepthStencilValue colour)
+void ClearImage(DeviceState* deviceState, Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspects, VkClearDepthStencilValue colour)
 {
-	const auto& information = GetFormatInformation(format);
-	uint64_t values[4];
-	switch (format)
-	{
-	case VK_FORMAT_D16_UNORM:
-		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
-		values[0] = static_cast<uint64_t>(colour.depth * std::numeric_limits<uint16_t>::max());
-		break;
-		
-	case VK_FORMAT_X8_D24_UNORM_PACK32:
-		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
-		values[0] = static_cast<uint64_t>(colour.depth * 0x00FFFFFF);
-		break;
-		
-	case VK_FORMAT_D32_SFLOAT:
-		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT);
-		values[0] = *reinterpret_cast<uint32_t*>(&colour.depth);
-		break;
-		
-	case VK_FORMAT_S8_UINT:
-		assert(aspects == VK_IMAGE_ASPECT_STENCIL_BIT);
-		values[0] = colour.stencil;
-		break;
-		
-	case VK_FORMAT_D16_UNORM_S8_UINT:
-		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
-		values[0] = static_cast<uint64_t>(colour.depth * std::numeric_limits<uint16_t>::max());
-		values[1] = colour.stencil;
-		break;
-		
-	case VK_FORMAT_D24_UNORM_S8_UINT:
-		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
-		values[0] = static_cast<uint64_t>(colour.depth * 0x00FFFFFF);
-		values[1] = colour.stencil;
-		break;
-		
-	case VK_FORMAT_D32_SFLOAT_S8_UINT:
-		assert(aspects == VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT);
-		values[0] = *reinterpret_cast<uint32_t*>(&colour.depth);
-		values[1] = colour.stencil;
-		break;
-		
-	default:
-		FATAL_ERROR();
-	}
-
 	for (auto layer = 0u; layer < layerCount; layer++)
 	{
 		for (auto level = 0u; level < levelCount; level++)
 		{
-			ClearImage(image, information, baseArrayLayer + layer, baseMipLevel + level, values);
+			ClearImage(deviceState, image, baseArrayLayer + layer, baseMipLevel + level, format, colour);
 		}
 	}
 }

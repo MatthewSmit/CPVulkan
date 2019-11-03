@@ -7,12 +7,17 @@ add_library(SPIRVToLLVM SHARED
 	"Converter.cpp"
 	"Converter.h"
 
+	"ImageCompiler.cpp"
+	"ImageCompiler.h"
+
+	"LlvmHelper.cpp"
+
 	"SpirvFunctions.cpp"
 	"SpirvFunctions.h"
 
 	"SpirvJit.cpp"
 	)
 
-target_link_libraries(SPIRVToLLVM PRIVATE SPIRVParser glm LLVMBitWriter LLVMCore LLVMOrcJIT LLVMX86AsmParser LLVMX86CodeGen)
+target_link_libraries(SPIRVToLLVM PRIVATE CPVulkanBase SPIRVParser glm LLVMBitWriter LLVMCore LLVMOrcJIT LLVMX86AsmParser LLVMX86CodeGen)
 target_include_directories(SPIRVToLLVM PRIVATE ${LLVM_INCLUDE_DIR})
 set_target_properties(SPIRVToLLVM PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})

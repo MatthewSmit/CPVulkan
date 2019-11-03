@@ -435,6 +435,21 @@ void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_
 	size = width * format.TotalSize;
 }
 
+uint64_t GetFormatMipmapOffset(VkFormat format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel)
+{
+	const auto& information = GetFormatInformation(format);
+	uint64_t size = 0;
+	for (auto i = 0u; i < mipLevel; i++)
+	{
+		size += GetRawSize(information, width, height, depth, arrayLayers);
+
+		width = std::max(width / 2, 1u);
+		height = std::max(height / 2, 1u);
+		depth = std::max(depth / 2, 1u);
+	}
+	return size;
+}
+
 uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel)
 {
 	uint64_t size = 0;

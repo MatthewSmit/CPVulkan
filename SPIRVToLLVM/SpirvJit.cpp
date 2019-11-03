@@ -20,8 +20,6 @@ inline void strcpy_s(char* destination, const char* source)
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
-static std::unordered_map<std::string, FunctionPointer> functions{}; // TODO: Attach to SpirvJit
-
 class SpirvCompiledModule
 {
 public:
@@ -32,52 +30,6 @@ public:
 	llvm::orc::ThreadSafeContext context;
 	llvm::orc::JITDylib& dylib;
 };
-
-static llvm::orc::SymbolNameSet GetSpirvFunctions(llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names)
-{
-	llvm::orc::SymbolNameSet addedSymbols;
-	llvm::orc::SymbolMap newSymbols;
-	for (const auto& name : names)
-	{
-		if ((*name).empty())
-		{
-			continue;
-		}
-		
-		std::string tmp((*name).data(), (*name).size());
-		auto functionPtr = functions.find(tmp);
-		FunctionPointer function;
-		if (functionPtr != functions.end())
-		{
-			function = functionPtr->second;
-		}
-		else
-		{
-			functionPtr = getSpirvFunctions().find(tmp);
-			if (functionPtr != getSpirvFunctions().end())
-			{
-				function = functionPtr->second;
-			}
-			else
-			{
-				continue;
-			}
-		}
-		
-		addedSymbols.insert(name);
-		newSymbols[name] = llvm::JITEvaluatedSymbol(static_cast<llvm::JITTargetAddress>(reinterpret_cast<uintptr_t>(function)), llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
-	}
-
-	// Add any new symbols to parent. Since the generator is only called for symbols
-	// that are not already defined, this will never trigger a duplicate
-	// definition error, so we can wrap this call in a 'cantFail'.
-	if (!newSymbols.empty())
-	{
-		cantFail(parent.define(absoluteSymbols(std::move(newSymbols))));
-	}
-		
-	return addedSymbols;
-}
 
 class SpirvJit::Impl
 {
@@ -91,33 +43,56 @@ public:
 		// TODO: Only setOverrideObjectFlagsWithResponsibilityFlags on windows
 		objectLayer.setOverrideObjectFlagsWithResponsibilityFlags(true);
 		objectLayer.setAutoClaimResponsibilityForObjectSymbols(true);
+
+		std::string errorMessage;
+		library = llvm::sys::DynamicLibrary::getPermanentLibrary(nullptr, &errorMessage);
+		if (!library.isValid())
+		{
+			FATAL_ERROR();
+		}
 	}
 
 	SpirvCompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
 	{
-		auto context = llvm::orc::ThreadSafeContext(std::make_unique<llvm::LLVMContext>());
-		auto module = llvm::orc::ThreadSafeModule(ConvertSpirv(context.getContext(), spirvModule, executionModel), context);
-		const auto moduleValue = module.getModule();
-		auto& dylib = executionSession.createJITDylib("shader");
-		dylib.setGenerator(GetSpirvFunctions);
-		
-		if (module.getModule()->getDataLayout().isDefault())
-		{
-			module.getModule()->setDataLayout(dataLayout);
-		}
-
-		cantFail(compileLayer.add(dylib, std::move(module), executionSession.allocateVModule()));
-		return new SpirvCompiledModule(moduleValue, std::move(context), dylib);
+		auto context = std::make_unique<llvm::LLVMContext>();
+		auto module = ConvertSpirv(context.get(), spirvModule, executionModel);
+		return CompileModule(std::move(context), std::move(module));
 	}
 
-	llvm::Expected<llvm::JITEvaluatedSymbol> lookup(const SpirvCompiledModule* module, llvm::StringRef name)
+	SpirvCompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
+	{
+		const auto safeContext = llvm::orc::ThreadSafeContext(std::move(context));
+		auto safeModule = llvm::orc::ThreadSafeModule(std::move(module), safeContext);
+		const auto moduleValue = safeModule.getModule();
+		auto& dylib = executionSession.createJITDylib("shader");
+		dylib.setGenerator([this](llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names)
+		{
+			return getFunctions(parent, names);
+		});
+		auto xxx = llvm::orc::DynamicLibrarySearchGenerator::Load(nullptr, dataLayout);
+		
+		if (safeModule.getModule()->getDataLayout().isDefault())
+		{
+			safeModule.getModule()->setDataLayout(dataLayout);
+		}
+
+		cantFail(compileLayer.add(dylib, std::move(safeModule), executionSession.allocateVModule()));
+		return new SpirvCompiledModule(moduleValue, safeContext, dylib);
+	}
+
+	void AddFunction(const std::string& name, FunctionPointer pointer)
+	{
+		functions.insert(std::make_pair(name, pointer));
+	}
+
+	llvm::Expected<llvm::JITEvaluatedSymbol> Lookup(const SpirvCompiledModule* module, llvm::StringRef name)
 	{
 		return executionSession.lookup(&module->dylib, mangle(name.str()));
 	}
 
 	void* getPointer(const SpirvCompiledModule* module, const std::string& name)
 	{
-		return reinterpret_cast<void*>(cantFail(lookup(module, name)).getAddress());
+		return reinterpret_cast<void*>(cantFail(Lookup(module, name)).getAddress());
 	}
 
 private:
@@ -127,6 +102,72 @@ private:
 	
 	llvm::DataLayout dataLayout;
 	llvm::orc::MangleAndInterner mangle;
+
+	std::unordered_map<std::string, FunctionPointer> functions{};
+	llvm::sys::DynamicLibrary library;
+
+	llvm::orc::SymbolNameSet getFunctions(llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names)
+	{
+		const auto hasGlobalPrefix = (dataLayout.getGlobalPrefix() != '\0');
+		
+		llvm::orc::SymbolNameSet addedSymbols;
+		llvm::orc::SymbolMap newSymbols;
+		for (const auto& name : names)
+		{
+			if ((*name).empty())
+			{
+				continue;
+			}
+
+			std::string tmp((*name).data(), (*name).size());
+			auto functionPtr = functions.find(tmp);
+			FunctionPointer function;
+			if (functionPtr != functions.end())
+			{
+				function = functionPtr->second;
+			}
+			else
+			{
+				functionPtr = getSpirvFunctions().find(tmp);
+				if (functionPtr != getSpirvFunctions().end())
+				{
+					function = functionPtr->second;
+				}
+				else
+				{
+					if (hasGlobalPrefix)
+					{
+						if ((*name).front() != dataLayout.getGlobalPrefix())
+						{
+							continue;
+						}
+						tmp = std::string((*name).data() + (hasGlobalPrefix ? 1 : 0), (*name).size());
+					}
+					if (auto address = library.getAddressOfSymbol(tmp.c_str()))
+					{
+						function = reinterpret_cast<FunctionPointer>(address);
+					}
+					else
+					{
+						continue;
+					}
+				}
+			}
+
+			addedSymbols.insert(name);
+			newSymbols[name] = llvm::JITEvaluatedSymbol(static_cast<llvm::JITTargetAddress>(reinterpret_cast<uintptr_t>(function)), llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable);
+		}
+
+		// Add any new symbols to parent. Since the generator is only called for symbols
+		// that are not already defined, this will never trigger a duplicate
+		// definition error, so we can wrap this call in a 'cantFail'.
+		if (!newSymbols.empty())
+		{
+			cantFail(parent.define(absoluteSymbols(std::move(newSymbols))));
+		}
+
+		return addedSymbols;
+	}
 };
 
 SpirvJit::SpirvJit()
@@ -161,6 +202,16 @@ SpirvCompiledModule* SpirvJit::CompileModule(const SPIRV::SPIRVModule* spirvModu
 	return impl->CompileModule(spirvModule, executionModel);
 }
 
+SpirvCompiledModule* SpirvJit::CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
+{
+	return impl->CompileModule(std::move(context), std::move(module));
+}
+
+void SpirvJit::AddFunction(const std::string& name, FunctionPointer pointer)
+{
+	impl->AddFunction(name, pointer);
+}
+
 void* SpirvJit::getPointer(const SpirvCompiledModule* module, const std::string& name)
 {
 	return impl->getPointer(module, name);
@@ -179,8 +230,3 @@ SpirvCompiledModule::SpirvCompiledModule(llvm::Module* module, llvm::orc::Thread
 }
 
 SpirvCompiledModule::~SpirvCompiledModule() = default;
-
-void STL_DLL_EXPORT AddSpirvFunction(const std::string& name, FunctionPointer pointer)
-{
-	functions.insert(std::make_pair(name, pointer));
-}
