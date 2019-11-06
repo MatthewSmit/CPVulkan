@@ -764,6 +764,15 @@ ExtensionGroup& GetInitialExtensions()
 				}
 			},
 #endif
+#if defined(VK_KHR_shader_subgroup_extended_types)
+			{
+				VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_EXTENSION_NAME,
+				VK_KHR_SHADER_SUBGROUP_EXTENDED_TYPES_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
 #if defined(VK_KHR_8bit_storage)
 			{
 				VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
@@ -777,6 +786,15 @@ ExtensionGroup& GetInitialExtensions()
 			{
 				VK_KHR_SHADER_ATOMIC_INT64_EXTENSION_NAME,
 				VK_KHR_SHADER_ATOMIC_INT64_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_shader_clock)
+			{
+				VK_KHR_SHADER_CLOCK_EXTENSION_NAME,
+				VK_KHR_SHADER_CLOCK_SPEC_VERSION,
 				true,
 				{
 				}
@@ -818,10 +836,31 @@ ExtensionGroup& GetInitialExtensions()
 				}
 			},
 #endif
+#if defined(VK_KHR_timeline_semaphore)
+			{
+				VK_KHR_TIMELINE_SEMAPHORE_EXTENSION_NAME,
+				VK_KHR_TIMELINE_SEMAPHORE_SPEC_VERSION,
+				true,
+				{
+					{"vkGetSemaphoreCounterValueKHR", GET_TRAMPOLINE(Device, GetSemaphoreCounterValue), false},
+					{"vkWaitSemaphoresKHR", GET_TRAMPOLINE(Device, WaitSemaphores), false},
+					{"vkSignalSemaphoreKHR", GET_TRAMPOLINE(Device, SignalSemaphore), false},
+				}
+			},
+#endif
 #if defined(VK_KHR_vulkan_memory_model)
 			{
 				VK_KHR_VULKAN_MEMORY_MODEL_EXTENSION_NAME,
 				VK_KHR_VULKAN_MEMORY_MODEL_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_KHR_spirv_1_4)
+			{
+				VK_KHR_SPIRV_1_4_EXTENSION_NAME,
+				VK_KHR_SPIRV_1_4_SPEC_VERSION,
 				true,
 				{
 				}
@@ -1950,6 +1989,15 @@ ExtensionGroup& GetInitialExtensions()
 			{
 				VK_EXT_TEXEL_BUFFER_ALIGNMENT_EXTENSION_NAME,
 				VK_EXT_TEXEL_BUFFER_ALIGNMENT_SPEC_VERSION,
+				true,
+				{
+				}
+			},
+#endif
+#if defined(VK_GOOGLE_user_type)
+			{
+				VK_GOOGLE_USER_TYPE_EXTENSION_NAME,
+				VK_GOOGLE_USER_TYPE_SPEC_VERSION,
 				true,
 				{
 				}

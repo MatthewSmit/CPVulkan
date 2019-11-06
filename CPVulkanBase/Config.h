@@ -36,7 +36,7 @@ constexpr auto DEPTH_BOUNDS = true;
 constexpr auto WIDE_LINES = true;
 constexpr auto LARGE_POINTS = true;
 constexpr auto ALPHA_TO_ONE = true;
-constexpr auto MULTI_VIEWPORT = true;
+constexpr auto MULTI_VIEWPORT = false; // Requires GEOMETRY_SHADER
 constexpr auto SAMPLER_ANISOTROPY = true;
 constexpr auto TEXTURE_COMPRESSION_ETC2 = true;
 constexpr auto TEXTURE_COMPRESSION_ASTC_LDR = true;
@@ -65,6 +65,8 @@ constexpr auto SHADER_RESOURCE_MIN_LOD = true;
 constexpr auto SPARSE_BINDING = true;
 constexpr auto VARIABLE_MULTISAMPLE_RATE = true;
 constexpr auto INHERITED_QUERIES = true;
+
+static_assert(GEOMETRY_SHADER || !MULTI_VIEWPORT);
 
 constexpr auto VENDOR_ID = 0x10000;
 constexpr auto DEVICE_ID = 0;

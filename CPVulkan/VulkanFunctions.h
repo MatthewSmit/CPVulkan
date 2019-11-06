@@ -313,6 +313,12 @@ VULKAN_FUNCTION(CreateHeadlessSurface, VkResult, Instance, void*, const VkHeadle
 VULKAN_FUNCTION(SetLineStipple, void, CommandBuffer, void*, uint32_t, uint16_t)
 VULKAN_FUNCTION(ResetQueryPool, void, Device, void*, VkQueryPool, uint32_t, uint32_t)
 
+#if defined(VK_KHR_timeline_semaphore)
+VULKAN_FUNCTION(GetSemaphoreCounterValue, VkResult, Device, void*, VkSemaphore, uint64_t*)
+VULKAN_FUNCTION(WaitSemaphores, VkResult, Device, void*, const VkSemaphoreWaitInfoKHR*, uint64_t)
+VULKAN_FUNCTION(SignalSemaphore, VkResult, Device, void*, const VkSemaphoreSignalInfoKHR*)
+#endif
+
 #if defined(VK_KHR_win32_surface)
 VULKAN_FUNCTION(CreateWin32Surface, VkResult, Instance, void*, const VkWin32SurfaceCreateInfoKHR*, const VkAllocationCallbacks*, VkSurfaceKHR*)
 VULKAN_FUNCTION(GetWin32PresentationSupport, VkBool32, PhysicalDevice, void*, uint32_t)

@@ -12,6 +12,4 @@ class Queue;
 #include "VulkanFunctions.h"
 #undef VULKAN_FUNCTION
 
-VKAPI_ATTR void VKAPI_PTR xxx();
-
 #define GET_TRAMPOLINE(clazz, method) (PFN_vkVoidFunction)(__##clazz##_##method)

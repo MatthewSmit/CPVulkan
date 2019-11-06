@@ -170,9 +170,9 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO);
 	assert(pCreateInfo->flags == 0);
 
-	if (pCreateInfo->pEnabledFeatures != nullptr && !Platform::SupportsSparse())
+	if (pCreateInfo->pEnabledFeatures != nullptr)
 	{
-		if (pCreateInfo->pEnabledFeatures->sparseBinding ||
+		if ((pCreateInfo->pEnabledFeatures->sparseBinding ||
 			pCreateInfo->pEnabledFeatures->sparseResidencyBuffer ||
 			pCreateInfo->pEnabledFeatures->sparseResidencyImage2D ||
 			pCreateInfo->pEnabledFeatures->sparseResidencyImage3D ||
@@ -180,10 +180,57 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 			pCreateInfo->pEnabledFeatures->sparseResidency4Samples ||
 			pCreateInfo->pEnabledFeatures->sparseResidency8Samples ||
 			pCreateInfo->pEnabledFeatures->sparseResidency16Samples ||
-			pCreateInfo->pEnabledFeatures->sparseResidencyAliased)
+			pCreateInfo->pEnabledFeatures->sparseResidencyAliased) && (!Platform::SupportsSparse() || !SPARSE_BINDING))
 		{
 			return VK_ERROR_FEATURE_NOT_PRESENT;
 		}
+
+		if (pCreateInfo->pEnabledFeatures->robustBufferAccess && !ROBUST_BUFFER_ACCESS) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->fullDrawIndexUint32 && !FULL_DRAW_INDEX_UINT32) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->imageCubeArray && !IMAGE_CUBE_ARRAY) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->independentBlend && !INDEPENDENT_BLEND) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->geometryShader && !GEOMETRY_SHADER) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->tessellationShader && !TESSELLATION_SHADER) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->sampleRateShading && !SAMPLE_RATE_SHADING) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->dualSrcBlend && !DUAL_SOURCE_BLEND) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->logicOp && !LOGIC_OPERATION) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->multiDrawIndirect && !MULTI_DRAW_INDIRECT) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->drawIndirectFirstInstance && !DRAW_INDIRECT_FIRST_INSTANCE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->depthClamp && !DEPTH_CLAMP) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->depthBiasClamp && !DEPTH_BIAS_CLAMP) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->fillModeNonSolid && !FILL_MODE_NON_SOLID) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->depthBounds && !DEPTH_BOUNDS) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->wideLines && !WIDE_LINES) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->largePoints && !LARGE_POINTS) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->alphaToOne && !ALPHA_TO_ONE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->multiViewport && !MULTI_VIEWPORT) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->samplerAnisotropy && !SAMPLER_ANISOTROPY) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->textureCompressionETC2 && !TEXTURE_COMPRESSION_ETC2) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->textureCompressionASTC_LDR && !TEXTURE_COMPRESSION_ASTC_LDR) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->textureCompressionBC && !TEXTURE_COMPRESSION_BC) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->occlusionQueryPrecise && !OCCLUSION_QUERY_PRECISE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->pipelineStatisticsQuery && !PIPELINE_STATISTICS_QUERY) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->vertexPipelineStoresAndAtomics && !VERTEX_PIPELINE_STORES_AND_ATOMICS) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->fragmentStoresAndAtomics && !FRAGMENT_STORES_AND_ATOMICS) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderTessellationAndGeometryPointSize && !SHADER_TESSELLATION_AND_GEOMETRY_POINT_SIZE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderImageGatherExtended && !SHADER_IMAGE_GATHER_EXTENDED) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderStorageImageExtendedFormats && !SHADER_STORAGE_IMAGE_EXTENDED_FORMATS) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderStorageImageMultisample && !SHADER_STORAGE_IMAGE_MULTISAMPLE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderStorageImageReadWithoutFormat && !SHADER_STORAGE_IMAGE_READ_WITHOUT_FORMAT) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderStorageImageWriteWithoutFormat && !SHADER_STORAGE_IMAGE_WRITE_WITHOUT_FORMAT) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderUniformBufferArrayDynamicIndexing && !SHADER_UNIFORM_BUFFER_ARRAY_DYNAMIC_INDEXING) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderSampledImageArrayDynamicIndexing && !SHADER_SAMPLED_IMAGE_ARRAY_DYNAMIC_INDEXING) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderStorageBufferArrayDynamicIndexing && !SHADER_STORAGE_BUFFER_ARRAY_DYNAMIC_INDEXING) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderStorageImageArrayDynamicIndexing && !SHADER_STORAGE_IMAGE_ARRAY_DYNAMIC_INDEXING) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderClipDistance && !SHADER_CLIP_DISTANCE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderCullDistance && !SHADER_CULL_DISTANCE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderFloat64 && !SHADER_FLOAT64) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderInt64 && !SHADER_INT64) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderInt16 && !SHADER_INT16) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderResourceResidency && !SHADER_RESOURCE_RESIDENCY) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->shaderResourceMinLod && !SHADER_RESOURCE_MIN_LOD) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->variableMultisampleRate && !VARIABLE_MULTISAMPLE_RATE) { return VK_ERROR_FEATURE_NOT_PRESENT; }
+		if (pCreateInfo->pEnabledFeatures->inheritedQueries && !INHERITED_QUERIES) { return VK_ERROR_FEATURE_NOT_PRESENT; }
 	}
 
 	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
@@ -532,6 +579,20 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_YCBCR_IMAGE_ARRAYS_FEATURES_EXT:
 			{
 				const auto features = reinterpret_cast<const VkPhysicalDeviceSamplerYcbcrConversionFeatures*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR:
+			{
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderClockFeaturesKHR*>(next);
+				// TODO
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_EXTENDED_TYPES_FEATURES_KHR:
+			{
+				const auto features = reinterpret_cast<const VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR*>(next);
 				// TODO
 				break;
 			}
@@ -908,6 +969,23 @@ void Device::ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t
 {
 	FATAL_ERROR();
 }
+
+#if defined(VK_KHR_timeline_semaphore)
+VkResult Device::GetSemaphoreCounterValue(VkSemaphore semaphore, uint64_t* pValue)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::WaitSemaphores(const VkSemaphoreWaitInfoKHR* pWaitInfo, uint64_t timeout)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::SignalSemaphore(const VkSemaphoreSignalInfoKHR* pSignalInfo)
+{
+	FATAL_ERROR();
+}
+#endif
 
 #if defined(VK_KHR_external_memory_win32)
 VkResult Device::GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle)

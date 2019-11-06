@@ -198,6 +198,12 @@ public:
 
 	VKAPI_ATTR void VKAPI_PTR ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount);
 
+#if defined(VK_KHR_timeline_semaphore)
+	VKAPI_ATTR VkResult VKAPI_PTR GetSemaphoreCounterValue(VkSemaphore semaphore, uint64_t* pValue);
+	VKAPI_ATTR VkResult VKAPI_PTR WaitSemaphores(const VkSemaphoreWaitInfoKHR* pWaitInfo, uint64_t timeout);
+	VKAPI_ATTR VkResult VKAPI_PTR SignalSemaphore(const VkSemaphoreSignalInfoKHR* pSignalInfo);
+#endif
+
 #if defined(VK_KHR_external_memory_win32)
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle);
 	VKAPI_ATTR VkResult VKAPI_PTR GetMemoryWin32HandleProperties(VkExternalMemoryHandleTypeFlagBits handleType, HANDLE handle, VkMemoryWin32HandlePropertiesKHR* pMemoryWin32HandleProperties);

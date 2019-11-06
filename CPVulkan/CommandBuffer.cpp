@@ -573,9 +573,14 @@ public:
 		{
 			if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 			{
-				auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
+				const auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
 				auto imageView = framebuffer->getAttachments()[attachmentReference.attachment];
-				ClearImage(deviceState, imageView->getImage(), attachment.format, 0, 1, 0, 1, clearValues[attachmentReference.attachment].color);
+				if (attachment.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
+				{
+					ClearImage(deviceState, imageView->getImage(), attachment.format, 0, 
+					           imageView->getImage()->getMipLevels(), 0, imageView->getImage()->getArrayLayers(),
+					           clearValues[attachmentReference.attachment].color);
+				}
 			}
 		}
 
@@ -598,7 +603,10 @@ public:
 			{
 				aspects = VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 			}
-			ClearImage(deviceState, imageView->getImage(), attachment.format, 0, 1, 0, 1, aspects, clearValues[attachmentReference.attachment].depthStencil);
+			if (attachment.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
+			{
+				ClearImage(deviceState, imageView->getImage(), attachment.format, 0, 1, 0, 1, aspects, clearValues[attachmentReference.attachment].depthStencil);
+			}
 		}
 
 		deviceState->renderPass = renderPass;
