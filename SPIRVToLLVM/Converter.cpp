@@ -47,7 +47,7 @@ static void Dump(llvm::Module* llvmModule)
 	std::cout << dump << std::endl;
 }
 
-static std::string DumpType(llvm::Type* llvmType)
+CP_DLL_EXPORT std::string DumpType(llvm::Type* llvmType)
 {
 	std::string type_str;
 	llvm::raw_string_ostream rso(type_str);
@@ -320,15 +320,16 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 	case OpTypeRuntimeArray:
 		{
 			const auto runtimeArray = static_cast<SPIRV::SPIRVTypeRuntimeArray*>(spirvType);
-			const auto llvmElementType = ConvertType(state, runtimeArray->getElementType(), true);
-			const auto name = DumpType(llvmElementType) + "[]";
+			const auto llvmElementType = ConvertType(state, runtimeArray->getElementType(), isClassMember);
+			// const auto name = DumpType(llvmElementType) + "[]";
+			llvmType = llvm::PointerType::get(llvmElementType, 0);
 
-			auto llvmStruct = llvm::StructType::create(state.context, name);
-			llvm::SmallVector<llvm::Type*, 2> types;
-			types.push_back(llvm::Type::getInt32Ty(state.context));
-			types.push_back(llvm::PointerType::get(llvmElementType, 0));
-			llvmStruct->setBody(types);
-			llvmType = llvmStruct;
+			// auto llvmStruct = llvm::StructType::create(state.context, name);
+			// llvm::SmallVector<llvm::Type*, 2> types;
+			// types.push_back(llvm::Type::getInt32Ty(state.context));
+			// types.push_back(llvm::PointerType::get(llvmElementType, 0));
+			// llvmStruct->setBody(types);
+			// llvmType = llvmStruct;
 			break;
 		}
 		
@@ -1355,14 +1356,52 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 					indices.insert(indices.begin(), state.builder.getInt32(0));
 				}
 
-				if (accessChain->isInBounds())
+				auto currentType = base->getType()->getPointerElementType();
+				llvmValue = base;
+				for (auto k = 1U; k < indices.size(); k++)
 				{
-					llvmValue = state.builder.CreateInBoundsGEP(nullptr, base, indices, accessChain->getName());
+					if (currentType->isPointerTy())
+					{
+						llvm::ArrayRef<llvm::Value*> range{indices.data(), k};
+						if (accessChain->isInBounds())
+						{
+							llvmValue = state.builder.CreateInBoundsGEP(nullptr, llvmValue, range, accessChain->getName());
+						}
+						else
+						{
+							llvmValue = state.builder.CreateGEP(nullptr, llvmValue, range, accessChain->getName());
+						}
+						llvmValue = state.builder.CreateLoad(llvmValue);
+						currentType = currentType->getPointerElementType();
+						indices = std::vector<llvm::Value*>{indices.begin() + k, indices.end()};
+						k = -1;
+					}
+					else if (k + 1ULL == indices.size())
+					{
+						llvm::ArrayRef<llvm::Value*> range{indices.data(), indices.size()};
+						if (accessChain->isInBounds())
+						{
+							llvmValue = state.builder.CreateInBoundsGEP(nullptr, llvmValue, range, accessChain->getName());
+						}
+						else
+						{
+							llvmValue = state.builder.CreateGEP(nullptr, llvmValue, range, accessChain->getName());
+						}
+					}
+					else if (currentType->isStructTy())
+					{
+						// TODO: Detect matrix struct
+						auto index = llvm::cast<llvm::ConstantInt>(indices[k])->getZExtValue();
+						currentType = currentType->getStructElementType(index);
+					}
+					else
+					{
+						FATAL_ERROR();
+					}
 				}
-				else
-				{
-					llvmValue = state.builder.CreateGEP(nullptr, base, indices, accessChain->getName());
-				}
+
+				auto expectedType = ConvertType(state, instruction->getType());
+				assert(expectedType == llvmValue->getType());
 
 				break;
 			}
@@ -1398,7 +1437,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				std::vector<llvm::Constant*> components{};
 				for (auto component : vectorShuffle->getComponents())
 				{
-					if (component == -1)
+					if (component == 0xFFFFFFFF)
 					{
 						components.push_back(llvm::UndefValue::get(state.builder.getInt32Ty()));
 					}
@@ -2702,12 +2741,12 @@ static void AddBuiltin(State& state, ExecutionModel executionModel)
 
 	case ExecutionModelGLCompute:
 		state.builtinInputMapping.emplace_back(BuiltInGlobalInvocationId, 0);
-		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
+		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
 		break;
 
 	case ExecutionModelKernel:
 		state.builtinInputMapping.emplace_back(BuiltInGlobalInvocationId, 0);
-		inputMembers.push_back(llvm::Type::getInt32Ty(state.context));
+		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
 		break;
 
 	default:
