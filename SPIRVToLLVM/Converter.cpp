@@ -34,6 +34,7 @@ struct State
 	llvm::GlobalVariable* builtinOutputVariable;
 	std::vector<std::pair<BuiltIn, uint32_t>> builtinInputMapping{};
 	std::vector<std::pair<BuiltIn, uint32_t>> builtinOutputMapping{};
+	llvm::GlobalVariable* userData;
 };
 
 static llvm::Value* ConvertValue(State& state, SPIRV::SPIRVValue* spirvValue, llvm::Function* currentFunction);
@@ -157,12 +158,17 @@ static std::string GetImageTypeName(const SPIRV::SPIRVTypeImage* imageType)
 	return GetTypeName("Image", outputStream.str());
 }
 
-llvm::Type* CreateOpaquePointerType(State& state, const std::string& name)
+llvm::Type* CreateOpaqueImageType(State& state, const std::string& name)
 {
 	auto opaqueType = state.module->getTypeByName(name);
 	if (!opaqueType)
 	{
 		opaqueType = llvm::StructType::create(state.module->getContext(), name);
+		llvm::SmallVector<llvm::Type*, 4> types;
+		types.push_back(state.builder.getInt32Ty());
+		types.push_back(state.builder.getInt8PtrTy());
+		types.push_back(state.builder.getInt8PtrTy());
+		opaqueType->setBody(types, false);
 	}
 
 	return llvm::PointerType::get(opaqueType, 0);
@@ -245,20 +251,20 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 	case OpTypeImage:
 		{
 			const auto image = static_cast<SPIRV::SPIRVTypeImage*>(spirvType);
-			llvmType = CreateOpaquePointerType(state, GetImageTypeName(image));
+			llvmType = CreateOpaqueImageType(state, GetImageTypeName(image));
 			break;
 		}
 		
 	case OpTypeSampler:
 		{
-			llvmType = CreateOpaquePointerType(state, "Sampler");
+			llvmType = CreateOpaqueImageType(state, "Sampler");
 			break;
 		}
 		
 	case OpTypeSampledImage:
 		{
 			const auto sampledImage = static_cast<SPIRV::SPIRVTypeSampledImage*>(spirvType);
-			llvmType = CreateOpaquePointerType(state, "Sampled" + GetImageTypeName(sampledImage->getImageType()));
+			llvmType = CreateOpaqueImageType(state, "Sampled" + GetImageTypeName(sampledImage->getImageType()));
 			break;
 		}
 		
@@ -828,7 +834,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVDot* dot)
 static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleImplicitLod* imageSampleImplicitLod)
 {
 	const auto spirvImageType = static_cast<SPIRV::SPIRVTypeSampledImage*>(imageSampleImplicitLod->getOperandTypes()[0])->getImageType();
-	const auto llvmImageType = CreateOpaquePointerType(state, "Sampled" + GetImageTypeName(spirvImageType));
+	const auto llvmImageType = CreateOpaqueImageType(state, "Sampled" + GetImageTypeName(spirvImageType));
 
 	const auto resultType = imageSampleImplicitLod->getType();
 	const auto coordinateType = imageSampleImplicitLod->getOpValue(1)->getType();
@@ -851,6 +857,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleI
 
 	llvm::Type* params[]
 	{
+		state.builder.getInt8PtrTy(),
 		llvm::PointerType::get(ConvertType(state, resultType), 0),
 		llvmImageType,
 		llvm::PointerType::get(ConvertType(state, coordinateType), 0),
@@ -858,8 +865,8 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleI
 
 	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
 	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
-	function->addDereferenceableAttr(0, 16);
-	function->addDereferenceableAttr(2, 16);
+	function->addDereferenceableAttr(1, 16);
+	function->addDereferenceableAttr(3, 16);
 	state.functionCache[functionName] = function;
 	return function;
 }
@@ -867,7 +874,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleI
 static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleExplicitLod* imageSampleExplicitLod)
 {
 	const auto spirvImageType = static_cast<SPIRV::SPIRVTypeSampledImage*>(imageSampleExplicitLod->getOperandTypes()[0])->getImageType();
-	const auto llvmImageType = CreateOpaquePointerType(state, "Sampled" + GetImageTypeName(spirvImageType));
+	const auto llvmImageType = CreateOpaqueImageType(state, "Sampled" + GetImageTypeName(spirvImageType));
 	
 	const auto resultType = imageSampleExplicitLod->getType();
 	const auto coordinateType = imageSampleExplicitLod->getOpValue(1)->getType();
@@ -894,6 +901,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 
 		llvm::Type* params[]
 		{
+			state.builder.getInt8PtrTy(),
 			llvm::PointerType::get(ConvertType(state, resultType), 0),
 			llvmImageType,
 			llvm::PointerType::get(ConvertType(state, coordinateType), 0),
@@ -902,8 +910,8 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 
 		const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
 		auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
-		function->addDereferenceableAttr(0, 16);
-		function->addDereferenceableAttr(2, 16);
+		function->addDereferenceableAttr(1, 16);
+		function->addDereferenceableAttr(3, 16);
 		state.functionCache[functionName] = function;
 		return function;
 	}
@@ -914,7 +922,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageFetch* imageFetch)
 {
 	const auto spirvImageType = static_cast<SPIRV::SPIRVTypeImage*>(imageFetch->getOperandTypes()[0]);
-	const auto llvmImageType = CreateOpaquePointerType(state, GetImageTypeName(spirvImageType));
+	const auto llvmImageType = CreateOpaqueImageType(state, GetImageTypeName(spirvImageType));
 	
 	const auto resultType = imageFetch->getType();
 	const auto coordinateType = imageFetch->getOpValue(1)->getType();
@@ -933,15 +941,16 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageFetch* 
 	
 	llvm::Type* params[]
 	{
+		state.builder.getInt8PtrTy(),
 		llvm::PointerType::get(ConvertType(state, resultType), 0),
 		llvmImageType,
-		ConvertType(state, coordinateType),
+		llvm::PointerType::get(ConvertType(state, coordinateType), 0),
 	};
 	
 	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
 	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
-	function->addDereferenceableAttr(0, 16);
-	function->addDereferenceableAttr(2, 16);
+	function->addDereferenceableAttr(1, 16);
+	function->addDereferenceableAttr(3, 16);
 	state.functionCache[functionName] = function;
 	return function;
 }
@@ -1543,18 +1552,19 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				const auto imageSampleImplicitLod = reinterpret_cast<SPIRV::SPIRVImageSampleImplicitLod*>(instruction);
 				const auto function = GetInbuiltFunction(state, imageSampleImplicitLod);
 
-				llvm::Value* args[3];
-				args[0] = state.builder.CreateAlloca(ConvertType(state, imageSampleImplicitLod->getType()));
-				args[1] = ConvertValue(state, imageSampleImplicitLod->getOpValue(0), currentFunction);
-				args[2] = ConvertValue(state, imageSampleImplicitLod->getOpValue(1), currentFunction);
+				llvm::Value* args[4];
+				args[0] = state.builder.CreateLoad(state.userData);
+				args[1] = state.builder.CreateAlloca(ConvertType(state, imageSampleImplicitLod->getType()));
+				args[2] = ConvertValue(state, imageSampleImplicitLod->getOpValue(0), currentFunction);
+				args[3] = ConvertValue(state, imageSampleImplicitLod->getOpValue(1), currentFunction);
 
-				const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
-				state.builder.CreateStore(args[2], tmp2);
-				args[2] = tmp2;
+				const auto tmp3 = state.builder.CreateAlloca(args[3]->getType());
+				state.builder.CreateStore(args[3], tmp3);
+				args[3] = tmp3;
 
 				state.builder.CreateCall(function, args);
-				llvmValue = state.builder.CreateLoad(args[0]);
-
+				llvmValue = state.builder.CreateLoad(args[1]);
+				
 				break;
 			}
 
@@ -1563,18 +1573,19 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				const auto imageSampleExplicitLod = reinterpret_cast<SPIRV::SPIRVImageSampleExplicitLod*>(instruction);
 				const auto function = GetInbuiltFunction(state, imageSampleExplicitLod);
 
-				llvm::Value* args[4];
-				args[0] = state.builder.CreateAlloca(ConvertType(state, imageSampleExplicitLod->getType()));
-				args[1] = ConvertValue(state, imageSampleExplicitLod->getOpValue(0), currentFunction);
-				args[2] = ConvertValue(state, imageSampleExplicitLod->getOpValue(1), currentFunction);
-				args[3] = ConvertValue(state, imageSampleExplicitLod->getOpValue(3), currentFunction);
+				llvm::Value* args[5];
+				args[0] = state.builder.CreateLoad(state.userData);
+				args[1] = state.builder.CreateAlloca(ConvertType(state, imageSampleExplicitLod->getType()));
+				args[2] = ConvertValue(state, imageSampleExplicitLod->getOpValue(0), currentFunction);
+				args[3] = ConvertValue(state, imageSampleExplicitLod->getOpValue(1), currentFunction);
+				args[4] = ConvertValue(state, imageSampleExplicitLod->getOpValue(3), currentFunction);
 
-				const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
-				state.builder.CreateStore(args[2], tmp2);
-				args[2] = tmp2;
+				const auto tmp3 = state.builder.CreateAlloca(args[3]->getType());
+				state.builder.CreateStore(args[3], tmp3);
+				args[3] = tmp3;
 
 				state.builder.CreateCall(function, args);
-				llvmValue = state.builder.CreateLoad(args[0]);
+				llvmValue = state.builder.CreateLoad(args[1]);
 
 				break;
 			}
@@ -1590,13 +1601,20 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			{
 				const auto imageFetch = reinterpret_cast<SPIRV::SPIRVImageFetch*>(instruction);
 				const auto function = GetInbuiltFunction(state, imageFetch);
-				llvm::Value* args[3];
-				args[0] = state.builder.CreateAlloca(ConvertType(state, imageFetch->getType()));
-				args[1] = ConvertValue(state, imageFetch->getOpValue(0), currentFunction);
-				args[2] = ConvertValue(state, imageFetch->getOpValue(1), currentFunction);
+				
+				llvm::Value* args[4];
+				args[0] = state.builder.CreateLoad(state.userData);
+				args[1] = state.builder.CreateAlloca(ConvertType(state, imageFetch->getType()));
+				args[2] = ConvertValue(state, imageFetch->getOpValue(0), currentFunction);
+				args[3] = ConvertValue(state, imageFetch->getOpValue(1), currentFunction);
+
+				const auto tmp3 = state.builder.CreateAlloca(args[3]->getType());
+				state.builder.CreateStore(args[3], tmp3);
+				args[3] = tmp3;
 
 				state.builder.CreateCall(function, args);
-				llvmValue = state.builder.CreateLoad(args[0]);
+				llvmValue = state.builder.CreateLoad(args[1]);
+				
 				break;
 			}
 
@@ -1925,7 +1943,14 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpUnordered: break;
 			// case OpLogicalEqual: break;
 			// case OpLogicalNotEqual: break;
-			// case OpLogicalOr: break;
+			 
+		case OpLogicalOr:
+			{
+				const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
+				llvmValue = state.builder.CreateOr(ConvertValue(state, op->getOperand(0), currentFunction),
+				                                   ConvertValue(state, op->getOperand(1), currentFunction));
+				break;
+			}
 			 
 		case OpLogicalAnd:
 			{
@@ -2341,7 +2366,26 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			
 			 
 		case OpAtomicIAdd:
-			FATAL_ERROR();
+			{
+				const auto op = static_cast<SPIRV::SPIRVAtomicInstBase*>(instruction);
+				auto pointer = ConvertValue(state, op->getOpValue(0), currentFunction);
+				auto scope = static_cast<SPIRV::SPIRVConstant*>(op->getOpValue(1))->getInt32Value();
+				auto semantics = static_cast<SPIRV::SPIRVConstant*>(op->getOpValue(2))->getInt32Value();
+				auto value = ConvertValue(state, op->getOpValue(3), currentFunction);
+
+				if (scope != 1)
+				{
+					FATAL_ERROR();
+				}
+				
+				if (semantics != 0)
+				{
+					FATAL_ERROR();
+				}
+
+				llvmValue = state.builder.CreateAtomicRMW(llvm::AtomicRMWInst::Add, pointer, value, llvm::AtomicOrdering::Monotonic);
+				break;
+			}
 			
 		case OpAtomicISub:
 			FATAL_ERROR();
@@ -2742,10 +2786,22 @@ static void AddBuiltin(State& state, ExecutionModel executionModel)
 	case ExecutionModelGLCompute:
 		state.builtinInputMapping.emplace_back(BuiltInGlobalInvocationId, 0);
 		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
+
+		state.builtinInputMapping.emplace_back(BuiltInLocalInvocationId, 1);
+		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
+
+		state.builtinInputMapping.emplace_back(BuiltInWorkgroupId, 2);
+		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
 		break;
 
 	case ExecutionModelKernel:
 		state.builtinInputMapping.emplace_back(BuiltInGlobalInvocationId, 0);
+		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
+
+		state.builtinInputMapping.emplace_back(BuiltInLocalInvocationId, 1);
+		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
+
+		state.builtinInputMapping.emplace_back(BuiltInWorkgroupId, 2);
 		inputMembers.push_back(llvm::VectorType::get(llvm::Type::getInt32Ty(state.context), 3));
 		break;
 
@@ -2756,11 +2812,11 @@ static void AddBuiltin(State& state, ExecutionModel executionModel)
 	const auto linkage = llvm::GlobalVariable::ExternalLinkage;
 	const auto tlsModel = llvm::GlobalValue::NotThreadLocal;
 
-	auto llvmType = llvm::StructType::create(state.context, inputMembers, "_BuiltinInput");
+	auto llvmType = llvm::StructType::create(state.context, inputMembers, "_BuiltinInput", true);
 	state.builtinInputVariable = new llvm::GlobalVariable(*state.module, llvmType, false, linkage, llvm::Constant::getNullValue(llvmType), "_builtinInput", nullptr, tlsModel, 0);
 	state.builtinInputVariable->setAlignment(ALIGNMENT);
 
-	llvmType = llvm::StructType::create(state.context, outputMembers, "_BuiltinOutput");
+	llvmType = llvm::StructType::create(state.context, outputMembers, "_BuiltinOutput", true);
 	state.builtinOutputVariable = new llvm::GlobalVariable(*state.module, llvmType, false, linkage, llvm::Constant::getNullValue(llvmType), "_builtinOutput", nullptr, tlsModel, 0);
 	state.builtinOutputVariable->setAlignment(ALIGNMENT);
 }
@@ -2798,6 +2854,9 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	};
 
 	AddBuiltin(state, executionModel);
+	
+	state.userData = new llvm::GlobalVariable(*state.module, state.builder.getInt8PtrTy(), false, llvm::GlobalValue::ExternalLinkage, llvm::Constant::getNullValue(state.builder.getInt8PtrTy()), "@userData", nullptr, llvm::GlobalValue::NotThreadLocal, 0);
+	state.userData->setAlignment(ALIGNMENT);
 	
 	for (auto i = 0u; i < spirvModule->getNumVariables(); i++)
 	{

@@ -6,6 +6,8 @@
 
 #include <ImageCompiler.h>
 
+#include <glm/glm.hpp>
+
 // #include <glm/glm.hpp>
 //
 // #include <algorithm>
@@ -112,96 +114,6 @@
 // 	output[2] = input[2] <= 0.04045 ? input[2] / 12.92f : std::pow((input[2] + 0.055f) / 1.055f, 2.4f);
 // 	output[3] = input[3];
 // }
-//
-// template<typename Size>
-// void GetPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint64_t values[4])
-// {
-// 	static_assert(std::numeric_limits<Size>::is_integer);
-// 	static_assert(!std::numeric_limits<Size>::is_signed);
-//
-// 	if (format.ElementSize != sizeof(Size))
-// 	{
-// 		FATAL_ERROR();
-// 	}
-//
-// 	const auto pixel = reinterpret_cast<const uint8_t*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, 0, 0));
-// 	if (format.RedOffset != -1) values[0] = *reinterpret_cast<const Size*>(pixel + format.RedOffset);
-// 	if (format.GreenOffset != -1) values[1] = *reinterpret_cast<const Size*>(pixel + format.GreenOffset);
-// 	if (format.BlueOffset != -1) values[2] = *reinterpret_cast<const Size*>(pixel + format.BlueOffset);
-// 	if (format.AlphaOffset != -1) values[3] = *reinterpret_cast<const Size*>(pixel + format.AlphaOffset);
-// }
-//
-// template<typename OutputType>
-// void GetPixel(const FormatInformation& format, const Image* image, int32_t i, int32_t j, int32_t k, OutputType output[4])
-// {
-// 	// TODO: Border colour
-// 	assert(i >= 0 && j >= 0 && k >= 0 && i < image->getWidth() && j < image->getHeight() && k < image->getDepth());
-//
-// 	uint64_t rawValues[4]{};
-// 	if (format.Base == BaseType::UNorm || format.Base == BaseType::UInt || format.Base == BaseType::SFloat)
-// 	{
-// 		if (format.ElementSize == 1)
-// 		{
-// 			GetPixel<uint8_t>(format, image->getData(), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), rawValues);
-// 		}
-// 		else if (format.ElementSize == 2)
-// 		{
-// 			GetPixel<uint16_t>(format, image->getData(), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), rawValues);
-// 		}
-// 		else if (format.ElementSize == 4)
-// 		{
-// 			GetPixel<uint32_t>(format, image->getData(), i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), rawValues);
-// 		}
-// 		else
-// 		{
-// 			FATAL_ERROR();
-// 		}
-// 	}
-// 	else
-// 	{
-// 		FATAL_ERROR();
-// 	}
-// 	
-// 	ConvertPixelsFromTemp<OutputType>(format, rawValues, output);
-// }
-//
-// template<typename OutputType>
-// OutputType GetPixel(const FormatInformation& format, const Image* image, int32_t i, int32_t j, int32_t k)
-// {
-// 	static_assert(OutputType::length() == 4);
-// 	OutputType result{};
-// 	GetPixel<typename OutputType::value_type>(format, image, i, j, k, &result.x);
-// 	return result;
-// }
-//
-//
-// template<typename Size>
-// void SetPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer, const uint64_t values[4])
-// {
-// 	static_assert(std::numeric_limits<Size>::is_integer);
-// 	static_assert(!std::numeric_limits<Size>::is_signed);
-// 	
-// 	if (format.ElementSize != sizeof(Size))
-// 	{
-// 		FATAL_ERROR();
-// 	}
-//
-// 	const auto pixel = reinterpret_cast<uint8_t*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, mipLevel, layer));
-// 	if (format.RedOffset != -1) *reinterpret_cast<Size*>(pixel + format.RedOffset) = static_cast<Size>(values[0]);
-// 	if (format.GreenOffset != -1) *reinterpret_cast<Size*>(pixel + format.GreenOffset) = static_cast<Size>(values[1]);
-// 	if (format.BlueOffset != -1) *reinterpret_cast<Size*>(pixel + format.BlueOffset) = static_cast<Size>(values[2]);
-// 	if (format.AlphaOffset != -1) *reinterpret_cast<Size*>(pixel + format.AlphaOffset) = static_cast<Size>(values[3]);
-// }
-//
-// template<typename Size>
-// static void SetPackedPixel(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer, uint64_t values[4])
-// {
-// 	static_assert(std::numeric_limits<Size>::is_integer);
-// 	static_assert(!std::numeric_limits<Size>::is_signed);
-//
-// 	const auto pixel = reinterpret_cast<Size*>(GetFormatPixelOffset(format, data, i, j, k, width, height, depth, arrayLayers, mipLevel, layer));
-// 	*pixel = static_cast<Size>(values[0]);
-// }
 
 float GetDepthPixel(DeviceState* deviceState, VkFormat format, const Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer)
 {
@@ -214,6 +126,31 @@ float GetDepthPixel(DeviceState* deviceState, VkFormat format, const Image* imag
 	}
 
 	return functions.GetPixelDepth(image->getDataPtr(offset, information.TotalSize));
+}
+
+template<>
+glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::ivec1 range, glm::ivec1 coordinates)
+{
+	const auto& information = GetFormatInformation(format);
+	switch (information.Base)
+	{
+	case BaseType::UScaled:
+	case BaseType::UInt:
+		break;
+	default:
+		FATAL_ERROR();
+	}
+	
+	const auto offset = GetFormatPixelOffset(information, coordinates.x, 0, 0, range.x, 1, 1, 1, 0, 0);
+	auto& functions = deviceState->imageFunctions[format];
+	if (!functions.GetPixelUInt)
+	{
+		functions.GetPixelUInt = reinterpret_cast<decltype(functions.GetPixelUInt)>(CompileGetPixelUInt(deviceState->jit, &information));
+	}
+
+	uint32_t values[4]{};
+	functions.GetPixelUInt(data.subspan(offset, information.TotalSize).data(), values);
+	return glm::uvec4(values[0], values[1], values[2], values[3]);
 }
 
 

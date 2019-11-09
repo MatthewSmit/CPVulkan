@@ -20,6 +20,11 @@ public:
 	
 	static VkResult Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView);
 
+	[[nodiscard]] Buffer* getBuffer() const { return buffer; }
+	[[nodiscard]] VkFormat getFormat() const { return format; }
+	[[nodiscard]] uint64_t getOffset() const { return offset; }
+	[[nodiscard]] uint64_t getRange() const { return range; }
+
 private:
 	Buffer* buffer;
 	VkFormat format;

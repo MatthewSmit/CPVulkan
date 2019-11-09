@@ -77,12 +77,23 @@ public:
 		}
 
 		cantFail(compileLayer.add(dylib, std::move(safeModule), executionSession.allocateVModule()));
-		return new SpirvCompiledModule(moduleValue, safeContext, dylib);
+		const auto compiledModule = new SpirvCompiledModule(moduleValue, safeContext, dylib);
+		auto userDataPtr = Lookup(compiledModule, "@userData");
+		if (userDataPtr)
+		{
+			*reinterpret_cast<void**>(userDataPtr->getAddress()) = userData;
+		}
+		return compiledModule;
 	}
 
 	void AddFunction(const std::string& name, FunctionPointer pointer)
 	{
 		functions.insert(std::make_pair(name, pointer));
+	}
+	
+	void SetUserData(void* userData)
+	{
+		this->userData = userData;
 	}
 
 	llvm::Expected<llvm::JITEvaluatedSymbol> Lookup(const SpirvCompiledModule* module, llvm::StringRef name)
@@ -105,6 +116,7 @@ private:
 
 	std::unordered_map<std::string, FunctionPointer> functions{};
 	llvm::sys::DynamicLibrary library;
+	void* userData;
 
 	llvm::orc::SymbolNameSet getFunctions(llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names)
 	{
@@ -210,6 +222,11 @@ SpirvCompiledModule* SpirvJit::CompileModule(std::unique_ptr<llvm::LLVMContext> 
 void SpirvJit::AddFunction(const std::string& name, FunctionPointer pointer)
 {
 	impl->AddFunction(name, pointer);
+}
+
+void SpirvJit::SetUserData(void* userData)
+{
+	impl->SetUserData(userData);
 }
 
 void* SpirvJit::getPointer(const SpirvCompiledModule* module, const std::string& name)

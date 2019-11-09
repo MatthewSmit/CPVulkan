@@ -32,6 +32,7 @@ public:
 	SpirvCompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module);
 
 	void AddFunction(const std::string& name, FunctionPointer pointer);
+	void SetUserData(void* userData);
 	
 	void* getPointer(const SpirvCompiledModule* module, const std::string& name);
 	FunctionPointer getFunctionPointer(const SpirvCompiledModule* module, const std::string& name);

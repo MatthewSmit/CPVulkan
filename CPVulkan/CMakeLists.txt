@@ -22,6 +22,9 @@ set(FILES
 
 		"CPVulkan.cpp"
 
+		"DebugHelper.cpp"
+		"DebugHelper.h"
+
 		"DescriptorPool.cpp"
 		"DescriptorPool.h"
 

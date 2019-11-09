@@ -1,15 +1,24 @@
 #include "CommandBuffer.h"
 #include "CommandBuffer.Internal.h"
 
+#include <fstream>
+
 class BeginPoolCommand final : public Command
 {
 public:
 	BeginPoolCommand(QueryPool* queryPool, uint32_t query, VkQueryControlFlags flags) :
-		queryPool{ queryPool },
-		query{ query },
-		flags{ flags }
+		queryPool{queryPool},
+		query{query},
+		flags{flags}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		FATAL_ERROR();
+	}
+#endif
 
 	void Process(DeviceState* deviceState) override
 	{
@@ -31,6 +40,13 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		FATAL_ERROR();
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
 		FATAL_ERROR();
@@ -50,6 +66,13 @@ public:
 		queryCount{queryCount}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		FATAL_ERROR();
+	}
+#endif
 
 	void Process(DeviceState* deviceState) override
 	{

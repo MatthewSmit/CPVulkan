@@ -2,19 +2,31 @@
 #include "CommandBuffer.Internal.h"
 
 #include "Buffer.h"
+#include "DebugHelper.h"
 #include "DeviceState.h"
 #include "Event.h"
 #include "Formats.h"
 #include "Framebuffer.h"
 #include "Image.h"
-#include "ImageSampler.h"
 #include "ImageView.h"
 #include "RenderPass.h"
 #include "Util.h"
 
 #include <glm/glm.hpp>
 
+#include <fstream>
 #include <iostream>
+
+static void RunCommands(DeviceState* deviceState, const std::vector<std::unique_ptr<Command>>& commands)
+{
+	for (const auto& command : commands)
+	{
+#if CV_DEBUG_LEVEL > 0
+		command->DebugOutput(deviceState);
+#endif
+		command->Process(deviceState);
+	}
+}
 
 class CopyBufferCommand final : public Command
 {
@@ -25,6 +37,17 @@ public:
 		regions{std::move(regions)}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "CopyBuffer: copying buffers " <<
+			" from " << srcBuffer <<
+			" to " << dstBuffer <<
+			" on regions " << regions <<
+			std::endl;
+	}
+#endif
 
 	void Process(DeviceState*) override
 	{
@@ -51,6 +74,17 @@ public:
 		regions{std::move(regions)}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "CopyImage: copying images " <<
+			" from " << srcImage <<
+			" to " << dstImage <<
+			" on regions " << regions <<
+			std::endl;
+	}
+#endif
 
 	void Process(DeviceState*) override
 	{
@@ -162,6 +196,18 @@ public:
 		filter{filter}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "ImageCommand: blitting images " <<
+			" from " << srcImage <<
+			" to " << dstImage <<
+			" on regions " << regions <<
+			" with filter " << filter <<
+			std::endl;
+	}
+#endif
 
 	void Process(DeviceState*) override
 	{
@@ -329,6 +375,17 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "CopyBufferToImage: copying buffer to image " <<
+			" from " << srcBuffer <<
+			" to " << dstImage <<
+			" on regions " << regions <<
+			std::endl;
+	}
+#endif
+
 	void Process(DeviceState*) override
 	{
 		const auto& format = GetFormatInformation(dstImage->getFormat());
@@ -413,6 +470,17 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "CopyImageToBuffer: copying image to buffer " <<
+			" from " << srcImage <<
+			" to " << dstBuffer <<
+			" on regions " << regions <<
+			std::endl;
+	}
+#endif
+
 	void Process(DeviceState*) override
 	{
 		const auto& format = GetFormatInformation(srcImage->getFormat());
@@ -494,6 +562,13 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "SetEvent: Setting event  on " << event << std::endl;
+	}
+#endif
+
 	void Process(DeviceState*) override
 	{
 		event->Signal();
@@ -512,6 +587,13 @@ public:
 		stageMask{stageMask}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "ResetEvent: Resetting event  on " << event << std::endl;
+	}
+#endif
 
 	void Process(DeviceState*) override
 	{
@@ -536,6 +618,17 @@ public:
 	}
 
 	~PushConstantsCommand() override = default;
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "PushConstants: pushing constants " <<
+			" with " << layout <<
+			" and offset " << offset <<
+			" and size " << size <<
+			std::endl;
+	}
+#endif
 
 	void Process(DeviceState* state) override
 	{
@@ -562,8 +655,24 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "BeginRenderPass: Beginning render pass " <<
+			" on " << renderPass <<
+			" with " << framebuffer <<
+			" around " << renderArea <<
+			" clearing " << clearValues <<
+			std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
+		deviceState->currentRenderPass = renderPass;
+		deviceState->currentFramebuffer = framebuffer;
+		deviceState->currentRenderArea = renderArea;
+		
 		if (renderPass->getSubpasses().size() != 1)
 		{
 			FATAL_ERROR();
@@ -584,18 +693,18 @@ public:
 			}
 		}
 
-		if (renderPass->getSubpasses()[0].DepthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED)
+		const auto attachmentReference = renderPass->getSubpasses()[0].DepthStencilAttachment;
+		if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 		{
-			auto attachmentReference = renderPass->getSubpasses()[0].DepthStencilAttachment;
-			auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
-			auto imageView = framebuffer->getAttachments()[attachmentReference.attachment];
-			auto formatInformation = GetFormatInformation(attachment.format);
+			const auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
+			const auto imageView = framebuffer->getAttachments()[attachmentReference.attachment];
+			const auto formatInformation = GetFormatInformation(attachment.format);
 			VkImageAspectFlags aspects;
 			if (formatInformation.Format == VK_FORMAT_S8_UINT)
 			{
 				aspects = VK_IMAGE_ASPECT_STENCIL_BIT;
 			}
-			else if (formatInformation.GreenOffset == -1)
+			else if (formatInformation.GreenOffset == 0xFFFFFFFF)
 			{
 				aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
 			}
@@ -608,10 +717,6 @@ public:
 				ClearImage(deviceState, imageView->getImage(), attachment.format, 0, 1, 0, 1, aspects, clearValues[attachmentReference.attachment].depthStencil);
 			}
 		}
-
-		deviceState->renderPass = renderPass;
-		deviceState->framebuffer = framebuffer;
-		deviceState->renderArea = renderArea;
 	}
 
 private:
@@ -624,8 +729,35 @@ private:
 class EndRenderPassCommand final : public Command
 {
 public:
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "EndRenderPass: Ending render pass" << std::endl;
+	}
+#endif
+	
 	void Process(DeviceState* deviceState) override
 	{
+#if CV_DEBUG_LEVEL >= CV_DEBUG_IMAGE
+		for (auto attachmentReference : deviceState->currentRenderPass->getSubpasses()[0].ColourAttachments)
+		{
+			if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
+			{
+				auto imageView = deviceState->currentFramebuffer->getAttachments()[attachmentReference.attachment];
+				DumpImage("LatestRender" + std::to_string(attachmentReference.attachment) + ".dds", imageView->getImage(), imageView);
+			}
+		}
+
+		const auto attachmentReference = deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment;
+		if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
+		{
+			const auto imageView = deviceState->currentFramebuffer->getAttachments()[attachmentReference.attachment];
+			DumpImage("LatestRenderDepth.dds", imageView->getImage(), imageView);
+		}
+#endif
+		
+		deviceState->currentRenderPass = nullptr;
+		deviceState->currentFramebuffer = nullptr;
 		// TODO
 	}
 };
@@ -638,14 +770,18 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "ExecuteCommands: Executing commands" << std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
 		for (const auto commandBuffer : commands)
 		{
-			for (const auto& command : commandBuffer->commands)
-			{
-				command->Process(deviceState);
-			}
+			RunCommands(deviceState, commandBuffer->commands);
 		}
 	}
 
@@ -878,9 +1014,6 @@ void CommandBuffer::ForceReset()
 
 VkResult CommandBuffer::Submit()
 {
-	for (const auto& command : commands)
-	{
-		command->Process(deviceState);
-	}
+	RunCommands(deviceState, commands);
 	return VK_SUCCESS;
 }

@@ -131,6 +131,9 @@ namespace spv
 		ExecutionModeFinalizer = 34,
 		ExecutionModeSubgroupSize = 35,
 		ExecutionModeSubgroupsPerWorkgroup = 36,
+		ExecutionModeSubgroupsPerWorkgroupId = 37,
+		ExecutionModeLocalSizeId = 38,
+		ExecutionModeLocalSizeHintId = 39,
 		ExecutionModeMax = 0x7fffffff,
 	};
 

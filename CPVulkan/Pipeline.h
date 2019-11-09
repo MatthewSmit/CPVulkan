@@ -1,6 +1,8 @@
 #pragma once
 #include "Base.h"
 
+#include <glm/glm.hpp>
+
 #include <array>
 #include <vector>
 
@@ -101,12 +103,18 @@ public:
 	[[nodiscard]] SpirvCompiledModule* getLLVMModule() const { return llvmModule; }
 	[[nodiscard]] const std::string& getName() const { return name; }
 	[[nodiscard]] EntryPoint getEntryPoint() const { return entryPoint; }
+	
+	[[nodiscard]] bool getFragmentOriginUpper() const { return fragmentOriginUpper; }
+	[[nodiscard]] glm::uvec3 getComputeLocalSize() const { return computeLocalSize; }
 
 private:
 	const SPIRV::SPIRVModule* module;
 	SpirvCompiledModule* llvmModule;
 	std::string name;
 	EntryPoint entryPoint;
+	
+	bool fragmentOriginUpper;
+	glm::uvec3 computeLocalSize;
 };
 
 class Pipeline final

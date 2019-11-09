@@ -1,5 +1,5 @@
 #pragma once
 
-class SpirvJit;
+struct DeviceState;
 
-void AddGlslFunctions(SpirvJit* jit);
+void AddGlslFunctions(DeviceState* deviceState);

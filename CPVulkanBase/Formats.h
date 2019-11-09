@@ -54,4 +54,6 @@ CP_DLL_EXPORT uint64_t GetFormatPixelOffset(const FormatInformation& format, uin
 CP_DLL_EXPORT void* GetFormatPixelOffset(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer);
 CP_DLL_EXPORT uint32_t GetFormatHeight(const FormatInformation& format, uint32_t height);
 
+CP_DLL_EXPORT bool IsDepthFormat(VkFormat format);
+CP_DLL_EXPORT bool IsStencilFormat(VkFormat format);
 CP_DLL_EXPORT bool NeedsYCBCRConversion(VkFormat format);

@@ -42,16 +42,16 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	auto next = pCreateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (pCreateInfo->flags)
@@ -61,11 +61,8 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 
 	imemstream stream{reinterpret_cast<const char*>(pCreateInfo->pCode), pCreateInfo->codeSize};
 
-	// shaderModule->data.resize(pCreateInfo->codeSize / 4);
-	// memcpy(shaderModule->data.data(), pCreateInfo->pCode, pCreateInfo->codeSize);
-
-	SPIRV::TranslatorOpts Opts{};
-	shaderModule->module = SPIRV::SPIRVModule::createSPIRVModule(Opts);
+	SPIRV::TranslatorOptions options{};
+	shaderModule->module = SPIRV::SPIRVModule::createSPIRVModule(options);
 	stream >> *shaderModule->module;
 	if (!shaderModule->module->isModuleValid())
 	{
@@ -73,10 +70,6 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 		// return nullptr;
 		FATAL_ERROR();
 	}
-
-	// spirv_cross::Parser parser(std::move(data));
-	// parser.parse();
-	// shaderModule->ir = parser.get_parsed_ir();
 
 	WrapVulkan(shaderModule, pShaderModule);
 	return VK_SUCCESS;

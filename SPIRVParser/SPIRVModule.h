@@ -93,7 +93,7 @@ public:
   typedef std::map<SPIRVCapabilityKind, SPIRVCapability *> SPIRVCapMap;
 
   static SPIRVModule *createSPIRVModule();
-  static SPIRVModule *createSPIRVModule(const SPIRV::TranslatorOpts &);
+  static SPIRVModule *createSPIRVModule(const SPIRV::TranslatorOptions&);
   SPIRVModule();
   virtual ~SPIRVModule();
 
@@ -401,7 +401,7 @@ protected:
   bool AutoAddCapability;
   bool ValidateCapability;
   bool AutoAddExtensions = true;
-  SPIRV::TranslatorOpts TranslationOpts;
+  SPIRV::TranslatorOptions TranslationOpts;
 
 private:
   bool IsValid;

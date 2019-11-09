@@ -223,7 +223,7 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.maxGeometryOutputVertices = 256;
 	pProperties->limits.maxGeometryTotalOutputComponents = 1024;
 	pProperties->limits.maxFragmentInputComponents = 64;
-	pProperties->limits.maxFragmentOutputAttachments = 4;
+	pProperties->limits.maxFragmentOutputAttachments = MAX_FRAGMENT_OUTPUT_ATTACHMENTS;
 	pProperties->limits.maxFragmentDualSrcAttachments = 1;
 	pProperties->limits.maxFragmentCombinedOutputResources = 4;
 	pProperties->limits.maxComputeSharedMemorySize = 16384;

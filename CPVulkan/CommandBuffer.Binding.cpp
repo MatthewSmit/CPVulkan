@@ -1,6 +1,9 @@
 #include "CommandBuffer.h"
 
+#include "DebugHelper.h"
 #include "DeviceState.h"
+
+#include <fstream>
 
 class Pipeline;
 class PipelineLayout;
@@ -8,19 +11,26 @@ class PipelineLayout;
 class BindPipelineCommand final : public Command
 {
 public:
-	BindPipelineCommand(int index, Pipeline* pipeline):
-		index{index},
+	BindPipelineCommand(VkPipelineBindPoint bindPoint, Pipeline* pipeline):
+		bindPoint{bindPoint},
 		pipeline{pipeline}
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "BindPipeline: Binding pipeline for " << bindPoint << " to " << pipeline << std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
-		deviceState->pipeline[index] = pipeline;
+		gsl::at(deviceState->pipeline, bindPoint) = pipeline;
 	}
 
 private:
-	int index;
+	VkPipelineBindPoint bindPoint;
 	Pipeline* pipeline;
 };
 
@@ -32,6 +42,13 @@ public:
 		viewports{std::move(viewports)}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "SetViewport: Setting viewports starting at " << firstViewport << " with " << viewports << std::endl;
+	}
+#endif
 
 	void Process(DeviceState* deviceState) override
 	{
@@ -55,6 +72,13 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "SetScissor: Setting scissor regions starting at " << firstScissor << " with " << scissors << std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
 		for (auto i = 0u; i < scissors.size(); i++)
@@ -71,8 +95,8 @@ private:
 class BindDescriptorSetsCommand final : public Command
 {
 public:
-	BindDescriptorSetsCommand(int pipelineIndex, PipelineLayout* pipelineLayout, uint32_t firstSet, std::vector<DescriptorSet*> descriptorSets, std::vector<uint32_t> dynamicOffsets):
-		pipelineIndex{pipelineIndex},
+	BindDescriptorSetsCommand(VkPipelineBindPoint bindPoint, PipelineLayout* pipelineLayout, uint32_t firstSet, std::vector<DescriptorSet*> descriptorSets, std::vector<uint32_t> dynamicOffsets):
+		bindPoint{bindPoint},
 		pipelineLayout{pipelineLayout},
 		firstSet{firstSet},
 		descriptorSets{std::move(descriptorSets)},
@@ -80,11 +104,22 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "BindPipeline: Binding pipeline for " << bindPoint <<
+			" starting at " << firstSet <<
+			" with " << pipelineLayout <<
+			" to " << descriptorSets <<
+			" at " << dynamicOffsets << std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
 		for (auto i = 0u; i < descriptorSets.size(); i++)
 		{
-			deviceState->descriptorSets[i + firstSet][pipelineIndex] = descriptorSets[i];
+			deviceState->descriptorSets[i + firstSet][bindPoint] = descriptorSets[i];
 		}
 
 		if (!dynamicOffsets.empty())
@@ -94,7 +129,7 @@ public:
 	}
 
 private:
-	int pipelineIndex;
+	VkPipelineBindPoint bindPoint;
 	PipelineLayout* pipelineLayout;
 	uint32_t firstSet;
 	std::vector<DescriptorSet*> descriptorSets;
@@ -110,6 +145,17 @@ public:
 		indexType{indexType}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "BindIndexBuffer: Binding index buffer " <<
+			" to " << buffer <<
+			" at " << offset << 
+			" of type " << indexType << 
+			std::endl;
+	}
+#endif
 
 	void Process(DeviceState* deviceState) override
 	{
@@ -147,6 +193,17 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "BindVertexBuffers: Binding vertex buffers " <<
+			" starting at " << firstBinding <<
+			" to " << buffers <<
+			" at " << bufferOffsets <<
+			std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
 		for (auto i = 0u; i < buffers.size(); i++)
@@ -165,12 +222,7 @@ private:
 void CommandBuffer::BindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
 {
 	assert(state == State::Recording);
-	if (pipelineBindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS && pipelineBindPoint != VK_PIPELINE_BIND_POINT_COMPUTE)
-	{
-		FATAL_ERROR();
-	}
-		
-	commands.push_back(std::make_unique<BindPipelineCommand>(static_cast<int>(pipelineBindPoint), UnwrapVulkan<Pipeline>(pipeline)));
+	commands.push_back(std::make_unique<BindPipelineCommand>(pipelineBindPoint, UnwrapVulkan<Pipeline>(pipeline)));
 }
 
 void CommandBuffer::SetViewport(uint32_t firstViewport, uint32_t viewportCount, const VkViewport* pViewports)
@@ -192,11 +244,6 @@ void CommandBuffer::SetScissor(uint32_t firstScissor, uint32_t scissorCount, con
 void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets)
 {
 	assert(state == State::Recording);
-	if (pipelineBindPoint != VK_PIPELINE_BIND_POINT_GRAPHICS && pipelineBindPoint != VK_PIPELINE_BIND_POINT_COMPUTE)
-	{
-		FATAL_ERROR();
-	}
-
 	std::vector<DescriptorSet*> descriptorSets(descriptorSetCount);
 	for (auto i = 0u; i < descriptorSetCount; i++)
 	{
@@ -206,7 +253,7 @@ void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, Vk
 	std::vector<uint32_t> dynamicOffsets(dynamicOffsetCount);
 	memcpy(dynamicOffsets.data(), pDynamicOffsets, sizeof(uint32_t) * dynamicOffsetCount);
 
-	commands.push_back(std::make_unique<BindDescriptorSetsCommand>(static_cast<int>(pipelineBindPoint), UnwrapVulkan<PipelineLayout>(layout), firstSet, descriptorSets, dynamicOffsets));
+	commands.push_back(std::make_unique<BindDescriptorSetsCommand>(pipelineBindPoint, UnwrapVulkan<PipelineLayout>(layout), firstSet, descriptorSets, dynamicOffsets));
 }
 
 void CommandBuffer::BindIndexBuffer(VkBuffer buffer, VkDeviceSize offset, VkIndexType indexType)

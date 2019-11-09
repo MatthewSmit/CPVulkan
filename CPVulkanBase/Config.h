@@ -18,6 +18,11 @@
 #undef VK_EXT_display_control
 #undef VK_KHR_get_display_properties2
 
+#define CV_DEBUG_NONE 0
+#define CV_DEBUG_LOG 1
+#define CV_DEBUG_IMAGE 2
+#define CV_DEBUG_LEVEL CV_DEBUG_IMAGE
+
 constexpr auto ROBUST_BUFFER_ACCESS = true; // Must be true for Vulkan 1.0+
 constexpr auto FULL_DRAW_INDEX_UINT32 = true;
 constexpr auto IMAGE_CUBE_ARRAY = true;
@@ -122,7 +127,7 @@ constexpr auto MAX_VERTEX_INPUT_BINDINGS = 16;
 // pProperties->limits.maxGeometryOutputVertices = 256;
 // pProperties->limits.maxGeometryTotalOutputComponents = 1024;
 // pProperties->limits.maxFragmentInputComponents = 64;
-// pProperties->limits.maxFragmentOutputAttachments = 4;
+constexpr auto MAX_FRAGMENT_OUTPUT_ATTACHMENTS = 4;
 // pProperties->limits.maxFragmentDualSrcAttachments = 1;
 // pProperties->limits.maxFragmentCombinedOutputResources = 4;
 // pProperties->limits.maxComputeSharedMemorySize = 16384;
@@ -194,8 +199,12 @@ constexpr auto LINE_WIDTH_GRANULARITY = WIDE_LINES ? 1 : 0;
 // pProperties->sparseProperties.residencyAlignedMipSize = false;
 // pProperties->sparseProperties.residencyNonResidentStrict = false;
 
+constexpr auto PIPELINE_GRAPHICS = 0;
+constexpr auto PIPELINE_COMPUTE = 1;
+
 #if defined(VK_NV_ray_tracing)
 constexpr auto MAX_PIPELINES = 3;
+constexpr auto PIPELINE_RAYTRACE = 2;
 #else
 constexpr auto MAX_PIPELINES = 2;
 #endif

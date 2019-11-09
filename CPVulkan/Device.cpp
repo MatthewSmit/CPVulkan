@@ -10,16 +10,34 @@
 #include <Converter.h>
 
 #include <cassert>
+#include <fstream>
+#include <iostream>
 
 Device::Device() noexcept :
 	state{std::make_unique<DeviceState>()}
 {
+#if CV_DEBUG_LEVEL > 0
+	static auto output = new std::ofstream("commandStream.txt");
+	state->debugOutput = output;
+#endif
+	
 	state->jit = new SpirvJit();
-	AddGlslFunctions(state->jit);
+	AddGlslFunctions(state.get());
 }
 
 Device::~Device()
 {
+#if CV_DEBUG_LEVEL > 0
+	try
+	{
+		state->debugOutput->flush();
+	}
+	catch (std::exception e)
+	{
+		// Ignore
+	}
+#endif
+	
 	delete state->jit;
 }
 

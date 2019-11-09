@@ -2,6 +2,7 @@
 #include "CommandBuffer.Internal.h"
 
 #include "Buffer.h"
+#include "DebugHelper.h"
 #include "DescriptorSet.h"
 #include "DeviceState.h"
 #include "Formats.h"
@@ -20,7 +21,7 @@
 
 #include <glm/glm.hpp>
 
-constexpr auto MAX_FRAGMENT_ATTACHMENTS = 4;
+#include <fstream>
 
 class PipelineLayout;
 
@@ -40,6 +41,18 @@ struct VertexBuiltinOutput
 struct FragmentBuiltinInput
 {
 	glm::vec4 fragCoord;
+};
+
+struct ComputeBuiltinInput
+{
+	glm::uvec3 globalInvocationId;
+	uint32_t unused0;
+	
+	glm::uvec3 localInvocationId;
+	uint32_t unused1;
+	
+	glm::uvec3 workgroupInvocationId;
+	uint32_t unused2;
 };
 
 struct VertexOutput
@@ -107,33 +120,6 @@ static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, u
 	}
 }
 
-// static void GetImageColour(uint64_t output[4], const FormatInformation& format, const VkClearColorValue& input)
-// {
-// 	switch (format.Base)
-// 	{
-// 	case BaseType::UNorm:
-// 	case BaseType::SNorm:
-// 	case BaseType::UFloat:
-// 	case BaseType::SFloat:
-// 	case BaseType::SRGB:
-// 		ConvertPixelsToTemp(format, input.float32, output);
-// 		break;
-//
-// 	case BaseType::UInt:
-// 	case BaseType::UScaled:
-// 		ConvertPixelsToTemp(format, input.uint32, output);
-// 		break;
-// 		
-// 	case BaseType::SInt:
-// 	case BaseType::SScaled:
-// 		ConvertPixelsToTemp(format, input.int32, output);
-// 		break;
-// 		
-// 	default:
-// 		FATAL_ERROR();
-// 	}
-// }
-
 static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, const VertexInputState& vertexInputState)
 {
 	for (const auto& bindingDescription : vertexInputState.VertexBindingDescriptions)
@@ -167,11 +153,11 @@ static void LoadVertexInput(uint32_t vertex, const VertexInputState& vertexInput
 	}
 }
 
-static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* module, const std::vector<VariableUniformData>& uniformData)
+static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* module, const std::vector<VariableUniformData>& uniformData, int pipelineIndex)
 {
 	for (const auto& data : uniformData)
 	{
-		const auto descriptorSet = deviceState->descriptorSets[data.set][0];
+		const auto descriptorSet = deviceState->descriptorSets[data.set][pipelineIndex];
 		for (const auto& binding : descriptorSet->getBindings())
 		{
 			if (std::get<1>(binding) == data.binding)
@@ -182,12 +168,9 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-					*static_cast<const void**>(data.pointer) = &std::get<2>(binding).ImageInfo;
-					break;
-					
 				case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 				case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-					*static_cast<const void**>(data.pointer) = UnwrapVulkan<BufferView>(std::get<2>(binding).TexelBufferView);
+					*static_cast<const ImageDescriptor**>(data.pointer) = &std::get<2>(binding).ImageDescriptor;
 					break;
 
 				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
@@ -445,7 +428,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vec
 	std::vector<VariableInOutData> inputData{};
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
-	std::pair<void*, uint32_t> pushConstant = {};
+	std::pair<void*, uint32_t> pushConstant{};
 	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
 	
 	VertexOutput output
@@ -457,7 +440,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vec
 		assemblerOutput.size(),
 	};
 
-	LoadUniforms(deviceState, module, uniformData);
+	LoadUniforms(deviceState, module, uniformData, PIPELINE_GRAPHICS);
 
 	const auto builtinInput = static_cast<VertexBuiltinInput*>(builtinInputPointer);
 	builtinInput->instanceIndex = 0;
@@ -487,55 +470,111 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vec
 
 static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, uint8_t* vertexData, int vertexStride,
                              uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
-                             const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p, float& depth)
+                             const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p, 
+                             VkCullModeFlags cullMode, float& depth)
 {
-	const auto area = EdgeFunction(p0, p1, p2);
-	auto w0 = EdgeFunction(p1, p2, p);
-	auto w1 = EdgeFunction(p2, p0, p);
-	auto w2 = EdgeFunction(p0, p1, p);
-
-	if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+	if (!(cullMode & VK_CULL_MODE_BACK_BIT))
 	{
-		w0 /= area;
-		w1 /= area;
-		w2 /= area;
+		const auto area = EdgeFunction(p0, p1, p2);
+		auto w0 = EdgeFunction(p1, p2, p);
+		auto w1 = EdgeFunction(p2, p0, p);
+		auto w2 = EdgeFunction(p0, p1, p);
 
-		depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
-
-		for (auto input : inputData)
+		if (w0 >= 0 && w1 >= 0 && w2 >= 0)
 		{
-			const auto data0 = vertexData + p0Index * vertexStride + input.offset;
-			const auto data1 = vertexData + p1Index * vertexStride + input.offset;
-			const auto data2 = vertexData + p2Index * vertexStride + input.offset;
-			switch (input.format)
+			w0 /= area;
+			w1 /= area;
+			w2 /= area;
+
+			depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
+
+			for (auto input : inputData)
 			{
-			case VK_FORMAT_R32G32_SFLOAT:
-				*reinterpret_cast<glm::vec2*>(input.pointer) =
-					*reinterpret_cast<glm::vec2*>(data0) * w0 +
-					*reinterpret_cast<glm::vec2*>(data1) * w1 +
-					*reinterpret_cast<glm::vec2*>(data2) * w2;
-				break;
-				
-			case VK_FORMAT_R32G32B32_SFLOAT:
-				*reinterpret_cast<glm::vec3*>(input.pointer) =
-					*reinterpret_cast<glm::vec3*>(data0) * w0 +
-					*reinterpret_cast<glm::vec3*>(data1) * w1 +
-					*reinterpret_cast<glm::vec3*>(data2) * w2;
-				break;
+				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
+				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
+				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
+				switch (input.format)
+				{
+				case VK_FORMAT_R32G32_SFLOAT:
+					*reinterpret_cast<glm::vec2*>(input.pointer) =
+						*reinterpret_cast<glm::vec2*>(data0)* w0 +
+						*reinterpret_cast<glm::vec2*>(data1)* w1 +
+						*reinterpret_cast<glm::vec2*>(data2)* w2;
+					break;
 
-			case VK_FORMAT_R32G32B32A32_SFLOAT:
-				*reinterpret_cast<glm::vec4*>(input.pointer) =
-					*reinterpret_cast<glm::vec4*>(data0) * w0 +
-					*reinterpret_cast<glm::vec4*>(data1) * w1 +
-					*reinterpret_cast<glm::vec4*>(data2) * w2;
-				break;
-				
-			default:
-				FATAL_ERROR();
+				case VK_FORMAT_R32G32B32_SFLOAT:
+					*reinterpret_cast<glm::vec3*>(input.pointer) =
+						*reinterpret_cast<glm::vec3*>(data0)* w0 +
+						*reinterpret_cast<glm::vec3*>(data1)* w1 +
+						*reinterpret_cast<glm::vec3*>(data2)* w2;
+					break;
+
+				case VK_FORMAT_R32G32B32A32_SFLOAT:
+					*reinterpret_cast<glm::vec4*>(input.pointer) =
+						*reinterpret_cast<glm::vec4*>(data0)* w0 +
+						*reinterpret_cast<glm::vec4*>(data1)* w1 +
+						*reinterpret_cast<glm::vec4*>(data2)* w2;
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
 			}
-		}
 
-		return true;
+			return true;
+		}
+	}
+
+	if (!(cullMode & VK_CULL_MODE_FRONT_BIT))
+	{
+		const auto area = EdgeFunction(p2, p1, p0);
+		auto w0 = EdgeFunction(p2, p1, p);
+		auto w1 = EdgeFunction(p0, p2, p);
+		auto w2 = EdgeFunction(p1, p0, p);
+
+		if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+		{
+			w0 /= area;
+			w1 /= area;
+			w2 /= area;
+
+			depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
+
+			for (auto input : inputData)
+			{
+				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
+				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
+				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
+				switch (input.format)
+				{
+				case VK_FORMAT_R32G32_SFLOAT:
+					*reinterpret_cast<glm::vec2*>(input.pointer) =
+						*reinterpret_cast<glm::vec2*>(data0) * w0 +
+						*reinterpret_cast<glm::vec2*>(data1) * w1 +
+						*reinterpret_cast<glm::vec2*>(data2) * w2;
+					break;
+
+				case VK_FORMAT_R32G32B32_SFLOAT:
+					*reinterpret_cast<glm::vec3*>(input.pointer) =
+						*reinterpret_cast<glm::vec3*>(data0) * w0 +
+						*reinterpret_cast<glm::vec3*>(data1) * w1 +
+						*reinterpret_cast<glm::vec3*>(data2) * w2;
+					break;
+
+				case VK_FORMAT_R32G32B32A32_SFLOAT:
+					*reinterpret_cast<glm::vec4*>(input.pointer) =
+						*reinterpret_cast<glm::vec4*>(data0) * w0 +
+						*reinterpret_cast<glm::vec4*>(data1) * w1 +
+						*reinterpret_cast<glm::vec4*>(data2) * w2;
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+			}
+
+			return true;
+		}
 	}
 
 	return false;
@@ -551,8 +590,19 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 {
 	const auto& inputAssembly = deviceState->pipeline[0]->getInputAssemblyState();
 	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(4);
+	const auto& rasterisationState = deviceState->pipeline[0]->getRasterizationState();
 
 	if (inputAssembly.Topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+	{
+		FATAL_ERROR();
+	}
+
+	if (rasterisationState.RasterizerDiscardEnable)
+	{
+		FATAL_ERROR();
+	}
+
+	if (rasterisationState.PolygonMode != VK_POLYGON_MODE_FILL)
 	{
 		FATAL_ERROR();
 	}
@@ -567,26 +617,26 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	std::vector<VariableInOutData> inputData{};
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
-	std::pair<void*, uint32_t> pushConstant = {};
+	std::pair<void*, uint32_t> pushConstant{};
 	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
 
-	LoadUniforms(deviceState, module, uniformData);
+	LoadUniforms(deviceState, module, uniformData, PIPELINE_GRAPHICS);
 	
-	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_ATTACHMENTS};
+	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
 	std::pair<VkAttachmentDescription, Image*> depthImage;
 	
-	for (auto i = 0u; i < deviceState->renderPass->getSubpasses()[0].ColourAttachments.size(); i++)
+	for (auto i = 0u; i < deviceState->currentRenderPass->getSubpasses()[0].ColourAttachments.size(); i++)
 	{
-		const auto attachmentIndex = deviceState->renderPass->getSubpasses()[0].ColourAttachments[i].attachment;
-		const auto& attachment = deviceState->renderPass->getAttachments()[attachmentIndex];
-		images[i] = std::make_pair(attachment, deviceState->framebuffer->getAttachments()[attachmentIndex]->getImage());
+		const auto attachmentIndex = deviceState->currentRenderPass->getSubpasses()[0].ColourAttachments[i].attachment;
+		const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
+		images[i] = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
 	}
 	
-	if (deviceState->renderPass->getSubpasses()[0].DepthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
+	if (deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
 	{
-		const auto attachmentIndex = deviceState->renderPass->getSubpasses()[0].DepthStencilAttachment.attachment;
-		const auto& attachment = deviceState->renderPass->getAttachments()[attachmentIndex];
-		depthImage = std::make_pair(attachment, deviceState->framebuffer->getAttachments()[attachmentIndex]->getImage());
+		const auto attachmentIndex = deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment.attachment;
+		const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
+		depthImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
 	}
 	
 	const auto image = images[0].second;
@@ -604,23 +654,41 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 
 	for (auto i = 0u; i < numberTriangles; i++)
 	{
-		const auto p0 = output.builtinData[i * 3 + 0].position / output.builtinData[i * 3 + 0].position.w;
-		const auto p1 = output.builtinData[i * 3 + 1].position / output.builtinData[i * 3 + 1].position.w;
-		const auto p2 = output.builtinData[i * 3 + 2].position / output.builtinData[i * 3 + 2].position.w;
+		uint32_t p0Index;
+		uint32_t p1Index;
+		uint32_t p2Index;
+		if (rasterisationState.FrontFace == VK_FRONT_FACE_CLOCKWISE)
+		{
+			p0Index = i * 3 + 0;
+			p1Index = i * 3 + 1;
+			p2Index = i * 3 + 2;
+		}
+		else
+		{
+			p0Index = i * 3 + 2;
+			p1Index = i * 3 + 1;
+			p2Index = i * 3 + 0;
+		}
+		const auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
+		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		const auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
 		
 		for (auto y = 0u; y < image->getHeight(); y++)
 		{
 			const auto yf = (static_cast<float>(y) / image->getHeight() + halfPixel.y) * 2 - 1;
-			builtinInput->fragCoord.y = yf;
+			builtinInput->fragCoord.y = y;
 			
 			for (auto x = 0u; x < image->getWidth(); x++)
 			{
 				const auto xf = (static_cast<float>(x) / image->getWidth() + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = xf;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : image->getWidth() - x - 1;
 				const auto p = glm::vec2(xf, yf);
 				
 				float depth;
-				if (GetFragmentInput(inputData, output.outputData.get(), output.outputStride, i * 3 + 2, i * 3 + 1, i * 3 + 0, p2, p1, p0, p, depth))
+				if (GetFragmentInput(inputData, output.outputData.get(), output.outputStride,
+				                     p0Index, p1Index, p2Index,
+				                     p0, p1, p2, p,
+				                     rasterisationState.CullMode, depth))
 				{
 					if (depthImage.second)
 					{
@@ -634,7 +702,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 
 					shaderStage->getEntryPoint()();
 					
-					for (auto j = 0; j < MAX_FRAGMENT_ATTACHMENTS; j++)
+					for (auto j = 0; j < MAX_FRAGMENT_OUTPUT_ATTACHMENTS; j++)
 					{
 						if (images[j].second)
 						{
@@ -668,6 +736,59 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	}
 }
 
+static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+	const auto& shaderStage = deviceState->pipeline[1]->getShaderStage(5);
+	
+	const auto module = shaderStage->getModule();
+	const auto llvmModule = shaderStage->getLLVMModule();
+	const auto localCount = shaderStage->getComputeLocalSize();
+	
+	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
+	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
+	
+	auto outputSize = 0u;
+	std::vector<VariableInOutData> inputData{};
+	std::vector<VariableUniformData> uniformData{};
+	std::vector<VariableInOutData> outputData{};
+	std::pair<void*, uint32_t> pushConstant{};
+	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
+
+	assert(inputData.empty() && outputData.empty());
+	
+	LoadUniforms(deviceState, module, uniformData, PIPELINE_COMPUTE);
+	
+	if (pushConstant.first)
+	{
+		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
+	}
+	
+	auto builtinInput = static_cast<ComputeBuiltinInput*>(builtinInputPointer);
+	builtinInput->globalInvocationId = glm::ivec3();
+	builtinInput->localInvocationId = glm::ivec3();
+	builtinInput->workgroupInvocationId = glm::ivec3();
+
+	for (builtinInput->workgroupInvocationId.z = 0, builtinInput->globalInvocationId.z = 0; builtinInput->workgroupInvocationId.z < groupCountZ; builtinInput->workgroupInvocationId.z++)
+	{
+		for (builtinInput->localInvocationId.z = 0u; builtinInput->localInvocationId.z < localCount.z; builtinInput->localInvocationId.z++, builtinInput->globalInvocationId.z++)
+		{
+			for (builtinInput->workgroupInvocationId.y = 0, builtinInput->globalInvocationId.y = 0; builtinInput->workgroupInvocationId.y < groupCountY; builtinInput->workgroupInvocationId.y++)
+			{
+				for (builtinInput->localInvocationId.y = 0u; builtinInput->localInvocationId.y < localCount.y; builtinInput->localInvocationId.y++, builtinInput->globalInvocationId.y++)
+				{
+					for (builtinInput->workgroupInvocationId.x = 0, builtinInput->globalInvocationId.x = 0; builtinInput->workgroupInvocationId.x < groupCountX; builtinInput->workgroupInvocationId.x++)
+					{
+						for (builtinInput->localInvocationId.x = 0u; builtinInput->localInvocationId.x < localCount.x; builtinInput->localInvocationId.x++, builtinInput->globalInvocationId.x++)
+						{
+							shaderStage->getEntryPoint()();
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 class DrawCommand final : public Command
 {
 public:
@@ -678,6 +799,18 @@ public:
 		firstInstance{firstInstance}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "Draw: drawing " <<
+			vertexCount << " vertices, " <<
+			instanceCount << " instances" <<
+			" starting at vertex " << firstVertex <<
+			" and instance " << firstInstance <<
+			std::endl;
+	}
+#endif
 
 	void Process(DeviceState* deviceState) override
 	{
@@ -731,6 +864,19 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "DrawIndexed: drawing " <<
+			indexCount << " indices, " <<
+			instanceCount << " instances" <<
+			" starting at index " << firstIndex <<
+			" with vertex offset " << vertexOffset <<
+			" and instance " << firstInstance <<
+			std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
 		if (instanceCount != 1)
@@ -777,6 +923,38 @@ private:
 	uint32_t firstInstance;
 };
 
+class DispatchCommand final : public Command
+{
+public:
+	DispatchCommand(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) :
+		groupCountX{groupCountX},
+		groupCountY{groupCountY},
+		groupCountZ{groupCountZ}
+	{
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "Dispatch: dispatching compute" <<
+			" with group count x: " << groupCountX <<
+			" with group count y: " << groupCountY <<
+			" with group count z: " << groupCountZ <<
+			std::endl;
+	}
+#endif
+
+	void Process(DeviceState* deviceState) override
+	{
+		ProcessComputeShader(deviceState, groupCountX, groupCountY, groupCountZ);
+	}
+
+private:
+	uint32_t groupCountX;
+	uint32_t groupCountY;
+	uint32_t groupCountZ;
+};
+
 class ClearColourImageCommand final : public Command
 {
 public:
@@ -786,6 +964,17 @@ public:
 		ranges{std::move(ranges)}
 	{
 	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "ClearColourImage: clearing image" <<
+			" on " << image <<
+			" to " << DebugPrint(image, colour) <<
+			" on ranges " << ranges <<
+			std::endl;
+	}
+#endif
 
 	void Process(DeviceState* deviceState) override
 	{
@@ -823,6 +1012,17 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "ClearDepthStencilImage: clearing image" <<
+			" on " << image <<
+			" to " << colour <<
+			" on ranges " << ranges <<
+			std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
 		for (const auto& range : ranges)
@@ -857,57 +1057,60 @@ public:
 	{
 	}
 
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "ClearAttachments: clearing attachments" <<
+			" on " << attachments <<
+			" with values" << rects <<
+			std::endl;
+	}
+#endif
+
 	void Process(DeviceState* deviceState) override
 	{
-		for (auto& vkAttachment : attachments)
+		for (auto& attachment : attachments)
 		{
 			// TODO:  If any attachment to be cleared in the current subpass is VK_ATTACHMENT_UNUSED, then the clear has no effect on that attachment.
 
 			Image* image;
 			VkFormat format;
-			uint64_t values[4];
-			if (vkAttachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
+			if (attachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				format = deviceState->renderPass->getAttachments()[vkAttachment.colorAttachment].format;
-				image = deviceState->framebuffer->getAttachments()[vkAttachment.colorAttachment]->getImage();
-			}
-			else
-			{
-				FATAL_ERROR();
-			}
-
-			const auto& formatInformation = GetFormatInformation(format);
-			
-			if (vkAttachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
-			{
-				// GetImageColour(values, formatInformation, vkAttachment.clearValue.color);
-				FATAL_ERROR();
+				format = deviceState->currentRenderPass->getAttachments()[attachment.colorAttachment].format;
+				image = deviceState->currentFramebuffer->getAttachments()[attachment.colorAttachment]->getImage();
 			}
 			else
 			{
 				FATAL_ERROR();
 			}
 			
-			for (auto& rect : rects)
+			if (attachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				if (rect.layerCount != 1)
+				for (auto& rect : rects)
 				{
-					FATAL_ERROR();
-				}
-
-				if (rect.baseArrayLayer != 0)
-				{
-					FATAL_ERROR();
-				}
-
-				for (auto y = rect.rect.offset.y; y < rect.rect.offset.y + rect.rect.extent.height; y++)
-				{
-					for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
+					if (rect.layerCount != 1)
 					{
-						// SetPixel(formatInformation, image, x, y, 0, 0, 0, values);
 						FATAL_ERROR();
 					}
+
+					if (rect.baseArrayLayer != 0)
+					{
+						FATAL_ERROR();
+					}
+
+					for (auto y = rect.rect.offset.y; y < rect.rect.offset.y + rect.rect.extent.height; y++)
+					{
+						for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
+						{
+							SetPixel(deviceState, format, image, x, y, 0, 0, 0, attachment.clearValue.color);
+						}
+					}
 				}
+			}
+			else
+			{
+				FATAL_ERROR();
 			}
 		}
 	}
@@ -927,6 +1130,12 @@ void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uin
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<DrawIndexedCommand>(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance));
+}
+
+void CommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<DispatchCommand>(groupCountX, groupCountY, groupCountZ));
 }
 
 void CommandBuffer::ClearColorImage(VkImage image, VkImageLayout, const VkClearColorValue* pColor, uint32_t rangeCount, const VkImageSubresourceRange* pRanges)

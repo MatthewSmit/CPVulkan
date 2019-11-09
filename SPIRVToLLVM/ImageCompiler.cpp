@@ -295,6 +295,102 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
+STL_DLL_EXPORT FunctionPointer CompileGetPixelUInt(SpirvJit* jit, const FormatInformation* information)
+{
+	auto context = std::make_unique<llvm::LLVMContext>();
+	llvm::IRBuilder<> builder(*context);
+	auto module = std::make_unique<llvm::Module>("", *context);
+
+	llvm::Type* resultType;
+	switch (information->ElementSize)
+	{
+	case 1:
+		resultType = builder.getInt8Ty();
+		break;
+
+	case 2:
+		resultType = builder.getInt16Ty();
+		break;
+
+	case 4:
+		resultType = builder.getInt32Ty();
+		break;
+
+	case 8:
+		resultType = builder.getInt64Ty();
+		break;
+
+	default:
+		FATAL_ERROR();
+	}
+	
+	const auto functionType = llvm::FunctionType::get(builder.getVoidTy(), {
+		                                                  builder.getInt8PtrTy(),
+		                                                  llvm::PointerType::get(resultType, 0),
+	                                                  }, false);
+	const auto function = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+	                                             llvm::GlobalVariable::ExternalLinkage,
+	                                             "main",
+	                                             module.get());
+	
+	const auto basicBlock = llvm::BasicBlock::Create(*context, "", function);
+	builder.SetInsertPoint(basicBlock);
+	
+	llvm::Value* sourcePtr = &*function->arg_begin();
+	llvm::Value* destinationPtr = &*(function->arg_begin() + 1);
+
+	if (information->ElementSize == 0)
+	{
+		// EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
+		FATAL_ERROR();
+	}
+	else
+	{
+		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(resultType, 0));
+		
+		if (information->RedOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->RedOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+			builder.CreateStore(value, dst);
+		}
+		
+		if (information->GreenOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->GreenOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+			builder.CreateStore(value, dst);
+		}
+		
+		if (information->BlueOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->BlueOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+			builder.CreateStore(value, dst);
+		}
+		
+		if (information->AlphaOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->AlphaOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+			builder.CreateStore(value, dst);
+		}
+	}
+
+	builder.CreateRetVoid();
+	
+	// TODO: Optimise
+	
+	Dump(module.get());
+	
+	const auto compiledModule = jit->CompileModule(std::move(context), std::move(module));
+	return jit->getFunctionPointer(compiledModule, "main");
+}
+
 STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();

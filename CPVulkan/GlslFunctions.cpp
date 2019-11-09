@@ -1,12 +1,12 @@
 #include "GlslFunctions.h"
 
 #include "Base.h"
-#include "Formats.h"
+#include "Buffer.h"
+#include "BufferView.h"
+#include "DescriptorSet.h"
+#include "DeviceState.h"
 #include "Half.h"
-#include "Image.h"
 #include "ImageSampler.h"
-#include "ImageView.h"
-#include "Sampler.h"
 
 #include <Converter.h>
 
@@ -225,110 +225,110 @@ static T VFindUMsb(T value)
 
 
 template<typename ReturnType, typename CoordinateType>
-static void ImageSampleImplicitLod(ReturnType* result, VkDescriptorImageInfo* sampledImage, CoordinateType* coordinate)
+static void ImageSampleImplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinate)
 {
 	// TODO: Use ImageSampler.cpp
 	// TODO: Calculate LOD
-	const auto sampler = UnwrapVulkan<Sampler>(sampledImage->sampler);
-	auto imageView = UnwrapVulkan<ImageView>(sampledImage->imageView);
-
-	// Instructions with ExplicitLod in the name determine the LOD used in the sampling operation based on additional coordinates.
-	// https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#textures-level-of-detail-operation 
-	
-	if (imageView->getViewType() != VK_IMAGE_VIEW_TYPE_2D)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().baseMipLevel != 0)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().levelCount != 1)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().baseArrayLayer != 0)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().layerCount != 1)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getFlags())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getMagFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getMinFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getAnisotropyEnable())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getCompareEnable())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getUnnormalisedCoordinates())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (coordinate->x < 0 || coordinate->x > 1 || coordinate->y < 0 || coordinate->y > 1)
-	{
-		FATAL_ERROR();
-	}
-	
-	const auto& formatInformation = GetFormatInformation(imageView->getFormat());
-	
-	const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth());
-	const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight());
+	// const auto sampler = UnwrapVulkan<Sampler>(sampledImage->sampler);
+	// auto imageView = UnwrapVulkan<ImageView>(sampledImage->imageView);
+	//
+	// // Instructions with ExplicitLod in the name determine the LOD used in the sampling operation based on additional coordinates.
+	// // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#textures-level-of-detail-operation 
+	//
+	// if (imageView->getViewType() != VK_IMAGE_VIEW_TYPE_2D)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().baseMipLevel != 0)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().levelCount != 1)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().baseArrayLayer != 0)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().layerCount != 1)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getFlags())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getMagFilter() != VK_FILTER_NEAREST)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getMinFilter() != VK_FILTER_NEAREST)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getAnisotropyEnable())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getCompareEnable())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getUnnormalisedCoordinates())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (coordinate->x < 0 || coordinate->x > 1 || coordinate->y < 0 || coordinate->y > 1)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// const auto& formatInformation = GetFormatInformation(imageView->getFormat());
+	//
+	// const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth());
+	// const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight());
 
 	// TODO: Use SampleImage
 	// float values[4];
@@ -338,109 +338,109 @@ static void ImageSampleImplicitLod(ReturnType* result, VkDescriptorImageInfo* sa
 }
 
 template<typename ReturnType, typename CoordinateType>
-static void ImageSampleExplicitLod(ReturnType* result, VkDescriptorImageInfo* sampledImage, CoordinateType* coordinate, float lod)
+static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinate, float lod)
 {
 	// TODO: Use ImageSampler.cpp
-	const auto sampler = UnwrapVulkan<Sampler>(sampledImage->sampler);
-	auto imageView = UnwrapVulkan<ImageView>(sampledImage->imageView);
-
-	// Instructions with ExplicitLod in the name determine the LOD used in the sampling operation based on additional coordinates.
-	// https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#textures-level-of-detail-operation 
-	
-	if (imageView->getViewType() != VK_IMAGE_VIEW_TYPE_2D)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().baseMipLevel != 0)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().levelCount != 1)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().baseArrayLayer != 0)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (imageView->getSubresourceRange().layerCount != 1)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getFlags())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getMagFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getMinFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getAnisotropyEnable())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getCompareEnable())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getUnnormalisedCoordinates())
-	{
-		FATAL_ERROR();
-	}
-	
-	if (coordinate->x < 0 || coordinate->x > 1 || coordinate->y < 0 || coordinate->y > 1)
-	{
-		FATAL_ERROR();
-	}
-	
-	const auto& formatInformation = GetFormatInformation(imageView->getFormat());
-	
-	const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth());
-	const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight());
+	// const auto sampler = UnwrapVulkan<Sampler>(sampledImage->sampler);
+	// auto imageView = UnwrapVulkan<ImageView>(sampledImage->imageView);
+	//
+	// // Instructions with ExplicitLod in the name determine the LOD used in the sampling operation based on additional coordinates.
+	// // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#textures-level-of-detail-operation 
+	//
+	// if (imageView->getViewType() != VK_IMAGE_VIEW_TYPE_2D)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().baseMipLevel != 0)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().levelCount != 1)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().baseArrayLayer != 0)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (imageView->getSubresourceRange().layerCount != 1)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getFlags())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getMagFilter() != VK_FILTER_NEAREST)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getMinFilter() != VK_FILTER_NEAREST)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getAnisotropyEnable())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getCompareEnable())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (sampler->getUnnormalisedCoordinates())
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// if (coordinate->x < 0 || coordinate->x > 1 || coordinate->y < 0 || coordinate->y > 1)
+	// {
+	// 	FATAL_ERROR();
+	// }
+	//
+	// const auto& formatInformation = GetFormatInformation(imageView->getFormat());
+	//
+	// const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth());
+	// const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight());
 
 	// TODO: Use SampleImage
 	// float values[4];
@@ -450,13 +450,30 @@ static void ImageSampleExplicitLod(ReturnType* result, VkDescriptorImageInfo* sa
 }
 
 template<typename ReturnType, typename CoordinateType>
-static void ImageFetch(ReturnType* result, BufferView* image, CoordinateType* coordinate)
+static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates)
 {
-	FATAL_ERROR();
+	const auto bufferView = descriptor->Image.Buffer;
+	switch (descriptor->Type)
+	{
+	case ImageDescriptorType::Buffer:
+		*result = GetPixel<ReturnType>(deviceState,
+		                               bufferView->getFormat(), 
+		                               bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange()), 
+		                               glm::ivec1(bufferView->getRange()), 
+		                               *coordinates);
+		break;
+		
+	case ImageDescriptorType::Image: FATAL_ERROR();
+		
+	default: FATAL_ERROR();
+	}
 }
 
-void AddGlslFunctions(SpirvJit* jit)
+void AddGlslFunctions(DeviceState* deviceState)
 {
+	auto jit = deviceState->jit;
+	jit->SetUserData(deviceState);
+	
 	// Round = 1,
 	// RoundEven = 2,
 	// Trunc = 3,

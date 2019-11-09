@@ -6,6 +6,8 @@
 #include "Util.h"
 
 #include <Converter.h>
+#include <SPIRVFunction.h>
+#include <SPIRVModule.h>
 
 #include <cassert>
 
@@ -28,16 +30,16 @@ static VertexInputState Parse(const VkPipelineVertexInputStateCreateInfo* pVerte
 {
 	assert(pVertexInputState->sType == VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO);
 
-	auto next = pVertexInputState->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pVertexInputState->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (pVertexInputState->flags)
@@ -355,13 +357,261 @@ static std::tuple<int, ShaderFunction*> LoadShaderStage(SpirvJit* jit, const str
 	return std::make_tuple(stageIndex, new ShaderFunction(jit, UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName));
 }
 
+static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SPIRV::SPIRVExecutionModelKind stage, const char* name)
+{
+	for (auto i = 0u; i < module->getNumEntryPoints(stage); i++)
+	{
+		const auto entryPoint = module->getEntryPoint(stage, i);
+		if (entryPoint->getName() == name)
+		{
+			return entryPoint;
+		}
+	}
+	return nullptr;
+}
+
 ShaderFunction::ShaderFunction(SpirvJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name)
 {
 	this->module = module->getModule();
 	this->name = name;
+	const auto entryPoint = FindEntryPoint(this->module, static_cast<SPIRV::SPIRVExecutionModelKind>(stageIndex), name);
+	assert(entryPoint);
+
+	if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
+	{
+		FATAL_ERROR();
+	}
+	
+	if (stageIndex == ExecutionModelTessellationControl || stageIndex == ExecutionModelTessellationEvaluation)
+	{
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingEqual))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalEven))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalOdd))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCw))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCcw))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePointMode))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeQuads))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeIsolines))
+		{
+			FATAL_ERROR();
+		}
+
+		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
+		if (outputVertices)
+		{
+			FATAL_ERROR();
+		}
+	}
+
+	if (stageIndex == ExecutionModelGeometry)
+	{
+		const auto invocations = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInvocations);
+		if (invocations)
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputPoints))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLines))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLinesAdjacency))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputTrianglesAdjacency))
+		{
+			FATAL_ERROR();
+		}
+
+		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
+		if (outputVertices)
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputPoints))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputLineStrip))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputTriangleStrip))
+		{
+			FATAL_ERROR();
+		}
+	}
+
+	if (stageIndex == ExecutionModelFragment)
+	{
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePixelCenterInteger))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginUpperLeft))
+		{
+			this->fragmentOriginUpper = true;
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginLowerLeft))
+		{
+			this->fragmentOriginUpper = false;
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeEarlyFragmentTests))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthReplacing))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthGreater))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthLess))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
+		{
+			FATAL_ERROR();
+		}
+	}
+
+	if (stageIndex == ExecutionModelGLCompute || stageIndex == ExecutionModelKernel)
+	{
+		const auto localSize = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSize);
+		if (localSize)
+		{
+			const auto& literals = localSize->getLiterals();
+			this->computeLocalSize = glm::ivec3{literals[0], literals[1], literals[2]};
+		}
+
+		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
+		if (localSizeId)
+		{
+			FATAL_ERROR();
+		}
+	}
+
+	if (stageIndex == ExecutionModelKernel)
+	{
+		const auto localSizeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHint);
+		if (localSizeHint)
+		{
+			FATAL_ERROR();
+		}
+
+		const auto vecTypeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeContractionOff);
+		if (vecTypeHint)
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInitializer))
+		{
+			FATAL_ERROR();
+		}
+
+		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeFinalizer))
+		{
+			FATAL_ERROR();
+		}
+
+		const auto subgroupSize = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupSize);
+		if (subgroupSize)
+		{
+			FATAL_ERROR();
+		}
+
+		const auto subgroupsPerWorkgroup = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroup);
+		if (subgroupsPerWorkgroup)
+		{
+			FATAL_ERROR();
+		}
+
+		const auto subgroupsPerWorkgroupId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroupId);
+		if (subgroupsPerWorkgroupId)
+		{
+			FATAL_ERROR();
+		}
+
+		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
+		if (localSizeId)
+		{
+			FATAL_ERROR();
+		}
+
+		const auto localSizeHintId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHintId);
+		if (localSizeHintId)
+		{
+			FATAL_ERROR();
+		}
+	}
 
 	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex));
-	entryPoint = jit->getFunctionPointer(llvmModule, name);
+	this->entryPoint = jit->getFunctionPointer(llvmModule, name);
 }
 
 ShaderFunction::~ShaderFunction()

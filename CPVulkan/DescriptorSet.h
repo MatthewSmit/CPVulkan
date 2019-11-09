@@ -5,11 +5,33 @@
 
 class DescriptorSetLayout;
 
+enum class ImageDescriptorType
+{
+	None = 0x0000,
+	Buffer = 0x0001,
+	Image = 0x0002,
+};
+
+struct ImageDescriptor
+{
+	ImageDescriptorType Type;
+
+	union
+	{
+		BufferView* Buffer;
+		ImageView* Image;
+	} Image;
+
+	union
+	{
+		Sampler* Sampler;
+	} Sampler;
+};
+
 union Bindings
 {
-	VkDescriptorImageInfo ImageInfo;
+	ImageDescriptor ImageDescriptor;
 	VkDescriptorBufferInfo BufferInfo;
-	VkBufferView TexelBufferView;
 };
 
 class DescriptorSet final

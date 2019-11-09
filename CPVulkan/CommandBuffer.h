@@ -10,6 +10,10 @@ class Command
 {
 public:
 	virtual ~Command() = default;
+
+#if CV_DEBUG_LEVEL > 0
+	virtual void DebugOutput(DeviceState* deviceState) = 0;
+#endif
 	
 	virtual void Process(DeviceState* deviceState) = 0;
 };
@@ -55,7 +59,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
 	VKAPI_ATTR void VKAPI_PTR DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 	VKAPI_ATTR void VKAPI_PTR DispatchIndirect(VkBuffer buffer, VkDeviceSize offset) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferCopy* pRegions);
 	VKAPI_ATTR void VKAPI_PTR CopyImage(VkImage srcImage, VkImageLayout srcImageLayout, VkImage dstImage, VkImageLayout dstImageLayout, uint32_t regionCount, const VkImageCopy* pRegions);

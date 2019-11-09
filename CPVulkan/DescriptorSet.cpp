@@ -28,12 +28,14 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-				newBinding.ImageInfo = *descriptorWrite.pImageInfo;
-				break;
+				// newBinding.ImageInfo = *descriptorWrite.pImageInfo;
+				// break;
+				FATAL_ERROR();
 				
 			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-				newBinding.TexelBufferView = *descriptorWrite.pTexelBufferView;
+				newBinding.ImageDescriptor.Type = ImageDescriptorType::Buffer;
+				newBinding.ImageDescriptor.Image.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
 				break;
 				
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:

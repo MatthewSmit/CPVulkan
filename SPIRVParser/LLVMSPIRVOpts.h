@@ -68,12 +68,12 @@ namespace SPIRV
 	};
 
 	/// \brief Helper class to manage SPIR-V translation
-	class DLL_EXPORT TranslatorOpts
+	class DLL_EXPORT TranslatorOptions
 	{
 	public:
-		TranslatorOpts() = default;
+		TranslatorOptions() = default;
 
-		TranslatorOpts(VersionNumber Max, spv::ExecutionModel executionModel) : MaxVersion(Max), executionModel{executionModel}
+		TranslatorOptions(VersionNumber Max, spv::ExecutionModel executionModel) : MaxVersion(Max), executionModel{executionModel}
 		{
 		}
 

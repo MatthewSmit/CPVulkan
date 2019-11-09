@@ -11,6 +11,7 @@ class SpirvJit;
 struct ImageFunctions
 {
 	float (*GetPixelDepth)(void* ptr);
+	void (*GetPixelUInt)(void* ptr, uint32_t* values);
 	
 	void (*SetPixelDepthStencil)(void* ptr, float depth, uint8_t stencil);
 	void (*SetPixelFloat)(void* ptr, float* values);
@@ -29,11 +30,16 @@ struct DeviceState
 	Buffer* indexBinding;
 	uint64_t indexBindingOffset;
 	uint32_t indexBindingStride;
-	RenderPass* renderPass;
-	Framebuffer* framebuffer;
-	VkRect2D renderArea;
 	uint8_t pushConstants[MAX_PUSH_CONSTANTS_SIZE];
+
+	RenderPass* currentRenderPass;
+	Framebuffer* currentFramebuffer;
+	VkRect2D currentRenderArea;
 
 	SpirvJit* jit;
 	std::unordered_map<VkFormat, ImageFunctions> imageFunctions{};
+	
+#if CV_DEBUG_LEVEL > 0
+	std::ofstream* debugOutput;
+#endif
 };
