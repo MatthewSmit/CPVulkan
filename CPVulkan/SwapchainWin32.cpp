@@ -10,7 +10,7 @@
 VkResult Swapchain::Present(uint32_t pImageIndex)
 {
 	const auto win32Surface = UnwrapVulkan<VkIcdSurfaceWin32>(surface);
-	const auto image = images[pImageIndex];
+	const auto image = gsl::at(images, pImageIndex);
 
 	const auto dc = GetDC(win32Surface->hwnd);
 	if (dc == nullptr)

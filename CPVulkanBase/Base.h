@@ -305,6 +305,8 @@ void* UnwrapVulkan(uint64_t vulkanValue) noexcept;
 template<>
 inline void WrapVulkan<false>(void* local, uint64_t* vulkan) noexcept
 {
+	assert(local);
+	assert(vulkan);
 	const auto data = static_cast<uint8_t*>(local);
 	*vulkan = reinterpret_cast<uint64_t>(data - 16);
 }
@@ -318,6 +320,8 @@ inline void* UnwrapVulkan<false>(uint64_t vulkanValue) noexcept
 template<>
 inline void WrapVulkan<true>(void* local, uint64_t* vulkan) noexcept
 {
+	assert(local);
+	assert(vulkan);
 	*vulkan = reinterpret_cast<uint64_t>(local);
 }
 

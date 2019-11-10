@@ -4,7 +4,9 @@
 struct FormatInformation;
 
 STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileGetPixelUInt(SpirvJit* jit, const FormatInformation* information);
+STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInformation* information);
+STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInformation* information);
+
 STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const FormatInformation* information);
 STL_DLL_EXPORT FunctionPointer CompileSetPixelFloat(SpirvJit* jit, const FormatInformation* information);
 STL_DLL_EXPORT FunctionPointer CompileSetPixelInt32(SpirvJit* jit, const FormatInformation* information);

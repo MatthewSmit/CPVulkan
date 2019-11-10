@@ -272,14 +272,14 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 		break;
 	
 	case VK_FORMAT_D24_UNORM_S8_UINT:
+	case VK_FORMAT_X8_D24_UNORM_PACK32:
 		FATAL_ERROR();
 	
 	case VK_FORMAT_D32_SFLOAT:
 	case VK_FORMAT_D32_SFLOAT_S8_UINT:
-		FATAL_ERROR();
-	
-	case VK_FORMAT_X8_D24_UNORM_PACK32:
-		FATAL_ERROR();
+		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getFloatTy(), 0));
+		value = builder.CreateLoad(sourcePtr);
+		break;
 	
 	default:
 		FATAL_ERROR();
@@ -295,7 +295,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixelUInt(SpirvJit* jit, const FormatInformation* information)
+STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -391,6 +391,126 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelUInt(SpirvJit* jit, const FormatIn
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
+STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInformation* information)
+{
+	auto context = std::make_unique<llvm::LLVMContext>();
+	llvm::IRBuilder<> builder(*context);
+	auto module = std::make_unique<llvm::Module>("", *context);
+	
+	const auto functionType = llvm::FunctionType::get(builder.getVoidTy(), {
+		                                                  builder.getInt8PtrTy(),
+		                                                  llvm::PointerType::get(builder.getFloatTy(), 0),
+	                                                  }, false);
+	const auto function = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+	                                             llvm::GlobalVariable::ExternalLinkage,
+	                                             "main",
+	                                             module.get());
+	
+	const auto basicBlock = llvm::BasicBlock::Create(*context, "", function);
+	builder.SetInsertPoint(basicBlock);
+	
+	llvm::Value* sourcePtr = &*function->arg_begin();
+	llvm::Value* destinationPtr = &*(function->arg_begin() + 1);
+
+	if (information->ElementSize == 0)
+	{
+		// EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
+		FATAL_ERROR();
+	}
+	else
+	{
+		llvm::Type* sourceType;
+		std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
+		switch (information->Base)
+		{
+		case BaseType::UNorm:
+			switch (information->ElementSize)
+			{
+			case 1:
+				sourceType = builder.getInt8Ty();
+				process = EmitConvert<uint8_t, float>;
+				break;
+			
+			case 2:
+				sourceType = builder.getInt16Ty();
+				process = EmitConvert<uint16_t, float>;
+				break;
+			
+			case 4:
+				sourceType = builder.getInt32Ty();
+				process = EmitConvert<uint32_t, float>;
+				break;
+			
+			default:
+				FATAL_ERROR();
+			}
+			break;
+			
+			// case BaseType::SNorm: break;
+			// case BaseType::UScaled: break;
+			// case BaseType::SScaled: break;
+			// case BaseType::UInt: break;
+			// case BaseType::SInt: break;
+			// case BaseType::UFloat: break;
+			// case BaseType::SFloat: break;
+			// case BaseType::SRGB: break;
+		 
+			// case BaseType::UScaled:
+			// case BaseType::UInt:
+			// 	break;
+
+		default: FATAL_ERROR();
+		}
+		
+		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+		
+		if (information->RedOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->RedOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			value = process(builder, value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+			builder.CreateStore(value, dst);
+		}
+		
+		if (information->GreenOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->GreenOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			value = process(builder, value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+			builder.CreateStore(value, dst);
+		}
+		
+		if (information->BlueOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->BlueOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			value = process(builder, value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+			builder.CreateStore(value, dst);
+		}
+		
+		if (information->AlphaOffset != 0xFFFFFFFF)
+		{
+			auto value = builder.CreateConstGEP1_32(sourcePtr, information->AlphaOffset / information->ElementSize);
+			value = builder.CreateLoad(value);
+			value = process(builder, value);
+			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+			builder.CreateStore(value, dst);
+		}
+	}
+
+	builder.CreateRetVoid();
+	
+	// TODO: Optimise
+	
+	Dump(module.get());
+	
+	const auto compiledModule = jit->CompileModule(std::move(context), std::move(module));
+	return jit->getFunctionPointer(compiledModule, "main");
+}
+
 STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
@@ -429,14 +549,15 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const 
 			break;
 
 		case VK_FORMAT_D24_UNORM_S8_UINT:
+		case VK_FORMAT_X8_D24_UNORM_PACK32:
 			FATAL_ERROR();
 
 		case VK_FORMAT_D32_SFLOAT:
 		case VK_FORMAT_D32_SFLOAT_S8_UINT:
-			FATAL_ERROR();
-
-		case VK_FORMAT_X8_D24_UNORM_PACK32:
-			FATAL_ERROR();
+			value = builder.CreateMinNum(builder.CreateMaxNum(depthSource, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+			                             llvm::ConstantFP::get(builder.getFloatTy(), 1));
+			dst = builder.CreateBitCast(dst, llvm::PointerType::get(builder.getFloatTy(), 0));
+			break;
 
 		default:
 			FATAL_ERROR();
@@ -446,29 +567,29 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const 
 	
 	if (information->GreenOffset != 0xFFFFFFFF)
 	{
+		llvm::Value* dst;
 		switch (information->Format)
 		{
+		case VK_FORMAT_S8_UINT:
+			dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+			break;
+			
 		case VK_FORMAT_D16_UNORM_S8_UINT:
-			FATAL_ERROR();
+			dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+			break;
 
 		case VK_FORMAT_D24_UNORM_S8_UINT:
-			FATAL_ERROR();
-
-		case VK_FORMAT_D32_SFLOAT:
-			FATAL_ERROR();
+			dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+			break;
 
 		case VK_FORMAT_D32_SFLOAT_S8_UINT:
-			FATAL_ERROR();
-
-		case VK_FORMAT_X8_D24_UNORM_PACK32:
-			FATAL_ERROR();
-
-		case VK_FORMAT_S8_UINT:
-			FATAL_ERROR();
+			dst = builder.CreateConstGEP1_32(destinationPtr, 4);
+			break;
 
 		default:
 			FATAL_ERROR();
 		}
+		builder.CreateStore(stencilSource, dst);
 	}
 
 	builder.CreateRetVoid();

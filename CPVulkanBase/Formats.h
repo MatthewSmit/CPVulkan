@@ -45,15 +45,15 @@ struct FormatInformation
 
 CP_DLL_EXPORT const FormatInformation& GetFormatInformation(VkFormat format);
 
-CP_DLL_EXPORT uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels);
-CP_DLL_EXPORT void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers);
-CP_DLL_EXPORT void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_t& size, uint32_t x, uint32_t width);
+CP_DLL_EXPORT uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels) noexcept;
+CP_DLL_EXPORT void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers) noexcept;
+CP_DLL_EXPORT void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_t& size, uint32_t x, uint32_t width) noexcept;
 CP_DLL_EXPORT uint64_t GetFormatMipmapOffset(VkFormat format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel);
-CP_DLL_EXPORT uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel);
-CP_DLL_EXPORT uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer);
-CP_DLL_EXPORT void* GetFormatPixelOffset(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer);
-CP_DLL_EXPORT uint32_t GetFormatHeight(const FormatInformation& format, uint32_t height);
+CP_DLL_EXPORT uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel) noexcept;
+CP_DLL_EXPORT uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer) noexcept;
+CP_DLL_EXPORT void* GetFormatPixelOffset(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer) noexcept;
+CP_DLL_EXPORT uint32_t GetFormatHeight(const FormatInformation& format, uint32_t height) noexcept;
 
-CP_DLL_EXPORT bool IsDepthFormat(VkFormat format);
-CP_DLL_EXPORT bool IsStencilFormat(VkFormat format);
-CP_DLL_EXPORT bool NeedsYCBCRConversion(VkFormat format);
+CP_DLL_EXPORT bool IsDepthFormat(VkFormat format) noexcept;
+CP_DLL_EXPORT bool IsStencilFormat(VkFormat format) noexcept;
+CP_DLL_EXPORT bool NeedsYCBCRConversion(VkFormat format) noexcept;

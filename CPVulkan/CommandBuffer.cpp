@@ -8,6 +8,7 @@
 #include "Formats.h"
 #include "Framebuffer.h"
 #include "Image.h"
+#include "ImageSampler.h"
 #include "ImageView.h"
 #include "RenderPass.h"
 #include "Util.h"
@@ -209,153 +210,112 @@ public:
 	}
 #endif
 
-	void Process(DeviceState*) override
+	void Process(DeviceState* deviceState) override
 	{
-		// const auto& dstFormat = GetFormatInformation(dstImage->getFormat());
-		//
-		// SampleImageType sampleImage;
-		// switch (dstFormat.Base)
-		// {
-		// case BaseType::UNorm:
-		// case BaseType::SNorm:
-		// case BaseType::SFloat:
-		// 	if (dstFormat.TotalBits() > 32)
-		// 	{
-		// 		sampleImage = SampleImage<glm::f64vec4>;
-		// 	}
-		// 	else
-		// 	{
-		// 		sampleImage = SampleImage<glm::f32vec4>;
-		// 	}
-		// 	break;
-		// 	
-		// 	// case BaseType::UScaled: break;
-		// 	// case BaseType::SScaled: break;
-		// 	 
-		// case BaseType::UInt:
-		// 	if (dstFormat.TotalBits() > 32)
-		// 	{
-		// 		sampleImage = SampleImage<glm::u64vec4>;
-		// 	}
-		// 	else
-		// 	{
-		// 		sampleImage = SampleImage<glm::u32vec4>;
-		// 	}
-		// 	break;
-		//
-		// case BaseType::SInt:
-		// 	if (dstFormat.TotalBits() > 32)
-		// 	{
-		// 		sampleImage = SampleImage<glm::i64vec4>;
-		// 	}
-		// 	else
-		// 	{
-		// 		sampleImage = SampleImage<glm::i32vec4>;
-		// 	}
-		// 	break;
-		//
-		// 	// case BaseType::UFloat: break;
-		// 	// case BaseType::SRGB: break;
-		// 	
-		// default:
-		// 	FATAL_ERROR();
-		// }
-		//
-		// for (const auto& region : regions)
-		// {
-		// 	if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	if (region.srcSubresource.mipLevel != 0)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	if (region.dstSubresource.mipLevel != 0)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	if (region.srcSubresource.baseArrayLayer != 0)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	if (region.dstSubresource.baseArrayLayer != 0)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	if (region.srcSubresource.layerCount != 1)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	if (region.dstSubresource.layerCount != 1)
-		// 	{
-		// 		FATAL_ERROR();
-		// 	}
-		//
-		// 	// TODO: Handle region.dstOffsets[1] < region.dstOffsets[0]
-		// 	auto dstWidth = region.dstOffsets[1].x - region.dstOffsets[0].x;
-		// 	auto dstHeight = region.dstOffsets[1].y - region.dstOffsets[0].y;
-		// 	auto dstDepth = region.dstOffsets[1].z - region.dstOffsets[0].z;
-		//
-		// 	auto negativeWidth = false;
-		// 	auto negativeHeight = false;
-		// 	auto negativeDepth = false;
-		//
-		// 	if (dstWidth < 0)
-		// 	{
-		// 		negativeWidth = true;
-		// 		dstWidth = -dstWidth;
-		// 	}
-		//
-		// 	if (dstHeight < 0)
-		// 	{
-		// 		negativeHeight = true;
-		// 		dstHeight = -dstHeight;
-		// 	}
-		//
-		// 	if (dstDepth < 0)
-		// 	{
-		// 		negativeDepth = true;
-		// 		dstDepth = -dstDepth;
-		// 	}
-		//
-		// 	uint64_t tmp[4];
-		// 	constexpr auto currentArray = 0;
-		// 	for (auto z = 0; z < dstDepth; z++)
-		// 	{
-		// 		for (auto y = 0; y < dstHeight; y++)
-		// 		{
-		// 			for (auto x = 0; x < dstWidth; x++)
-		// 			{
-		// 				const auto dstX = negativeWidth ? x + region.dstOffsets[1].x : x + region.dstOffsets[0].x;
-		// 				const auto dstY = negativeHeight ? y + region.dstOffsets[1].y : y + region.dstOffsets[0].y;
-		// 				const auto dstZ = negativeDepth ? z + region.dstOffsets[1].z : z + region.dstOffsets[0].z;
-		// 				
-		// 				const auto u = (dstX + 0.5f - region.dstOffsets[0].x) * (float(region.srcOffsets[1].x - region.srcOffsets[0].x) / (region.dstOffsets[1].x - region.dstOffsets[0].x)) + region.srcOffsets[0].x;
-		// 				const auto v = (dstY + 0.5f - region.dstOffsets[0].y) * (float(region.srcOffsets[1].y - region.srcOffsets[0].y) / (region.dstOffsets[1].y - region.dstOffsets[0].y)) + region.srcOffsets[0].y;
-		// 				const auto w = (dstZ + 0.5f - region.dstOffsets[0].z) * (float(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
-		// 				const auto q = region.srcSubresource.mipLevel;
-		// 				const auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
-		//
-		// 				sampleImage(dstFormat, srcImage, u, v, w, q, a, filter, VK_SAMPLER_MIPMAP_MODE_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, tmp);
-		// 				
-		// 				SetPixel(dstFormat, dstImage, dstX, dstY, dstZ, 0, 0, tmp);
-		// 			}
-		// 		}
-		// 	}
-		// }
-		FATAL_ERROR();
+		for (const auto& region : regions)
+		{
+			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				FATAL_ERROR();
+			}
+		
+			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			{
+				FATAL_ERROR();
+			}
+		
+			if (region.srcSubresource.mipLevel != 0)
+			{
+				FATAL_ERROR();
+			}
+		
+			if (region.dstSubresource.mipLevel != 0)
+			{
+				FATAL_ERROR();
+			}
+		
+			if (region.srcSubresource.baseArrayLayer != 0)
+			{
+				FATAL_ERROR();
+			}
+		
+			if (region.dstSubresource.baseArrayLayer != 0)
+			{
+				FATAL_ERROR();
+			}
+		
+			if (region.srcSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+		
+			if (region.dstSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+		
+			// TODO: Handle region.dstOffsets[1] < region.dstOffsets[0]
+			auto dstWidth = region.dstOffsets[1].x - region.dstOffsets[0].x;
+			auto dstHeight = region.dstOffsets[1].y - region.dstOffsets[0].y;
+			auto dstDepth = region.dstOffsets[1].z - region.dstOffsets[0].z;
+		
+			auto negativeWidth = false;
+			auto negativeHeight = false;
+			auto negativeDepth = false;
+		
+			if (dstWidth < 0)
+			{
+				negativeWidth = true;
+				dstWidth = -dstWidth;
+			}
+		
+			if (dstHeight < 0)
+			{
+				negativeHeight = true;
+				dstHeight = -dstHeight;
+			}
+		
+			if (dstDepth < 0)
+			{
+				negativeDepth = true;
+				dstDepth = -dstDepth;
+			}
+		
+			constexpr auto currentArray = 0;
+			for (auto z = 0; z < dstDepth; z++)
+			{
+				for (auto y = 0; y < dstHeight; y++)
+				{
+					for (auto x = 0; x < dstWidth; x++)
+					{
+						const auto dstX = negativeWidth ? x + region.dstOffsets[1].x : x + region.dstOffsets[0].x;
+						const auto dstY = negativeHeight ? y + region.dstOffsets[1].y : y + region.dstOffsets[0].y;
+						const auto dstZ = negativeDepth ? z + region.dstOffsets[1].z : z + region.dstOffsets[0].z;
+						
+						const auto u = (dstX + 0.5f - region.dstOffsets[0].x) * (static_cast<float>(region.srcOffsets[1].x - region.srcOffsets[0].x) / (region.dstOffsets[1].x - region.dstOffsets[0].x)) + region.srcOffsets[0].x;
+						const auto v = (dstY + 0.5f - region.dstOffsets[0].y) * (static_cast<float>(region.srcOffsets[1].y - region.srcOffsets[0].y) / (region.dstOffsets[1].y - region.dstOffsets[0].y)) + region.srcOffsets[0].y;
+						const auto w = (dstZ + 0.5f - region.dstOffsets[0].z) * (static_cast<float>(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
+						const auto q = region.srcSubresource.mipLevel;
+						const auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
+
+						if (q != 0)
+						{
+							FATAL_ERROR();
+						}
+						if (a != 0)
+						{
+							FATAL_ERROR();
+						}
+
+						// TODO: Use native type
+						auto value = SampleImage<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
+						                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
+						                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()});
+						SetPixel(deviceState, dstImage->getFormat(), dstImage, static_cast<int>(u), static_cast<int>(v), static_cast<int>(w), static_cast<int>(q), static_cast<int>(a), &value.x);
+					}
+				}
+			}
+		}
 	}
 
 private:

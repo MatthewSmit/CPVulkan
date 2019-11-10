@@ -12,7 +12,7 @@ public:
 	Image& operator=(const Image&) = delete;
 	Image&& operator=(const Image&&) = delete;
 
-	void OnDelete(const VkAllocationCallbacks*)
+	void OnDelete(const VkAllocationCallbacks*) noexcept
 	{
 	}
 
@@ -24,12 +24,12 @@ public:
 
 	static VkResult Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 
-	[[nodiscard]] VkFormat getFormat() const { return format; }
-	[[nodiscard]] uint32_t getWidth() const { return extent.width; }
-	[[nodiscard]] uint32_t getHeight() const { return extent.height; }
-	[[nodiscard]] uint32_t getDepth() const { return extent.depth; }
-	[[nodiscard]] uint32_t getArrayLayers() const { return arrayLayers; }
-	[[nodiscard]] uint32_t getMipLevels() const { return mipLevels; }
+	[[nodiscard]] VkFormat getFormat() const noexcept { return format; }
+	[[nodiscard]] uint32_t getWidth() const noexcept { return extent.width; }
+	[[nodiscard]] uint32_t getHeight() const noexcept { return extent.height; }
+	[[nodiscard]] uint32_t getDepth() const noexcept { return extent.depth; }
+	[[nodiscard]] uint32_t getArrayLayers() const noexcept { return arrayLayers; }
+	[[nodiscard]] uint32_t getMipLevels() const noexcept { return mipLevels; }
 
 	[[nodiscard]] gsl::span<uint8_t> getData() const noexcept
 	{

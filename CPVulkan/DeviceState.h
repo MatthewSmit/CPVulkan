@@ -10,13 +10,14 @@ class SpirvJit;
 
 struct ImageFunctions
 {
-	float (*GetPixelDepth)(void* ptr);
-	void (*GetPixelUInt)(void* ptr, uint32_t* values);
+	float (*GetPixelDepth)(const void* ptr);
+	void (*GetPixelF32)(const void* ptr, void* values);
+	void (*GetPixelU32)(const void* ptr, void* values);
 	
 	void (*SetPixelDepthStencil)(void* ptr, float depth, uint8_t stencil);
-	void (*SetPixelFloat)(void* ptr, float* values);
-	void (*SetPixelInt32)(void* ptr, int32_t* values);
-	void (*SetPixelUInt32)(void* ptr, uint32_t* values);
+	void (*SetPixelFloat)(void* ptr, const float* values);
+	void (*SetPixelInt32)(void* ptr, const int32_t* values);
+	void (*SetPixelUInt32)(void* ptr, const uint32_t* values);
 };
 
 struct DeviceState

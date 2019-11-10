@@ -20,12 +20,9 @@ struct ImageDescriptor
 	{
 		BufferView* Buffer;
 		ImageView* Image;
-	} Image;
+	} Data;
 
-	union
-	{
-		Sampler* Sampler;
-	} Sampler;
+	Sampler* Sampler;
 };
 
 union Bindings

@@ -6,9 +6,12 @@
 #include "DescriptorSet.h"
 #include "DeviceState.h"
 #include "Half.h"
+#include "Image.h"
 #include "ImageSampler.h"
+#include "ImageView.h"
 
 #include <Converter.h>
+#include <Formats.h>
 
 #include <glm/glm.hpp>
 
@@ -224,8 +227,71 @@ static T VFindUMsb(T value)
 }
 
 
+static void GetFormatOffset(VkFormat format, Image* image, const VkImageSubresourceRange& subresourceRange, uint64_t& offset, uint64_t& size)
+{
+	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
+	assert(subresourceRange.baseArrayLayer == 0);
+	assert(subresourceRange.baseMipLevel == 0);
+	assert(subresourceRange.layerCount == 1);
+	assert(subresourceRange.levelCount == 1);
+
+	offset = 0;
+	size = GetFormatSize(GetFormatInformation(format), image->getWidth(), image->getHeight(), image->getDepth(), 1, 1);
+}
+
+template<int length>
+glm::vec<length, uint32_t> GetImageRange(Image* image, const VkImageSubresourceRange& subresourceRange);
+
+template<>
+glm::uvec1 GetImageRange<1>(Image* image, const VkImageSubresourceRange& subresourceRange)
+{
+	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
+	assert(subresourceRange.baseArrayLayer == 0);
+	assert(subresourceRange.baseMipLevel == 0);
+	assert(subresourceRange.layerCount == 1);
+	assert(subresourceRange.levelCount == 1);
+
+	return glm::uvec1{image->getWidth()};
+}
+
+template<>
+glm::uvec2 GetImageRange<2>(Image* image, const VkImageSubresourceRange& subresourceRange)
+{
+	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
+	assert(subresourceRange.baseArrayLayer == 0);
+	assert(subresourceRange.baseMipLevel == 0);
+	assert(subresourceRange.layerCount == 1);
+	assert(subresourceRange.levelCount == 1);
+	
+	return glm::uvec2{image->getWidth(), image->getHeight()};
+}
+
+template<>
+glm::uvec3 GetImageRange<3>(Image* image, const VkImageSubresourceRange& subresourceRange)
+{
+	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
+	assert(subresourceRange.baseArrayLayer == 0);
+	assert(subresourceRange.baseMipLevel == 0);
+	assert(subresourceRange.layerCount == 1);
+	assert(subresourceRange.levelCount == 1);
+
+	FATAL_ERROR();
+}
+
+template<>
+glm::uvec4 GetImageRange<4>(Image* image, const VkImageSubresourceRange& subresourceRange)
+{
+	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
+	assert(subresourceRange.baseArrayLayer == 0);
+	assert(subresourceRange.baseMipLevel == 0);
+	assert(subresourceRange.layerCount == 1);
+	assert(subresourceRange.levelCount == 1);
+
+	FATAL_ERROR();
+}
+
 template<typename ReturnType, typename CoordinateType>
-static void ImageSampleImplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinate)
+static void ImageSampleImplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates)
 {
 	// TODO: Use ImageSampler.cpp
 	// TODO: Calculate LOD
@@ -338,135 +404,78 @@ static void ImageSampleImplicitLod(DeviceState* deviceState, ReturnType* result,
 }
 
 template<typename ReturnType, typename CoordinateType>
-static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinate, float lod)
+static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates, float lod)
 {
-	// TODO: Use ImageSampler.cpp
-	// const auto sampler = UnwrapVulkan<Sampler>(sampledImage->sampler);
-	// auto imageView = UnwrapVulkan<ImageView>(sampledImage->imageView);
-	//
-	// // Instructions with ExplicitLod in the name determine the LOD used in the sampling operation based on additional coordinates.
-	// // https://www.khronos.org/registry/vulkan/specs/1.1-extensions/html/vkspec.html#textures-level-of-detail-operation 
-	//
-	// if (imageView->getViewType() != VK_IMAGE_VIEW_TYPE_2D)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getSubresourceRange().aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getSubresourceRange().baseMipLevel != 0)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getSubresourceRange().levelCount != 1)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getSubresourceRange().baseArrayLayer != 0)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (imageView->getSubresourceRange().layerCount != 1)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (sampler->getFlags())
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (sampler->getMagFilter() != VK_FILTER_NEAREST)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (sampler->getMinFilter() != VK_FILTER_NEAREST)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (sampler->getAnisotropyEnable())
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (sampler->getCompareEnable())
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (sampler->getUnnormalisedCoordinates())
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// if (coordinate->x < 0 || coordinate->x > 1 || coordinate->y < 0 || coordinate->y > 1)
-	// {
-	// 	FATAL_ERROR();
-	// }
-	//
-	// const auto& formatInformation = GetFormatInformation(imageView->getFormat());
-	//
-	// const auto x = static_cast<uint32_t>(coordinate->x * imageView->getImage()->getWidth());
-	// const auto y = static_cast<uint32_t>(coordinate->y * imageView->getImage()->getHeight());
+	const auto imageView = descriptor->Data.Image;
+	const auto bufferView = descriptor->Data.Buffer;
+	const auto sampler = descriptor->Sampler;
 
-	// TODO: Use SampleImage
-	// float values[4];
-	// GetPixel(formatInformation, imageView->getImage(), x, y, 0, values);
-	// *result = glm::vec4(values[0], values[1], values[2], values[3]);
-	FATAL_ERROR();
+	VkFormat format;
+	gsl::span<uint8_t> data;
+	glm::vec<CoordinateType::length(), uint32_t> range;
+	switch (descriptor->Type)
+	{
+	case ImageDescriptorType::Buffer:
+		format = bufferView->getFormat();
+		data = bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange());
+		range = {static_cast<uint32_t>(bufferView->getRange())};
+		break;
+
+	case ImageDescriptorType::Image:
+		format = imageView->getFormat();
+		uint64_t offset;
+		uint64_t size;
+		GetFormatOffset(format, imageView->getImage(), imageView->getSubresourceRange(), offset, size);
+		data = imageView->getImage()->getData(offset, size);
+		range = GetImageRange<CoordinateType::length()>(imageView->getImage(), imageView->getSubresourceRange());
+		break;
+
+	default: FATAL_ERROR();
+	}
+
+	*result = SampleImage<ReturnType>(deviceState,
+	                                  format,
+	                                  data,
+	                                  range,
+	                                  *coordinates,
+	                                  lod,
+	                                  sampler);
 }
 
 template<typename ReturnType, typename CoordinateType>
 static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates)
 {
-	const auto bufferView = descriptor->Image.Buffer;
+	const auto imageView = descriptor->Data.Image;
+	const auto bufferView = descriptor->Data.Buffer;
+	
+	VkFormat format;
+	gsl::span<uint8_t> data;
+	glm::vec<CoordinateType::length(), uint32_t> range;
 	switch (descriptor->Type)
 	{
 	case ImageDescriptorType::Buffer:
-		*result = GetPixel<ReturnType>(deviceState,
-		                               bufferView->getFormat(), 
-		                               bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange()), 
-		                               glm::ivec1(bufferView->getRange()), 
-		                               *coordinates);
+		format = bufferView->getFormat();
+		data = bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange());
+		range = {static_cast<uint32_t>(bufferView->getRange())};
 		break;
-		
-	case ImageDescriptorType::Image: FATAL_ERROR();
+
+	case ImageDescriptorType::Image:
+		format = imageView->getFormat();
+		uint64_t offset;
+		uint64_t size;
+		GetFormatOffset(format, imageView->getImage(), imageView->getSubresourceRange(), offset, size);
+		data = imageView->getImage()->getData(offset, size);
+		range = GetImageRange<CoordinateType::length()>(imageView->getImage(), imageView->getSubresourceRange());
+		break;
 		
 	default: FATAL_ERROR();
 	}
+
+	*result = GetPixel<ReturnType>(deviceState,
+	                               format,
+	                               data,
+	                               range,
+	                               *coordinates);
 }
 
 void AddGlslFunctions(DeviceState* deviceState)

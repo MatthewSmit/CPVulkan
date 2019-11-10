@@ -54,8 +54,8 @@ public:
 
 	static VkResult Create(const VkInstanceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkInstance* pInstance);
 
-	int getVersion() const { return version; }
-	const ExtensionGroup& getEnabledExtensions() const { return enabledExtensions; }
+	[[nodiscard]] int getVersion() const noexcept { return version; }
+	[[nodiscard]] const ExtensionGroup& getEnabledExtensions() const noexcept { return enabledExtensions; }
 
 private:
 	uint32_t version = VK_API_VERSION_1_0;

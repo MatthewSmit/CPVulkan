@@ -57,7 +57,7 @@
 #define GET_ARGS14(_, T0, T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13) , T0 a, T1 b, T2 c, T3 d, T4 e, T5 f, T6 g, T7 h, T8 i, T9 j, T10 k, T11 l, T12 m, T13 n
 #define GET_ARGS(...) MACRO_CONCAT(GET_ARGS, GET_ARG_COUNT(__VA_ARGS__))(__VA_ARGS__)
 
-#define VULKAN_FUNCTION(method, returnType, clazz, ...) VKAPI_ATTR returnType VKAPI_PTR __##clazz##_##method(void* ptr GET_ARGS(__VA_ARGS__))\
+#define VULKAN_FUNCTION(method, returnType, clazz, ...) VKAPI_ATTR returnType VKAPI_PTR __##clazz##_##method(void* ptr GET_ARGS(__VA_ARGS__)) noexcept\
 	{\
 		typedef returnType (VKAPI_PTR* FunctionArg)(__VA_ARGS__);\
 		const auto clazzMethod = &clazz::method;\

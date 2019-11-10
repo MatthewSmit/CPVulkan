@@ -107,7 +107,7 @@ static constexpr FormatInformation MakePackedFormatInformation(VkFormat format,
                                                                uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset,
                                                                uint32_t redBits, uint32_t greenBits, uint32_t blueBits, uint32_t alphaBits)
 {
-	const auto features = GetFeatures(FormatType::Normal);
+	constexpr auto features = GetFeatures(FormatType::Normal);
 	return FormatInformation
 	{
 		format,
@@ -369,25 +369,23 @@ const FormatInformation& GetFormatInformation(VkFormat format)
 	const auto iFormat = static_cast<int>(format);
 	if (iFormat >= VK_FORMAT_BEGIN_RANGE && iFormat <= VK_FORMAT_END_RANGE)
 	{
-		return formatInformation[iFormat];
+		return gsl::at(formatInformation, iFormat);
 	}
 
 	return extraFormatInformation[format];
 }
 
-static uint64_t GetRawSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers)
+static uint64_t GetRawSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers) noexcept
 {
 	if (format.Type == FormatType::Compressed)
 	{
-		return format.TotalSize *
-			((width + format.RedOffset - 1) / format.RedOffset) *
-			((height + format.GreenOffset - 1) / format.GreenOffset) *
-			depth * arrayLayers;
+		width = (width + format.RedOffset - 1) / format.RedOffset;
+		height = (height + format.GreenOffset - 1) / format.GreenOffset;
 	}
-	return format.TotalSize * width * height * depth * arrayLayers;
+	return static_cast<uint64_t>(format.TotalSize) * width * height * depth * arrayLayers;
 }
 
-uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
+uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels) noexcept
 {
 	// TODO: Different for corner-sampled
 
@@ -410,7 +408,7 @@ uint64_t GetFormatSize(const FormatInformation& format, uint32_t width, uint32_t
 	return size;
 }
 
-void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers)
+void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_t& planeStride, uint64_t& lineStride, uint32_t mipLevel, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers) noexcept
 {
 	offset = GetFormatMipmapOffset(format, width, height, depth, arrayLayers, mipLevel);
 
@@ -420,20 +418,24 @@ void GetFormatStrides(const FormatInformation& format, uint64_t& offset, uint64_
 		height = (height + format.GreenOffset - 1) / format.GreenOffset;
 	}
 
-	lineStride = width * format.TotalSize;
+	lineStride = static_cast<uint64_t>(width) * format.TotalSize;
 	planeStride = lineStride * height;
 }
 
-void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_t& size, uint32_t x, uint32_t width)
+void GetFormatLineSize(const FormatInformation& format, uint64_t& start, uint64_t& size, uint32_t x, uint32_t width) noexcept
 {
 	if (format.Type == FormatType::Compressed)
 	{
 		x = (x + format.RedOffset - 1) / format.RedOffset;
 		width = (width + format.RedOffset - 1) / format.RedOffset;
+		start = static_cast<uint64_t>(x) * format.TotalSize;
+		size = static_cast<uint64_t>(width) * format.TotalSize;
 	}
-
-	start = x * format.TotalSize;
-	size = width * format.TotalSize;
+	else
+	{
+		start = static_cast<uint64_t>(x) * format.TotalSize;
+		size = static_cast<uint64_t>(width) * format.TotalSize;
+	}
 }
 
 uint64_t GetFormatMipmapOffset(VkFormat format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel)
@@ -442,7 +444,7 @@ uint64_t GetFormatMipmapOffset(VkFormat format, uint32_t& width, uint32_t& heigh
 	return GetFormatMipmapOffset(information, width, height, depth, arrayLayers, mipLevel);
 }
 
-uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel)
+uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width, uint32_t& height, uint32_t& depth, uint32_t arrayLayers, uint32_t mipLevel) noexcept
 {
 	uint64_t size = 0;
 	for (auto i = 0u; i < mipLevel; i++)
@@ -457,7 +459,7 @@ uint64_t GetFormatMipmapOffset(const FormatInformation& format, uint32_t& width,
 	return size;
 }
 
-uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer)
+uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer) noexcept
 {
 	uint64_t offset = 0;
 	if (mipLevel > 0)
@@ -473,12 +475,12 @@ uint64_t GetFormatPixelOffset(const FormatInformation& format, uint32_t i, uint3
 	return offset + layer * slice + k * pane + j * stride + i * pixelSize;
 }
 
-void* GetFormatPixelOffset(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer)
+void* GetFormatPixelOffset(const FormatInformation& format, gsl::span<uint8_t> data, uint32_t i, uint32_t j, uint32_t k, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevel, uint32_t layer) noexcept
 {
 	return data.subspan(GetFormatPixelOffset(format, i, j, k, width, height, depth, arrayLayers, mipLevel, layer), format.TotalSize).data();
 }
 
-uint32_t GetFormatHeight(const FormatInformation& format, uint32_t height)
+uint32_t GetFormatHeight(const FormatInformation& format, uint32_t height) noexcept
 {
 	if (format.Type == FormatType::Compressed)
 	{
@@ -487,7 +489,7 @@ uint32_t GetFormatHeight(const FormatInformation& format, uint32_t height)
 	return height;
 }
 
-bool IsDepthFormat(VkFormat format)
+bool IsDepthFormat(VkFormat format) noexcept
 {
 	return format == VK_FORMAT_D16_UNORM ||
 		format == VK_FORMAT_D16_UNORM_S8_UINT ||
@@ -497,7 +499,7 @@ bool IsDepthFormat(VkFormat format)
 		format == VK_FORMAT_D32_SFLOAT_S8_UINT;
 }
 
-bool IsStencilFormat(VkFormat format)
+bool IsStencilFormat(VkFormat format) noexcept
 {
 	return format == VK_FORMAT_D16_UNORM_S8_UINT ||
 		format == VK_FORMAT_D24_UNORM_S8_UINT ||
@@ -505,7 +507,7 @@ bool IsStencilFormat(VkFormat format)
 		format == VK_FORMAT_S8_UINT;
 }
 
-bool NeedsYCBCRConversion(VkFormat format)
+bool NeedsYCBCRConversion(VkFormat format) noexcept
 {
 	return format == VK_FORMAT_G8B8G8R8_422_UNORM ||
 		format == VK_FORMAT_B8G8R8G8_422_UNORM ||

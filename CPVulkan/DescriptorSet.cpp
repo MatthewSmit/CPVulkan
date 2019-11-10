@@ -24,7 +24,17 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			switch (descriptorWrite.descriptorType)
 			{
 			case VK_DESCRIPTOR_TYPE_SAMPLER:
+				newBinding.ImageDescriptor.Type = ImageDescriptorType::None;
+				newBinding.ImageDescriptor.Data.Image = nullptr;
+				newBinding.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+				break;
+				
 			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+				newBinding.ImageDescriptor.Type = ImageDescriptorType::Image;
+				newBinding.ImageDescriptor.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
+				newBinding.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+				break;
+				
 			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
@@ -35,7 +45,8 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 			case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 				newBinding.ImageDescriptor.Type = ImageDescriptorType::Buffer;
-				newBinding.ImageDescriptor.Image.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
+				newBinding.ImageDescriptor.Data.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
+				newBinding.ImageDescriptor.Sampler = nullptr;
 				break;
 				
 			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
