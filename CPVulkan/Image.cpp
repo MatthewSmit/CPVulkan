@@ -10,7 +10,7 @@
 VkResult Image::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
 {
 	const auto memorySpan = UnwrapVulkan<DeviceMemory>(memory)->getSpan();
-	data = memorySpan.subspan(memoryOffset, size);
+	data = memorySpan.subspan(memoryOffset, imageSize.TotalSize);
 	return VK_SUCCESS;
 }
 
@@ -27,7 +27,7 @@ VkResult Device::BindImageMemory(VkImage image, VkDeviceMemory memory, VkDeviceS
 
 void Image::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const
 {
-	pMemoryRequirements->size = size;
+	pMemoryRequirements->size = imageSize.TotalSize;
 	pMemoryRequirements->alignment = 16;
 	pMemoryRequirements->memoryTypeBits = 1;
 }
@@ -147,8 +147,8 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 	image->usage = pCreateInfo->usage;
 	image->layout = pCreateInfo->initialLayout;
 
-	image->size = GetFormatSize(GetFormatInformation(image->format), image->extent.width, image->extent.height, image->extent.depth, image->arrayLayers, image->mipLevels);
-	if (image->size == 0)
+	image->imageSize = GetImageSize(GetFormatInformation(image->format), image->extent.width, image->extent.height, image->extent.depth, image->arrayLayers, image->mipLevels);
+	if (image->imageSize.TotalSize == 0)
 	{
 		FATAL_ERROR();
 	}

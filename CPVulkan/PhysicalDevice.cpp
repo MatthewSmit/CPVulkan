@@ -7,35 +7,41 @@
 
 #include <algorithm>
 #include <cassert>
-#include <cmath>
 
-static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkImageTiling tiling, VkFlags usage, VkFlags flags, VkImageFormatProperties* pImageFormatProperties)
+static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties)
 {
 	const auto& information = GetFormatInformation(format);
 
 	switch (type)
 	{
 	case VK_IMAGE_TYPE_1D:
-		pImageFormatProperties->maxExtent.width = 4096;
+		pImageFormatProperties->maxExtent.width = MAX_IMAGE_DIMENSION_1D;
 		pImageFormatProperties->maxExtent.height = 1;
 		pImageFormatProperties->maxExtent.depth = 1;
-		pImageFormatProperties->maxArrayLayers = 256;
-		pImageFormatProperties->maxMipLevels = 1 + std::floor(std::log2f(pImageFormatProperties->maxExtent.width));
+		pImageFormatProperties->maxArrayLayers = MAX_IMAGE_ARRAY_LAYERS;
+		pImageFormatProperties->maxMipLevels = CountMipLevels(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height, pImageFormatProperties->maxExtent.depth);
 		break;
 	case VK_IMAGE_TYPE_2D:
-		pImageFormatProperties->maxExtent.width = 4096;
-		pImageFormatProperties->maxExtent.height = 4096;
+		if (flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
+		{
+			pImageFormatProperties->maxExtent.width = MAX_IMAGE_DIMENSION_CUBE;
+			pImageFormatProperties->maxExtent.height = MAX_IMAGE_DIMENSION_CUBE;
+		}
+		else
+		{
+			pImageFormatProperties->maxExtent.width = MAX_IMAGE_DIMENSION_2D;
+			pImageFormatProperties->maxExtent.height = MAX_IMAGE_DIMENSION_2D;
+		}
 		pImageFormatProperties->maxExtent.depth = 1;
-		pImageFormatProperties->maxArrayLayers = 256;
-		pImageFormatProperties->maxMipLevels = 1 + std::floor(std::log2f(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height)));
+		pImageFormatProperties->maxArrayLayers = MAX_IMAGE_ARRAY_LAYERS;
+		pImageFormatProperties->maxMipLevels = CountMipLevels(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height, pImageFormatProperties->maxExtent.depth);
 		break;
 	case VK_IMAGE_TYPE_3D:
-		pImageFormatProperties->maxExtent.width = 256;
-		pImageFormatProperties->maxExtent.height = 256;
-		pImageFormatProperties->maxExtent.depth = 256;
+		pImageFormatProperties->maxExtent.width = MAX_IMAGE_DIMENSION_3D;
+		pImageFormatProperties->maxExtent.height = MAX_IMAGE_DIMENSION_3D;
+		pImageFormatProperties->maxExtent.depth = MAX_IMAGE_DIMENSION_3D;
 		pImageFormatProperties->maxArrayLayers = 1;
-		pImageFormatProperties->maxMipLevels = std::floor(std::log2f(std::max(std::max(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height),
-		                                                                      pImageFormatProperties->maxExtent.depth))) + 1;
+		pImageFormatProperties->maxMipLevels = CountMipLevels(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height, pImageFormatProperties->maxExtent.depth);
 		break;
 	default: FATAL_ERROR();
 	}
@@ -82,7 +88,7 @@ static void GetSparseImageFormatPropertiesImpl(VkFormat format, VkImageType type
 				VK_IMAGE_ASPECT_MEMORY_PLANE_1_BIT_EXT |
 				VK_IMAGE_ASPECT_MEMORY_PLANE_2_BIT_EXT |
 				VK_IMAGE_ASPECT_MEMORY_PLANE_3_BIT_EXT;
-			pProperties->imageGranularity = VkExtent3D{4096, 4096, 4096};
+			pProperties->imageGranularity = VkExtent3D{4096, 4096, 4096}; // TODO: use config values
 			pProperties->flags = 0;
 		}
 	}
@@ -175,11 +181,11 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->deviceType = DEVICE_TYPE;
 	strcpy_s(pProperties->deviceName, DEVICE_NAME);
 	memset(pProperties->pipelineCacheUUID, 0, VK_UUID_SIZE);
-	pProperties->limits.maxImageDimension1D = 4096;
-	pProperties->limits.maxImageDimension2D = 4096;
-	pProperties->limits.maxImageDimension3D = 256;
-	pProperties->limits.maxImageDimensionCube = 4096;
-	pProperties->limits.maxImageArrayLayers = 256;
+	pProperties->limits.maxImageDimension1D = MAX_IMAGE_DIMENSION_1D;
+	pProperties->limits.maxImageDimension2D = MAX_IMAGE_DIMENSION_2D;
+	pProperties->limits.maxImageDimension3D = MAX_IMAGE_DIMENSION_3D;
+	pProperties->limits.maxImageDimensionCube = MAX_IMAGE_DIMENSION_CUBE;
+	pProperties->limits.maxImageArrayLayers = MAX_IMAGE_ARRAY_LAYERS;
 	pProperties->limits.maxTexelBufferElements = 65536;
 	pProperties->limits.maxUniformBufferRange = 16384;
 	pProperties->limits.maxStorageBufferRange = 134217728;
@@ -745,6 +751,13 @@ void PhysicalDevice::GetFeatures2(VkPhysicalDeviceFeatures2* pFeatures)
 			{
 				const auto features = reinterpret_cast<VkPhysicalDeviceShaderSubgroupExtendedTypesFeaturesKHR*>(next);
 				features->shaderSubgroupExtendedTypes = true;
+				break;
+			}
+
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES_KHR:
+			{
+				const auto features = reinterpret_cast<VkPhysicalDeviceTimelineSemaphoreFeaturesKHR*>(next);
+				features->timelineSemaphore = true;
 				break;
 			}
 

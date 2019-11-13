@@ -615,6 +615,13 @@ VkResult Device::Create(const Instance* instance, const VkDeviceCreateInfo* pCre
 				break;
 			}
 
+		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES_KHR:
+			{
+				const auto features = reinterpret_cast<const VkPhysicalDeviceTimelineSemaphoreFeaturesKHR*>(next);
+				// TODO
+				break;
+			}
+
 		default:
 			break;
 		}

@@ -1,6 +1,8 @@
 #pragma once
 #include "Base.h"
 
+#include <Formats.h>
+
 class Image final
 {
 public:
@@ -30,6 +32,7 @@ public:
 	[[nodiscard]] uint32_t getDepth() const noexcept { return extent.depth; }
 	[[nodiscard]] uint32_t getArrayLayers() const noexcept { return arrayLayers; }
 	[[nodiscard]] uint32_t getMipLevels() const noexcept { return mipLevels; }
+	[[nodiscard]] const ImageSize& getImageSize() const noexcept { return imageSize; }
 
 	[[nodiscard]] gsl::span<uint8_t> getData() const noexcept
 	{
@@ -59,7 +62,5 @@ private:
 	VkImageLayout layout{};
 
 	gsl::span<uint8_t> data{};
-	uint64_t size{};
-
-	// TODO: Cache data offsets
+	ImageSize imageSize{};
 };

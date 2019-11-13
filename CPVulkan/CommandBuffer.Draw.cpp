@@ -82,10 +82,9 @@ struct VariableUniformData
 
 static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, uint32_t mipLevel, VkFormat format, VkClearColorValue colour)
 {
-	auto width = image->getWidth();
-	auto height = image->getHeight();
-	auto depth = image->getDepth();
-	GetFormatMipmapOffset(format, width, height, depth, image->getArrayLayers(), mipLevel);
+	const auto width = image->getImageSize().Level[mipLevel].Width;
+	const auto height = image->getImageSize().Level[mipLevel].Height;
+	const auto depth = image->getImageSize().Level[mipLevel].Depth;
 
 	// TODO: Change to SetPixels when implemented
 	for (auto z = 0u; z < depth; z++)
@@ -102,10 +101,9 @@ static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, u
 
 static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, uint32_t mipLevel, VkFormat format, VkClearDepthStencilValue colour)
 {
-	auto width = image->getWidth();
-	auto height = image->getHeight();
-	auto depth = image->getDepth();
-	GetFormatMipmapOffset(format, width, height, depth, image->getArrayLayers(), mipLevel);
+	const auto width = image->getImageSize().Level[mipLevel].Width;
+	const auto height = image->getImageSize().Level[mipLevel].Height;
+	const auto depth = image->getImageSize().Level[mipLevel].Depth;
 
 	// TODO: Change to SetPixels when implemented
 	for (auto z = 0u; z < depth; z++)

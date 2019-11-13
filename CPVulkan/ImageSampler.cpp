@@ -36,6 +36,17 @@ static int32_t wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 	}
 }
 
+static float frac(float value)
+{
+	return value - std::floor(value);
+}
+
+template<typename T>
+static T lerp(T min, T max, double delta)
+{
+	return glm::dvec4(min) + glm::dvec4(max - min) * delta;
+}
+
 // template<typename T>
 // void LinearToSRGB(const T input[4], T output[4])
 // {
@@ -69,7 +80,7 @@ static int32_t wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 float GetDepthPixel(DeviceState* deviceState, VkFormat format, const Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer)
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), mipLevel, layer);
+	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
 	auto& functions = deviceState->imageFunctions[format];
 	if (!functions.GetPixelDepth)
 	{
@@ -83,7 +94,7 @@ template<>
 glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec2 range, glm::ivec2 coordinates)
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, coordinates.x, coordinates.y, 0, range.x, range.y, 1, 1, 0, 0);
+	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
 	auto& functions = deviceState->imageFunctions[format];
 	
 	if (!functions.GetPixelF32)
@@ -107,7 +118,7 @@ template<>
 glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec3 range, glm::ivec3 coordinates)
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, coordinates.x, coordinates.y, coordinates.z, range.x, range.y, range.z, 1, 0, 0);
+	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
 	auto& functions = deviceState->imageFunctions[format];
 	
 	if (!functions.GetPixelF32)
@@ -131,7 +142,7 @@ template<>
 glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec1 range, glm::ivec1 coordinates)
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, coordinates.x, 0, 0, range.x, 1, 1, 1, 0, 0);
+	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, 1, 1, 1, 1), coordinates.x, 0, 0, 0, 0);
 	auto& functions = deviceState->imageFunctions[format];
 
 	if (!functions.GetPixelU32)
@@ -152,59 +163,165 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 }
 
 template<>
-glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec3 range, glm::fvec3 coordinates)
+glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec3 range, glm::ivec3 coordinates)
 {
-	constexpr auto shift = 0.0f; // 0.0 for conventional, 0.5 for corner-sampled
+	const auto& information = GetFormatInformation(format);
+	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
+	auto& functions = deviceState->imageFunctions[format];
 
-	auto i = static_cast<int32_t>(std::floor(coordinates.x * range.x + shift));
-	auto j = static_cast<int32_t>(std::floor(coordinates.y * range.y + shift));
-	auto k = static_cast<int32_t>(std::floor(coordinates.z * range.z + shift));
-	
-	i = wrap(i, range.x, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-	j = wrap(j, range.y, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-	k = wrap(k, range.z, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+	if (!functions.GetPixelU32)
+	{
+		if (information.Base == BaseType::UInt && information.ElementSize == 4)
+		{
+			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixel(deviceState->jit, &information));
+		}
+		else
+		{
+			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
+		}
+	}
 
-	return GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i, j, k});
+	uint32_t values[4]{};
+	functions.GetPixelU32(data.subspan(offset, information.TotalSize).data(), values);
+	return glm::uvec4(values[0], values[1], values[2], values[3]);
+}
 
-	// 	case VK_FILTER_LINEAR:
-	// 		{
-	// 			constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
-	// 			
-	// 			auto i0 = static_cast<int32_t>(std::floor(u - shift));
-	// 			auto j0 = static_cast<int32_t>(std::floor(v - shift));
-	// 			auto k0 = static_cast<int32_t>(std::floor(w - shift));
-	// 			
-	// 			const auto i1 = wrap(i0 + 1, image->getWidth(), addressMode);
-	// 			const auto j1 = wrap(j0 + 1, image->getHeight(), addressMode);
-	// 			const auto k1 = wrap(k0 + 1, image->getDepth(), addressMode);
-	//
-	// 			i0 = wrap(i0, image->getWidth(), addressMode);
-	// 			j0 = wrap(j0, image->getHeight(), addressMode);
-	// 			k0 = wrap(k0, image->getDepth(), addressMode);
-	// 			
-	// 			const auto alpha = frac(u - shift);
-	// 			const auto beta = frac(v - shift);
-	// 			const auto gamma = frac(w - shift);
-	// 			
-	// 			const auto i0j0k0 = GetPixel<ReturnType>(format, image, i0, j0, k0);
-	// 			const auto i0j0k1 = GetPixel<ReturnType>(format, image, i0, j0, k1);
-	// 			const auto i0j1k0 = GetPixel<ReturnType>(format, image, i0, j1, k0);
-	// 			const auto i0j1k1 = GetPixel<ReturnType>(format, image, i0, j1, k1);
-	// 			const auto i1j0k0 = GetPixel<ReturnType>(format, image, i1, j0, k0);
-	// 			const auto i1j0k1 = GetPixel<ReturnType>(format, image, i1, j0, k1);
-	// 			const auto i1j1k0 = GetPixel<ReturnType>(format, image, i1, j1, k0);
-	// 			const auto i1j1k1 = GetPixel<ReturnType>(format, image, i1, j1, k1);
-	//
-	// 			const auto ij0k0 = lerp(i0j0k0, i1j0k0, alpha);
-	// 			const auto ij0k1 = lerp(i0j0k1, i1j0k1, alpha);
-	// 			const auto ij1k0 = lerp(i0j1k0, i1j1k0, alpha);
-	// 			const auto ij1k1 = lerp(i0j1k1, i1j1k1, alpha);
-	//
-	// 			const auto ijk0 = lerp(ij0k0, ij1k0, beta);
-	// 			const auto ijk1 = lerp(ij0k1, ij1k1, beta);
-	//
-	// 			return lerp(ijk0, ijk1, gamma);
-	// 		}
+template<>
+glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec3 range, glm::fvec3 coordinates, VkFilter filter)
+{
+	switch (filter)
+	{
+	case VK_FILTER_NEAREST:
+		{
+			constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			constexpr auto shift = 0.0f; // 0.0 for conventional, 0.5 for corner-sampled
+
+			auto i = static_cast<int32_t>(std::floor(coordinates.x * range.x + shift));
+			auto j = static_cast<int32_t>(std::floor(coordinates.y * range.y + shift));
+			auto k = static_cast<int32_t>(std::floor(coordinates.z * range.z + shift));
+
+			i = wrap(i, range.x, addressMode);
+			j = wrap(j, range.y, addressMode);
+			k = wrap(k, range.z, addressMode);
+
+			return GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i, j, k});
+		}
+		
+	case VK_FILTER_LINEAR:
+		{
+			constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
+			
+			auto i0 = static_cast<int32_t>(std::floor(coordinates.x * range.x - shift));
+			auto j0 = static_cast<int32_t>(std::floor(coordinates.y * range.y - shift));
+			auto k0 = static_cast<int32_t>(std::floor(coordinates.z * range.z - shift));
+			
+			const auto i1 = wrap(i0 + 1, range.x, addressMode);
+			const auto j1 = wrap(j0 + 1, range.y, addressMode);
+			const auto k1 = wrap(k0 + 1, range.z, addressMode);
+			
+			i0 = wrap(i0, range.x, addressMode);
+			j0 = wrap(j0, range.y, addressMode);
+			k0 = wrap(k0, range.z, addressMode);
+			
+			const auto alpha = frac(coordinates.x * range.x - shift);
+			const auto beta = frac(coordinates.y * range.y - shift);
+			const auto gamma = frac(coordinates.z * range.z - shift);
+			
+			const auto i0j0k0 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i0, j0, k0});
+			const auto i0j0k1 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i0, j0, k1});
+			const auto i0j1k0 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i0, j1, k0});
+			const auto i0j1k1 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i0, j1, k1});
+			const auto i1j0k0 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i1, j0, k0});
+			const auto i1j0k1 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i1, j0, k1});
+			const auto i1j1k0 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i1, j1, k0});
+			const auto i1j1k1 = GetPixel<glm::fvec4>(deviceState, format, data, range, glm::ivec3{i1, j1, k1});
+			
+			const auto ij0k0 = lerp(i0j0k0, i1j0k0, alpha);
+			const auto ij0k1 = lerp(i0j0k1, i1j0k1, alpha);
+			const auto ij1k0 = lerp(i0j1k0, i1j1k0, alpha);
+			const auto ij1k1 = lerp(i0j1k1, i1j1k1, alpha);
+			
+			const auto ijk0 = lerp(ij0k0, ij1k0, beta);
+			const auto ijk1 = lerp(ij0k1, ij1k1, beta);
+			
+			return lerp(ijk0, ijk1, gamma);
+		}
+		
+	case VK_FILTER_CUBIC_IMG:
+		FATAL_ERROR();
+		
+	default: FATAL_ERROR();
+	}
+}
+
+template<>
+glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec3 range, glm::fvec3 coordinates, VkFilter filter)
+{
+	switch (filter)
+	{
+	case VK_FILTER_NEAREST:
+		{
+			constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			constexpr auto shift = 0.0f; // 0.0 for conventional, 0.5 for corner-sampled
+
+			auto i = static_cast<int32_t>(std::floor(coordinates.x * range.x + shift));
+			auto j = static_cast<int32_t>(std::floor(coordinates.y * range.y + shift));
+			auto k = static_cast<int32_t>(std::floor(coordinates.z * range.z + shift));
+
+			i = wrap(i, range.x, addressMode);
+			j = wrap(j, range.y, addressMode);
+			k = wrap(k, range.z, addressMode);
+
+			return GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i, j, k});
+		}
+		
+	case VK_FILTER_LINEAR:
+		{
+			constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
+			
+			auto i0 = static_cast<int32_t>(std::floor(coordinates.x * range.x - shift));
+			auto j0 = static_cast<int32_t>(std::floor(coordinates.y * range.y - shift));
+			auto k0 = static_cast<int32_t>(std::floor(coordinates.z * range.z - shift));
+			
+			const auto i1 = wrap(i0 + 1, range.x, addressMode);
+			const auto j1 = wrap(j0 + 1, range.y, addressMode);
+			const auto k1 = wrap(k0 + 1, range.z, addressMode);
+			
+			i0 = wrap(i0, range.x, addressMode);
+			j0 = wrap(j0, range.y, addressMode);
+			k0 = wrap(k0, range.z, addressMode);
+			
+			const auto alpha = frac(coordinates.x * range.x - shift);
+			const auto beta = frac(coordinates.y * range.y - shift);
+			const auto gamma = frac(coordinates.z * range.z - shift);
+			
+			const auto i0j0k0 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i0, j0, k0});
+			const auto i0j0k1 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i0, j0, k1});
+			const auto i0j1k0 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i0, j1, k0});
+			const auto i0j1k1 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i0, j1, k1});
+			const auto i1j0k0 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i1, j0, k0});
+			const auto i1j0k1 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i1, j0, k1});
+			const auto i1j1k0 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i1, j1, k0});
+			const auto i1j1k1 = GetPixel<glm::uvec4>(deviceState, format, data, range, glm::ivec3{i1, j1, k1});
+			
+			const auto ij0k0 = lerp(i0j0k0, i1j0k0, alpha);
+			const auto ij0k1 = lerp(i0j0k1, i1j0k1, alpha);
+			const auto ij1k0 = lerp(i0j1k0, i1j1k0, alpha);
+			const auto ij1k1 = lerp(i0j1k1, i1j1k1, alpha);
+			
+			const auto ijk0 = lerp(ij0k0, ij1k0, beta);
+			const auto ijk1 = lerp(ij0k1, ij1k1, beta);
+			
+			return lerp(ijk0, ijk1, gamma);
+		}
+		
+	case VK_FILTER_CUBIC_IMG:
+		FATAL_ERROR();
+		
+	default: FATAL_ERROR();
+	}
 }
 
 template<>
@@ -350,7 +467,7 @@ glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, VkClearDepthStencilValue value)
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), mipLevel, layer);
+	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
 	auto& functions = deviceState->imageFunctions[format];
 	if (!functions.SetPixelDepthStencil)
 	{
@@ -389,7 +506,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, float values[4])
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), mipLevel, layer);
+	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
 	auto& functions = deviceState->imageFunctions[format];
 	if (!functions.SetPixelFloat)
 	{
@@ -402,7 +519,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, int32_t values[4])
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), mipLevel, layer);
+	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
 	auto& functions = deviceState->imageFunctions[format];
 	if (!functions.SetPixelInt32)
 	{
@@ -415,7 +532,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, uint32_t values[4])
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetFormatPixelOffset(information, i, j, k, image->getWidth(), image->getHeight(), image->getDepth(), image->getArrayLayers(), mipLevel, layer);
+	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
 	auto& functions = deviceState->imageFunctions[format];
 	if (!functions.SetPixelUInt32)
 	{

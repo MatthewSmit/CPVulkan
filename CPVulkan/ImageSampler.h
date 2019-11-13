@@ -7,7 +7,7 @@ template<typename ResultType, typename RangeType, typename CoordinateType>
 ResultType GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates);
 
 template<typename ResultType, typename RangeType, typename CoordinateType>
-ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates);
+ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates, VkFilter filter);
 
 template<typename ResultType, typename RangeType, typename CoordinateType>
 ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates, float lod, Sampler* sampler);

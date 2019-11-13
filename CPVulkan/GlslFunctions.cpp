@@ -227,7 +227,7 @@ static T VFindUMsb(T value)
 }
 
 
-static void GetFormatOffset(VkFormat format, Image* image, const VkImageSubresourceRange& subresourceRange, uint64_t& offset, uint64_t& size)
+static void GetFormatOffset(Image* image, const VkImageSubresourceRange& subresourceRange, uint64_t& offset, uint64_t& size)
 {
 	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
 	assert(subresourceRange.baseArrayLayer == 0);
@@ -235,8 +235,8 @@ static void GetFormatOffset(VkFormat format, Image* image, const VkImageSubresou
 	assert(subresourceRange.layerCount == 1);
 	assert(subresourceRange.levelCount == 1);
 
-	offset = 0;
-	size = GetFormatSize(GetFormatInformation(format), image->getWidth(), image->getHeight(), image->getDepth(), 1, 1);
+	offset = image->getImageSize().Level[0].Offset;
+	offset = image->getImageSize().Level[0].LevelSize;
 }
 
 template<int length>
@@ -425,7 +425,7 @@ static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result,
 		format = imageView->getFormat();
 		uint64_t offset;
 		uint64_t size;
-		GetFormatOffset(format, imageView->getImage(), imageView->getSubresourceRange(), offset, size);
+		GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size);
 		data = imageView->getImage()->getData(offset, size);
 		range = GetImageRange<CoordinateType::length()>(imageView->getImage(), imageView->getSubresourceRange());
 		break;
@@ -463,7 +463,7 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 		format = imageView->getFormat();
 		uint64_t offset;
 		uint64_t size;
-		GetFormatOffset(format, imageView->getImage(), imageView->getSubresourceRange(), offset, size);
+		GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size);
 		data = imageView->getImage()->getData(offset, size);
 		range = GetImageRange<CoordinateType::length()>(imageView->getImage(), imageView->getSubresourceRange());
 		break;

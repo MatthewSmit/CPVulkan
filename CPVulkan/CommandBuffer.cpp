@@ -95,87 +95,157 @@ public:
 		for (const auto& region : regions)
 		{
 			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || srcFormat.GreenOffset != -1) &&
-				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || srcFormat.GreenOffset != -1))
+				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || srcFormat.Normal.GreenOffset != INVALID_OFFSET) &&
+				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || srcFormat.Normal.GreenOffset != INVALID_OFFSET))
 			{
 				FATAL_ERROR();
 			}
 
 			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || dstFormat.GreenOffset != -1) &&
-				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || dstFormat.GreenOffset != -1))
+				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || dstFormat.Normal.GreenOffset != INVALID_OFFSET) &&
+				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || dstFormat.Normal.GreenOffset != INVALID_OFFSET))
 			{
 				FATAL_ERROR();
 			}
 
-			const auto width = region.extent.width;
-			const auto height = region.extent.height;
-			const auto depth = region.extent.depth;
-			auto srcBaseZ = region.srcOffset.z;
-			auto dstBaseZ = region.dstOffset.z;
+			assert(region.srcSubresource.layerCount == region.dstSubresource.layerCount);
 
-			if (region.srcSubresource.baseArrayLayer > 0)
-			{
-				if (srcBaseZ == 0)
-				{
-					srcBaseZ = region.srcSubresource.baseArrayLayer;
-				}
-				else
-				{
-					FATAL_ERROR();
-				}
-			}
-
-			if (region.dstSubresource.baseArrayLayer > 0)
-			{
-				if (dstBaseZ == 0)
-				{
-					dstBaseZ = region.dstSubresource.baseArrayLayer;
-				}
-				else
-				{
-					FATAL_ERROR();
-				}
-			}
-
-			uint64_t srcOffset;
-			uint64_t srcPlaneStride;
-			uint64_t srcLineStride;
-			GetFormatStrides(srcFormat, srcOffset, srcPlaneStride, srcLineStride, region.srcSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth(), srcImage->getArrayLayers());
-
-			uint64_t srcLineStart;
-			uint64_t srcLineSize;
-			GetFormatLineSize(srcFormat, srcLineStart, srcLineSize, region.srcOffset.x, width);
-
-			uint64_t dstOffset;
-			uint64_t dstPlaneStride;
-			uint64_t dstLineStride;
-			GetFormatStrides(dstFormat, dstOffset, dstPlaneStride, dstLineStride, region.dstSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth(), dstImage->getArrayLayers());
-
-			uint64_t dstLineStart;
-			uint64_t dstLineSize;
-			GetFormatLineSize(dstFormat, dstLineStart, dstLineSize, region.dstOffset.x, width);
-
-			if (srcLineSize != dstLineSize)
+			if (region.srcSubresource.layerCount != 1)
 			{
 				FATAL_ERROR();
 			}
+
+			if (region.dstSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+
+			const auto& srcLevel = srcImage->getImageSize().Level[region.srcSubresource.mipLevel];
+			const auto& dstLevel = dstImage->getImageSize().Level[region.dstSubresource.mipLevel];
+			const auto pixelSize = srcImage->getImageSize().PixelSize;
+
+			assert(srcLevel.LevelSize == dstLevel.LevelSize);
+			assert(srcLevel.PlaneSize == dstLevel.PlaneSize);
+			assert(srcLevel.Stride == dstLevel.Stride);
+			assert(srcLevel.Width == dstLevel.Width);
+			assert(srcLevel.Height == dstLevel.Height);
+			assert(srcLevel.Depth == dstLevel.Depth);
 			
-			// TODO: Detect when both memories are contiguous
-			for (auto z = 0u; z < depth; z++)
+			if (region.srcOffset.x == 0 && region.srcOffset.y == 0 && region.srcOffset.z == 0 &&
+				region.dstOffset.x == 0 && region.dstOffset.y == 0 && region.dstOffset.z == 0 &&
+				region.extent.width == srcLevel.Width && region.extent.height == srcLevel.Height && region.extent.depth == srcLevel.Depth)
 			{
-				const auto srcZ = z + srcBaseZ;
-				const auto dstZ = z + dstBaseZ;
-				
-				for (auto y = 0u; y < height; y++)
+				memcpy(dstImage->getDataPtr(dstLevel.Offset + dstImage->getImageSize().LayerSize * region.dstSubresource.baseArrayLayer, dstLevel.LevelSize),
+				       srcImage->getDataPtr(srcLevel.Offset + srcImage->getImageSize().LayerSize * region.srcSubresource.baseArrayLayer, srcLevel.LevelSize),
+				       srcLevel.LevelSize);
+			}
+			else
+			{
+				const auto srcBaseOffset = srcLevel.Offset + srcImage->getImageSize().LayerSize * region.srcSubresource.baseArrayLayer;
+				const auto dstBaseOffset = dstLevel.Offset + dstImage->getImageSize().LayerSize * region.dstSubresource.baseArrayLayer;
+
+				if (srcFormat.Type == FormatType::Normal && dstFormat.Type == FormatType::Normal)
 				{
-					const auto srcY = y + region.srcOffset.y;
-					const auto dstY = y + region.dstOffset.y;
+					const auto stride = pixelSize * region.extent.width;
+					for (auto z = 0u; z < region.extent.depth; z++)
+					{
+						const auto srcZ = z + region.srcOffset.z;
+						const auto dstZ = z + region.dstOffset.z;
+						for (auto y = 0u; y < region.extent.height; y++)
+						{
+							const auto srcY = y + region.srcOffset.y;
+							const auto srcX = region.srcOffset.x;
+							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+							
+							const auto dstY = y + region.dstOffset.y;
+							const auto dstX = region.dstOffset.x;
+							const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+							
+							memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+						}
+					}
+				}
+				else if (srcFormat.Type == FormatType::Compressed && dstFormat.Type == FormatType::Compressed)
+				{
+					const auto srcOffsetX = (region.srcOffset.x + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+					const auto srcOffsetY = (region.srcOffset.y + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+					const auto dstOffsetX = (region.dstOffset.x + dstFormat.Compressed.BlockWidth - 1) / dstFormat.Compressed.BlockWidth;
+					const auto dstOffsetY = (region.dstOffset.y + dstFormat.Compressed.BlockHeight - 1) / dstFormat.Compressed.BlockHeight;
+					const auto width = (region.extent.width + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+					const auto height = (region.extent.height + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+					const auto stride = pixelSize * width;
+
+					for (auto z = 0u; z < region.extent.depth; z++)
+					{
+						const auto srcZ = z + region.srcOffset.z;
+						const auto dstZ = z + region.dstOffset.z;
+						for (auto y = 0u; y < height; y++)
+						{
+							const auto srcY = y + srcOffsetY;
+							const auto srcX = srcOffsetX;
+							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+							
+							const auto dstY = y + dstOffsetY;
+							const auto dstX = dstOffsetX;
+							const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+							
+							memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+						}
+					}
+				}
+				else if (srcFormat.Type == FormatType::Compressed)
+				{
+					const auto offsetX = (region.srcOffset.x + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+					const auto offsetY = (region.srcOffset.y + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+					const auto width = (region.extent.width + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+					const auto height = (region.extent.height + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+					const auto stride = pixelSize * width;
+
+					for (auto z = 0u; z < region.extent.depth; z++)
+					{
+						const auto srcZ = z + region.srcOffset.z;
+						const auto dstZ = z + region.dstOffset.z;
+						for (auto y = 0u; y < height; y++)
+						{
+							const auto srcY = y + offsetY;
+							const auto srcX = offsetX;
+							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+
+							const auto dstY = y + region.dstOffset.y;
+							const auto dstX = region.dstOffset.x;
+							const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+
+							memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+						}
+					}
+				}
+				else if (dstFormat.Type == FormatType::Compressed)
+				{
+					const auto stride = pixelSize * region.extent.width;
+					const auto offsetX = (region.dstOffset.x + dstFormat.Compressed.BlockWidth - 1) / dstFormat.Compressed.BlockWidth;
+					const auto offsetY = (region.dstOffset.y + dstFormat.Compressed.BlockHeight - 1) / dstFormat.Compressed.BlockHeight;
 					
-					const auto src = srcImage->getData(static_cast<uint64_t>(srcZ) * srcPlaneStride + static_cast<uint64_t>(srcY) * srcLineStride + srcLineStart, srcLineSize);
-					const auto dst = dstImage->getData(static_cast<uint64_t>(dstZ) * dstPlaneStride + static_cast<uint64_t>(dstY) * dstLineStride + dstLineStart, dstLineSize);
-					
-					memcpy(dst.data(), src.data(), dstLineSize);
+					for (auto z = 0u; z < region.extent.depth; z++)
+					{
+						const auto srcZ = z + region.srcOffset.z;
+						const auto dstZ = z + region.dstOffset.z;
+						for (auto y = 0u; y < region.extent.height; y++)
+						{
+							const auto srcY = y + region.srcOffset.y;
+							const auto srcX = region.srcOffset.x;
+							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+							
+							const auto dstY = y + offsetY;
+							const auto dstX = offsetX;
+							const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+							
+							memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+						}
+					}
+				}
+				else
+				{
+					assert(false);
 				}
 			}
 		}
@@ -212,6 +282,58 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
+		std::function<void(float, float, float, float, float)> blit;
+		const auto information = GetFormatInformation(dstImage->getFormat());
+		switch (information.Base)
+		{
+		case BaseType::UNorm:
+		case BaseType::SNorm:
+		case BaseType::UFloat:
+		case BaseType::SFloat:
+		case BaseType::SRGB:
+			if (information.ElementSize > 4)
+			{
+				FATAL_ERROR();
+			}
+			else
+			{
+				blit = [&](float u, float v, float w, float q, float a)
+				{
+					auto value = SampleImage<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
+					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
+					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
+					                                     filter);
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, static_cast<int>(u), static_cast<int>(v), static_cast<int>(w), static_cast<int>(q), static_cast<int>(a), &value.x);
+				};
+			}
+			break;
+			
+		case BaseType::UScaled:
+		case BaseType::UInt:
+			if (information.ElementSize > 4)
+			{
+				FATAL_ERROR();
+			}
+			else
+			{
+				blit = [&](float u, float v, float w, float q, float a)
+				{
+					auto value = SampleImage<glm::uvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
+					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
+					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
+					                                     filter);
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, static_cast<int>(u), static_cast<int>(v), static_cast<int>(w), static_cast<int>(q), static_cast<int>(a), &value.x);
+				};
+			}
+			break;
+
+		case BaseType::SScaled:
+		case BaseType::SInt:
+			FATAL_ERROR();
+			
+		default: FATAL_ERROR();
+		}
+		
 		for (const auto& region : regions)
 		{
 			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
@@ -307,11 +429,7 @@ public:
 							FATAL_ERROR();
 						}
 
-						// TODO: Use native type
-						auto value = SampleImage<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
-						                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
-						                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()});
-						SetPixel(deviceState, dstImage->getFormat(), dstImage, static_cast<int>(u), static_cast<int>(v), static_cast<int>(w), static_cast<int>(q), static_cast<int>(a), &value.x);
+						blit(u, v, w, q, a);
 					}
 				}
 			}
@@ -349,67 +467,107 @@ public:
 	void Process(DeviceState*) override
 	{
 		const auto& format = GetFormatInformation(dstImage->getFormat());
-		
+		if (format.Type == FormatType::Compressed)
+		{
+			ProcessCompressed(format);
+		}
+		else
+		{
+			ProcessNormal(format);
+		}
+	}
+
+	void ProcessNormal(const FormatInformation& format)
+	{
 		for (const auto& region : regions)
 		{
 			if (region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.GreenOffset != -1) && 
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.GreenOffset != -1))
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.Normal.GreenOffset != INVALID_OFFSET) &&
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.Normal.GreenOffset != INVALID_OFFSET))
 			{
 				FATAL_ERROR();
 			}
 
-			const auto width = region.imageExtent.width;
-			auto height = region.imageExtent.height;
-			auto depth = region.imageExtent.depth;
-			auto baseZ = region.imageOffset.z;
-
-			if (region.imageSubresource.baseArrayLayer > 0 || region.imageSubresource.layerCount != 1)
+			if (region.imageSubresource.layerCount != 1)
 			{
-				if (baseZ == 0 && depth == 1)
-				{
-					baseZ = region.imageSubresource.baseArrayLayer;
-				}
-				else
-				{
-					FATAL_ERROR();
-				}
+				FATAL_ERROR();
 			}
 
-			const auto srcOffset = region.bufferOffset;
-			auto srcLineStride = (region.bufferRowLength == 0 ? width : region.bufferRowLength) * format.TotalSize;
-			if (format.Type == FormatType::Compressed)
+			auto rowLength = region.bufferRowLength;
+			if (rowLength == 0)
 			{
-				srcLineStride /= format.RedOffset;
+				rowLength = region.imageExtent.width;
 			}
 
-			auto srcPlaneStride = (region.bufferImageHeight == 0 ? height : region.bufferImageHeight) * srcLineStride;
-			if (format.Type == FormatType::Compressed)
+			auto imageHeight = region.bufferImageHeight;
+			if (rowLength == 0)
 			{
-				srcPlaneStride /= format.GreenOffset;
+				imageHeight = region.imageExtent.height;
 			}
 
-			uint64_t dstOffset;
-			uint64_t dstPlaneStride;
-			uint64_t dstLineStride;
-			GetFormatStrides(format, dstOffset, dstPlaneStride, dstLineStride, region.imageSubresource.mipLevel, dstImage->getWidth(), dstImage->getHeight(), dstImage->getDepth(), dstImage->getArrayLayers());
+			const auto& level = dstImage->getImageSize().Level[region.imageSubresource.mipLevel];
+			if (region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+				region.imageExtent.width == level.Width && region.imageExtent.height == level.Height && region.imageExtent.depth == level.Depth &&
+				rowLength == level.Width && imageHeight == level.Height)
+			{
+				memcpy(dstImage->getDataPtr(level.Offset + dstImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+				       srcBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+				       level.LevelSize);
+			}
+			else
+			{
+				// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * texelBlockSize;
+				//
+				// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
+				FATAL_ERROR();
+			}
+		}
+	}
 
-			uint64_t lineStart;
-			uint64_t lineSize;
-			GetFormatLineSize(format, lineStart, lineSize, region.imageOffset.x, width);
-
-			height = GetFormatHeight(format, height);
+	void ProcessCompressed(const FormatInformation& format)
+	{
+		for (const auto& region : regions)
+		{
+			assert(region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
 			
-			// TODO: Detect when both memories are contiguous
-			for (auto z = baseZ; z < baseZ + static_cast<int32_t>(depth); z++)
+			if (region.imageSubresource.layerCount != 1)
 			{
-				for (auto y = region.imageOffset.y; y < region.imageOffset.y + static_cast<int32_t>(height); y++)
-				{
-					const auto src = srcBuffer->getData(srcOffset + z * srcPlaneStride + y * srcLineStride + lineStart, lineSize);
-					const auto dst = dstImage->getData(dstOffset + z * dstPlaneStride + y * dstLineStride + lineStart, lineSize);
-					
-					memcpy(dst.data(), src.data(), lineSize);
-				}
+				FATAL_ERROR();
+			}
+
+			const auto extentWidth = (region.imageExtent.width + format.Compressed.BlockWidth - 1) / format.Compressed.BlockWidth;
+			const auto extentHeight = (region.imageExtent.height + format.Compressed.BlockHeight - 1) / format.Compressed.BlockHeight;
+			
+			auto rowLength = region.bufferRowLength;
+			if (rowLength == 0)
+			{
+				rowLength = region.imageExtent.width;
+			}
+
+			auto imageHeight = region.bufferImageHeight;
+			if (rowLength == 0)
+			{
+				imageHeight = region.imageExtent.height;
+			}
+
+			rowLength /= format.Compressed.BlockWidth;
+			imageHeight /= format.Compressed.BlockHeight;
+
+			const auto& level = dstImage->getImageSize().Level[region.imageSubresource.mipLevel];
+			if (region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+				extentWidth == level.Width && extentHeight == level.Height && region.imageExtent.depth == level.Depth &&
+				rowLength == level.Width && imageHeight == level.Height)
+			{
+				memcpy(dstImage->getDataPtr(level.Offset + dstImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+				       srcBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+				       level.LevelSize);
+			}
+			else
+			{
+				// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * compressedTexelBlockSizeInBytes;
+				//
+				// where x,y,z range from (0,0,0) to region->imageExtent.{width/compressedTexelBlockWidth,height/compressedTexelBlockHeight,depth/compressedTexelBlockDepth}.
+				FATAL_ERROR();
 			}
 		}
 	}
@@ -444,65 +602,107 @@ public:
 	void Process(DeviceState*) override
 	{
 		const auto& format = GetFormatInformation(srcImage->getFormat());
+		if (format.Type == FormatType::Compressed)
+		{
+			ProcessCompressed(format);
+		}
+		else
+		{
+			ProcessNormal(format);
+		}
+	}
+
+	void ProcessNormal(const FormatInformation& format)
+	{
 		for (const auto& region : regions)
 		{
 			if (region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.GreenOffset != -1) && 
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.GreenOffset != -1))
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.Normal.GreenOffset != INVALID_OFFSET) &&
+				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.Normal.GreenOffset != INVALID_OFFSET))
 			{
 				FATAL_ERROR();
 			}
 
-			const auto width = region.imageExtent.width;
-			const auto height = region.imageExtent.height;
-			auto depth = region.imageExtent.depth;
-			auto baseZ = region.imageOffset.z;
-
-			if (region.imageSubresource.baseArrayLayer > 0 || region.imageSubresource.layerCount != 1)
+			if (region.imageSubresource.layerCount != 1)
 			{
-				if (baseZ == 0 && depth == 1)
-				{
-					baseZ = region.imageSubresource.baseArrayLayer;
-					depth = region.imageSubresource.layerCount;
-				}
-				else
-				{
-					FATAL_ERROR();
-				}
+				FATAL_ERROR();
 			}
 
-			uint64_t srcOffset;
-			uint64_t srcPlaneStride;
-			uint64_t srcLineStride;
-			GetFormatStrides(format, srcOffset, srcPlaneStride, srcLineStride, region.imageSubresource.mipLevel, srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth(), srcImage->getArrayLayers());
-
-			const auto dstOffset = region.bufferOffset;
-			auto dstLineStride = (region.bufferRowLength == 0 ? width : region.bufferRowLength) * format.TotalSize;
-			if (format.Type == FormatType::Compressed)
+			auto rowLength = region.bufferRowLength;
+			if (rowLength == 0)
 			{
-				dstLineStride /= format.RedOffset;
+				rowLength = region.imageExtent.width;
 			}
+
+			auto imageHeight = region.bufferImageHeight;
+			if (rowLength == 0)
+			{
+				imageHeight = region.imageExtent.height;
+			}
+
+			const auto& level = srcImage->getImageSize().Level[region.imageSubresource.mipLevel];
+			if (region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+				region.imageExtent.width == level.Width && region.imageExtent.height == level.Height && region.imageExtent.depth == level.Depth &&
+				rowLength == level.Width && imageHeight == level.Height)
+			{
+				memcpy(dstBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+				       srcImage->getDataPtr(level.Offset + srcImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+				       level.LevelSize);
+			}
+			else
+			{
+				// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * texelBlockSize;
+				//
+				// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
+				FATAL_ERROR();
+			}
+		}
+	}
+
+	void ProcessCompressed(const FormatInformation& format)
+	{
+		for (const auto& region : regions)
+		{
+			assert(region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
 			
-			auto dstPlaneStride = (region.bufferImageHeight == 0 ? height : region.bufferImageHeight) * dstLineStride;
-			if (format.Type == FormatType::Compressed)
+			if (region.imageSubresource.layerCount != 1)
 			{
-				dstPlaneStride /= format.GreenOffset;
+				FATAL_ERROR();
 			}
 
-			uint64_t lineStart;
-			uint64_t lineSize;
-			GetFormatLineSize(format, lineStart, lineSize, region.imageOffset.x, width);
-			
-			// TODO: Detect when both memories are contiguous
-			for (auto z = baseZ; z < baseZ + static_cast<int32_t>(depth); z++)
-			{
-				for (auto y = region.imageOffset.y; y < region.imageOffset.y + static_cast<int32_t>(height); y++)
-				{
-					const auto src = srcImage->getData(srcOffset + z * srcPlaneStride + y * srcLineStride + lineStart, lineSize);
-					const auto dst = dstBuffer->getData(dstOffset + z * dstPlaneStride + y * dstLineStride + lineStart, lineSize);
+			const auto extentWidth = (region.imageExtent.width + format.Compressed.BlockWidth - 1) / format.Compressed.BlockWidth;
+			const auto extentHeight = (region.imageExtent.height + format.Compressed.BlockHeight - 1) / format.Compressed.BlockHeight;
 
-					memcpy(dst.data(), src.data(), lineSize);
-				}
+			auto rowLength = region.bufferRowLength;
+			if (rowLength == 0)
+			{
+				rowLength = region.imageExtent.width;
+			}
+
+			auto imageHeight = region.bufferImageHeight;
+			if (rowLength == 0)
+			{
+				imageHeight = region.imageExtent.height;
+			}
+
+			rowLength /= format.Compressed.BlockWidth;
+			imageHeight /= format.Compressed.BlockHeight;
+
+			const auto& level = srcImage->getImageSize().Level[region.imageSubresource.mipLevel];
+			if (region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+				extentWidth == level.Width && extentHeight == level.Height && region.imageExtent.depth == level.Depth &&
+				rowLength == level.Width && imageHeight == level.Height)
+			{
+				memcpy(dstBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+				       srcImage->getDataPtr(level.Offset + srcImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+				       level.LevelSize);
+			}
+			else
+			{
+				// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * texelBlockSize;
+				//
+				// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
+				FATAL_ERROR();
 			}
 		}
 	}
@@ -664,7 +864,7 @@ public:
 			{
 				aspects = VK_IMAGE_ASPECT_STENCIL_BIT;
 			}
-			else if (formatInformation.GreenOffset == 0xFFFFFFFF)
+			else if (formatInformation.Normal.GreenOffset == INVALID_OFFSET)
 			{
 				aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
 			}

@@ -87,34 +87,34 @@ llvm::Type* GetType<uint64_t>(llvm::IRBuilder<>& builder)
 	return builder.getInt64Ty();
 }
 
-static uint32_t GetBits(const FormatInformation* information, int index)
+static uint32_t GetPackedBits(const FormatInformation* information, int index)
 {
 	switch (index)
 	{
 	case 0:
-		return information->RedBits;
+		return information->Packed.RedBits;
 	case 1:
-		return information->GreenBits;
+		return information->Packed.GreenBits;
 	case 2:
-		return information->BlueBits;
+		return information->Packed.BlueBits;
 	case 3:
-		return information->AlphaBits;
+		return information->Packed.AlphaBits;
 	}
 	FATAL_ERROR();
 }
 
-static uint32_t GetOffset(const FormatInformation* information, int index)
+static uint32_t GetPackedOffset(const FormatInformation* information, int index)
 {
 	switch (index)
 	{
 	case 0:
-		return information->RedOffset;
+		return information->Packed.RedOffset;
 	case 1:
-		return information->GreenOffset;
+		return information->Packed.GreenOffset;
 	case 2:
-		return information->BlueOffset;
+		return information->Packed.BlueOffset;
 	case 3:
-		return information->AlphaOffset;
+		return information->Packed.AlphaOffset;
 	}
 	FATAL_ERROR();
 }
@@ -239,6 +239,8 @@ static llvm::Value* EmitConvert(llvm::IRBuilder<>& builder, llvm::Value* inputVa
 
 STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatInformation* information)
 {
+	assert(information->Type == FormatType::Normal);
+
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
 	auto module = std::make_unique<llvm::Module>("", *context);
@@ -256,7 +258,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 	
 	llvm::Value* sourcePtr = &*function->arg_begin();
 
-	if (information->RedOffset == 0xFFFFFFFF)
+	if (information->Normal.RedOffset == INVALID_OFFSET)
 	{
 		FATAL_ERROR();
 	}
@@ -339,46 +341,51 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInform
 	llvm::Value* sourcePtr = &*function->arg_begin();
 	llvm::Value* destinationPtr = &*(function->arg_begin() + 1);
 
-	if (information->ElementSize == 0)
+	switch (information->Type)
 	{
-		// EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
-		FATAL_ERROR();
-	}
-	else
-	{
-		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(resultType, 0));
-		
-		if (information->RedOffset != 0xFFFFFFFF)
+	case FormatType::Normal:
 		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->RedOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
-			builder.CreateStore(value, dst);
+			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(resultType, 0));
+
+			if (information->Normal.RedOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.RedOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.GreenOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.GreenOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.BlueOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.BlueOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.AlphaOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.AlphaOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(value, dst);
+			}
+			break;
 		}
 		
-		if (information->GreenOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->GreenOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
-			builder.CreateStore(value, dst);
-		}
-		
-		if (information->BlueOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->BlueOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
-			builder.CreateStore(value, dst);
-		}
-		
-		if (information->AlphaOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->AlphaOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-			builder.CreateStore(value, dst);
-		}
+	case FormatType::Packed: FATAL_ERROR();
+	case FormatType::Compressed: FATAL_ERROR();
+	case FormatType::Planar: FATAL_ERROR();
+	case FormatType::PlanarSamplable: FATAL_ERROR();
+	default: assert(false);
 	}
 
 	builder.CreateRetVoid();
@@ -412,93 +419,201 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 	llvm::Value* sourcePtr = &*function->arg_begin();
 	llvm::Value* destinationPtr = &*(function->arg_begin() + 1);
 
-	if (information->ElementSize == 0)
+	switch (information->Type)
 	{
-		// EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
-		FATAL_ERROR();
-	}
-	else
-	{
-		llvm::Type* sourceType;
-		std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
-		switch (information->Base)
+	case FormatType::Normal:
 		{
-		case BaseType::UNorm:
-			switch (information->ElementSize)
+			llvm::Type* sourceType;
+			std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
+			switch (information->Base)
 			{
-			case 1:
-				sourceType = builder.getInt8Ty();
-				process = EmitConvert<uint8_t, float>;
+			case BaseType::UNorm:
+			case BaseType::UScaled:
+			case BaseType::UInt:
+				switch (information->ElementSize)
+				{
+				case 1:
+					sourceType = builder.getInt8Ty();
+					process = EmitConvert<uint8_t, float>;
+					break;
+
+				case 2:
+					sourceType = builder.getInt16Ty();
+					process = EmitConvert<uint16_t, float>;
+					break;
+
+				case 4:
+					sourceType = builder.getInt32Ty();
+					process = EmitConvert<uint32_t, float>;
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
 				break;
-			
-			case 2:
-				sourceType = builder.getInt16Ty();
-				process = EmitConvert<uint16_t, float>;
-				break;
-			
-			case 4:
-				sourceType = builder.getInt32Ty();
-				process = EmitConvert<uint32_t, float>;
-				break;
-			
-			default:
-				FATAL_ERROR();
+
+			default: FATAL_ERROR();
+			}
+
+			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+
+			if (information->Normal.RedOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.RedOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.GreenOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.GreenOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.BlueOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.BlueOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.AlphaOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.AlphaOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(value, dst);
 			}
 			break;
-			
-			// case BaseType::SNorm: break;
-			// case BaseType::UScaled: break;
-			// case BaseType::SScaled: break;
-			// case BaseType::UInt: break;
-			// case BaseType::SInt: break;
-			// case BaseType::UFloat: break;
-			// case BaseType::SFloat: break;
-			// case BaseType::SRGB: break;
-		 
-			// case BaseType::UScaled:
-			// case BaseType::UInt:
-			// 	break;
+		}
+		
+	case FormatType::Packed: FATAL_ERROR();
+	case FormatType::Compressed: FATAL_ERROR();
+	case FormatType::Planar: FATAL_ERROR();
+	case FormatType::PlanarSamplable: FATAL_ERROR();
+	default: assert(false);
+	}
 
-		default: FATAL_ERROR();
-		}
-		
-		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
-		
-		if (information->RedOffset != 0xFFFFFFFF)
+	builder.CreateRetVoid();
+	
+	// TODO: Optimise
+	
+	Dump(module.get());
+	
+	const auto compiledModule = jit->CompileModule(std::move(context), std::move(module));
+	return jit->getFunctionPointer(compiledModule, "main");
+}
+
+STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInformation* information)
+{
+	auto context = std::make_unique<llvm::LLVMContext>();
+	llvm::IRBuilder<> builder(*context);
+	auto module = std::make_unique<llvm::Module>("", *context);
+	
+	const auto functionType = llvm::FunctionType::get(builder.getVoidTy(), {
+		                                                  builder.getInt8PtrTy(),
+		                                                  llvm::PointerType::get(builder.getInt32Ty(), 0),
+	                                                  }, false);
+	const auto function = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+	                                             llvm::GlobalVariable::ExternalLinkage,
+	                                             "main",
+	                                             module.get());
+	
+	const auto basicBlock = llvm::BasicBlock::Create(*context, "", function);
+	builder.SetInsertPoint(basicBlock);
+	
+	llvm::Value* sourcePtr = &*function->arg_begin();
+	llvm::Value* destinationPtr = &*(function->arg_begin() + 1);
+
+	switch (information->Type)
+	{
+	case FormatType::Normal:
 		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->RedOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
-			builder.CreateStore(value, dst);
+			llvm::Type* sourceType;
+			std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
+			switch (information->Base)
+			{
+			case BaseType::UNorm:
+			case BaseType::UScaled:
+			case BaseType::UInt:
+				switch (information->ElementSize)
+				{
+				case 1:
+					sourceType = builder.getInt8Ty();
+					process = EmitConvert<uint8_t, uint32_t>;
+					break;
+
+				case 2:
+					sourceType = builder.getInt16Ty();
+					process = EmitConvert<uint16_t, uint32_t>;
+					break;
+
+				case 4:
+					sourceType = builder.getInt32Ty();
+					process = EmitConvert<uint32_t, uint32_t>;
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			default: FATAL_ERROR();
+			}
+
+			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+
+			if (information->Normal.RedOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.RedOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.GreenOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.GreenOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.BlueOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.BlueOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.AlphaOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.AlphaOffset / information->ElementSize);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(value, dst);
+			}
+			break;
 		}
 		
-		if (information->GreenOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->GreenOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
-			builder.CreateStore(value, dst);
-		}
-		
-		if (information->BlueOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->BlueOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
-			builder.CreateStore(value, dst);
-		}
-		
-		if (information->AlphaOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, information->AlphaOffset / information->ElementSize);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-			builder.CreateStore(value, dst);
-		}
+	case FormatType::Packed: FATAL_ERROR();
+	case FormatType::Compressed: FATAL_ERROR();
+	case FormatType::Planar: FATAL_ERROR();
+	case FormatType::PlanarSamplable: FATAL_ERROR();
+	default: assert(false);
 	}
 
 	builder.CreateRetVoid();
@@ -513,6 +628,8 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 
 STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const FormatInformation* information)
 {
+	assert(information->Type == FormatType::Normal);
+
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
 	auto module = std::make_unique<llvm::Module>("", *context);
@@ -534,7 +651,7 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const 
 	const auto depthSource = &*(function->arg_begin() + 1);
 	const auto stencilSource = &*(function->arg_begin() + 2);
 
-	if (information->RedOffset != 0xFFFFFFFF)
+	if (information->Normal.RedOffset != INVALID_OFFSET)
 	{
 		llvm::Value* value;
 		auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
@@ -565,7 +682,7 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const 
 		builder.CreateStore(value, dst);
 	}
 	
-	if (information->GreenOffset != 0xFFFFFFFF)
+	if (information->Normal.GreenOffset != INVALID_OFFSET)
 	{
 		llvm::Value* dst;
 		switch (information->Format)
@@ -604,6 +721,8 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const 
 
 static void EmitSetPackedPixelFloat(llvm::Function* function, llvm::Module* module, llvm::IRBuilder<>& builder, const FormatInformation* information, llvm::Value* destinationPtr, llvm::Value* sourcePtr)
 {
+	assert(information->Type == FormatType::Packed);
+	
 	llvm::Type* resultType;
 	switch (information->TotalSize)
 	{
@@ -629,9 +748,9 @@ static void EmitSetPackedPixelFloat(llvm::Function* function, llvm::Module* modu
 	case BaseType::UNorm:
 		process = [information, resultType, sourcePtr](llvm::IRBuilder<>& builder, llvm::Value* oldValue, int index)
 		{
-			const auto bits = GetBits(information, index);
+			const auto bits = GetPackedBits(information, index);
 			const double size = (1ULL << bits) - 1;
-			const auto offset = GetOffset(information, index);
+			const auto offset = GetPackedOffset(information, index);
 
 			// Get source float from array
 			auto source = builder.CreateConstGEP1_32(sourcePtr, index);
@@ -652,9 +771,9 @@ static void EmitSetPackedPixelFloat(llvm::Function* function, llvm::Module* modu
 	case BaseType::SNorm:
 		process = [information, resultType, sourcePtr](llvm::IRBuilder<>& builder, llvm::Value* oldValue, int index)
 		{
-			const auto bits = GetBits(information, index);
+			const auto bits = GetPackedBits(information, index);
 			const double size = (1ULL << (bits - 1)) - 1;
-			const auto offset = GetOffset(information, index);
+			const auto offset = GetPackedOffset(information, index);
 			
 			// Get source float from array
 			auto source = builder.CreateConstGEP1_32(sourcePtr, index);
@@ -703,9 +822,9 @@ static void EmitSetPackedPixelFloat(llvm::Function* function, llvm::Module* modu
 	case BaseType::SRGB:
 		process = [information, resultType, sourcePtr, function](llvm::IRBuilder<>& builder, llvm::Value* oldValue, int index)
 		{
-			const auto bits = GetBits(information, index);
+			const auto bits = GetPackedBits(information, index);
 			const double size = (1ULL << bits) - 1;
-			const auto offset = GetOffset(information, index);
+			const auto offset = GetPackedOffset(information, index);
 
 			// Get source float from array
 			auto source = builder.CreateConstGEP1_32(sourcePtr, index);
@@ -729,22 +848,22 @@ static void EmitSetPackedPixelFloat(llvm::Function* function, llvm::Module* modu
 
 	llvm::Value* value = llvm::ConstantInt::get(resultType, 0);
 
-	if (information->RedBits)
+	if (information->Packed.RedBits)
 	{
 		value = process(builder, value, 0);
 	}
 
-	if (information->GreenBits)
+	if (information->Packed.GreenBits)
 	{
 		value = process(builder, value, 1);
 	}
 
-	if (information->BlueBits)
+	if (information->Packed.BlueBits)
 	{
 		value = process(builder, value, 2);
 	}
 
-	if (information->AlphaBits)
+	if (information->Packed.AlphaBits)
 	{
 		value = process(builder, value, 3);
 	}
@@ -755,6 +874,8 @@ static void EmitSetPackedPixelFloat(llvm::Function* function, llvm::Module* modu
 
 static void EmitSetPackedPixelInt32(llvm::IRBuilder<>& builder, const FormatInformation* information, llvm::Value* destinationPtr, llvm::Value* sourcePtr)
 {
+	assert(information->Type == FormatType::Packed);
+
 	llvm::Type* resultType;
 	switch (information->TotalSize)
 	{
@@ -776,9 +897,9 @@ static void EmitSetPackedPixelInt32(llvm::IRBuilder<>& builder, const FormatInfo
 	
 	const auto process = [information, resultType, sourcePtr](llvm::IRBuilder<>& builder, llvm::Value* oldValue, int index)
 	{
-		const auto bits = GetBits(information, index);
+		const auto bits = GetPackedBits(information, index);
 		const auto mask = (1ULL << bits) - 1;
-		const auto offset = GetOffset(information, index);
+		const auto offset = GetPackedOffset(information, index);
 				
 		// Get source from array
 		auto source = builder.CreateConstGEP1_32(sourcePtr, index);
@@ -794,22 +915,22 @@ static void EmitSetPackedPixelInt32(llvm::IRBuilder<>& builder, const FormatInfo
 
 	llvm::Value* value = llvm::ConstantInt::get(resultType, 0);
 	
-	if (information->RedBits)
+	if (information->Packed.RedBits)
 	{
 		value = process(builder, value, 0);
 	}
 	
-	if (information->GreenBits)
+	if (information->Packed.GreenBits)
 	{
 		value = process(builder, value, 1);
 	}
 	
-	if (information->BlueBits)
+	if (information->Packed.BlueBits)
 	{
 		value = process(builder, value, 2);
 	}
 	
-	if (information->AlphaBits)
+	if (information->Packed.AlphaBits)
 	{
 		value = process(builder, value, 3);
 	}
@@ -839,245 +960,254 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelFloat(SpirvJit* jit, const FormatI
 	llvm::Value* destinationPtr = &*function->arg_begin();
 	const auto sourcePtr = &*(function->arg_begin() + 1);
 
-	if (information->ElementSize == 0)
+	switch (information->Type)
 	{
+	case FormatType::Normal:
+		{
+			llvm::Type* resultType;
+
+			if (information->Base == BaseType::SFloat)
+			{
+				switch (information->ElementSize)
+				{
+				case 2:
+					resultType = llvm::Type::getHalfTy(*context);
+					break;
+
+				case 4:
+					resultType = llvm::Type::getFloatTy(*context);
+					break;
+
+				case 8:
+					resultType = llvm::Type::getDoubleTy(*context);
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+			}
+			else if (information->Base == BaseType::UFloat)
+			{
+				FATAL_ERROR();
+			}
+			else
+			{
+				switch (information->ElementSize)
+				{
+				case 1:
+					resultType = builder.getInt8Ty();
+					break;
+
+				case 2:
+					resultType = builder.getInt16Ty();
+					break;
+
+				case 4:
+					resultType = builder.getInt32Ty();
+					break;
+
+				case 8:
+					resultType = builder.getInt64Ty();
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+			}
+
+			destinationPtr = builder.CreateBitCast(destinationPtr, llvm::PointerType::get(resultType, 0));
+
+			std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*, int)> process;
+			switch (information->Base)
+			{
+			case BaseType::UNorm:
+				switch (information->ElementSize)
+				{
+				case 1:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						return EmitConvert<float, uint8_t>(builder, value);
+					};
+					break;
+
+				case 2:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						return EmitConvert<float, uint16_t>(builder, value);
+					};
+					break;
+
+				case 4:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						return EmitConvert<float, uint32_t>(builder, value);
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			case BaseType::SNorm:
+				switch (information->ElementSize)
+				{
+				case 1:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						return EmitConvert<float, int8_t>(builder, value);
+					};
+					break;
+
+				case 2:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						return EmitConvert<float, int16_t>(builder, value);
+					};
+					break;
+
+				case 4:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						return EmitConvert<float, int32_t>(builder, value);
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			case BaseType::UFloat: FATAL_ERROR();
+
+			case BaseType::SFloat:
+				switch (information->ElementSize)
+				{
+				case 2:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<float, half>(builder, inputValue);
+					};
+					break;
+
+				case 4:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<float, float>(builder, inputValue);
+					};
+					break;
+
+				case 8:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<float, double>(builder, inputValue);
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			case BaseType::SRGB:
+				switch (information->ElementSize)
+				{
+				case 1:
+					process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
+					{
+						llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+						                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
+						return EmitConvert<float, uint8_t>(builder, value);
+					};
+					break;
+
+				case 2:
+					process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
+					{
+						llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+						                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
+						return EmitConvert<float, uint16_t>(builder, value);
+					};
+					break;
+
+				case 4:
+					process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
+					{
+						llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+						                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
+						value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
+						return EmitConvert<float, uint32_t>(builder, value);
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			default: FATAL_ERROR();
+			}
+
+			if (information->Normal.RedOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 0);
+				value = builder.CreateLoad(value);
+				value = process(builder, value, 0);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.RedOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.GreenOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 1);
+				value = builder.CreateLoad(value);
+				value = process(builder, value, 1);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.GreenOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.BlueOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 2);
+				value = builder.CreateLoad(value);
+				value = process(builder, value, 2);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.BlueOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.AlphaOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 3);
+				value = builder.CreateLoad(value);
+				value = process(builder, value, 3);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.AlphaOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+			break;
+		}
+		
+	case FormatType::Packed:
 		EmitSetPackedPixelFloat(function, module.get(), builder, information, destinationPtr, sourcePtr);
-	}
-	else
-	{
-		llvm::Type* resultType;
-
-		if (information->Base == BaseType::SFloat)
-		{
-			switch (information->ElementSize)
-			{
-			case 2:
-				resultType = llvm::Type::getHalfTy(*context);
-				break;
-
-			case 4:
-				resultType = llvm::Type::getFloatTy(*context);
-				break;
-
-			case 8:
-				resultType = llvm::Type::getDoubleTy(*context);
-				break;
-
-			default:
-				FATAL_ERROR();
-			}
-		}
-		else if (information->Base == BaseType::UFloat)
-		{
-			FATAL_ERROR();
-		}
-		else
-		{
-			switch (information->ElementSize)
-			{
-			case 1:
-				resultType = builder.getInt8Ty();
-				break;
-
-			case 2:
-				resultType = builder.getInt16Ty();
-				break;
-
-			case 4:
-				resultType = builder.getInt32Ty();
-				break;
-
-			case 8:
-				resultType = builder.getInt64Ty();
-				break;
-
-			default:
-				FATAL_ERROR();
-			}
-		}
-
-		destinationPtr = builder.CreateBitCast(destinationPtr, llvm::PointerType::get(resultType, 0));
+		break;
 		
-		std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*, int)> process;
-		switch (information->Base)
-		{
-		case BaseType::UNorm:
-			switch (information->ElementSize)
-			{
-			case 1:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-					                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					return EmitConvert<float, uint8_t>(builder, value);
-				};
-				break;
-				
-			case 2:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-					                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					return EmitConvert<float, uint16_t>(builder, value);
-				};
-				break;
-				
-			case 4:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-					                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					return EmitConvert<float, uint32_t>(builder, value);
-				};
-				break;
-				
-			default:
-				FATAL_ERROR();
-			}
-			break;
-			
-		case BaseType::SNorm:
-			switch (information->ElementSize)
-			{
-			case 1:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
-					                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					return EmitConvert<float, int8_t>(builder, value);
-				};
-				break;
-				
-			case 2:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
-					                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					return EmitConvert<float, int16_t>(builder, value);
-				};
-				break;
-				
-			case 4:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
-					                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					return EmitConvert<float, int32_t>(builder, value);
-				};
-				break;
-				
-			default:
-				FATAL_ERROR();
-			}
-			break;
-			
-		case BaseType::UFloat: FATAL_ERROR();
-			
-		case BaseType::SFloat:
-			switch (information->ElementSize)
-			{
-			case 2:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					return EmitConvert<float, half>(builder, inputValue);
-				};
-				break;
-				
-			case 4:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					return EmitConvert<float, float>(builder, inputValue);
-				};
-				break;
-				
-			case 8:
-				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				{
-					return EmitConvert<float, double>(builder, inputValue);
-				};
-				break;
-
-			default:
-				FATAL_ERROR();
-			}
-			break;
-			
-		case BaseType::SRGB:
-			switch (information->ElementSize)
-			{
-			case 1:
-				process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-				{
-					llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-					                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
-					return EmitConvert<float, uint8_t>(builder, value);
-				};
-				break;
-				
-			case 2:
-				process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-				{
-					llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-					                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
-					return EmitConvert<float, uint16_t>(builder, value);
-				};
-				break;
-				
-			case 4:
-				process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-				{
-					llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-					                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
-					value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
-					return EmitConvert<float, uint32_t>(builder, value);
-				};
-				break;
-				
-			default:
-				FATAL_ERROR();
-			}
-			break;
-		 
-		default: FATAL_ERROR();
-		}
-		
-		if (information->RedOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 0);
-			value = builder.CreateLoad(value);
-			value = process(builder, value, 0);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->RedOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-
-		if (information->GreenOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 1);
-			value = builder.CreateLoad(value);
-			value = process(builder, value, 1);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->GreenOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-
-		if (information->BlueOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 2);
-			value = builder.CreateLoad(value);
-			value = process(builder, value, 2);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->BlueOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-
-		if (information->AlphaOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 3);
-			value = builder.CreateLoad(value);
-			value = process(builder, value, 3);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->AlphaOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
+	case FormatType::Compressed: FATAL_ERROR();
+	case FormatType::Planar: FATAL_ERROR();
+	case FormatType::PlanarSamplable: FATAL_ERROR();
+	default: assert(false);
 	}
 
 	builder.CreateRetVoid();
@@ -1110,96 +1240,105 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelInt32(SpirvJit* jit, const FormatI
 	
 	llvm::Value* destinationPtr = &*function->arg_begin();
 	const auto sourcePtr = &*(function->arg_begin() + 1);
-	
-	if (information->ElementSize == 0)
+
+	switch (information->Type)
 	{
-		EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
-	}
-	else
-	{
-		llvm::Type* resultType;
-		switch (information->ElementSize)
+	case FormatType::Normal:
 		{
-		case 1:
-			resultType = builder.getInt8Ty();
-			break;
-
-		case 2:
-			resultType = builder.getInt16Ty();
-			break;
-
-		case 4:
-			resultType = builder.getInt32Ty();
-			break;
-
-		default:
-			FATAL_ERROR();
-		}
-
-		destinationPtr = builder.CreateBitCast(destinationPtr, llvm::PointerType::get(resultType, 0));
-		
-		std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
-		switch (information->Base)
-		{
-		case BaseType::SScaled:
-		case BaseType::SInt:
+			llvm::Type* resultType;
 			switch (information->ElementSize)
 			{
 			case 1:
-				process = EmitConvert<int32_t, int8_t>;
+				resultType = builder.getInt8Ty();
 				break;
 
 			case 2:
-				process = EmitConvert<int32_t, int16_t>;
+				resultType = builder.getInt16Ty();
 				break;
 
 			case 4:
-				process = EmitConvert<int32_t, int32_t>;
+				resultType = builder.getInt32Ty();
 				break;
 
 			default:
 				FATAL_ERROR();
 			}
+
+			destinationPtr = builder.CreateBitCast(destinationPtr, llvm::PointerType::get(resultType, 0));
+
+			std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
+			switch (information->Base)
+			{
+			case BaseType::SScaled:
+			case BaseType::SInt:
+				switch (information->ElementSize)
+				{
+				case 1:
+					process = EmitConvert<int32_t, int8_t>;
+					break;
+
+				case 2:
+					process = EmitConvert<int32_t, int16_t>;
+					break;
+
+				case 4:
+					process = EmitConvert<int32_t, int32_t>;
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			default: FATAL_ERROR();
+			}
+
+			if (information->Normal.RedOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 0);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.RedOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.GreenOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 1);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.GreenOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.BlueOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 2);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.BlueOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.AlphaOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 3);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.AlphaOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
 			break;
-		 
-		default: FATAL_ERROR();
 		}
 		
-		if (information->RedOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 0);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->RedOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-	
-		if (information->GreenOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 1);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->GreenOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-	
-		if (information->BlueOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 2);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->BlueOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-	
-		if (information->AlphaOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 3);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->AlphaOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
+	case FormatType::Packed:
+		EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
+		break;
+		
+	case FormatType::Compressed: FATAL_ERROR();
+	case FormatType::Planar: FATAL_ERROR();
+	case FormatType::PlanarSamplable: FATAL_ERROR();
+	default: assert(false);
 	}
 	
 	builder.CreateRetVoid();
@@ -1232,96 +1371,105 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelUInt32(SpirvJit* jit, const Format
 
 	llvm::Value* destinationPtr = &*function->arg_begin();
 	const auto sourcePtr = &*(function->arg_begin() + 1);
-	
-	if (information->ElementSize == 0)
+
+	switch (information->Type)
 	{
-		EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
-	}
-	else
-	{
-		llvm::Type* resultType;
-		switch (information->ElementSize)
+	case FormatType::Normal:
 		{
-		case 1:
-			resultType = builder.getInt8Ty();
-			break;
-
-		case 2:
-			resultType = builder.getInt16Ty();
-			break;
-
-		case 4:
-			resultType = builder.getInt32Ty();
-			break;
-
-		default:
-			FATAL_ERROR();
-		}
-
-		destinationPtr = builder.CreateBitCast(destinationPtr, llvm::PointerType::get(resultType, 0));
-		
-		std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
-		switch (information->Base)
-		{
-		case BaseType::UScaled:
-		case BaseType::UInt:
+			llvm::Type* resultType;
 			switch (information->ElementSize)
 			{
 			case 1:
-				process = EmitConvert<uint32_t, uint8_t>;
+				resultType = builder.getInt8Ty();
 				break;
-						
+
 			case 2:
-				process = EmitConvert<uint32_t, uint16_t>;
+				resultType = builder.getInt16Ty();
 				break;
-						
+
 			case 4:
-				process = EmitConvert<uint32_t, uint32_t>;
+				resultType = builder.getInt32Ty();
 				break;
-						
+
 			default:
 				FATAL_ERROR();
 			}
+
+			destinationPtr = builder.CreateBitCast(destinationPtr, llvm::PointerType::get(resultType, 0));
+
+			std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
+			switch (information->Base)
+			{
+			case BaseType::UScaled:
+			case BaseType::UInt:
+				switch (information->ElementSize)
+				{
+				case 1:
+					process = EmitConvert<uint32_t, uint8_t>;
+					break;
+
+				case 2:
+					process = EmitConvert<uint32_t, uint16_t>;
+					break;
+
+				case 4:
+					process = EmitConvert<uint32_t, uint32_t>;
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			default: FATAL_ERROR();
+			}
+
+			if (information->Normal.RedOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 0);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.RedOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.GreenOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 1);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.GreenOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.BlueOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 2);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.BlueOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
+
+			if (information->Normal.AlphaOffset != INVALID_OFFSET)
+			{
+				auto value = builder.CreateConstGEP1_32(sourcePtr, 3);
+				value = builder.CreateLoad(value);
+				value = process(builder, value);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->Normal.AlphaOffset / information->ElementSize);
+				builder.CreateStore(value, dst);
+			}
 			break;
-			
-		default: FATAL_ERROR();
 		}
 		
-		if (information->RedOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 0);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->RedOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-	
-		if (information->GreenOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 1);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->GreenOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-	
-		if (information->BlueOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 2);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->BlueOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
-	
-		if (information->AlphaOffset != 0xFFFFFFFF)
-		{
-			auto value = builder.CreateConstGEP1_32(sourcePtr, 3);
-			value = builder.CreateLoad(value);
-			value = process(builder, value);
-			const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->AlphaOffset / information->ElementSize);
-			builder.CreateStore(value, dst);
-		}
+	case FormatType::Packed:
+		EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
+		break;
+		
+	case FormatType::Compressed: FATAL_ERROR();
+	case FormatType::Planar: FATAL_ERROR();
+	case FormatType::PlanarSamplable: FATAL_ERROR();
+	default: assert(false);
 	}
 	
 	builder.CreateRetVoid();

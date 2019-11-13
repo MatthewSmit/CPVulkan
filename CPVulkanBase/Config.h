@@ -21,7 +21,7 @@
 #define CV_DEBUG_NONE 0
 #define CV_DEBUG_LOG 1
 #define CV_DEBUG_IMAGE 2
-#define CV_DEBUG_LEVEL CV_DEBUG_IMAGE
+#define CV_DEBUG_LEVEL CV_DEBUG_LOG
 
 constexpr auto ROBUST_BUFFER_ACCESS = true; // Must be true for Vulkan 1.0+
 constexpr auto FULL_DRAW_INDEX_UINT32 = true;
@@ -43,9 +43,9 @@ constexpr auto LARGE_POINTS = true;
 constexpr auto ALPHA_TO_ONE = true;
 constexpr auto MULTI_VIEWPORT = false; // Requires GEOMETRY_SHADER
 constexpr auto SAMPLER_ANISOTROPY = true;
-constexpr auto TEXTURE_COMPRESSION_ETC2 = false; // TODO
-constexpr auto TEXTURE_COMPRESSION_ASTC_LDR = false; // TODO
-constexpr auto TEXTURE_COMPRESSION_BC = false; // TODO
+constexpr auto TEXTURE_COMPRESSION_ETC2 = true;
+constexpr auto TEXTURE_COMPRESSION_ASTC_LDR = true;
+constexpr auto TEXTURE_COMPRESSION_BC = true;
 constexpr auto OCCLUSION_QUERY_PRECISE = true;
 constexpr auto PIPELINE_STATISTICS_QUERY = true;
 constexpr auto VERTEX_PIPELINE_STORES_AND_ATOMICS = true;
@@ -78,11 +78,11 @@ constexpr auto DEVICE_ID = 0;
 constexpr auto DEVICE_TYPE = VK_PHYSICAL_DEVICE_TYPE_CPU;
 constexpr auto DEVICE_NAME = "CPVulkan";
 // memset(pProperties->pipelineCacheUUID, 0, VK_UUID_SIZE);
-// pProperties->limits.maxImageDimension1D = 4096;
-// pProperties->limits.maxImageDimension2D = 4096;
-// pProperties->limits.maxImageDimension3D = 256;
-// pProperties->limits.maxImageDimensionCube = 4096;
-// pProperties->limits.maxImageArrayLayers = 256;
+constexpr auto MAX_IMAGE_DIMENSION_1D = 4096;
+constexpr auto MAX_IMAGE_DIMENSION_2D = 4096;
+constexpr auto MAX_IMAGE_DIMENSION_3D = 256;
+constexpr auto MAX_IMAGE_DIMENSION_CUBE = 4096;
+constexpr auto MAX_IMAGE_ARRAY_LAYERS = 256;
 // pProperties->limits.maxTexelBufferElements = 65536;
 // pProperties->limits.maxUniformBufferRange = 16384;
 // pProperties->limits.maxStorageBufferRange = 134217728;
@@ -91,7 +91,6 @@ constexpr auto MAX_PUSH_CONSTANTS_SIZE = 128;
 // pProperties->limits.maxSamplerAllocationCount = 4000;
 // pProperties->limits.bufferImageGranularity = 1;
 // pProperties->limits.sparseAddressSpaceSize = std::numeric_limits<size_t>::max();
-// pProperties->limits.maxBoundDescriptorSets = 4;
 constexpr auto MAX_BOUND_DESCRIPTOR_SETS = 4;
 // pProperties->limits.maxPerStageDescriptorSamplers = 32;
 // pProperties->limits.maxPerStageDescriptorUniformBuffers = 32;
@@ -108,7 +107,6 @@ constexpr auto MAX_BOUND_DESCRIPTOR_SETS = 4;
 // pProperties->limits.maxDescriptorSetSampledImages = pProperties->limits.maxPerStageDescriptorSampledImages * 8;
 // pProperties->limits.maxDescriptorSetStorageImages = pProperties->limits.maxPerStageDescriptorStorageImages * 8;
 // pProperties->limits.maxDescriptorSetInputAttachments = pProperties->limits.maxPerStageDescriptorInputAttachments;
-// pProperties->limits.maxVertexInputAttributes = 16;
 constexpr auto MAX_VERTEX_INPUT_BINDINGS = 16;
 // pProperties->limits.maxVertexInputAttributeOffset = 2047;
 // pProperties->limits.maxVertexInputBindingStride = 2048;

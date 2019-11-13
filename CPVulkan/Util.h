@@ -80,26 +80,29 @@ static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T* outputValue
 template<typename T1, typename T2>
 static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T1* outputValues, const std::vector<T2>& inputValues, std::function<T1(T2)> conversion)
 {
+	assert(inputValues.size() >= 0 && inputValues.size() < 0xFFFFFFFF);
+	const auto inputValueSize = static_cast<uint32_t>(inputValues.size());
+	
 	if (outputValues == nullptr)
 	{
-		*count = static_cast<uint32_t>(inputValues.size());
+		*count = inputValueSize;
 	}
 	else
 	{
-		if (*count < inputValues.size())
+		if (*count < inputValueSize)
 		{
-			for (auto i = 0; i < *count; i++)
+			for (auto i = 0u; i < *count; i++)
 			{
 				outputValues[i] = conversion(inputValues[i]);
 			}
 			return VK_INCOMPLETE;
 		}
 
-		for (auto i = 0; i < inputValues.size(); i++)
+		for (auto i = 0u; i < inputValues.size(); i++)
 		{
 			outputValues[i] = conversion(inputValues[i]);
 		}
-		*count = inputValues.size();
+		*count = inputValueSize;
 		return VK_SUCCESS;
 	}
 
