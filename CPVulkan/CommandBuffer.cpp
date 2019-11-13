@@ -91,23 +91,180 @@ public:
 	{
 		const auto& srcFormat = GetFormatInformation(srcImage->getFormat());
 		const auto& dstFormat = GetFormatInformation(dstImage->getFormat());
-		
+
+		if (srcFormat.Type == FormatType::DepthStencil)
+		{
+			assert(dstFormat.Type == FormatType::DepthStencil);
+			ProcessDepthStencil(srcFormat, dstFormat);
+		}
+		else
+		{
+			for (const auto& region : regions)
+			{
+				if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
+					(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || srcFormat.Normal.GreenOffset != INVALID_OFFSET) &&
+					(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || srcFormat.Normal.GreenOffset != INVALID_OFFSET))
+				{
+					FATAL_ERROR();
+				}
+
+				if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
+					(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || dstFormat.Normal.GreenOffset != INVALID_OFFSET) &&
+					(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || dstFormat.Normal.GreenOffset != INVALID_OFFSET))
+				{
+					FATAL_ERROR();
+				}
+
+				assert(region.srcSubresource.layerCount == region.dstSubresource.layerCount);
+
+				if (region.srcSubresource.layerCount != 1)
+				{
+					FATAL_ERROR();
+				}
+
+				if (region.dstSubresource.layerCount != 1)
+				{
+					FATAL_ERROR();
+				}
+
+				const auto& srcLevel = srcImage->getImageSize().Level[region.srcSubresource.mipLevel];
+				const auto& dstLevel = dstImage->getImageSize().Level[region.dstSubresource.mipLevel];
+				const auto pixelSize = srcImage->getImageSize().PixelSize;
+
+				assert(srcLevel.LevelSize == dstLevel.LevelSize);
+				assert(srcLevel.PlaneSize == dstLevel.PlaneSize);
+				assert(srcLevel.Stride == dstLevel.Stride);
+				assert(srcLevel.Width == dstLevel.Width);
+				assert(srcLevel.Height == dstLevel.Height);
+				assert(srcLevel.Depth == dstLevel.Depth);
+
+				if (region.srcOffset.x == 0 && region.srcOffset.y == 0 && region.srcOffset.z == 0 &&
+					region.dstOffset.x == 0 && region.dstOffset.y == 0 && region.dstOffset.z == 0 &&
+					region.extent.width == srcLevel.Width && region.extent.height == srcLevel.Height && region.extent.depth == srcLevel.Depth)
+				{
+					memcpy(dstImage->getDataPtr(dstLevel.Offset + dstImage->getImageSize().LayerSize * region.dstSubresource.baseArrayLayer, dstLevel.LevelSize),
+					       srcImage->getDataPtr(srcLevel.Offset + srcImage->getImageSize().LayerSize * region.srcSubresource.baseArrayLayer, srcLevel.LevelSize),
+					       srcLevel.LevelSize);
+				}
+				else
+				{
+					const auto srcBaseOffset = srcLevel.Offset + srcImage->getImageSize().LayerSize * region.srcSubresource.baseArrayLayer;
+					const auto dstBaseOffset = dstLevel.Offset + dstImage->getImageSize().LayerSize * region.dstSubresource.baseArrayLayer;
+
+					if (srcFormat.Type == FormatType::Normal && dstFormat.Type == FormatType::Normal)
+					{
+						const auto stride = pixelSize * region.extent.width;
+						for (auto z = 0u; z < region.extent.depth; z++)
+						{
+							const auto srcZ = z + region.srcOffset.z;
+							const auto dstZ = z + region.dstOffset.z;
+							for (auto y = 0u; y < region.extent.height; y++)
+							{
+								const auto srcY = y + region.srcOffset.y;
+								const auto srcX = region.srcOffset.x;
+								const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+
+								const auto dstY = y + region.dstOffset.y;
+								const auto dstX = region.dstOffset.x;
+								const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+
+								memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+							}
+						}
+					}
+					else if (srcFormat.Type == FormatType::Compressed && dstFormat.Type == FormatType::Compressed)
+					{
+						const auto srcOffsetX = (region.srcOffset.x + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+						const auto srcOffsetY = (region.srcOffset.y + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+						const auto dstOffsetX = (region.dstOffset.x + dstFormat.Compressed.BlockWidth - 1) / dstFormat.Compressed.BlockWidth;
+						const auto dstOffsetY = (region.dstOffset.y + dstFormat.Compressed.BlockHeight - 1) / dstFormat.Compressed.BlockHeight;
+						const auto width = (region.extent.width + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+						const auto height = (region.extent.height + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+						const auto stride = pixelSize * width;
+
+						for (auto z = 0u; z < region.extent.depth; z++)
+						{
+							const auto srcZ = z + region.srcOffset.z;
+							const auto dstZ = z + region.dstOffset.z;
+							for (auto y = 0u; y < height; y++)
+							{
+								const auto srcY = y + srcOffsetY;
+								const auto srcX = srcOffsetX;
+								const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+
+								const auto dstY = y + dstOffsetY;
+								const auto dstX = dstOffsetX;
+								const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+
+								memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+							}
+						}
+					}
+					else if (srcFormat.Type == FormatType::Compressed)
+					{
+						const auto offsetX = (region.srcOffset.x + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+						const auto offsetY = (region.srcOffset.y + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+						const auto width = (region.extent.width + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
+						const auto height = (region.extent.height + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
+						const auto stride = pixelSize * width;
+
+						for (auto z = 0u; z < region.extent.depth; z++)
+						{
+							const auto srcZ = z + region.srcOffset.z;
+							const auto dstZ = z + region.dstOffset.z;
+							for (auto y = 0u; y < height; y++)
+							{
+								const auto srcY = y + offsetY;
+								const auto srcX = offsetX;
+								const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+
+								const auto dstY = y + region.dstOffset.y;
+								const auto dstX = region.dstOffset.x;
+								const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+
+								memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+							}
+						}
+					}
+					else if (dstFormat.Type == FormatType::Compressed)
+					{
+						const auto stride = pixelSize * region.extent.width;
+						const auto offsetX = (region.dstOffset.x + dstFormat.Compressed.BlockWidth - 1) / dstFormat.Compressed.BlockWidth;
+						const auto offsetY = (region.dstOffset.y + dstFormat.Compressed.BlockHeight - 1) / dstFormat.Compressed.BlockHeight;
+
+						for (auto z = 0u; z < region.extent.depth; z++)
+						{
+							const auto srcZ = z + region.srcOffset.z;
+							const auto dstZ = z + region.dstOffset.z;
+							for (auto y = 0u; y < region.extent.height; y++)
+							{
+								const auto srcY = y + region.srcOffset.y;
+								const auto srcX = region.srcOffset.x;
+								const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+
+								const auto dstY = y + offsetY;
+								const auto dstX = offsetX;
+								const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+
+								memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
+							}
+						}
+					}
+					else
+					{
+						assert(false);
+					}
+				}
+			}
+		}
+	}
+
+	void ProcessDepthStencil(const FormatInformation& srcFormat, const FormatInformation& dstFormat)
+	{
+		assert(srcFormat.Format == dstFormat.Format);
 		for (const auto& region : regions)
 		{
-			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || srcFormat.Normal.GreenOffset != INVALID_OFFSET) &&
-				(region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || srcFormat.Normal.GreenOffset != INVALID_OFFSET))
-			{
-				FATAL_ERROR();
-			}
-
-			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || dstFormat.Normal.GreenOffset != INVALID_OFFSET) &&
-				(region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || dstFormat.Normal.GreenOffset != INVALID_OFFSET))
-			{
-				FATAL_ERROR();
-			}
-
+			assert(region.srcSubresource.aspectMask == region.dstSubresource.aspectMask);
 			assert(region.srcSubresource.layerCount == region.dstSubresource.layerCount);
 
 			if (region.srcSubresource.layerCount != 1)
@@ -122,7 +279,7 @@ public:
 
 			const auto& srcLevel = srcImage->getImageSize().Level[region.srcSubresource.mipLevel];
 			const auto& dstLevel = dstImage->getImageSize().Level[region.dstSubresource.mipLevel];
-			const auto pixelSize = srcImage->getImageSize().PixelSize;
+			const auto pixelSize = dstImage->getImageSize().PixelSize;
 
 			assert(srcLevel.LevelSize == dstLevel.LevelSize);
 			assert(srcLevel.PlaneSize == dstLevel.PlaneSize);
@@ -130,21 +287,24 @@ public:
 			assert(srcLevel.Width == dstLevel.Width);
 			assert(srcLevel.Height == dstLevel.Height);
 			assert(srcLevel.Depth == dstLevel.Depth);
-			
-			if (region.srcOffset.x == 0 && region.srcOffset.y == 0 && region.srcOffset.z == 0 &&
-				region.dstOffset.x == 0 && region.dstOffset.y == 0 && region.dstOffset.z == 0 &&
-				region.extent.width == srcLevel.Width && region.extent.height == srcLevel.Height && region.extent.depth == srcLevel.Depth)
-			{
-				memcpy(dstImage->getDataPtr(dstLevel.Offset + dstImage->getImageSize().LayerSize * region.dstSubresource.baseArrayLayer, dstLevel.LevelSize),
-				       srcImage->getDataPtr(srcLevel.Offset + srcImage->getImageSize().LayerSize * region.srcSubresource.baseArrayLayer, srcLevel.LevelSize),
-				       srcLevel.LevelSize);
-			}
-			else
-			{
-				const auto srcBaseOffset = srcLevel.Offset + srcImage->getImageSize().LayerSize * region.srcSubresource.baseArrayLayer;
-				const auto dstBaseOffset = dstLevel.Offset + dstImage->getImageSize().LayerSize * region.dstSubresource.baseArrayLayer;
 
-				if (srcFormat.Type == FormatType::Normal && dstFormat.Type == FormatType::Normal)
+			const auto srcBaseOffset = srcLevel.Offset + srcImage->getImageSize().LayerSize * region.srcSubresource.baseArrayLayer;
+			const auto dstBaseOffset = dstLevel.Offset + dstImage->getImageSize().LayerSize * region.dstSubresource.baseArrayLayer;
+
+			if (region.srcSubresource.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT)
+			{
+				assert(srcFormat.DepthStencil.DepthOffset != INVALID_OFFSET);
+
+				if (srcFormat.DepthStencil.StencilOffset == INVALID_OFFSET && 
+					region.srcOffset.x == 0 && region.srcOffset.y == 0 && region.srcOffset.z == 0 &&
+					region.dstOffset.x == 0 && region.dstOffset.y == 0 && region.dstOffset.z == 0 &&
+					region.extent.width == srcLevel.Width && region.extent.height == srcLevel.Height && region.extent.depth == srcLevel.Depth)
+				{
+					memcpy(dstImage->getDataPtr(dstBaseOffset, dstLevel.LevelSize),
+					       srcImage->getDataPtr(srcBaseOffset, srcLevel.LevelSize),
+					       srcLevel.LevelSize);
+				}
+				else if (srcFormat.DepthStencil.StencilOffset == INVALID_OFFSET)
 				{
 					const auto stride = pixelSize * region.extent.width;
 					for (auto z = 0u; z < region.extent.depth; z++)
@@ -156,60 +316,6 @@ public:
 							const auto srcY = y + region.srcOffset.y;
 							const auto srcX = region.srcOffset.x;
 							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
-							
-							const auto dstY = y + region.dstOffset.y;
-							const auto dstX = region.dstOffset.x;
-							const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
-							
-							memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
-						}
-					}
-				}
-				else if (srcFormat.Type == FormatType::Compressed && dstFormat.Type == FormatType::Compressed)
-				{
-					const auto srcOffsetX = (region.srcOffset.x + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
-					const auto srcOffsetY = (region.srcOffset.y + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
-					const auto dstOffsetX = (region.dstOffset.x + dstFormat.Compressed.BlockWidth - 1) / dstFormat.Compressed.BlockWidth;
-					const auto dstOffsetY = (region.dstOffset.y + dstFormat.Compressed.BlockHeight - 1) / dstFormat.Compressed.BlockHeight;
-					const auto width = (region.extent.width + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
-					const auto height = (region.extent.height + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
-					const auto stride = pixelSize * width;
-
-					for (auto z = 0u; z < region.extent.depth; z++)
-					{
-						const auto srcZ = z + region.srcOffset.z;
-						const auto dstZ = z + region.dstOffset.z;
-						for (auto y = 0u; y < height; y++)
-						{
-							const auto srcY = y + srcOffsetY;
-							const auto srcX = srcOffsetX;
-							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
-							
-							const auto dstY = y + dstOffsetY;
-							const auto dstX = dstOffsetX;
-							const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
-							
-							memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
-						}
-					}
-				}
-				else if (srcFormat.Type == FormatType::Compressed)
-				{
-					const auto offsetX = (region.srcOffset.x + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
-					const auto offsetY = (region.srcOffset.y + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
-					const auto width = (region.extent.width + srcFormat.Compressed.BlockWidth - 1) / srcFormat.Compressed.BlockWidth;
-					const auto height = (region.extent.height + srcFormat.Compressed.BlockHeight - 1) / srcFormat.Compressed.BlockHeight;
-					const auto stride = pixelSize * width;
-
-					for (auto z = 0u; z < region.extent.depth; z++)
-					{
-						const auto srcZ = z + region.srcOffset.z;
-						const auto dstZ = z + region.dstOffset.z;
-						for (auto y = 0u; y < height; y++)
-						{
-							const auto srcY = y + offsetY;
-							const auto srcX = offsetX;
-							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
 
 							const auto dstY = y + region.dstOffset.y;
 							const auto dstX = region.dstOffset.x;
@@ -219,11 +325,26 @@ public:
 						}
 					}
 				}
-				else if (dstFormat.Type == FormatType::Compressed)
+				else
 				{
-					const auto stride = pixelSize * region.extent.width;
-					const auto offsetX = (region.dstOffset.x + dstFormat.Compressed.BlockWidth - 1) / dstFormat.Compressed.BlockWidth;
-					const auto offsetY = (region.dstOffset.y + dstFormat.Compressed.BlockHeight - 1) / dstFormat.Compressed.BlockHeight;
+					auto depthSize = 0U;
+					switch (srcFormat.Format)
+					{
+					case VK_FORMAT_D16_UNORM:
+					case VK_FORMAT_D16_UNORM_S8_UINT:
+						depthSize = 2;
+						break;
+							
+					case VK_FORMAT_D24_UNORM_S8_UINT:
+					case VK_FORMAT_X8_D24_UNORM_PACK32:
+					case VK_FORMAT_D32_SFLOAT:
+					case VK_FORMAT_D32_SFLOAT_S8_UINT:
+						depthSize = 4;
+						break;
+							
+					default:
+						assert(false);
+					}
 					
 					for (auto z = 0u; z < region.extent.depth; z++)
 					{
@@ -232,21 +353,82 @@ public:
 						for (auto y = 0u; y < region.extent.height; y++)
 						{
 							const auto srcY = y + region.srcOffset.y;
+							const auto dstY = y + region.dstOffset.y;
+							for (auto x = 0u; x < region.extent.width; x++)
+							{
+								const auto srcX = x + region.srcOffset.x;
+								const auto dstX = x + region.dstOffset.x;
+
+								const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
+								const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
+								
+								memcpy(dstImage->getDataPtr(dstOffset, depthSize), srcImage->getDataPtr(srcOffset, depthSize), depthSize);
+							}
+						}
+					}
+				}
+			}
+			else if (region.srcSubresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT)
+			{
+				assert(srcFormat.DepthStencil.StencilOffset != INVALID_OFFSET);
+
+				if (srcFormat.DepthStencil.DepthOffset == INVALID_OFFSET && 
+					region.srcOffset.x == 0 && region.srcOffset.y == 0 && region.srcOffset.z == 0 &&
+					region.dstOffset.x == 0 && region.dstOffset.y == 0 && region.dstOffset.z == 0 &&
+					region.extent.width == srcLevel.Width && region.extent.height == srcLevel.Height && region.extent.depth == srcLevel.Depth)
+				{
+					memcpy(dstImage->getDataPtr(dstBaseOffset, dstLevel.LevelSize),
+					       srcImage->getDataPtr(srcBaseOffset, srcLevel.LevelSize),
+					       srcLevel.LevelSize);
+				}
+				else if (srcFormat.DepthStencil.DepthOffset == INVALID_OFFSET)
+				{
+					const auto stride = pixelSize * region.extent.width;
+					for (auto z = 0u; z < region.extent.depth; z++)
+					{
+						const auto srcZ = z + region.srcOffset.z;
+						const auto dstZ = z + region.dstOffset.z;
+						for (auto y = 0u; y < region.extent.height; y++)
+						{
+							const auto srcY = y + region.srcOffset.y;
 							const auto srcX = region.srcOffset.x;
 							const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize;
-							
-							const auto dstY = y + offsetY;
-							const auto dstX = offsetX;
+
+							const auto dstY = y + region.dstOffset.y;
+							const auto dstX = region.dstOffset.x;
 							const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize;
-							
+
 							memcpy(dstImage->getDataPtr(dstOffset, stride), srcImage->getDataPtr(srcOffset, stride), stride);
 						}
 					}
 				}
 				else
 				{
-					assert(false);
+					for (auto z = 0u; z < region.extent.depth; z++)
+					{
+						const auto srcZ = z + region.srcOffset.z;
+						const auto dstZ = z + region.dstOffset.z;
+						for (auto y = 0u; y < region.extent.height; y++)
+						{
+							const auto srcY = y + region.srcOffset.y;
+							const auto dstY = y + region.dstOffset.y;
+							for (auto x = 0u; x < region.extent.width; x++)
+							{
+								const auto srcX = x + region.srcOffset.x;
+								const auto dstX = x + region.dstOffset.x;
+
+								const auto srcOffset = srcBaseOffset + srcZ * srcLevel.PlaneSize + srcY * srcLevel.Stride + srcX * pixelSize + srcFormat.DepthStencil.StencilOffset;
+								const auto dstOffset = dstBaseOffset + dstZ * dstLevel.PlaneSize + dstY * dstLevel.Stride + dstX * pixelSize + srcFormat.DepthStencil.StencilOffset;
+
+								memcpy(dstImage->getDataPtr(dstOffset, 1), srcImage->getDataPtr(srcOffset, 1), 1);
+							}
+						}
+					}
 				}
+			}
+			else
+			{
+				assert(false);
 			}
 		}
 	}
@@ -471,6 +653,10 @@ public:
 		{
 			ProcessCompressed(format);
 		}
+		else if (format.Type == FormatType::DepthStencil)
+		{
+			ProcessDepthStencil(format);
+		}
 		else
 		{
 			ProcessNormal(format);
@@ -481,12 +667,7 @@ public:
 	{
 		for (const auto& region : regions)
 		{
-			if (region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.Normal.GreenOffset != INVALID_OFFSET) &&
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.Normal.GreenOffset != INVALID_OFFSET))
-			{
-				FATAL_ERROR();
-			}
+			assert(region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
 
 			if (region.imageSubresource.layerCount != 1)
 			{
@@ -520,6 +701,137 @@ public:
 				//
 				// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
 				FATAL_ERROR();
+			}
+		}
+	}
+
+	void ProcessDepthStencil(const FormatInformation& format)
+	{
+		for (const auto& region : regions)
+		{
+			if (region.imageSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+			
+			auto rowLength = region.bufferRowLength;
+			if (rowLength == 0)
+			{
+				rowLength = region.imageExtent.width;
+			}
+			
+			auto imageHeight = region.bufferImageHeight;
+			if (rowLength == 0)
+			{
+				imageHeight = region.imageExtent.height;
+			}
+
+			const auto& level = dstImage->getImageSize().Level[region.imageSubresource.mipLevel];
+			
+			if (region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT)
+			{
+				assert(format.DepthStencil.DepthOffset != INVALID_OFFSET);
+
+				if (format.DepthStencil.StencilOffset == INVALID_OFFSET &&
+					region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+					region.imageExtent.width == level.Width && region.imageExtent.height == level.Height && region.imageExtent.depth == level.Depth &&
+					rowLength == level.Width && imageHeight == level.Height)
+				{
+					memcpy(dstImage->getDataPtr(level.Offset + dstImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+					       srcBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+					       level.LevelSize);
+				}
+				else if (format.DepthStencil.StencilOffset == INVALID_OFFSET)
+				{
+					// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * texelBlockSize;
+					//
+					// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
+					FATAL_ERROR();
+				}
+				else
+				{
+					auto depthSize = 0U;
+					switch (format.Format)
+					{
+					case VK_FORMAT_D16_UNORM:
+					case VK_FORMAT_D16_UNORM_S8_UINT:
+						depthSize = 2;
+						break;
+						
+					case VK_FORMAT_D24_UNORM_S8_UINT:
+					case VK_FORMAT_X8_D24_UNORM_PACK32:
+					case VK_FORMAT_D32_SFLOAT:
+					case VK_FORMAT_D32_SFLOAT_S8_UINT:
+						depthSize = 4;
+						break;
+						
+					default:
+						assert(false);
+					}
+
+					const auto baseOffset = level.Offset + dstImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer;
+					for (auto z = 0u; z < region.imageExtent.depth; z++)
+					{
+						const auto imageZ = z + region.imageOffset.z;
+						for (auto y = 0u; y < region.imageExtent.height; y++)
+						{
+							const auto imageY = y + region.imageOffset.y;
+							for (auto x = 0u; x < region.imageExtent.width; x++)
+							{
+								const auto bufferAddress = region.bufferOffset + (((z * imageHeight) + y) * rowLength + x) * depthSize;
+								const auto bufferData = srcBuffer->getDataPtr(bufferAddress, depthSize);
+								const auto imageX = x + region.imageOffset.x;
+								const auto imageOffset = baseOffset + imageZ * level.PlaneSize + imageY * level.Stride + imageX * format.TotalSize;
+								memcpy(dstImage->getDataPtr(imageOffset, depthSize), bufferData, depthSize);
+							}
+						}
+					}
+				}
+			}
+			else if (region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT)
+			{
+				assert(format.DepthStencil.StencilOffset != INVALID_OFFSET);
+
+				if (format.DepthStencil.DepthOffset == INVALID_OFFSET &&
+					region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+					region.imageExtent.width == level.Width && region.imageExtent.height == level.Height && region.imageExtent.depth == level.Depth &&
+					rowLength == level.Width && imageHeight == level.Height)
+				{
+					memcpy(dstImage->getDataPtr(level.Offset + dstImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+					       srcBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+					       level.LevelSize);
+				}
+				else if (format.DepthStencil.DepthOffset == INVALID_OFFSET)
+				{
+					// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * texelBlockSize;
+					//
+					// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
+					FATAL_ERROR();
+				}
+				else
+				{
+					const auto baseOffset = level.Offset + dstImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer;
+					for (auto z = 0u; z < region.imageExtent.depth; z++)
+					{
+						const auto imageZ = z + region.imageOffset.z;
+						for (auto y = 0u; y < region.imageExtent.height; y++)
+						{
+							const auto imageY = y + region.imageOffset.y;
+							for (auto x = 0u; x < region.imageExtent.width; x++)
+							{
+								const auto bufferAddress = region.bufferOffset + ((z * imageHeight) + y) * rowLength + x;
+								const auto bufferData = srcBuffer->getDataPtr(bufferAddress, 1);
+								const auto imageX = x + region.imageOffset.x;
+								const auto imageOffset = baseOffset + imageZ * level.PlaneSize + imageY * level.Stride + imageX * format.TotalSize + format.DepthStencil.StencilOffset;
+								memcpy(dstImage->getDataPtr(imageOffset, 1), bufferData, 1);
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				assert(false);
 			}
 		}
 	}
@@ -606,6 +918,10 @@ public:
 		{
 			ProcessCompressed(format);
 		}
+		else if (format.Type == FormatType::DepthStencil)
+		{
+			ProcessDepthStencil(format);
+		}
 		else
 		{
 			ProcessNormal(format);
@@ -616,12 +932,7 @@ public:
 	{
 		for (const auto& region : regions)
 		{
-			if (region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT &&
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_DEPTH_BIT || format.Normal.GreenOffset != INVALID_OFFSET) &&
-				(region.imageSubresource.aspectMask != VK_IMAGE_ASPECT_STENCIL_BIT || format.Normal.GreenOffset != INVALID_OFFSET))
-			{
-				FATAL_ERROR();
-			}
+			assert(region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
 
 			if (region.imageSubresource.layerCount != 1)
 			{
@@ -655,6 +966,137 @@ public:
 				//
 				// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
 				FATAL_ERROR();
+			}
+		}
+	}
+
+	void ProcessDepthStencil(const FormatInformation& format)
+	{
+		for (const auto& region : regions)
+		{
+			if (region.imageSubresource.layerCount != 1)
+			{
+				FATAL_ERROR();
+			}
+			
+			auto rowLength = region.bufferRowLength;
+			if (rowLength == 0)
+			{
+				rowLength = region.imageExtent.width;
+			}
+			
+			auto imageHeight = region.bufferImageHeight;
+			if (rowLength == 0)
+			{
+				imageHeight = region.imageExtent.height;
+			}
+
+			const auto& level = srcImage->getImageSize().Level[region.imageSubresource.mipLevel];
+			
+			if (region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT)
+			{
+				assert(format.DepthStencil.DepthOffset != INVALID_OFFSET);
+
+				if (format.DepthStencil.StencilOffset == INVALID_OFFSET &&
+					region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+					region.imageExtent.width == level.Width && region.imageExtent.height == level.Height && region.imageExtent.depth == level.Depth &&
+					rowLength == level.Width && imageHeight == level.Height)
+				{
+					memcpy(dstBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+					       srcImage->getDataPtr(level.Offset + srcImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+					       level.LevelSize);
+				}
+				else if (format.DepthStencil.StencilOffset == INVALID_OFFSET)
+				{
+					// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * texelBlockSize;
+					//
+					// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
+					FATAL_ERROR();
+				}
+				else
+				{
+					auto depthSize = 0U;
+					switch (format.Format)
+					{
+					case VK_FORMAT_D16_UNORM:
+					case VK_FORMAT_D16_UNORM_S8_UINT:
+						depthSize = 2;
+						break;
+						
+					case VK_FORMAT_D24_UNORM_S8_UINT:
+					case VK_FORMAT_X8_D24_UNORM_PACK32:
+					case VK_FORMAT_D32_SFLOAT:
+					case VK_FORMAT_D32_SFLOAT_S8_UINT:
+						depthSize = 4;
+						break;
+						
+					default:
+						assert(false);
+					}
+
+					const auto baseOffset = level.Offset + srcImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer;
+					for (auto z = 0u; z < region.imageExtent.depth; z++)
+					{
+						const auto imageZ = z + region.imageOffset.z;
+						for (auto y = 0u; y < region.imageExtent.height; y++)
+						{
+							const auto imageY = y + region.imageOffset.y;
+							for (auto x = 0u; x < region.imageExtent.width; x++)
+							{
+								const auto bufferAddress = region.bufferOffset + (((z * imageHeight) + y) * rowLength + x) * depthSize;
+								const auto bufferData = dstBuffer->getDataPtr(bufferAddress, depthSize);
+								const auto imageX = x + region.imageOffset.x;
+								const auto imageOffset = baseOffset + imageZ * level.PlaneSize + imageY * level.Stride + imageX * format.TotalSize;
+								memcpy( bufferData, srcImage->getDataPtr(imageOffset, depthSize), depthSize);
+							}
+						}
+					}
+				}
+			}
+			else if (region.imageSubresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT)
+			{
+				assert(format.DepthStencil.StencilOffset != INVALID_OFFSET);
+
+				if (format.DepthStencil.DepthOffset == INVALID_OFFSET &&
+					region.imageOffset.x == 0 && region.imageOffset.y == 0 && region.imageOffset.z == 0 &&
+					region.imageExtent.width == level.Width && region.imageExtent.height == level.Height && region.imageExtent.depth == level.Depth &&
+					rowLength == level.Width && imageHeight == level.Height)
+				{
+					memcpy(dstBuffer->getDataPtr(region.bufferOffset, level.LevelSize),
+					       srcImage->getDataPtr(level.Offset + srcImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer, level.LevelSize),
+					       level.LevelSize);
+				}
+				else if (format.DepthStencil.DepthOffset == INVALID_OFFSET)
+				{
+					// address of (x,y,z) = region->bufferOffset + (((z * imageHeight) + y) * rowLength + x) * texelBlockSize;
+					//
+					// where x,y,z range from (0,0,0) to region->imageExtent.{width,height,depth}.
+					FATAL_ERROR();
+				}
+				else
+				{
+					const auto baseOffset = level.Offset + srcImage->getImageSize().LayerSize * region.imageSubresource.baseArrayLayer;
+					for (auto z = 0u; z < region.imageExtent.depth; z++)
+					{
+						const auto imageZ = z + region.imageOffset.z;
+						for (auto y = 0u; y < region.imageExtent.height; y++)
+						{
+							const auto imageY = y + region.imageOffset.y;
+							for (auto x = 0u; x < region.imageExtent.width; x++)
+							{
+								const auto bufferAddress = region.bufferOffset + ((z * imageHeight) + y) * rowLength + x;
+								const auto bufferData = dstBuffer->getDataPtr(bufferAddress, 1);
+								const auto imageX = x + region.imageOffset.x;
+								const auto imageOffset = baseOffset + imageZ * level.PlaneSize + imageY * level.Stride + imageX * format.TotalSize + format.DepthStencil.StencilOffset;
+								memcpy(bufferData, srcImage->getDataPtr(imageOffset, 1), 1);
+							}
+						}
+					}
+				}
+			}
+			else
+			{
+				assert(false);
 			}
 		}
 	}

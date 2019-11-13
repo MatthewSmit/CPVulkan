@@ -9,6 +9,8 @@ static constexpr VkFormatFeatureFlags GetFeatures(FormatType type)
 	switch (type)
 	{
 	case FormatType::Normal:
+	case FormatType::DepthStencil:
+	case FormatType::Packed:
 	case FormatType::Compressed:
 		features |= static_cast<VkFormatFeatureFlags>(VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT |
 			VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT |
@@ -80,6 +82,29 @@ static constexpr FormatInformation MakeFormatInformation(VkFormat format, Format
 		greenOffset,
 		blueOffset,
 		alphaOffset
+	};
+	return information;
+}
+
+static constexpr FormatInformation MakeDepthFormatInformation(VkFormat format, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
+                                                              uint32_t depthOffset, uint32_t stencilOffset)
+{
+	const auto features = GetFeatures(FormatType::DepthStencil);
+	FormatInformation information
+	{
+		format,
+		FormatType::DepthStencil,
+		features,
+		features,
+		features,
+		totalSize,
+		elementSize,
+		baseType
+	};
+	information.DepthStencil =
+	{
+		depthOffset,
+		stencilOffset,
 	};
 	return information;
 }
@@ -263,13 +288,13 @@ static constexpr FormatInformation formatInformation[]
 	MakeFormatInformation(VK_FORMAT_R64G64B64A64_SFLOAT, FormatType::Normal, 32, 8, BaseType::SFloat, 0, 8, 16, 24),
 	MakePackedFormatInformation(VK_FORMAT_B10G11R11_UFLOAT_PACK32, 4, BaseType::UFloat, 0, 11, 22, -1, 11, 11, 10, -1),
 	MakePackedFormatInformation(VK_FORMAT_E5B9G9R9_UFLOAT_PACK32, 4, BaseType::UFloat, 0, 9, 18, 27, 9, 9, 9, 5),
-	MakeFormatInformation(VK_FORMAT_D16_UNORM, FormatType::Normal, 2, 2, BaseType::UNorm, 0, -1, -1, -1),
-	MakeFormatInformation(VK_FORMAT_X8_D24_UNORM_PACK32, FormatType::Normal, 4, 4, BaseType::UNorm, 0, -1, -1, -1),
-	MakeFormatInformation(VK_FORMAT_D32_SFLOAT, FormatType::Normal, 4, 4, BaseType::SFloat, 0, -1, -1, -1),
-	MakeFormatInformation(VK_FORMAT_S8_UINT, FormatType::Normal, 1, 1, BaseType::UInt, 0, -1, -1, -1),
-	MakeFormatInformation(VK_FORMAT_D16_UNORM_S8_UINT, FormatType::Normal, 3, 2, BaseType::UNorm, 0, 2, -1, -1),
-	MakeFormatInformation(VK_FORMAT_D24_UNORM_S8_UINT, FormatType::Normal, 4, 3, BaseType::UNorm, 0, 3, -1, -1),
-	MakeFormatInformation(VK_FORMAT_D32_SFLOAT_S8_UINT, FormatType::Normal, 8, 4, BaseType::SFloat, 0, 4, -1, -1),
+	MakeDepthFormatInformation(VK_FORMAT_D16_UNORM, 2, 2, BaseType::UNorm, 0, -1),
+	MakeDepthFormatInformation(VK_FORMAT_X8_D24_UNORM_PACK32, 4, 4, BaseType::UNorm, 0, -1),
+	MakeDepthFormatInformation(VK_FORMAT_D32_SFLOAT, 4, 4, BaseType::SFloat, 0, -1),
+	MakeDepthFormatInformation(VK_FORMAT_S8_UINT, 1, 1, BaseType::UInt, -1, 0),
+	MakeDepthFormatInformation(VK_FORMAT_D16_UNORM_S8_UINT, 3, 2, BaseType::UNorm, 0, 2),
+	MakeDepthFormatInformation(VK_FORMAT_D24_UNORM_S8_UINT, 4, 3, BaseType::UNorm, 0, 3),
+	MakeDepthFormatInformation(VK_FORMAT_D32_SFLOAT_S8_UINT, 8, 4, BaseType::SFloat, 0, 4),
 	MakeCompressedFormatInformation(VK_FORMAT_BC1_RGB_UNORM_BLOCK, 8, BaseType::UNorm, 4, 4),
 	MakeCompressedFormatInformation(VK_FORMAT_BC1_RGB_SRGB_BLOCK, 8, BaseType::SRGB, 4, 4),
 	MakeCompressedFormatInformation(VK_FORMAT_BC1_RGBA_UNORM_BLOCK, 8, BaseType::UNorm, 4, 4),
@@ -459,37 +484,26 @@ ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t
 
 	switch (format.Type)
 	{
-	case FormatType::Normal: return GetNormalImageSize(format, width, height, depth, arrayLayers, mipLevels);
-	case FormatType::Compressed: return GetCompressedImageSize(format, width, height, depth, arrayLayers, mipLevels);
-	case FormatType::Planar: break;
-	case FormatType::PlanarSamplable: break;
+	case FormatType::Normal:
+	case FormatType::DepthStencil:
+		return GetNormalImageSize(format, width, height, depth, arrayLayers, mipLevels);
+		
+	case FormatType::Compressed:
+		return GetCompressedImageSize(format, width, height, depth, arrayLayers, mipLevels);
+		
+	case FormatType::Planar:
+		FATAL_ERROR();
+		
+	case FormatType::PlanarSamplable:
+		FATAL_ERROR();
+		
 	default: assert(false);
 	}
-
-	FATAL_ERROR();
 }
 
 uint64_t GetImagePixelOffset(const ImageSize& imageSize, int32_t i, int32_t j, int32_t k, uint32_t level, uint32_t layer) noexcept
 {
 	return imageSize.LayerSize * layer + imageSize.Level[level].Offset + k * imageSize.Level[level].PlaneSize + j * imageSize.Level[level].Stride + i * imageSize.PixelSize;
-}
-
-bool IsDepthFormat(VkFormat format) noexcept
-{
-	return format == VK_FORMAT_D16_UNORM ||
-		format == VK_FORMAT_D16_UNORM_S8_UINT ||
-		format == VK_FORMAT_X8_D24_UNORM_PACK32 ||
-		format == VK_FORMAT_D24_UNORM_S8_UINT ||
-		format == VK_FORMAT_D32_SFLOAT ||
-		format == VK_FORMAT_D32_SFLOAT_S8_UINT;
-}
-
-bool IsStencilFormat(VkFormat format) noexcept
-{
-	return format == VK_FORMAT_D16_UNORM_S8_UINT ||
-		format == VK_FORMAT_D24_UNORM_S8_UINT ||
-		format == VK_FORMAT_D32_SFLOAT_S8_UINT ||
-		format == VK_FORMAT_S8_UINT;
 }
 
 bool NeedsYCBCRConversion(VkFormat format) noexcept

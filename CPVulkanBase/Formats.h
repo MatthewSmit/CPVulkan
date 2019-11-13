@@ -5,6 +5,7 @@ enum class FormatType
 {
 	Normal,
 	Packed,
+	DepthStencil,
 	Compressed,
 	Planar,
 	PlanarSamplable,
@@ -61,6 +62,12 @@ struct FormatInformation
 
 		struct
 		{
+			uint32_t DepthOffset;
+			uint32_t StencilOffset;
+		} DepthStencil;
+
+		struct
+		{
 			uint32_t BlockWidth;
 			uint32_t BlockHeight;
 		} Compressed;
@@ -103,6 +110,4 @@ CP_DLL_EXPORT const FormatInformation& GetFormatInformation(VkFormat format);
 CP_DLL_EXPORT ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels) noexcept;
 CP_DLL_EXPORT uint64_t GetImagePixelOffset(const ImageSize& imageSize, int32_t i, int32_t j, int32_t k, uint32_t level, uint32_t layer) noexcept;
 
-CP_DLL_EXPORT bool IsDepthFormat(VkFormat format) noexcept;
-CP_DLL_EXPORT bool IsStencilFormat(VkFormat format) noexcept;
 CP_DLL_EXPORT bool NeedsYCBCRConversion(VkFormat format) noexcept;

@@ -239,7 +239,7 @@ static llvm::Value* EmitConvert(llvm::IRBuilder<>& builder, llvm::Value* inputVa
 
 STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatInformation* information)
 {
-	assert(information->Type == FormatType::Normal);
+	assert(information->Type == FormatType::DepthStencil);
 
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -628,7 +628,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 
 STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const FormatInformation* information)
 {
-	assert(information->Type == FormatType::Normal);
+	assert(information->Type == FormatType::DepthStencil);
 
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
