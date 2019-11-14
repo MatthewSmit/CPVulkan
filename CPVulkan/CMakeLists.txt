@@ -11,6 +11,7 @@ set(FILES
 		"BufferView.h"
 
 		"CommandBuffer.Binding.cpp"
+		"CommandBuffer.Copy.cpp"
 		"CommandBuffer.Draw.cpp"
 		"CommandBuffer.cpp"
 		"CommandBuffer.Query.cpp"
