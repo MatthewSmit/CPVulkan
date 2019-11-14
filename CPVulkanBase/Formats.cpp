@@ -1,6 +1,5 @@
 #include "Formats.h"
 
-#include <cmath>
 #include <unordered_map>
 
 static constexpr VkFormatFeatureFlags GetFeatures(FormatType type)
@@ -425,7 +424,7 @@ static ImageSize GetNormalImageSize(const FormatInformation& format, uint32_t wi
 		level.Height = height;
 		level.Depth = depth;
 		level.Stride = format.TotalSize * level.Width;
-		level.Stride = ((level.Stride + 3) / 4) * 4;
+		// level.Stride = ((level.Stride + 3) / 4) * 4;
 		level.PlaneSize = level.Stride * level.Height;
 		level.LevelSize = level.PlaneSize * level.Depth;
 		imageSize.LayerSize += level.LevelSize;
@@ -485,6 +484,7 @@ ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t
 	switch (format.Type)
 	{
 	case FormatType::Normal:
+	case FormatType::Packed:
 	case FormatType::DepthStencil:
 		return GetNormalImageSize(format, width, height, depth, arrayLayers, mipLevels);
 		
@@ -497,7 +497,9 @@ ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t
 	case FormatType::PlanarSamplable:
 		FATAL_ERROR();
 		
-	default: assert(false);
+	default:
+		assert(false);
+		exit(1);
 	}
 }
 
