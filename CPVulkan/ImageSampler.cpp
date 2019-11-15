@@ -64,36 +64,6 @@ static T lerp(T min, T max, double delta)
 	return glm::dvec4(min) + glm::dvec4(max - min) * delta;
 }
 
-// template<typename T>
-// void LinearToSRGB(const T input[4], T output[4])
-// {
-// 	FATAL_ERROR();
-// }
-//
-// template<>
-// void LinearToSRGB(const float input[4], float output[4])
-// {
-// 	output[0] = input[0] <= 0.0031308 ? input[0] * 12.92f : 1.055f * std::pow(input[0], 1.0f / 2.4f) - 0.055f;
-// 	output[1] = input[1] <= 0.0031308 ? input[1] * 12.92f : 1.055f * std::pow(input[1], 1.0f / 2.4f) - 0.055f;
-// 	output[2] = input[2] <= 0.0031308 ? input[2] * 12.92f : 1.055f * std::pow(input[2], 1.0f / 2.4f) - 0.055f;
-// 	output[3] = input[3];
-// }
-//
-// template<typename T>
-// void SRGBToLinear(const T input[4], T output[4])
-// {
-// 	FATAL_ERROR();
-// }
-//
-// template<>
-// void SRGBToLinear(const float input[4], float output[4])
-// {
-// 	output[0] = input[0] <= 0.04045 ? input[0] / 12.92f : std::pow((input[0] + 0.055f) / 1.055f, 2.4f);
-// 	output[1] = input[1] <= 0.04045 ? input[1] / 12.92f : std::pow((input[1] + 0.055f) / 1.055f, 2.4f);
-// 	output[2] = input[2] <= 0.04045 ? input[2] / 12.92f : std::pow((input[2] + 0.055f) / 1.055f, 2.4f);
-// 	output[3] = input[3];
-// }
-
 float GetDepthPixel(DeviceState* deviceState, VkFormat format, const Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer)
 {
 	const auto& information = GetFormatInformation(format);
@@ -116,14 +86,7 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	
 	if (!functions.GetPixelF32)
 	{
-		if (information.Base == BaseType::SFloat && information.ElementSize == 4)
-		{
-			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelF32(deviceState->jit, &information));
-		}
+		functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
 	}
 
 	float values[4]{};
@@ -140,14 +103,7 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	
 	if (!functions.GetPixelF32)
 	{
-		if (information.Base == BaseType::SFloat && information.ElementSize == 4)
-		{
-			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelF32(deviceState->jit, &information));
-		}
+		functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
 	}
 
 	float values[4]{};
@@ -164,14 +120,7 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	
 	if (!functions.GetPixelF32)
 	{
-		if (information.Base == BaseType::SFloat && information.ElementSize == 4)
-		{
-			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelF32(deviceState->jit, &information));
-		}
+		functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
 	}
 
 	float values[4]{};

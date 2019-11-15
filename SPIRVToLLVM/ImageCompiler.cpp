@@ -158,6 +158,12 @@ static llvm::Value* EmitConvertInt(llvm::IRBuilder<>& builder, llvm::Value* inpu
 	return builder.CreateZExtOrTrunc(inputValue, outputType);
 }
 
+static llvm::Value* EmitConvertIntFloat(llvm::IRBuilder<>& builder, llvm::Value* inputValue, uint64_t maxValue, llvm::Type* outputType)
+{
+	const auto value = builder.CreateSIToFP(inputValue, outputType);
+	return builder.CreateFDiv(value, llvm::ConstantFP::get(outputType, maxValue));
+}
+
 static llvm::Value* EmitConvertUIntFloat(llvm::IRBuilder<>& builder, llvm::Value* inputValue, uint64_t maxValue, llvm::Type* outputType)
 {
 	const auto value = builder.CreateUIToFP(inputValue, outputType);
@@ -183,6 +189,32 @@ static llvm::Value* EmitLinearToSRGB(llvm::Function* currentFunction, llvm::IRBu
 	trueValue = builder.CreateFAdd(trueValue, llvm::ConstantFP::get(builder.getFloatTy(), -0.055));
 	builder.CreateBr(nextBlock);
 
+	builder.SetInsertPoint(nextBlock);
+	auto value = builder.CreatePHI(builder.getFloatTy(), 2);
+	value->addIncoming(trueValue, trueBlock);
+	value->addIncoming(falseValue, falseBlock);
+	return value;
+}
+
+static llvm::Value* EmitSRGBToLinear(llvm::Function* currentFunction, llvm::IRBuilder<>& builder, llvm::Value* inputValue)
+{
+	const auto trueBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
+	const auto falseBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
+	const auto nextBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
+	
+	const auto comparison = builder.CreateFCmpUGT(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0.04045));
+	builder.CreateCondBr(comparison, trueBlock, falseBlock);
+	
+	builder.SetInsertPoint(falseBlock);
+	const auto falseValue = builder.CreateFDiv(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 12.92));
+	builder.CreateBr(nextBlock);
+	
+	builder.SetInsertPoint(trueBlock);
+	auto trueValue = builder.CreateFAdd(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0.055));
+	trueValue = builder.CreateFDiv(trueValue, llvm::ConstantFP::get(builder.getFloatTy(), 1.055));
+	trueValue = builder.CreateBinaryIntrinsic(llvm::Intrinsic::pow, trueValue, llvm::ConstantFP::get(builder.getFloatTy(), 2.4));
+	builder.CreateBr(nextBlock);
+	
 	builder.SetInsertPoint(nextBlock);
 	auto value = builder.CreatePHI(builder.getFloatTy(), 2);
 	value->addIncoming(trueValue, trueBlock);
@@ -232,7 +264,7 @@ static llvm::Value* EmitConvert(llvm::IRBuilder<>& builder, llvm::Value* inputVa
 		else
 		{
 			static_assert(std::numeric_limits<OutputType>::is_iec559);
-			FATAL_ERROR();
+			return EmitConvertIntFloat(builder, inputValue, std::numeric_limits<InputType>::max(), GetType<OutputType>(builder));
 		}
 	}
 }
@@ -354,6 +386,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInform
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+			}
 
 			if (information->Normal.GreenOffset != INVALID_OFFSET)
 			{
@@ -361,6 +398,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInform
 				value = builder.CreateLoad(value);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
 				builder.CreateStore(value, dst);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
 			}
 
 			if (information->Normal.BlueOffset != INVALID_OFFSET)
@@ -370,6 +412,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInform
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+			}
 
 			if (information->Normal.AlphaOffset != INVALID_OFFSET)
 			{
@@ -377,6 +424,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInform
 				value = builder.CreateLoad(value);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
 				builder.CreateStore(value, dst);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
 			}
 			break;
 		}
@@ -424,27 +476,125 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 	case FormatType::Normal:
 		{
 			llvm::Type* sourceType;
-			std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*)> process;
+			std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*, int)> process;
 			switch (information->Base)
 			{
 			case BaseType::UNorm:
-			case BaseType::UScaled:
-			case BaseType::UInt:
 				switch (information->ElementSize)
 				{
 				case 1:
 					sourceType = builder.getInt8Ty();
-					process = EmitConvert<uint8_t, float>;
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<uint8_t, float>(builder, inputValue);
+					};
 					break;
 
 				case 2:
 					sourceType = builder.getInt16Ty();
-					process = EmitConvert<uint16_t, float>;
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<uint16_t, float>(builder, inputValue);
+					};
 					break;
 
 				case 4:
 					sourceType = builder.getInt32Ty();
-					process = EmitConvert<uint32_t, float>;
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<uint32_t, float>(builder, inputValue);
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			case BaseType::SNorm:
+				switch (information->ElementSize)
+				{
+				case 1:
+					sourceType = builder.getInt8Ty();
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<int8_t, float>(builder, inputValue);
+					};
+					break;
+
+				case 2:
+					sourceType = builder.getInt16Ty();
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<int16_t, float>(builder, inputValue);
+					};
+					break;
+
+				case 4:
+					sourceType = builder.getInt32Ty();
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<int32_t, float>(builder, inputValue);
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			case BaseType::SFloat:
+				switch (information->ElementSize)
+				{
+				case 2:
+					sourceType = builder.getHalfTy();
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<half, float>(builder, inputValue);
+					};
+					break;
+
+				case 4:
+					sourceType = builder.getFloatTy();
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						return EmitConvert<float, float>(builder, inputValue);
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
+			case BaseType::SRGB:
+				switch (information->ElementSize)
+				{
+				case 1:
+					sourceType = builder.getInt8Ty();
+					process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
+					{
+						inputValue = EmitConvert<uint8_t, float>(builder, inputValue);
+						return index == 3 ? inputValue : EmitSRGBToLinear(function, builder, inputValue);
+					};
+					break;
+
+				case 2:
+					sourceType = builder.getInt16Ty();
+					process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
+					{
+						inputValue = EmitConvert<uint16_t, float>(builder, inputValue);
+						return index == 3 ? inputValue : EmitSRGBToLinear(function, builder, inputValue);
+					};
+					break;
+
+				case 4:
+					sourceType = builder.getInt32Ty();
+					process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
+					{
+						inputValue = EmitConvert<uint32_t, float>(builder, inputValue);
+						return index == 3 ? inputValue : EmitSRGBToLinear(function, builder, inputValue);
+					};
 					break;
 
 				default:
@@ -461,41 +611,285 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 			{
 				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.RedOffset / information->ElementSize);
 				value = builder.CreateLoad(value);
-				value = process(builder, value);
+				value = process(builder, value, 0);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
 				builder.CreateStore(value, dst);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
 			}
 
 			if (information->Normal.GreenOffset != INVALID_OFFSET)
 			{
 				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.GreenOffset / information->ElementSize);
 				value = builder.CreateLoad(value);
-				value = process(builder, value);
+				value = process(builder, value, 1);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
 				builder.CreateStore(value, dst);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
 			}
 
 			if (information->Normal.BlueOffset != INVALID_OFFSET)
 			{
 				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.BlueOffset / information->ElementSize);
 				value = builder.CreateLoad(value);
-				value = process(builder, value);
+				value = process(builder, value, 2);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
 				builder.CreateStore(value, dst);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
 			}
 
 			if (information->Normal.AlphaOffset != INVALID_OFFSET)
 			{
 				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.AlphaOffset / information->ElementSize);
 				value = builder.CreateLoad(value);
-				value = process(builder, value);
+				value = process(builder, value, 3);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 1), dst);
+			}
+			break;
+		}
+
+	case FormatType::Packed:
+		{
+			switch (information->Base)
+			{
+			case BaseType::UNorm:
+			case BaseType::SNorm:
+				{
+					llvm::Type* sourceType;
+					switch (information->TotalSize)
+					{
+					case 1:
+						sourceType = builder.getInt8Ty();
+						break;
+
+					case 2:
+						sourceType = builder.getInt16Ty();
+						break;
+
+					case 4:
+						sourceType = builder.getInt32Ty();
+						break;
+
+					default:
+						FATAL_ERROR();
+					}
+
+					sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+					const auto source = builder.CreateLoad(sourcePtr);
+
+					const auto process = [information, destinationPtr, source](llvm::IRBuilder<>& builder, int index)
+					{
+						const auto bits = GetPackedBits(information, index);
+						const auto mask = (1ULL << bits) - 1;
+						const auto offset = GetPackedOffset(information, index);
+
+						// Shift and mask value
+						auto value = builder.CreateLShr(source, llvm::ConstantInt::get(source->getType(), offset));
+						value = builder.CreateAnd(value, llvm::ConstantInt::get(source->getType(), mask));
+
+						// Convert to float
+						if (information->Base == BaseType::SNorm)
+						{
+							value = builder.CreateSIToFP(value, builder.getFloatTy());
+							value = builder.CreateFDiv(value, llvm::ConstantFP::get(builder.getFloatTy(), mask >> 1));
+						}
+						else
+						{
+							value = builder.CreateUIToFP(value, builder.getFloatTy());
+							value = builder.CreateFDiv(value, llvm::ConstantFP::get(builder.getFloatTy(), mask));
+						}
+
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, index);
+						builder.CreateStore(value, dst);
+					};
+
+					if (information->Packed.RedBits)
+					{
+						process(builder, 0);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+					}
+
+					if (information->Packed.GreenBits)
+					{
+						process(builder, 1);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+					}
+
+					if (information->Packed.BlueBits)
+					{
+						process(builder, 2);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+					}
+
+					if (information->Packed.AlphaBits)
+					{
+						process(builder, 3);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 1), dst);
+					}
+					break;
+				}
+				
+				// case BaseType::UScaled: break;
+				// case BaseType::SScaled: break;
+				// case BaseType::UInt: break;
+				// case BaseType::SInt: break;
+				 
+			case BaseType::UFloat:
+				{
+					sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getInt32Ty(), 0));
+					const auto source = builder.CreateLoad(sourcePtr);
+					switch (information->Format)
+					{
+					case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+						{
+							const auto b10g11r11Function = llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy(), {source->getType(), destinationPtr->getType()}, false), llvm::GlobalValue::ExternalLinkage, "B10G11R11ToFloat", module.get());
+							builder.CreateCall(b10g11r11Function, {source, destinationPtr});
+							break;
+						}
+			
+					case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+						{
+							const auto e5b9g9r9Function = llvm::Function::Create(llvm::FunctionType::get(builder.getVoidTy(), {source->getType(), destinationPtr->getType()}, false), llvm::GlobalValue::ExternalLinkage, "E5B9G9R9ToFloat", module.get());
+							builder.CreateCall(e5b9g9r9Function, {source, destinationPtr});
+							break;
+						}
+
+					default:
+						FATAL_ERROR();
+					}
+					break;
+				}
+				
+				// case BaseType::SFloat: break;
+				
+			case BaseType::SRGB:
+				{
+					llvm::Type* sourceType;
+					switch (information->TotalSize)
+					{
+					case 1:
+						sourceType = builder.getInt8Ty();
+						break;
+
+					case 2:
+						sourceType = builder.getInt16Ty();
+						break;
+
+					case 4:
+						sourceType = builder.getInt32Ty();
+						break;
+
+					default:
+						FATAL_ERROR();
+					}
+
+					sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+					const auto source = builder.CreateLoad(sourcePtr);
+
+					const auto process = [information, function, destinationPtr, source](llvm::IRBuilder<>& builder, int index)
+					{
+						const auto bits = GetPackedBits(information, index);
+						const auto mask = (1ULL << bits) - 1;
+						const auto offset = GetPackedOffset(information, index);
+
+						// Shift and mask value
+						auto value = builder.CreateLShr(source, llvm::ConstantInt::get(source->getType(), offset));
+						value = builder.CreateAnd(value, llvm::ConstantInt::get(source->getType(), mask));
+
+						// Convert to float
+						value = builder.CreateUIToFP(value, builder.getFloatTy());
+						value = builder.CreateFDiv(value, llvm::ConstantFP::get(builder.getFloatTy(), mask));
+
+						if (index != 3)
+						{
+							value = EmitSRGBToLinear(function, builder, value);
+						}
+
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, index);
+						builder.CreateStore(value, dst);
+					};
+
+					if (information->Packed.RedBits)
+					{
+						process(builder, 0);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+					}
+
+					if (information->Packed.GreenBits)
+					{
+						process(builder, 1);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+					}
+
+					if (information->Packed.BlueBits)
+					{
+						process(builder, 2);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+					}
+
+					if (information->Packed.AlphaBits)
+					{
+						process(builder, 3);
+					}
+					else
+					{
+						const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+						builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 1), dst);
+					}
+					break;
+				}
+				 
+			default: FATAL_ERROR();
+			}
+
 			break;
 		}
 		
-	case FormatType::Packed: FATAL_ERROR();
 	case FormatType::Compressed: FATAL_ERROR();
 	case FormatType::Planar: FATAL_ERROR();
 	case FormatType::PlanarSamplable: FATAL_ERROR();
@@ -579,6 +973,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 	
 			if (information->Normal.GreenOffset != INVALID_OFFSET)
 			{
@@ -587,6 +986,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 				value = process(builder, value);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
 				builder.CreateStore(value, dst);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(builder.getInt32(0), dst);
 			}
 	
 			if (information->Normal.BlueOffset != INVALID_OFFSET)
@@ -597,6 +1001,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 	
 			if (information->Normal.AlphaOffset != INVALID_OFFSET)
 			{
@@ -606,11 +1015,30 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 			break;
 		}
 		
 	case FormatType::Packed:
 		{
+			switch (information->Base)
+			{
+				// case BaseType::UNorm: break;
+				// case BaseType::SNorm: break;
+				// case BaseType::UScaled: break;
+				// case BaseType::SScaled: break;
+				// case BaseType::UInt: break;
+			case BaseType::SInt: break;
+				// case BaseType::UFloat: break;
+				// case BaseType::SFloat: break;
+				// case BaseType::SRGB: break;
+			default: FATAL_ERROR();
+			}
+
 			llvm::Type* sourceType;
 			switch (information->TotalSize)
 			{
@@ -652,20 +1080,40 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 			{
 				process(builder, 0);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 	
 			if (information->Packed.GreenBits)
 			{
 				process(builder, 1);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(builder.getInt32(0), dst);
 			}
 	
 			if (information->Packed.BlueBits)
 			{
 				process(builder, 2);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 	
 			if (information->Packed.AlphaBits)
 			{
 				process(builder, 3);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(builder.getInt32(0), dst);
 			}
 	
 			break;
@@ -754,6 +1202,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 
 			if (information->Normal.GreenOffset != INVALID_OFFSET)
 			{
@@ -762,6 +1215,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 				value = process(builder, value);
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
 				builder.CreateStore(value, dst);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(builder.getInt32(0), dst);
 			}
 
 			if (information->Normal.BlueOffset != INVALID_OFFSET)
@@ -772,6 +1230,11 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 
 			if (information->Normal.AlphaOffset != INVALID_OFFSET)
 			{
@@ -781,11 +1244,30 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
 				builder.CreateStore(value, dst);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 			break;
 		}
 		
 	case FormatType::Packed:
 		{
+			switch (information->Base)
+			{
+				// case BaseType::UNorm: break;
+				// case BaseType::SNorm: break;
+				// case BaseType::UScaled: break;
+				// case BaseType::SScaled: break;
+			case BaseType::UInt: break;
+				// case BaseType::SInt: break;
+				// case BaseType::UFloat: break;
+				// case BaseType::SFloat: break;
+				// case BaseType::SRGB: break;
+			default: FATAL_ERROR();
+			}
+			
 			llvm::Type* sourceType;
 			switch (information->TotalSize)
 			{
@@ -826,20 +1308,40 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 			{
 				process(builder, 0);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 
 			if (information->Packed.GreenBits)
 			{
 				process(builder, 1);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				builder.CreateStore(builder.getInt32(0), dst);
 			}
 
 			if (information->Packed.BlueBits)
 			{
 				process(builder, 2);
 			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+				builder.CreateStore(builder.getInt32(0), dst);
+			}
 
 			if (information->Packed.AlphaBits)
 			{
 				process(builder, 3);
+			}
+			else
+			{
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+				builder.CreateStore(builder.getInt32(0), dst);
 			}
 
 			break;
@@ -1369,6 +1871,41 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelF32(SpirvJit* jit, const FormatInf
 				}
 				break;
 
+			case BaseType::UScaled:
+				switch (information->ElementSize)
+				{
+				case 1:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), std::numeric_limits<uint8_t>::min())),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), std::numeric_limits<uint8_t>::max()));
+						return builder.CreateFPToUI(value, builder.getInt8Ty());
+					};
+					break;
+
+				case 2:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), std::numeric_limits<uint16_t>::min())),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), std::numeric_limits<uint16_t>::max()));
+						return builder.CreateFPToUI(value, builder.getInt16Ty());
+					};
+					break;
+
+				case 4:
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
+					{
+						const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), std::numeric_limits<uint32_t>::min())),
+						                                        llvm::ConstantFP::get(builder.getFloatTy(), std::numeric_limits<uint32_t>::max()));
+						return builder.CreateFPToUI(value, builder.getInt32Ty());
+					};
+					break;
+
+				default:
+					FATAL_ERROR();
+				}
+				break;
+
 			case BaseType::SNorm:
 				switch (information->ElementSize)
 				{
@@ -1403,6 +1940,9 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelF32(SpirvJit* jit, const FormatInf
 					FATAL_ERROR();
 				}
 				break;
+				
+			case BaseType::SScaled:
+				FATAL_ERROR();
 
 			case BaseType::UFloat: FATAL_ERROR();
 

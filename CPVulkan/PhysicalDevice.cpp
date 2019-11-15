@@ -12,6 +12,21 @@ static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, 
 {
 	const auto& information = GetFormatInformation(format);
 
+	if ((usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) && information.Type != FormatType::DepthStencil)
+	{
+		return VK_ERROR_FORMAT_NOT_SUPPORTED;
+	}
+
+	if ((usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) && information.Type == FormatType::DepthStencil)
+	{
+		return VK_ERROR_FORMAT_NOT_SUPPORTED;
+	}
+
+	if ((usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT) && (information.Base == BaseType::UScaled || information.Base == BaseType::SScaled))
+	{
+		return VK_ERROR_FORMAT_NOT_SUPPORTED;
+	}
+
 	switch (type)
 	{
 	case VK_IMAGE_TYPE_1D:

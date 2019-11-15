@@ -6,6 +6,11 @@ extern "C" CP_DLL_EXPORT uint16_t __gnu_f2h_ieee(float value)
 	return half(value).toRaw();
 }
 
+extern "C" CP_DLL_EXPORT float __gnu_h2f_ieee(half value)
+{
+	return half(value).toFloat();
+}
+
 extern "C" CP_DLL_EXPORT uint32_t FloatToB10G11R11(float values[4])
 {
 	const auto r = ConvertBits<float, UF11>(values[0]);
@@ -14,36 +19,22 @@ extern "C" CP_DLL_EXPORT uint32_t FloatToB10G11R11(float values[4])
 	return r | g << 11 | b << 22;
 }
 
+extern "C" CP_DLL_EXPORT void B10G11R11ToFloat(uint32_t value, float result[4])
+{
+	result[0] = ConvertBits<UF11, float>(value & ((1 << 11) - 1));
+	result[1] = ConvertBits<UF11, float>((value >> 11) & ((1 << 11) - 1));
+	result[2] = ConvertBits<UF10, float>((value >> 22) & ((1 << 10) - 1));
+	result[3] = 1; 
+}
+
+// Copied from MESA under MIT license
+
 extern "C" CP_DLL_EXPORT uint32_t FloatToE5B9G9R9(float values[4])
 {
 	constexpr auto EXPONENT_SHIFT = FloatFormat<UF14>::MANTISSA_BITS;
 	constexpr auto EXPONENT_MASK = (1 << FloatFormat<UF14>::EXPONENT_BITS) - 1;
 	constexpr auto EXPONENT_BIAS = (1 << (FloatFormat<UF14>::EXPONENT_BITS - 1)) - 1;
 	constexpr auto MANTISSA_MASK = (1 << FloatFormat<UF14>::MANTISSA_BITS) - 1;
-		
-	// const auto r = ConvertBits<float, UF14>(input[0]);
-	// const auto g = ConvertBits<float, UF14>(input[1]);
-	// const auto b = ConvertBits<float, UF14>(input[2]);
-	//
-	// const auto rExponent = static_cast<int>((r >> EXPONENT_SHIFT) & EXPONENT_MASK) - EXPONENT_BIAS;
-	// const auto gExponent = static_cast<int>((g >> EXPONENT_SHIFT) & EXPONENT_MASK) - EXPONENT_BIAS;
-	// const auto bExponent = static_cast<int>((b >> EXPONENT_SHIFT) & EXPONENT_MASK) - EXPONENT_BIAS;
-	//
-	// auto rMantissa = r & MANTISSA_MASK;
-	// auto gMantissa = g & MANTISSA_MASK;
-	// auto bMantissa = b & MANTISSA_MASK;
-	//
-	// const auto exponent = std::max(std::max(rExponent, gExponent), bExponent);
-	//
-	// const auto rExponentShift = exponent - rExponent;
-	// const auto gExponentShift = exponent - gExponent;
-	// const auto bExponentShift = exponent - bExponent;
-	//
-	// rMantissa >>= rExponentShift;
-	// gMantissa >>= gExponentShift;
-	// bMantissa >>= bExponentShift;
-	//
-	// return (static_cast<uint32_t>(exponent + EXPONENT_BIAS) << EXPONENT_SHIFT) | (bMantissa << 18) | (gMantissa << 9) << rMantissa;
 
 	union
 	{
@@ -88,4 +79,23 @@ extern "C" CP_DLL_EXPORT uint32_t FloatToE5B9G9R9(float values[4])
 	assert(bm >= 0);
 
 	return (exp_shared << 27) | (bm << 18) | (gm << 9) | rm;
+}
+
+extern "C" CP_DLL_EXPORT void E5B9G9R9ToFloat(uint32_t value, float result[4])
+{
+	constexpr auto RGB9E5_EXP_BIAS = 15;
+	constexpr auto RGB9E5_MANTISSA_BITS = 9;
+	union
+	{
+		float f;
+		uint32_t u;
+	} scale;
+
+	const int exponent = (value >> 27) - RGB9E5_EXP_BIAS - RGB9E5_MANTISSA_BITS;
+	scale.u = (exponent + 127) << 23;
+
+	result[0] = (value & 0x1ff) * scale.f;
+	result[1] = ((value >> 9) & 0x1ff) * scale.f;
+	result[2] = ((value >> 18) & 0x1ff) * scale.f;
+	result[3] = 1;
 }

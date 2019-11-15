@@ -59,6 +59,8 @@ public:
 		{
 		case BaseType::UNorm:
 		case BaseType::SNorm:
+		case BaseType::UScaled:
+		case BaseType::SScaled:
 		case BaseType::UFloat:
 		case BaseType::SFloat:
 		case BaseType::SRGB:
@@ -79,7 +81,6 @@ public:
 			}
 			break;
 			
-		case BaseType::UScaled:
 		case BaseType::UInt:
 			if (information.ElementSize > 4)
 			{
@@ -98,7 +99,6 @@ public:
 			}
 			break;
 
-		case BaseType::SScaled:
 		case BaseType::SInt:
 			if (information.ElementSize > 4)
 			{
