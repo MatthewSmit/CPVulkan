@@ -53,7 +53,7 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		std::function<void(float, float, float, float, float)> blit;
+		std::function<void(int, int, int, int, int, float, float, float, float, float)> blit;
 		const auto information = GetFormatInformation(dstImage->getFormat());
 		switch (information.Base)
 		{
@@ -68,13 +68,13 @@ public:
 			}
 			else
 			{
-				blit = [&](float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
 				{
 					auto value = SampleImage<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
 					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
 					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
 					                                     filter);
-					SetPixel(deviceState, dstImage->getFormat(), dstImage, static_cast<int>(u), static_cast<int>(v), static_cast<int>(w), static_cast<int>(q), static_cast<int>(a), &value.x);
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, &value.x);
 				};
 			}
 			break;
@@ -87,13 +87,13 @@ public:
 			}
 			else
 			{
-				blit = [&](float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
 				{
 					auto value = SampleImage<glm::uvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
 					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
 					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
 					                                     filter);
-					SetPixel(deviceState, dstImage->getFormat(), dstImage, static_cast<int>(u), static_cast<int>(v), static_cast<int>(w), static_cast<int>(q), static_cast<int>(a), &value.x);
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, &value.x);
 				};
 			}
 			break;
@@ -146,8 +146,9 @@ public:
 			{
 				FATAL_ERROR();
 			}
+
+			assert(region.srcSubresource.layerCount == region.dstSubresource.layerCount);
 		
-			// TODO: Handle region.dstOffsets[1] < region.dstOffsets[0]
 			auto dstWidth = region.dstOffsets[1].x - region.dstOffsets[0].x;
 			auto dstHeight = region.dstOffsets[1].y - region.dstOffsets[0].y;
 			auto dstDepth = region.dstOffsets[1].z - region.dstOffsets[0].z;
@@ -200,7 +201,7 @@ public:
 							FATAL_ERROR();
 						}
 
-						blit(u, v, w, q, a);
+						blit(dstX, dstY, dstZ, region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer + currentArray, u, v, w, q, a);
 					}
 				}
 			}

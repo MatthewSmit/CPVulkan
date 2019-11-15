@@ -135,7 +135,7 @@ static constexpr FormatInformation MakePackedFormatInformation(VkFormat format,
                                                                uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset,
                                                                uint32_t redBits, uint32_t greenBits, uint32_t blueBits, uint32_t alphaBits)
 {
-	constexpr auto features = GetFeatures(FormatType::Normal);
+	constexpr auto features = GetFeatures(FormatType::Packed);
 	FormatInformation information
 	{
 		format,
