@@ -609,7 +609,67 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 			break;
 		}
 		
-	case FormatType::Packed: FATAL_ERROR();
+	case FormatType::Packed:
+		{
+			llvm::Type* sourceType;
+			switch (information->TotalSize)
+			{
+			case 1:
+				sourceType = builder.getInt8Ty();
+				break;
+
+			case 2:
+				sourceType = builder.getInt16Ty();
+				break;
+
+			case 4:
+				sourceType = builder.getInt32Ty();
+				break;
+
+			default:
+				FATAL_ERROR();
+			}
+
+			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+			const auto source = builder.CreateLoad(sourcePtr);
+			
+			const auto process = [information, destinationPtr, source](llvm::IRBuilder<>& builder, int index)
+			{
+				const auto bits = GetPackedBits(information, index);
+				const auto mask = (1ULL << bits) - 1;
+				const auto offset = GetPackedOffset(information, index);
+
+				// Shift and mask value
+				auto value = builder.CreateLShr(source, llvm::ConstantInt::get(source->getType(), offset));
+				value = builder.CreateAnd(value, llvm::ConstantInt::get(source->getType(), mask));
+				
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, index);
+				builder.CreateStore(value, dst);
+			};
+
+			if (information->Packed.RedBits)
+			{
+				process(builder, 0);
+			}
+
+			if (information->Packed.GreenBits)
+			{
+				process(builder, 1);
+			}
+
+			if (information->Packed.BlueBits)
+			{
+				process(builder, 2);
+			}
+
+			if (information->Packed.AlphaBits)
+			{
+				process(builder, 3);
+			}
+
+			break;
+		}
+		
 	case FormatType::Compressed: FATAL_ERROR();
 	case FormatType::Planar: FATAL_ERROR();
 	case FormatType::PlanarSamplable: FATAL_ERROR();
@@ -905,7 +965,7 @@ static void EmitSetPackedPixelInt32(llvm::IRBuilder<>& builder, const FormatInfo
 		auto source = builder.CreateConstGEP1_32(sourcePtr, index);
 		source = builder.CreateLoad(source);
 
-		const auto tmp = builder.CreateICmpSLT(source, builder.getInt32(mask));
+		const auto tmp = builder.CreateICmpULT(source, builder.getInt32(mask));
 		source = builder.CreateSelect(tmp, source, builder.getInt32(mask));
 		
 		auto value = builder.CreateAnd(source, mask);
@@ -1408,15 +1468,28 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelUInt32(SpirvJit* jit, const Format
 				switch (information->ElementSize)
 				{
 				case 1:
-					process = EmitConvert<uint32_t, uint8_t>;
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue)
+					{
+						const auto tmp = builder.CreateICmpULT(inputValue, builder.getInt32(0xFF));
+						inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(0xFF));
+						return EmitConvert<uint32_t, uint8_t>(builder, inputValue);
+					};
 					break;
 
 				case 2:
-					process = EmitConvert<uint32_t, uint16_t>;
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue)
+					{
+						const auto tmp = builder.CreateICmpULT(inputValue, builder.getInt32(0xFFFF));
+						inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(0xFFFF));
+						return EmitConvert<uint32_t, uint16_t>(builder, inputValue);
+					};
 					break;
 
 				case 4:
-					process = EmitConvert<uint32_t, uint32_t>;
+					process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue)
+					{
+						return EmitConvert<uint32_t, uint32_t>(builder, inputValue);
+					};
 					break;
 
 				default:
