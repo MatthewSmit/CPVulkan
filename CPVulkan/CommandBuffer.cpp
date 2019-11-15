@@ -100,7 +100,22 @@ public:
 
 		case BaseType::SScaled:
 		case BaseType::SInt:
-			FATAL_ERROR();
+			if (information.ElementSize > 4)
+			{
+				FATAL_ERROR();
+			}
+			else
+			{
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				{
+					auto value = SampleImage<glm::ivec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
+					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
+					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
+					                                     filter);
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, &value.x);
+				};
+			}
+			break;
 			
 		default: FATAL_ERROR();
 		}

@@ -12,12 +12,13 @@ struct ImageFunctions
 {
 	float (*GetPixelDepth)(const void* ptr);
 	void (*GetPixelF32)(const void* ptr, void* values);
+	void (*GetPixelI32)(const void* ptr, void* values);
 	void (*GetPixelU32)(const void* ptr, void* values);
 	
 	void (*SetPixelDepthStencil)(void* ptr, float depth, uint8_t stencil);
-	void (*SetPixelFloat)(void* ptr, const float* values);
-	void (*SetPixelInt32)(void* ptr, const int32_t* values);
-	void (*SetPixelUInt32)(void* ptr, const uint32_t* values);
+	void (*SetPixelF32)(void* ptr, const float* values);
+	void (*SetPixelI32)(void* ptr, const int32_t* values);
+	void (*SetPixelU32)(void* ptr, const uint32_t* values);
 };
 
 struct DeviceState
