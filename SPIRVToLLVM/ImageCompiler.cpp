@@ -905,6 +905,9 @@ static void EmitSetPackedPixelInt32(llvm::IRBuilder<>& builder, const FormatInfo
 		auto source = builder.CreateConstGEP1_32(sourcePtr, index);
 		source = builder.CreateLoad(source);
 
+		const auto tmp = builder.CreateICmpSLT(source, builder.getInt32(mask));
+		source = builder.CreateSelect(tmp, source, builder.getInt32(mask));
+		
 		auto value = builder.CreateAnd(source, mask);
 		value = builder.CreateZExtOrTrunc(value, resultType);
 		
