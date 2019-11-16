@@ -110,6 +110,17 @@ std::ostream& operator<<(std::ostream& stream, const VkImageCopy& value)
 		")";
 }
 
+std::ostream& operator<<(std::ostream& stream, const VkImageResolve& value)
+{
+	return stream << "ImageResolve(" <<
+		"Src Subresource: " << value.srcSubresource <<
+		", Src Offset: " << value.srcOffset <<
+		", Dst Subresource: " << value.dstSubresource <<
+		", Dst Offset: " << value.dstOffset <<
+		", Extent: " << value.extent <<
+		")";
+}
+
 std::ostream& operator<<(std::ostream& stream, const VkImageSubresourceLayers& value)
 {
 	return stream << "ImageSubresourceLayers(" <<

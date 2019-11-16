@@ -42,7 +42,7 @@ public:
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
-		*deviceState->debugOutput << "ImageCommand: blitting images " <<
+		*deviceState->debugOutput << "BlitImage: blitting images " <<
 			" from " << srcImage <<
 			" to " << dstImage <<
 			" on regions " << regions <<
@@ -53,6 +53,9 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
+		assert(srcImage->getSamples() == VK_SAMPLE_COUNT_1_BIT);
+		assert(dstImage->getSamples() == VK_SAMPLE_COUNT_1_BIT);
+		
 		std::function<void(int, int, int, int, int, float, float, float, int, int)> blit;
 		const auto information = GetFormatInformation(dstImage->getFormat());
 		switch (information.Base)
@@ -229,6 +232,139 @@ private:
 	Image* dstImage;
 	std::vector<VkImageBlit> regions;
 	VkFilter filter;
+};
+
+class ResolveImageCommand final : public Command
+{
+public:
+	ResolveImageCommand(Image* srcImage, Image* dstImage, std::vector<VkImageResolve> regions) :
+		srcImage{srcImage},
+		dstImage{dstImage},
+		regions{std::move(regions)}
+	{
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "ResolveImage: resolving images " <<
+			" from " << srcImage <<
+			" to " << dstImage <<
+			" on regions " << regions <<
+			std::endl;
+	}
+#endif
+
+	void Process(DeviceState* deviceState) override
+	{
+		assert(srcImage->getSamples() > VK_SAMPLE_COUNT_1_BIT);
+		assert(dstImage->getSamples() == VK_SAMPLE_COUNT_1_BIT);
+
+		std::function<void(uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t, uint32_t)> resolve;
+		const auto information = GetFormatInformation(dstImage->getFormat());
+		switch (information.Base)
+		{
+		case BaseType::UNorm:
+		case BaseType::SNorm:
+		case BaseType::UScaled:
+		case BaseType::SScaled:
+		case BaseType::UFloat:
+		case BaseType::SFloat:
+		case BaseType::SRGB:
+			if (information.ElementSize > 4)
+			{
+				FATAL_ERROR();
+			}
+			else
+			{
+				resolve = [&](uint32_t srcX, uint32_t srcY, uint32_t srcZ, uint32_t srcLevel, uint32_t srcArray,
+				              uint32_t dstX, uint32_t dstY, uint32_t dstZ, uint32_t dstLevel, uint32_t dstArray)
+				{
+					const auto size = srcImage->getImageSize();
+					auto value = GetPixel<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData(size.LayerSize * srcArray + size.Level[srcLevel].Offset, size.Level[srcLevel].LevelSize),
+					                                  glm::uvec3{size.Level[srcLevel].Width, size.Level[srcLevel].Height, size.Level[srcLevel].Depth},
+					                                  glm::ivec3{srcX, srcY, srcZ});
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstArray, &value.x);
+				};
+			}
+			break;
+		
+		case BaseType::UInt:
+			if (information.ElementSize > 4)
+			{
+				FATAL_ERROR();
+			}
+			else
+			{
+				resolve = [&](uint32_t srcX, uint32_t srcY, uint32_t srcZ, uint32_t srcLevel, uint32_t srcArray,
+				              uint32_t dstX, uint32_t dstY, uint32_t dstZ, uint32_t dstLevel, uint32_t dstArray)
+				{
+					const auto size = srcImage->getImageSize();
+					auto value = GetPixel<glm::uvec4>(deviceState, srcImage->getFormat(), srcImage->getData(size.LayerSize * srcArray + size.Level[srcLevel].Offset, size.Level[srcLevel].LevelSize),
+					                                  glm::uvec3{size.Level[srcLevel].Width, size.Level[srcLevel].Height, size.Level[srcLevel].Depth},
+					                                  glm::ivec3{srcX, srcY, srcZ});
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstArray, &value.x);
+				};
+			}
+			break;
+		
+		case BaseType::SInt:
+			if (information.ElementSize > 4)
+			{
+				FATAL_ERROR();
+			}
+			else
+			{
+				resolve = [&](uint32_t srcX, uint32_t srcY, uint32_t srcZ, uint32_t srcLevel, uint32_t srcArray,
+				              uint32_t dstX, uint32_t dstY, uint32_t dstZ, uint32_t dstLevel, uint32_t dstArray)
+				{
+					const auto size = srcImage->getImageSize();
+					auto value = GetPixel<glm::ivec4>(deviceState, srcImage->getFormat(), srcImage->getData(size.LayerSize * srcArray + size.Level[srcLevel].Offset, size.Level[srcLevel].LevelSize),
+					                                  glm::uvec3{size.Level[srcLevel].Width, size.Level[srcLevel].Height, size.Level[srcLevel].Depth},
+					                                  glm::ivec3{srcX, srcY, srcZ});
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstArray, &value.x);
+				};
+			}
+			break;
+		
+		default: FATAL_ERROR();
+		}
+		
+		for (const auto& region : regions)
+		{
+			assert(region.srcSubresource.aspectMask == region.dstSubresource.aspectMask);
+			assert(region.srcSubresource.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
+			assert(region.srcSubresource.layerCount == region.dstSubresource.layerCount);
+			
+			for (auto layer = 0u; layer < region.srcSubresource.layerCount; layer++)
+			{
+				for (auto z = 0u; z < region.extent.depth; z++)
+				{
+					for (auto y = 0u; y < region.extent.height; y++)
+					{
+						for (auto x = 0u; x < region.extent.width; x++)
+						{
+							const auto srcX = region.srcOffset.x + x;
+							const auto srcY = region.srcOffset.y + y;
+							const auto srcZ = region.srcOffset.z + z;
+
+							const auto dstX = region.dstOffset.x + x;
+							const auto dstY = region.dstOffset.y + y;
+							const auto dstZ = region.dstOffset.z + z;
+
+							resolve(srcX, srcY, srcZ, region.srcSubresource.mipLevel, region.srcSubresource.baseArrayLayer + layer,
+							        dstX, dstY, dstZ, region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer + layer);
+						}
+					}
+				}
+			}
+		}
+	}
+
+private:
+	Image* srcImage;
+	Image* dstImage;
+	std::vector<VkImageResolve> regions;
 };
 
 class SetEventCommand final : public Command
@@ -565,6 +701,12 @@ void CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout, VkImage dstImage,
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<BlitImageCommand>(UnwrapVulkan<Image>(srcImage), UnwrapVulkan<Image>(dstImage), ArrayToVector(regionCount, pRegions), filter));
+}
+
+void CommandBuffer::ResolveImage(VkImage srcImage, VkImageLayout, VkImage dstImage, VkImageLayout, uint32_t regionCount, const VkImageResolve* pRegions)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<ResolveImageCommand>(UnwrapVulkan<Image>(srcImage), UnwrapVulkan<Image>(dstImage), ArrayToVector(regionCount, pRegions)));
 }
 
 void CommandBuffer::SetEvent(VkEvent event, VkPipelineStageFlags stageMask)

@@ -13,6 +13,7 @@ std::ostream& operator<<(std::ostream& stream, const VkClearValue& value);
 std::ostream& operator<<(std::ostream& stream, const VkExtent3D& value);
 std::ostream& operator<<(std::ostream& stream, const VkImageBlit& value);
 std::ostream& operator<<(std::ostream& stream, const VkImageCopy& value);
+std::ostream& operator<<(std::ostream& stream, const VkImageResolve& value);
 std::ostream& operator<<(std::ostream& stream, const VkImageSubresourceLayers& value);
 std::ostream& operator<<(std::ostream& stream, const VkImageSubresourceRange& value);
 std::ostream& operator<<(std::ostream& stream, const VkOffset3D& value);

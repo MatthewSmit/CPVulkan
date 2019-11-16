@@ -422,6 +422,11 @@ static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result,
 		break;
 
 	case ImageDescriptorType::Image:
+		if (imageView->getImage()->getSamples() != VK_SAMPLE_COUNT_1_BIT)
+		{
+			FATAL_ERROR();
+		}
+		
 		format = imageView->getFormat();
 		uint64_t offset;
 		uint64_t size;

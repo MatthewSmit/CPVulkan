@@ -133,8 +133,8 @@ public:
 						assert(srcLevel.PlaneSize == dstLevel.PlaneSize);
 						assert(srcLevel.Stride == dstLevel.Stride);
 
-						memcpy(dstImage->getDataPtr(srcBaseOffset, dstLevel.LevelSize),
-						       srcImage->getDataPtr(dstBaseOffset, srcLevel.LevelSize),
+						memcpy(dstImage->getDataPtr(dstBaseOffset, dstLevel.LevelSize),
+						       srcImage->getDataPtr(srcBaseOffset, srcLevel.LevelSize),
 						       srcLevel.LevelSize);
 					}
 					else
