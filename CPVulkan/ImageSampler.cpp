@@ -77,6 +77,19 @@ float GetDepthPixel(DeviceState* deviceState, VkFormat format, const Image* imag
 	return functions.GetPixelDepth(image->getDataPtr(offset, information.TotalSize));
 }
 
+uint8_t GetStencilPixel(DeviceState* deviceState, VkFormat format, const Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer)
+{
+	const auto& information = GetFormatInformation(format);
+	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
+	auto& functions = deviceState->imageFunctions[format];
+	if (!functions.GetPixelStencil)
+	{
+		functions.GetPixelStencil = reinterpret_cast<decltype(functions.GetPixelStencil)>(CompileGetPixelStencil(deviceState->jit, &information));
+	}
+
+	return functions.GetPixelStencil(image->getDataPtr(offset, information.TotalSize));
+}
+
 template<>
 glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec1 range, glm::ivec1 coordinates)
 {

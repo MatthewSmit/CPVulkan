@@ -227,7 +227,7 @@ static llvm::Value* EmitConvert(llvm::IRBuilder<>& builder, llvm::Value* inputVa
 {
 	if constexpr (std::numeric_limits<InputType>::is_iec559)
 	{
-		if constexpr (std::numeric_limits<OutputType>::is_integer && std::numeric_limits<OutputType>::is_signed)
+		if constexpr (std::numeric_limits<OutputType>::is_integer && !std::numeric_limits<OutputType>::is_signed)
 		{
 			return EmitConvertFloatUInt(builder, inputValue, std::numeric_limits<OutputType>::max(), GetType<OutputType>(builder));
 		}
@@ -272,6 +272,7 @@ static llvm::Value* EmitConvert(llvm::IRBuilder<>& builder, llvm::Value* inputVa
 STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatInformation* information)
 {
 	assert(information->Type == FormatType::DepthStencil);
+	assert(information->DepthStencil.DepthOffset != INVALID_OFFSET);
 
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -290,11 +291,6 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 	
 	llvm::Value* sourcePtr = &*function->arg_begin();
 
-	if (information->Normal.RedOffset == INVALID_OFFSET)
-	{
-		FATAL_ERROR();
-	}
-
 	llvm::Value* value;
 	switch (information->Format)
 	{
@@ -307,7 +303,12 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 	
 	case VK_FORMAT_D24_UNORM_S8_UINT:
 	case VK_FORMAT_X8_D24_UNORM_PACK32:
-		FATAL_ERROR();
+		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getInt32Ty(), 0));
+		value = builder.CreateLoad(sourcePtr);
+		value = builder.CreateAnd(value, builder.getInt32(0x00FFFFFF));
+		value = builder.CreateUIToFP(value, builder.getFloatTy());
+		value = builder.CreateFDiv(value, llvm::ConstantFP::get(builder.getFloatTy(), 0x00FFFFFF));
+		break;
 	
 	case VK_FORMAT_D32_SFLOAT:
 	case VK_FORMAT_D32_SFLOAT_S8_UINT:
@@ -319,6 +320,40 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 		FATAL_ERROR();
 	}
 
+	builder.CreateRet(value);
+	
+	// TODO: Optimise
+	
+	Dump(module.get());
+	
+	const auto compiledModule = jit->CompileModule(std::move(context), std::move(module));
+	return jit->getFunctionPointer(compiledModule, "main");
+}
+
+STL_DLL_EXPORT FunctionPointer CompileGetPixelStencil(SpirvJit* jit, const FormatInformation* information)
+{
+	assert(information->Type == FormatType::DepthStencil);
+	assert(information->DepthStencil.StencilOffset != INVALID_OFFSET);
+
+	auto context = std::make_unique<llvm::LLVMContext>();
+	llvm::IRBuilder<> builder(*context);
+	auto module = std::make_unique<llvm::Module>("", *context);
+	
+	const auto functionType = llvm::FunctionType::get(builder.getInt8Ty(), {
+		                                                  builder.getInt8PtrTy()
+	                                                  }, false);
+	const auto function = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
+	                                             llvm::GlobalVariable::ExternalLinkage,
+	                                             "main",
+	                                             module.get());
+	
+	const auto basicBlock = llvm::BasicBlock::Create(*context, "", function);
+	builder.SetInsertPoint(basicBlock);
+	
+	llvm::Value* sourcePtr = &*function->arg_begin();
+	sourcePtr = builder.CreateConstGEP1_32(sourcePtr, information->DepthStencil.StencilOffset);
+	const auto value = builder.CreateLoad(sourcePtr);
+	
 	builder.CreateRet(value);
 	
 	// TODO: Optimise
@@ -1388,28 +1423,35 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const 
 	const auto depthSource = &*(function->arg_begin() + 1);
 	const auto stencilSource = &*(function->arg_begin() + 2);
 
-	if (information->Normal.RedOffset != INVALID_OFFSET)
+	if (information->DepthStencil.DepthOffset != INVALID_OFFSET)
 	{
-		llvm::Value* value;
-		auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+		llvm::Value* dst = destinationPtr;
+		llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(depthSource, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
+		                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
 		switch (information->Format)
 		{
 		case VK_FORMAT_D16_UNORM:
 		case VK_FORMAT_D16_UNORM_S8_UINT:
-			value = builder.CreateMinNum(builder.CreateMaxNum(depthSource, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-			                             llvm::ConstantFP::get(builder.getFloatTy(), 1));
 			value = EmitConvert<float, uint16_t>(builder, value);
 			dst = builder.CreateBitCast(dst, llvm::PointerType::get(builder.getInt16Ty(), 0));
 			break;
 
 		case VK_FORMAT_D24_UNORM_S8_UINT:
 		case VK_FORMAT_X8_D24_UNORM_PACK32:
-			FATAL_ERROR();
+			value = builder.CreateFMul(value, llvm::ConstantFP::get(builder.getFloatTy(), 0x00FFFFFF));
+			value = builder.CreateUnaryIntrinsic(llvm::Intrinsic::ID::round, value);
+			value = builder.CreateFPToUI(value, builder.getInt32Ty());
+			dst = builder.CreateBitCast(dst, llvm::PointerType::get(builder.getInt32Ty(), 0));
+			if (information->Format == VK_FORMAT_D24_UNORM_S8_UINT)
+			{
+				auto stencil = builder.CreateZExt(stencilSource, builder.getInt32Ty());
+				stencil = builder.CreateShl(stencil, builder.getInt32(24));
+				value = builder.CreateOr(value, stencil);
+			}
+			break;
 
 		case VK_FORMAT_D32_SFLOAT:
 		case VK_FORMAT_D32_SFLOAT_S8_UINT:
-			value = builder.CreateMinNum(builder.CreateMaxNum(depthSource, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-			                             llvm::ConstantFP::get(builder.getFloatTy(), 1));
 			dst = builder.CreateBitCast(dst, llvm::PointerType::get(builder.getFloatTy(), 0));
 			break;
 
@@ -1419,30 +1461,9 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const 
 		builder.CreateStore(value, dst);
 	}
 	
-	if (information->Normal.GreenOffset != INVALID_OFFSET)
+	if (information->DepthStencil.StencilOffset != INVALID_OFFSET && information->Format != VK_FORMAT_D24_UNORM_S8_UINT)
 	{
-		llvm::Value* dst;
-		switch (information->Format)
-		{
-		case VK_FORMAT_S8_UINT:
-			dst = builder.CreateConstGEP1_32(destinationPtr, 0);
-			break;
-			
-		case VK_FORMAT_D16_UNORM_S8_UINT:
-			dst = builder.CreateConstGEP1_32(destinationPtr, 2);
-			break;
-
-		case VK_FORMAT_D24_UNORM_S8_UINT:
-			dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-			break;
-
-		case VK_FORMAT_D32_SFLOAT_S8_UINT:
-			dst = builder.CreateConstGEP1_32(destinationPtr, 4);
-			break;
-
-		default:
-			FATAL_ERROR();
-		}
+		const auto dst = builder.CreateConstGEP1_32(destinationPtr, information->DepthStencil.StencilOffset);
 		builder.CreateStore(stencilSource, dst);
 	}
 

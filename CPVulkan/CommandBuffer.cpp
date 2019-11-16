@@ -122,12 +122,47 @@ public:
 		
 		for (const auto& region : regions)
 		{
-			if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			assert(region.srcSubresource.aspectMask == region.dstSubresource.aspectMask);
+			if (region.srcSubresource.aspectMask == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
 			{
-				FATAL_ERROR();
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				{
+					assert(filter == VK_FILTER_NEAREST);
+					const VkClearDepthStencilValue depth
+					{
+						GetDepthPixel(deviceState, srcImage->getFormat(), srcImage, u, v, w, q, a),
+						GetStencilPixel(deviceState, srcImage->getFormat(), srcImage, u, v, w, q, a),
+					};
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, depth);
+				};
 			}
-		
-			if (region.dstSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
+			else if (region.srcSubresource.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT)
+			{
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				{
+					assert(filter == VK_FILTER_NEAREST);
+					const VkClearDepthStencilValue depth
+					{
+						GetDepthPixel(deviceState, srcImage->getFormat(), srcImage, u, v, w, q, a),
+						information.DepthStencil.StencilOffset == INVALID_OFFSET ? 0 : GetStencilPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer),
+					};
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, depth);
+				};
+			}
+			else if (region.srcSubresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT)
+			{
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				{
+					assert(filter == VK_FILTER_NEAREST);
+					const VkClearDepthStencilValue depth
+					{
+						information.DepthStencil.DepthOffset == INVALID_OFFSET ? 0 : GetDepthPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer),
+						GetStencilPixel(deviceState, srcImage->getFormat(), srcImage, u, v, w, q, a),
+					};
+					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, depth);
+				};
+			}
+			else if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
 			{
 				FATAL_ERROR();
 			}
@@ -206,15 +241,6 @@ public:
 						const auto w = (dstZ + 0.5f - region.dstOffsets[0].z) * (static_cast<float>(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
 						const auto q = region.srcSubresource.mipLevel;
 						const auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
-
-						if (q != 0)
-						{
-							FATAL_ERROR();
-						}
-						if (a != 0)
-						{
-							FATAL_ERROR();
-						}
 
 						blit(dstX, dstY, dstZ, region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer + currentArray, u, v, w, q, a);
 					}

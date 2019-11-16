@@ -11,6 +11,7 @@ class SpirvJit;
 struct ImageFunctions
 {
 	float (*GetPixelDepth)(const void* ptr);
+	uint8_t (*GetPixelStencil)(const void* ptr);
 	void (*GetPixelF32)(const void* ptr, void* values);
 	void (*GetPixelI32)(const void* ptr, void* values);
 	void (*GetPixelU32)(const void* ptr, void* values);
