@@ -53,7 +53,7 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		std::function<void(int, int, int, int, int, float, float, float, float, float)> blit;
+		std::function<void(int, int, int, int, int, float, float, float, int, int)> blit;
 		const auto information = GetFormatInformation(dstImage->getFormat());
 		switch (information.Base)
 		{
@@ -70,11 +70,12 @@ public:
 			}
 			else
 			{
-				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, int q, int a)
 				{
-					auto value = SampleImage<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
-					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
-					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
+					const auto size = srcImage->getImageSize();
+					auto value = SampleImage<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData().subspan(size.LayerSize * a + size.Level[q].Offset, size.Level[q].LevelSize),
+					                                     glm::uvec3{size.Level[q].Width, size.Level[q].Height, size.Level[q].Depth},
+					                                     glm::fvec3{u / size.Level[q].Width, v / size.Level[q].Height, w / size.Level[q].Depth},
 					                                     filter);
 					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, &value.x);
 				};
@@ -88,11 +89,12 @@ public:
 			}
 			else
 			{
-				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, int q, int a)
 				{
-					auto value = SampleImage<glm::uvec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
-					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
-					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
+					const auto size = srcImage->getImageSize();
+					auto value = SampleImage<glm::uvec4>(deviceState, srcImage->getFormat(), srcImage->getData().subspan(size.LayerSize * a + size.Level[q].Offset, size.Level[q].LevelSize),
+					                                     glm::uvec3{size.Level[q].Width, size.Level[q].Height, size.Level[q].Depth},
+					                                     glm::fvec3{u / size.Level[q].Width, v / size.Level[q].Height, w / size.Level[q].Depth},
 					                                     filter);
 					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, &value.x);
 				};
@@ -106,11 +108,12 @@ public:
 			}
 			else
 			{
-				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, int q, int a)
 				{
-					auto value = SampleImage<glm::ivec4>(deviceState, srcImage->getFormat(), srcImage->getData(),
-					                                     glm::uvec3{srcImage->getWidth(), srcImage->getHeight(), srcImage->getDepth()},
-					                                     glm::fvec3{u / srcImage->getWidth(), v / srcImage->getHeight(), w / srcImage->getDepth()},
+					const auto size = srcImage->getImageSize();
+					auto value = SampleImage<glm::ivec4>(deviceState, srcImage->getFormat(), srcImage->getData().subspan(size.LayerSize * a + size.Level[q].Offset, size.Level[q].LevelSize),
+					                                     glm::uvec3{size.Level[q].Width, size.Level[q].Height, size.Level[q].Depth},
+					                                     glm::fvec3{u / size.Level[q].Width, v / size.Level[q].Height, w / size.Level[q].Depth},
 					                                     filter);
 					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, &value.x);
 				};
@@ -125,7 +128,7 @@ public:
 			assert(region.srcSubresource.aspectMask == region.dstSubresource.aspectMask);
 			if (region.srcSubresource.aspectMask == (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
 			{
-				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, int a)
 				{
 					assert(filter == VK_FILTER_NEAREST);
 					const VkClearDepthStencilValue depth
@@ -138,20 +141,20 @@ public:
 			}
 			else if (region.srcSubresource.aspectMask == VK_IMAGE_ASPECT_DEPTH_BIT)
 			{
-				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, int a)
 				{
 					assert(filter == VK_FILTER_NEAREST);
 					const VkClearDepthStencilValue depth
 					{
 						GetDepthPixel(deviceState, srcImage->getFormat(), srcImage, u, v, w, q, a),
-						information.DepthStencil.StencilOffset == INVALID_OFFSET ? 0 : GetStencilPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer),
+						information.DepthStencil.StencilOffset == INVALID_OFFSET ? 0u : GetStencilPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer),
 					};
 					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstLayer, depth);
 				};
 			}
 			else if (region.srcSubresource.aspectMask == VK_IMAGE_ASPECT_STENCIL_BIT)
 			{
-				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, float a)
+				blit = [&](int dstX, int dstY, int dstZ, int dstLevel, int dstLayer, float u, float v, float w, float q, int a)
 				{
 					assert(filter == VK_FILTER_NEAREST);
 					const VkClearDepthStencilValue depth
@@ -163,36 +166,6 @@ public:
 				};
 			}
 			else if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
-			{
-				FATAL_ERROR();
-			}
-		
-			if (region.srcSubresource.mipLevel != 0)
-			{
-				FATAL_ERROR();
-			}
-		
-			if (region.dstSubresource.mipLevel != 0)
-			{
-				FATAL_ERROR();
-			}
-		
-			if (region.srcSubresource.baseArrayLayer != 0)
-			{
-				FATAL_ERROR();
-			}
-		
-			if (region.dstSubresource.baseArrayLayer != 0)
-			{
-				FATAL_ERROR();
-			}
-		
-			if (region.srcSubresource.layerCount != 1)
-			{
-				FATAL_ERROR();
-			}
-		
-			if (region.dstSubresource.layerCount != 1)
 			{
 				FATAL_ERROR();
 			}
@@ -224,25 +197,27 @@ public:
 				negativeDepth = true;
 				dstDepth = -dstDepth;
 			}
-		
-			constexpr auto currentArray = 0;
-			for (auto z = 0; z < dstDepth; z++)
-			{
-				for (auto y = 0; y < dstHeight; y++)
-				{
-					for (auto x = 0; x < dstWidth; x++)
-					{
-						const auto dstX = negativeWidth ? x + region.dstOffsets[1].x : x + region.dstOffsets[0].x;
-						const auto dstY = negativeHeight ? y + region.dstOffsets[1].y : y + region.dstOffsets[0].y;
-						const auto dstZ = negativeDepth ? z + region.dstOffsets[1].z : z + region.dstOffsets[0].z;
-						
-						const auto u = (dstX + 0.5f - region.dstOffsets[0].x) * (static_cast<float>(region.srcOffsets[1].x - region.srcOffsets[0].x) / (region.dstOffsets[1].x - region.dstOffsets[0].x)) + region.srcOffsets[0].x;
-						const auto v = (dstY + 0.5f - region.dstOffsets[0].y) * (static_cast<float>(region.srcOffsets[1].y - region.srcOffsets[0].y) / (region.dstOffsets[1].y - region.dstOffsets[0].y)) + region.srcOffsets[0].y;
-						const auto w = (dstZ + 0.5f - region.dstOffsets[0].z) * (static_cast<float>(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
-						const auto q = region.srcSubresource.mipLevel;
-						const auto a = currentArray - region.dstSubresource.baseArrayLayer + region.srcSubresource.baseArrayLayer;
 
-						blit(dstX, dstY, dstZ, region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer + currentArray, u, v, w, q, a);
+			for (auto layer = 0u; layer < region.srcSubresource.layerCount; layer++)
+			{
+				for (auto z = 0; z < dstDepth; z++)
+				{
+					for (auto y = 0; y < dstHeight; y++)
+					{
+						for (auto x = 0; x < dstWidth; x++)
+						{
+							const auto dstX = negativeWidth ? x + region.dstOffsets[1].x : x + region.dstOffsets[0].x;
+							const auto dstY = negativeHeight ? y + region.dstOffsets[1].y : y + region.dstOffsets[0].y;
+							const auto dstZ = negativeDepth ? z + region.dstOffsets[1].z : z + region.dstOffsets[0].z;
+
+							const auto u = (dstX + 0.5f - region.dstOffsets[0].x) * (static_cast<float>(region.srcOffsets[1].x - region.srcOffsets[0].x) / (region.dstOffsets[1].x - region.dstOffsets[0].x)) + region.srcOffsets[0].x;
+							const auto v = (dstY + 0.5f - region.dstOffsets[0].y) * (static_cast<float>(region.srcOffsets[1].y - region.srcOffsets[0].y) / (region.dstOffsets[1].y - region.dstOffsets[0].y)) + region.srcOffsets[0].y;
+							const auto w = (dstZ + 0.5f - region.dstOffsets[0].z) * (static_cast<float>(region.srcOffsets[1].z - region.srcOffsets[0].z) / (region.dstOffsets[1].z - region.dstOffsets[0].z)) + region.srcOffsets[0].z;
+							const auto q = region.srcSubresource.mipLevel;
+							const auto a = region.srcSubresource.baseArrayLayer + layer;
+
+							blit(dstX, dstY, dstZ, region.dstSubresource.mipLevel, region.dstSubresource.baseArrayLayer + layer, u, v, w, q, a);
+						}
 					}
 				}
 			}

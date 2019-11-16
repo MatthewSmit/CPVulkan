@@ -364,127 +364,6 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelStencil(SpirvJit* jit, const Forma
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixel(SpirvJit* jit, const FormatInformation* information)
-{
-	auto context = std::make_unique<llvm::LLVMContext>();
-	llvm::IRBuilder<> builder(*context);
-	auto module = std::make_unique<llvm::Module>("", *context);
-
-	llvm::Type* resultType;
-	switch (information->ElementSize)
-	{
-	case 1:
-		resultType = builder.getInt8Ty();
-		break;
-
-	case 2:
-		resultType = builder.getInt16Ty();
-		break;
-
-	case 4:
-		resultType = builder.getInt32Ty();
-		break;
-
-	case 8:
-		resultType = builder.getInt64Ty();
-		break;
-
-	default:
-		FATAL_ERROR();
-	}
-	
-	const auto functionType = llvm::FunctionType::get(builder.getVoidTy(), {
-		                                                  builder.getInt8PtrTy(),
-		                                                  llvm::PointerType::get(resultType, 0),
-	                                                  }, false);
-	const auto function = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
-	                                             llvm::GlobalVariable::ExternalLinkage,
-	                                             "main",
-	                                             module.get());
-	
-	const auto basicBlock = llvm::BasicBlock::Create(*context, "", function);
-	builder.SetInsertPoint(basicBlock);
-	
-	llvm::Value* sourcePtr = &*function->arg_begin();
-	llvm::Value* destinationPtr = &*(function->arg_begin() + 1);
-
-	switch (information->Type)
-	{
-	case FormatType::Normal:
-		{
-			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(resultType, 0));
-
-			if (information->Normal.RedOffset != INVALID_OFFSET)
-			{
-				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.RedOffset / information->ElementSize);
-				value = builder.CreateLoad(value);
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
-				builder.CreateStore(value, dst);
-			}
-			else
-			{
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
-				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
-			}
-
-			if (information->Normal.GreenOffset != INVALID_OFFSET)
-			{
-				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.GreenOffset / information->ElementSize);
-				value = builder.CreateLoad(value);
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
-				builder.CreateStore(value, dst);
-			}
-			else
-			{
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
-				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
-			}
-
-			if (information->Normal.BlueOffset != INVALID_OFFSET)
-			{
-				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.BlueOffset / information->ElementSize);
-				value = builder.CreateLoad(value);
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
-				builder.CreateStore(value, dst);
-			}
-			else
-			{
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
-				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
-			}
-
-			if (information->Normal.AlphaOffset != INVALID_OFFSET)
-			{
-				auto value = builder.CreateConstGEP1_32(sourcePtr, information->Normal.AlphaOffset / information->ElementSize);
-				value = builder.CreateLoad(value);
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-				builder.CreateStore(value, dst);
-			}
-			else
-			{
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-				builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
-			}
-			break;
-		}
-		
-	case FormatType::Packed: FATAL_ERROR();
-	case FormatType::Compressed: FATAL_ERROR();
-	case FormatType::Planar: FATAL_ERROR();
-	case FormatType::PlanarSamplable: FATAL_ERROR();
-	default: assert(false);
-	}
-
-	builder.CreateRetVoid();
-	
-	// TODO: Optimise
-	
-	Dump(module.get());
-	
-	const auto compiledModule = jit->CompileModule(std::move(context), std::move(module));
-	return jit->getFunctionPointer(compiledModule, "main");
-}
-
 STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
@@ -1267,7 +1146,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 			}
 			else
 			{
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 2);
 				builder.CreateStore(builder.getInt32(0), dst);
 			}
 
@@ -1281,7 +1160,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 			}
 			else
 			{
-				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
 				builder.CreateStore(builder.getInt32(0), dst);
 			}
 			break;

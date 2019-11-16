@@ -150,14 +150,7 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	if (!functions.GetPixelI32)
 	{
-		if (information.Base == BaseType::UInt && information.ElementSize == 4)
-		{
-			functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
-		}
+		functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
@@ -174,14 +167,7 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	if (!functions.GetPixelI32)
 	{
-		if (information.Base == BaseType::UInt && information.ElementSize == 4)
-		{
-			functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
-		}
+		functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
@@ -198,14 +184,7 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	if (!functions.GetPixelI32)
 	{
-		if (information.Base == BaseType::UInt && information.ElementSize == 4)
-		{
-			functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
-		}
+		functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
@@ -222,14 +201,7 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	if (!functions.GetPixelU32)
 	{
-		if (information.Base == BaseType::UInt && information.ElementSize == 4)
-		{
-			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
-		}
+		functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
@@ -246,14 +218,7 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	if (!functions.GetPixelU32)
 	{
-		if (information.Base == BaseType::UInt && information.ElementSize == 4)
-		{
-			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
-		}
+		functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
@@ -270,14 +235,7 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	if (!functions.GetPixelU32)
 	{
-		if (information.Base == BaseType::UInt && information.ElementSize == 4)
-		{
-			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixel(deviceState->jit, &information));
-		}
-		else
-		{
-			functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
-		}
+		functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
@@ -330,6 +288,8 @@ ResultType GetPixelLinear(DeviceState* deviceState, VkFormat format, gsl::span<u
 		
 		return lerp(ijk0, ijk1, interpolation.z);
 	}
+
+	FATAL_ERROR();
 }
 
 template<typename ResultType, typename RangeType, typename CoordinateType>
