@@ -139,7 +139,8 @@ public:
 					}
 					else
 					{
-						if (srcFormat.Type == FormatType::Normal && dstFormat.Type == FormatType::Normal)
+						if ((srcFormat.Type == FormatType::Normal || srcFormat.Type == FormatType::Packed) && 
+							(dstFormat.Type == FormatType::Normal || dstFormat.Type == FormatType::Packed))
 						{
 							const auto stride = pixelSize * region.extent.width;
 							for (auto z = 0u; z < depth; z++)
