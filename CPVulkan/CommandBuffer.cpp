@@ -1,6 +1,7 @@
 #include "CommandBuffer.h"
 #include "CommandBuffer.Internal.h"
 
+#include "Buffer.h"
 #include "DebugHelper.h"
 #include "DeviceState.h"
 #include "Event.h"
@@ -232,6 +233,96 @@ private:
 	Image* dstImage;
 	std::vector<VkImageBlit> regions;
 	VkFilter filter;
+};
+
+class UpdateBufferCommand : public Command
+{
+public:
+	UpdateBufferCommand(Buffer* dstBuffer, uint64_t dstOffset, uint64_t dataSize, const void* pData) :
+		dstBuffer{dstBuffer},
+		dstOffset{dstOffset},
+		dataSize{dataSize}
+	{
+		assert(dataSize <= sizeof(data));
+		memcpy(data, pData, dataSize);
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "UpdateBuffer: filling" <<
+			" buffer " << dstBuffer <<
+			" from " << dstOffset <<
+			std::endl;
+	}
+#endif
+
+	void Process(DeviceState*) override
+	{
+		const auto bufferData = reinterpret_cast<uint32_t*>(dstBuffer->getDataPtr(dstOffset, dataSize));
+		memcpy(bufferData, data, dataSize);
+	}
+
+private:
+	Buffer* dstBuffer;
+	uint64_t dstOffset;
+	uint64_t dataSize;
+	uint8_t data[65536];
+};
+
+class FillBufferCommand : public Command
+{
+public:
+	FillBufferCommand(Buffer* dstBuffer, uint64_t dstOffset, uint64_t size, uint32_t data) :
+		dstBuffer{dstBuffer},
+		dstOffset{dstOffset},
+		size{size},
+		data{data}
+	{
+		if (this->size == VK_WHOLE_SIZE)
+		{
+			this->size = dstBuffer->getSize() - dstOffset;
+		}
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "FillBuffer: filling" <<
+			" buffer " << dstBuffer <<
+			" from " << dstOffset <<
+			" of size " << size <<
+			" with " << data <<
+			std::endl;
+	}
+#endif
+
+	void Process(DeviceState*) override
+	{
+		const auto bufferData = dstBuffer->getDataPtr(dstOffset, size);
+		const auto bufferData32 = reinterpret_cast<uint32_t*>(bufferData);
+
+		const auto words = size / 4;
+		for (auto i = 0u; i < words; i++)
+		{
+			bufferData32[i] = data;
+		}
+
+		if (size % 4)
+		{
+			const auto dataByte = reinterpret_cast<uint8_t*>(&data);
+			for (auto i = 0u; i < size % 4; i++)
+			{
+				bufferData[size / 4 + i] = dataByte[i];
+			}
+		}
+	}
+
+private:
+	Buffer* dstBuffer;
+	uint64_t dstOffset;
+	uint64_t size;
+	uint32_t data;
 };
 
 class ResolveImageCommand final : public Command
@@ -703,6 +794,18 @@ void CommandBuffer::BlitImage(VkImage srcImage, VkImageLayout, VkImage dstImage,
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<BlitImageCommand>(UnwrapVulkan<Image>(srcImage), UnwrapVulkan<Image>(dstImage), ArrayToVector(regionCount, pRegions), filter));
+}
+
+void CommandBuffer::UpdateBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize dataSize, const void* pData)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<UpdateBufferCommand>(UnwrapVulkan<Buffer>(dstBuffer), dstOffset, dataSize, pData));
+}
+
+void CommandBuffer::FillBuffer(VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize size, uint32_t data)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<FillBufferCommand>(UnwrapVulkan<Buffer>(dstBuffer), dstOffset, size, data));
 }
 
 void CommandBuffer::ResolveImage(VkImage srcImage, VkImageLayout, VkImage dstImage, VkImageLayout, uint32_t regionCount, const VkImageResolve* pRegions)
