@@ -118,9 +118,9 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 	if (pCreateInfo->pApplicationInfo)
 	{
 		instance->version = pCreateInfo->pApplicationInfo->apiVersion;
-		if (instance->version > LATEST_VERSION)
+		if (instance->version > VULKAN_VERSION)
 		{
-			instance->version = LATEST_VERSION;
+			instance->version = VULKAN_VERSION;
 		}
 		else if (instance->version == 0)
 		{

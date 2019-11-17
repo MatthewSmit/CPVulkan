@@ -500,8 +500,8 @@ public:
 				auto imageView = framebuffer->getAttachments()[attachmentReference.attachment];
 				if (attachment.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
 				{
-					ClearImage(deviceState, imageView->getImage(), attachment.format, 0, 
-					           imageView->getImage()->getMipLevels(), 0, imageView->getImage()->getArrayLayers(),
+					ClearImage(deviceState, imageView->getImage(), attachment.format, imageView->getSubresourceRange().baseMipLevel,
+					           imageView->getSubresourceRange().levelCount, imageView->getSubresourceRange().baseArrayLayer, imageView->getSubresourceRange().layerCount,
 					           clearValues[attachmentReference.attachment].color);
 				}
 			}
@@ -518,7 +518,7 @@ public:
 			{
 				aspects = VK_IMAGE_ASPECT_STENCIL_BIT;
 			}
-			else if (formatInformation.Normal.GreenOffset == INVALID_OFFSET)
+			else if (formatInformation.DepthStencil.StencilOffset == INVALID_OFFSET)
 			{
 				aspects = VK_IMAGE_ASPECT_DEPTH_BIT;
 			}
@@ -528,7 +528,9 @@ public:
 			}
 			if (attachment.loadOp == VK_ATTACHMENT_LOAD_OP_CLEAR)
 			{
-				ClearImage(deviceState, imageView->getImage(), attachment.format, 0, 1, 0, 1, aspects, clearValues[attachmentReference.attachment].depthStencil);
+				ClearImage(deviceState, imageView->getImage(), attachment.format, imageView->getSubresourceRange().baseMipLevel,
+				           imageView->getSubresourceRange().levelCount, imageView->getSubresourceRange().baseArrayLayer, imageView->getSubresourceRange().layerCount,
+				           aspects, clearValues[attachmentReference.attachment].depthStencil);
 			}
 		}
 	}

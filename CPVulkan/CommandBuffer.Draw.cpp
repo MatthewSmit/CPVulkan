@@ -983,9 +983,16 @@ public:
 			{
 				levels = image->getMipLevels() - range.baseMipLevel;
 			}
+
+			auto layers = range.layerCount;
+			if (layers == VK_REMAINING_ARRAY_LAYERS)
+			{
+				layers = image->getArrayLayers() - range.baseArrayLayer;
+			}
+			
 			if (range.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				ClearImage(deviceState, image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, colour);
+				ClearImage(deviceState, image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, layers, colour);
 			}
 			else
 			{
@@ -1031,12 +1038,18 @@ public:
 				levels = image->getMipLevels() - range.baseMipLevel;
 			}
 
+			auto layers = range.layerCount;
+			if (layers == VK_REMAINING_ARRAY_LAYERS)
+			{
+				layers = image->getArrayLayers() - range.baseArrayLayer;
+			}
+
 			if ((range.aspectMask & ~(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0)
 			{
 				FATAL_ERROR();
 			}
 
-			ClearImage(deviceState, image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, range.layerCount, range.aspectMask, colour);
+			ClearImage(deviceState, image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, layers, range.aspectMask, colour);
 		}
 	}
 
@@ -1071,44 +1084,54 @@ public:
 		{
 			// TODO:  If any attachment to be cleared in the current subpass is VK_ATTACHMENT_UNUSED, then the clear has no effect on that attachment.
 
-			Image* image;
+			ImageView* imageView;
 			VkFormat format;
 			if (attachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
 			{
 				format = deviceState->currentRenderPass->getAttachments()[attachment.colorAttachment].format;
-				image = deviceState->currentFramebuffer->getAttachments()[attachment.colorAttachment]->getImage();
+				imageView = deviceState->currentFramebuffer->getAttachments()[attachment.colorAttachment];
 			}
 			else
 			{
-				FATAL_ERROR();
+				assert(attachment.aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT));
+				const auto attachmentReference = deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment.attachment;
+				format = deviceState->currentRenderPass->getAttachments()[attachmentReference].format;
+				imageView = deviceState->currentFramebuffer->getAttachments()[attachmentReference];
 			}
 			
 			if (attachment.aspectMask & VK_IMAGE_ASPECT_COLOR_BIT)
 			{
 				for (auto& rect : rects)
 				{
-					if (rect.layerCount != 1)
+					for (auto layer = 0u; layer < rect.layerCount; layer++)
 					{
-						FATAL_ERROR();
-					}
-
-					if (rect.baseArrayLayer != 0)
-					{
-						FATAL_ERROR();
-					}
-
-					for (auto y = rect.rect.offset.y; y < rect.rect.offset.y + rect.rect.extent.height; y++)
-					{
-						for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
+						for (auto y = rect.rect.offset.y; y < rect.rect.offset.y + rect.rect.extent.height; y++)
 						{
-							SetPixel(deviceState, format, image, x, y, 0, 0, 0, attachment.clearValue.color);
+							for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
+							{
+								SetPixel(deviceState, format, imageView->getImage(), x, y, 0, 0, layer + rect.baseArrayLayer + imageView->getSubresourceRange().baseArrayLayer, attachment.clearValue.color);
+							}
 						}
 					}
 				}
 			}
-			else
+			
+			if (attachment.aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT))
 			{
-				FATAL_ERROR();
+				// TODO: use aspectMask
+				for (auto& rect : rects)
+				{
+					for (auto layer = 0u; layer < rect.layerCount; layer++)
+					{
+						for (auto y = rect.rect.offset.y; y < rect.rect.offset.y + rect.rect.extent.height; y++)
+						{
+							for (auto x = rect.rect.offset.x; x < rect.rect.offset.x + rect.rect.extent.width; x++)
+							{
+								SetPixel(deviceState, format, imageView->getImage(), x, y, 0, 0, layer + rect.baseArrayLayer + imageView->getSubresourceRange().baseArrayLayer, attachment.clearValue.depthStencil);
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -1167,6 +1190,7 @@ void ClearImage(DeviceState* deviceState, Image* image, VkFormat format, uint32_
 
 void ClearImage(DeviceState* deviceState, Image* image, VkFormat format, uint32_t baseMipLevel, uint32_t levelCount, uint32_t baseArrayLayer, uint32_t layerCount, VkImageAspectFlags aspects, VkClearDepthStencilValue colour)
 {
+	// TODO: use aspects
 	for (auto layer = 0u; layer < layerCount; layer++)
 	{
 		for (auto level = 0u; level < levelCount; level++)

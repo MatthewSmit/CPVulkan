@@ -88,7 +88,7 @@ static constexpr FormatInformation MakeFormatInformation(VkFormat format, Format
 static constexpr FormatInformation MakeDepthFormatInformation(VkFormat format, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
                                                               uint32_t depthOffset, uint32_t stencilOffset)
 {
-	const auto features = GetFeatures(FormatType::DepthStencil);
+	constexpr auto features = GetFeatures(FormatType::DepthStencil);
 	FormatInformation information
 	{
 		format,

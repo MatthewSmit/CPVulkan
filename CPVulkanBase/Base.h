@@ -6,6 +6,7 @@
 #include "Config.h"
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
+// This is to avoid including Windows.h
 #ifndef DECLARE_HANDLE
 using HANDLE = void*;
 
@@ -61,8 +62,6 @@ typedef XID RROutput;
 
 #include <gsl/gsl>
 
-static constexpr auto LATEST_VERSION = VK_API_VERSION_1_1;
-
 #if !defined(_MSC_VER)
 #define __debugbreak() __asm__("int3")
 
@@ -115,29 +114,53 @@ struct VulkanTypeHelper;
 #define VK_TYPE_HELPER(VulkanType, LocalType, NonDispatchable) template<> struct VulkanTypeHelper<LocalType> { static constexpr auto IsNonDispatchable = NonDispatchable; using Type = VulkanType; }
 
 VK_TYPE_HELPER(VkInstance, Instance, false);
+
 VK_TYPE_HELPER(VkPhysicalDevice, PhysicalDevice, false);
+
 VK_TYPE_HELPER(VkDevice, Device, false);
+
 VK_TYPE_HELPER(VkQueue, Queue, false);
+
 VK_TYPE_HELPER(VkSemaphore, Semaphore, true);
+
 VK_TYPE_HELPER(VkCommandBuffer, CommandBuffer, false);
+
 VK_TYPE_HELPER(VkFence, Fence, true);
+
 VK_TYPE_HELPER(VkDeviceMemory, DeviceMemory, true);
+
 VK_TYPE_HELPER(VkBuffer, Buffer, true);
+
 VK_TYPE_HELPER(VkImage, Image, true);
+
 VK_TYPE_HELPER(VkEvent, Event, true);
+
 VK_TYPE_HELPER(VkQueryPool, QueryPool, true);
+
 VK_TYPE_HELPER(VkBufferView, BufferView, true);
+
 VK_TYPE_HELPER(VkImageView, ImageView, true);
+
 VK_TYPE_HELPER(VkShaderModule, ShaderModule, true);
+
 VK_TYPE_HELPER(VkPipelineCache, PipelineCache, true);
+
 VK_TYPE_HELPER(VkPipelineLayout, PipelineLayout, true);
+
 VK_TYPE_HELPER(VkRenderPass, RenderPass, true);
+
 VK_TYPE_HELPER(VkPipeline, Pipeline, true);
+
 VK_TYPE_HELPER(VkDescriptorSetLayout, DescriptorSetLayout, true);
+
 VK_TYPE_HELPER(VkSampler, Sampler, true);
+
 VK_TYPE_HELPER(VkDescriptorPool, DescriptorPool, true);
+
 VK_TYPE_HELPER(VkDescriptorSet, DescriptorSet, true);
+
 VK_TYPE_HELPER(VkFramebuffer, Framebuffer, true);
+
 VK_TYPE_HELPER(VkCommandPool, CommandPool, true);
 
 #if defined(VK_VERSION_1_1)
@@ -145,6 +168,7 @@ class DescriptorUpdateTemplate;
 class SamplerYcbcrConversion;
 
 VK_TYPE_HELPER(VkSamplerYcbcrConversion, SamplerYcbcrConversion, true);
+
 VK_TYPE_HELPER(VkDescriptorUpdateTemplate, DescriptorUpdateTemplate, true);
 #endif
 
@@ -187,6 +211,7 @@ class IndirectCommandsLayout;
 class ObjectTable;
 
 VK_TYPE_HELPER(VkObjectTableNVX, ObjectTable, true);
+
 VK_TYPE_HELPER(VkIndirectCommandsLayoutNVX, IndirectCommandsLayout, true);
 #endif
 
@@ -314,6 +339,7 @@ inline void WrapVulkan<false>(void* local, uint64_t* vulkan) noexcept
 template<>
 inline void* UnwrapVulkan<false>(uint64_t vulkanValue) noexcept
 {
+	assert(vulkanValue);
 	return reinterpret_cast<void*>(vulkanValue + 16);
 }
 
@@ -328,6 +354,7 @@ inline void WrapVulkan<true>(void* local, uint64_t* vulkan) noexcept
 template<>
 inline void* UnwrapVulkan<true>(uint64_t vulkanValue) noexcept
 {
+	assert(vulkanValue);
 	return reinterpret_cast<void*>(vulkanValue);
 }
 

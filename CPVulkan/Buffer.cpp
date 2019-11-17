@@ -5,16 +5,16 @@
 
 #include <cassert>
 
-VkResult Buffer::BindMemory(VkDeviceMemory memory, uint64_t memoryOffset)
+VkResult Buffer::BindMemory(DeviceMemory* memory, uint64_t memoryOffset)
 {
-	const auto memorySpan = UnwrapVulkan<DeviceMemory>(memory)->getSpan();
+	const auto memorySpan = memory->getSpan();
 	data = memorySpan.subspan(memoryOffset, size);
 	return VK_SUCCESS;
 }
 
 VkResult Device::BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDeviceSize memoryOffset)
 {
-	return UnwrapVulkan<Buffer>(buffer)->BindMemory(memory, memoryOffset);
+	return UnwrapVulkan<Buffer>(buffer)->BindMemory(UnwrapVulkan<DeviceMemory>(memory), memoryOffset);
 }
 
 void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const noexcept
@@ -76,10 +76,10 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO);
 
-	auto next = pCreateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_CREATE_INFO_EXT:
@@ -94,7 +94,7 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 		default:
 			break;
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT)
@@ -155,7 +155,7 @@ VkResult Device::BindBufferMemory2(uint32_t bindInfoCount, const VkBindBufferMem
 			next = next->pNext;
 		}
 
-		const auto result = UnwrapVulkan<Buffer>(pBindInfos[i].buffer)->BindMemory(pBindInfos[i].memory, pBindInfos[i].memoryOffset);
+		const auto result = UnwrapVulkan<Buffer>(pBindInfos[i].buffer)->BindMemory(UnwrapVulkan<DeviceMemory>(pBindInfos[i].memory), pBindInfos[i].memoryOffset);
 		if (result != VK_SUCCESS)
 		{
 			return result;
