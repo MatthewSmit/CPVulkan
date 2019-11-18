@@ -13,7 +13,7 @@
 #include <fstream>
 #include <iostream>
 
-Device::Device() noexcept :
+Device::Device() :
 	state{std::make_unique<DeviceState>()}
 {
 #if CV_DEBUG_LEVEL > 0
@@ -81,10 +81,10 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 {
 	assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO);
 	
-	auto next = pAllocateInfo->pNext;
+	auto next = reinterpret_cast<const VkBaseInStructure*>(pAllocateInfo->pNext);
 	while (next)
 	{
-		const auto type = *static_cast<const VkStructureType*>(next);
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV:
@@ -122,7 +122,7 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 
 		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
 			{
-				const auto allocateInfo = static_cast<const VkMemoryDedicatedAllocateInfo*>(next);
+				const auto allocateInfo = reinterpret_cast<const VkMemoryDedicatedAllocateInfo*>(next);
 				(void)allocateInfo;
 				break;
 			}
@@ -130,7 +130,7 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 		case VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (pAllocateInfo->memoryTypeIndex != 0)

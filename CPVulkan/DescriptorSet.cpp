@@ -1,6 +1,7 @@
 #include "DescriptorSet.h"
 
 #include "Buffer.h"
+#include "DescriptorPool.h"
 #include "DescriptorSetLayout.h"
 #include "Device.h"
 
@@ -111,9 +112,9 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 	}
 }
 
-VkResult DescriptorSet::Create(VkDescriptorPool descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet)
+VkResult DescriptorSet::Create(DescriptorPool* descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet)
 {
-	auto descriptorSet = Allocate<DescriptorSet>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	auto descriptorSet = descriptorPool->createDescriptorPool();
 	if (!descriptorSet)
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -147,10 +148,10 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 {
 	assert(pAllocateInfo->sType == VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO);
 
-	auto next = pAllocateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pAllocateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT:
@@ -159,12 +160,12 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 		default:
 			break;
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	for (auto i = 0u; i < pAllocateInfo->descriptorSetCount; i++)
 	{
-		const auto result = DescriptorSet::Create(pAllocateInfo->descriptorPool, pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
+		const auto result = DescriptorSet::Create(UnwrapVulkan<DescriptorPool>(pAllocateInfo->descriptorPool), pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
 		if (result != VK_SUCCESS)
 		{
 			FATAL_ERROR();
@@ -180,7 +181,7 @@ VkResult Device::FreeDescriptorSets(VkDescriptorPool descriptorPool, uint32_t de
 	{
 		if (pDescriptorSets[i])
 		{
-			Free(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]), nullptr);
+			UnwrapVulkan<DescriptorPool>(descriptorPool)->freeDescriptorPool(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]));
 		}
 	}
 

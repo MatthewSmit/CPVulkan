@@ -17,7 +17,7 @@ VkResult Device::BindBufferMemory(VkBuffer buffer, VkDeviceMemory memory, VkDevi
 	return UnwrapVulkan<Buffer>(buffer)->BindMemory(UnwrapVulkan<DeviceMemory>(memory), memoryOffset);
 }
 
-void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const noexcept
+void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) const
 {
 	pMemoryRequirements->size = size;
 	if (usage & (VK_BUFFER_USAGE_UNIFORM_TEXEL_BUFFER_BIT | 
@@ -34,7 +34,7 @@ void Buffer::GetMemoryRequirements(VkMemoryRequirements* pMemoryRequirements) co
 	pMemoryRequirements->memoryTypeBits = 1;
 }
 
-void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) const noexcept
+void Buffer::GetMemoryRequirements(VkMemoryRequirements2* pMemoryRequirements) const
 {
 	auto next = static_cast<VkBaseOutStructure*>(pMemoryRequirements->pNext);
 	while (next)

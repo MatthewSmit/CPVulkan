@@ -11,7 +11,7 @@ namespace Platform
 
 	void* CreateMutex(bool initialState, bool manualReset);
 	void* CreateSemaphoreExport(bool initialState, bool manualReset, const void* exportSemaphore);
-	void CloseMutex(void* mutex) noexcept;
+	void CloseMutex(void* mutex);
 	void SignalMutex(void* mutex);
 	void ResetMutex(void* mutex);
 	bool Wait(void* mutex, uint64_t timeout);
@@ -19,5 +19,5 @@ namespace Platform
 	bool GetMutexStatus(void* mutex);
 
 	void* AlignedMalloc(size_t size, size_t alignment);
-	void AlignedFree(void* ptr) noexcept;
+	void AlignedFree(void* ptr);
 }

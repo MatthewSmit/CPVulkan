@@ -28,7 +28,7 @@ public:
 
 	static VkResult Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain);
 
-	[[nodiscard]] Image* getImage(uint32_t index) const noexcept { return gsl::at(images, index); }
+	[[nodiscard]] Image* getImage(uint32_t index) const { return gsl::at(images, index); }
 
 private:
 	DeviceMemory* data{};

@@ -48,7 +48,7 @@ public:
 	
 	void Update(const VkWriteDescriptorSet& descriptorWrite);
 
-	static VkResult Create(VkDescriptorPool descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet);
+	static VkResult Create(DescriptorPool* descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet);
 
 	[[nodiscard]] const std::vector<std::tuple<VkDescriptorType, uint32_t, Bindings>>& getBindings() const { return bindings; }
 

@@ -104,12 +104,17 @@ static TessellationState Parse(const VkPipelineTessellationStateCreateInfo* pTes
 
 static ViewportState Parse(const VkPipelineViewportStateCreateInfo* pViewportState)
 {
+	if (!pViewportState)
+	{
+		return ViewportState{};
+	}
+	
 	assert(pViewportState->sType == VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO);
 
-	auto next = pViewportState->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pViewportState->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_COARSE_SAMPLE_ORDER_STATE_CREATE_INFO_NV:
@@ -127,7 +132,7 @@ static ViewportState Parse(const VkPipelineViewportStateCreateInfo* pViewportSta
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_W_SCALING_STATE_CREATE_INFO_NV:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (pViewportState->flags)
@@ -192,6 +197,11 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 
 static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMultisampleState)
 {
+	if (!pMultisampleState)
+	{
+		return MultisampleState{};
+	}
+	
 	assert(pMultisampleState->sType == VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO);
 
 	auto next = pMultisampleState->pNext;
@@ -246,6 +256,11 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 
 static DepthStencilState Parse(const VkPipelineDepthStencilStateCreateInfo* pDepthStencilState)
 {
+	if (!pDepthStencilState)
+	{
+		return DepthStencilState{};
+	}
+
 	assert(pDepthStencilState->sType == VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO);
 
 	if (pDepthStencilState->flags)

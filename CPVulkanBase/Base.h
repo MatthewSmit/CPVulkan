@@ -240,7 +240,7 @@ VK_TYPE_HELPER(VkPerformanceConfigurationINTEL, PerformanceConfiguration, true);
 template<typename T, class... Types>
 T* Allocate(const VkAllocationCallbacks* pAllocator, VkSystemAllocationScope allocationScope, Types&& ... args)
 {
-	const auto size = VulkanTypeHelper<T>::IsNonDispatchable ? sizeof(T) : sizeof(T) + 16;
+	constexpr auto size = VulkanTypeHelper<T>::IsNonDispatchable ? sizeof(T) : sizeof(T) + 16;
 	const auto data = pAllocator
 		                  ? static_cast<uint8_t*>(pAllocator->pfnAllocation(pAllocator->pUserData, size, 16, allocationScope))
 		                  : static_cast<uint8_t*>(malloc(size));

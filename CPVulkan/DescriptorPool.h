@@ -7,7 +7,7 @@ public:
 	DescriptorPool() = default;
 	DescriptorPool(const DescriptorPool&) = delete;
 	DescriptorPool(DescriptorPool&&) = delete;
-	~DescriptorPool() = default;
+	~DescriptorPool();
 
 	DescriptorPool& operator=(const DescriptorPool&) = delete;
 	DescriptorPool&& operator=(const DescriptorPool&&) = delete;
@@ -16,7 +16,15 @@ public:
 	{
 	}
 	
-	VkResult Reset(VkFlags flags);
+	VkResult Reset();
+	
+	DescriptorSet* createDescriptorPool();
+	void freeDescriptorPool(DescriptorSet* descriptorSet);
 
 	static VkResult Create(const VkDescriptorPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorPool* pDescriptorPool);
+
+private:
+	std::vector<DescriptorSet*> usedSets{};
+	
+	const VkAllocationCallbacks* allocator;
 };

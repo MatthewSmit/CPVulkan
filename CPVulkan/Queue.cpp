@@ -15,10 +15,10 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 		const auto& submit = pSubmits[i];
 		assert(submit.sType == VK_STRUCTURE_TYPE_SUBMIT_INFO);
 
-		auto next = submit.pNext;
+		auto next = static_cast<const VkBaseInStructure*>(submit.pNext);
 		while (next)
 		{
-			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+			const auto type = next->sType;
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_D3D12_FENCE_SUBMIT_INFO_KHR:
@@ -36,7 +36,7 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 			case VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV:
 				FATAL_ERROR();
 			}
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			next = next->pNext;
 		}
 
 		for (auto j = 0u; j < submit.waitSemaphoreCount; j++)
@@ -90,10 +90,10 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 {
 	assert(pPresentInfo->sType == VK_STRUCTURE_TYPE_PRESENT_INFO_KHR);
 
-	auto next = pPresentInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pPresentInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_INFO_KHR:
@@ -111,7 +111,7 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 		case VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	for (auto j = 0u; j < pPresentInfo->waitSemaphoreCount; j++)
@@ -149,22 +149,22 @@ Queue* Queue::Create(const VkDeviceQueueCreateInfo* vkDeviceQueueCreateInfo, con
 {
 	assert(vkDeviceQueueCreateInfo->sType == VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO);
 
-	auto next = vkDeviceQueueCreateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(vkDeviceQueueCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO_EXT:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	const auto queue = Allocate<Queue>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 	if (!queue)
 	{
-	    return nullptr;
+		return nullptr;
 	}
 	queue->flags = vkDeviceQueueCreateInfo->flags;
 

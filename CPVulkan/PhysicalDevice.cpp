@@ -787,15 +787,15 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 	GetProperties(&pProperties->properties);
 
-	auto next = pProperties->pNext;
+	auto next = static_cast<VkBaseOutStructure*>(pProperties->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BLEND_OPERATION_ADVANCED_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceBlendOperationAdvancedPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceBlendOperationAdvancedPropertiesEXT*>(next);
 				properties->advancedBlendMaxColorAttachments = MAX_COLOUR_ATTACHMENTS;
 				properties->advancedBlendIndependentBlend = true;
 				properties->advancedBlendNonPremultipliedSrcColor = true;
@@ -807,21 +807,21 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceConservativeRasterizationPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceConservativeRasterizationPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COOPERATIVE_MATRIX_PROPERTIES_NV:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceCooperativeMatrixPropertiesNV*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceCooperativeMatrixPropertiesNV*>(next);
 				properties->cooperativeMatrixSupportedStages = VK_SHADER_STAGE_ALL;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_STENCIL_RESOLVE_PROPERTIES_KHR:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceDepthStencilResolvePropertiesKHR*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceDepthStencilResolvePropertiesKHR*>(next);
 				properties->supportedDepthResolveModes = VK_RESOLVE_MODE_NONE_KHR | VK_RESOLVE_MODE_SAMPLE_ZERO_BIT_KHR | VK_RESOLVE_MODE_AVERAGE_BIT_KHR | VK_RESOLVE_MODE_MIN_BIT_KHR | VK_RESOLVE_MODE_MAX_BIT_KHR;
 				properties->supportedStencilResolveModes = VK_RESOLVE_MODE_NONE_KHR | VK_RESOLVE_MODE_SAMPLE_ZERO_BIT_KHR | VK_RESOLVE_MODE_AVERAGE_BIT_KHR | VK_RESOLVE_MODE_MIN_BIT_KHR | VK_RESOLVE_MODE_MAX_BIT_KHR;
 				properties->independentResolveNone = true;
@@ -831,21 +831,21 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceDescriptorIndexingPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceDescriptorIndexingPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DISCARD_RECTANGLE_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceDiscardRectanglePropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceDiscardRectanglePropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES_KHR:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceDriverPropertiesKHR*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceDriverPropertiesKHR*>(next);
 				properties->driverID = VK_DRIVER_ID_GOOGLE_SWIFTSHADER_KHR; // TODO
 				strcpy_s(properties->driverName, "CPVulkan");
 				strcpy_s(properties->driverInfo, "Some CPU Driver");
@@ -858,14 +858,14 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceExternalMemoryHostPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceExternalMemoryHostPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FLOAT_CONTROLS_PROPERTIES_KHR:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceFloatControlsPropertiesKHR*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceFloatControlsPropertiesKHR*>(next);
 				properties->denormBehaviorIndependence = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL_KHR;
 				properties->roundingModeIndependence = VK_SHADER_FLOAT_CONTROLS_INDEPENDENCE_ALL_KHR;
 				properties->shaderSignedZeroInfNanPreserveFloat16 = true;
@@ -888,14 +888,14 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceFragmentDensityMapPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceFragmentDensityMapPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceIDProperties*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceIDProperties*>(next);
 				memset(properties->deviceUUID, 0, VK_UUID_SIZE);
 				memset(properties->driverUUID, 0, VK_UUID_SIZE);
 				memset(properties->deviceLUID, 0, VK_LUID_SIZE);
@@ -906,43 +906,47 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_INLINE_UNIFORM_BLOCK_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceInlineUniformBlockPropertiesEXT*>(next);
-				FATAL_ERROR();
+				const auto properties = reinterpret_cast<VkPhysicalDeviceInlineUniformBlockPropertiesEXT*>(next);
+				properties->maxInlineUniformBlockSize = 256;
+				properties->maxPerStageDescriptorInlineUniformBlocks = 4;
+				properties->maxPerStageDescriptorUpdateAfterBindInlineUniformBlocks = 4;
+				properties->maxDescriptorSetInlineUniformBlocks = 4;
+				properties->maxDescriptorSetUpdateAfterBindInlineUniformBlocks = 4;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceLineRasterizationPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceLineRasterizationPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_3_PROPERTIES:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceMaintenance3Properties*>(next);
-				properties->maxPerSetDescriptors = 128;
+				const auto properties = reinterpret_cast<VkPhysicalDeviceMaintenance3Properties*>(next);
+				properties->maxPerSetDescriptors = 1024;
 				properties->maxMemoryAllocationSize = 0x100000000;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceMeshShaderPropertiesNV*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceMeshShaderPropertiesNV*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PER_VIEW_ATTRIBUTES_PROPERTIES_NVX:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PROPERTIES:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceMultiviewProperties*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceMultiviewProperties*>(next);
 				properties->maxMultiviewViewCount = 1;
 				properties->maxMultiviewInstanceIndex = 1;
 				break;
@@ -950,49 +954,49 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDevicePCIBusInfoPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDevicePCIBusInfoPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_POINT_CLIPPING_PROPERTIES:
 			{
-				const auto properties = static_cast<VkPhysicalDevicePointClippingProperties*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDevicePointClippingProperties*>(next);
 				properties->pointClippingBehavior = VK_POINT_CLIPPING_BEHAVIOR_ALL_CLIP_PLANES;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROTECTED_MEMORY_PROPERTIES:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceProtectedMemoryProperties*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceProtectedMemoryProperties*>(next);
 				properties->protectedNoFault = true;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PUSH_DESCRIPTOR_PROPERTIES_KHR:
 			{
-				const auto properties = static_cast<VkPhysicalDevicePushDescriptorPropertiesKHR*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDevicePushDescriptorPropertiesKHR*>(next);
 				properties->maxPushDescriptors = 128;
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceRayTracingPropertiesNV*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceRayTracingPropertiesNV*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLE_LOCATIONS_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceSampleLocationsPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceSampleLocationsPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLER_FILTER_MINMAX_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceSamplerFilterMinmaxPropertiesEXT*>(next);
 				properties->filterMinmaxSingleComponentFormats = true;
 				properties->filterMinmaxImageComponentMapping = true;
 				break;
@@ -1000,35 +1004,35 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_2_AMD:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceShaderCoreProperties2AMD*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceShaderCoreProperties2AMD*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceShaderCorePropertiesAMD*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceShaderCorePropertiesAMD*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SM_BUILTINS_PROPERTIES_NV:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceShaderSMBuiltinsPropertiesNV*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceShaderSMBuiltinsPropertiesNV*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_PROPERTIES_NV:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceShadingRateImagePropertiesNV*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceShadingRateImagePropertiesNV*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_PROPERTIES:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceSubgroupProperties*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceSubgroupProperties*>(next);
 				properties->subgroupSize = 1;
 				properties->supportedStages = VK_SHADER_STAGE_ALL;
 				properties->supportedOperations = VK_SUBGROUP_FEATURE_BASIC_BIT | VK_SUBGROUP_FEATURE_VOTE_BIT | VK_SUBGROUP_FEATURE_ARITHMETIC_BIT | VK_SUBGROUP_FEATURE_BALLOT_BIT | VK_SUBGROUP_FEATURE_SHUFFLE_BIT |
@@ -1039,28 +1043,28 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceSubgroupSizeControlPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceSubgroupSizeControlPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceTransformFeedbackPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceTransformFeedbackPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT:
 			{
-				const auto properties = static_cast<VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT*>(next);
+				const auto properties = reinterpret_cast<VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT*>(next);
 				FATAL_ERROR();
 				break;
 			}
@@ -1068,7 +1072,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		default:
 			break;
 		}
-		next = static_cast<VkBaseOutStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 }
 

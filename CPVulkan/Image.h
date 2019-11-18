@@ -14,7 +14,7 @@ public:
 	Image& operator=(const Image&) = delete;
 	Image&& operator=(const Image&&) = delete;
 
-	void OnDelete(const VkAllocationCallbacks*) noexcept
+	void OnDelete(const VkAllocationCallbacks*)
 	{
 	}
 
@@ -26,26 +26,26 @@ public:
 
 	static VkResult Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 
-	[[nodiscard]] VkFormat getFormat() const noexcept { return format; }
-	[[nodiscard]] uint32_t getWidth() const noexcept { return extent.width; }
-	[[nodiscard]] uint32_t getHeight() const noexcept { return extent.height; }
-	[[nodiscard]] uint32_t getDepth() const noexcept { return extent.depth; }
-	[[nodiscard]] uint32_t getArrayLayers() const noexcept { return arrayLayers; }
-	[[nodiscard]] VkSampleCountFlagBits getSamples() const noexcept { return samples; }
-	[[nodiscard]] uint32_t getMipLevels() const noexcept { return mipLevels; }
-	[[nodiscard]] const ImageSize& getImageSize() const noexcept { return imageSize; }
+	[[nodiscard]] VkFormat getFormat() const { return format; }
+	[[nodiscard]] uint32_t getWidth() const { return extent.width; }
+	[[nodiscard]] uint32_t getHeight() const { return extent.height; }
+	[[nodiscard]] uint32_t getDepth() const { return extent.depth; }
+	[[nodiscard]] uint32_t getArrayLayers() const { return arrayLayers; }
+	[[nodiscard]] VkSampleCountFlagBits getSamples() const { return samples; }
+	[[nodiscard]] uint32_t getMipLevels() const { return mipLevels; }
+	[[nodiscard]] const ImageSize& getImageSize() const { return imageSize; }
 
-	[[nodiscard]] gsl::span<uint8_t> getData() const noexcept
+	[[nodiscard]] gsl::span<uint8_t> getData() const
 	{
 		return data;
 	}
 
-	[[nodiscard]] gsl::span<uint8_t> getData(uint64_t offset, uint64_t size) const noexcept
+	[[nodiscard]] gsl::span<uint8_t> getData(uint64_t offset, uint64_t size) const
 	{
 		return data.subspan(offset, size);
 	}
 
-	[[nodiscard]] uint8_t* getDataPtr(uint64_t offset, uint64_t size) const noexcept
+	[[nodiscard]] uint8_t* getDataPtr(uint64_t offset, uint64_t size) const
 	{
 		return getData(offset, size).data();
 	}

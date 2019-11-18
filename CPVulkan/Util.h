@@ -12,7 +12,7 @@ struct DeviceMemory
 	ptrdiff_t Size;
 	uint8_t Data[1];
 
-	gsl::span<uint8_t> getSpan() noexcept
+	gsl::span<uint8_t> getSpan()
 	{
 		return gsl::span<uint8_t>{Data, gsl::span<uint8_t>::index_type{Size}};
 	}
@@ -36,7 +36,7 @@ static DeviceMemory* AllocateSized(const VkAllocationCallbacks* pAllocator, uint
 	return deviceMemory;
 }
 
-static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator) noexcept
+static void FreeSized(DeviceMemory* deviceMemory, const VkAllocationCallbacks* pAllocator)
 {
 	if (pAllocator)
 	{

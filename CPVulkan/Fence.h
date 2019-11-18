@@ -23,7 +23,7 @@ public:
 	static VkResult Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence);
 
 	[[nodiscard]] VkResult getStatus() const;
-	[[nodiscard]] void* getHandle() const noexcept { return handle; }
+	[[nodiscard]] void* getHandle() const { return handle; }
 
 private:
 	void* handle{};

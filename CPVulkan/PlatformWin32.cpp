@@ -53,7 +53,7 @@ void* Platform::CreateSemaphoreExport(bool initialState, bool manualReset, const
 	return event;
 }
 
-void Platform::CloseMutex(void* mutex) noexcept
+void Platform::CloseMutex(void* mutex)
 {
 	CloseHandle(mutex);
 }
@@ -120,7 +120,7 @@ void* Platform::AlignedMalloc(size_t size, size_t alignment)
 	return _aligned_malloc(size, alignment);
 }
 
-void Platform::AlignedFree(void* ptr) noexcept
+void Platform::AlignedFree(void* ptr)
 {
 	_aligned_free(ptr);
 }

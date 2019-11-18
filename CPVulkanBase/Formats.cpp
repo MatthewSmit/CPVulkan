@@ -407,7 +407,7 @@ const FormatInformation& GetFormatInformation(VkFormat format)
 	return extraFormatInformation[format];
 }
 
-static ImageSize GetNormalImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels) noexcept
+static ImageSize GetNormalImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
 {
 	const auto maxMip = CountMipLevels(width, height, depth);
 	assert(maxMip >= mipLevels);
@@ -418,7 +418,7 @@ static ImageSize GetNormalImageSize(const FormatInformation& format, uint32_t wi
 	imageSize.NumberMipLevels = mipLevels;
 	for (auto i = 0u; i < mipLevels; i++)
 	{
-		auto& level = imageSize.Level[i];
+		auto& level = gsl::at(imageSize.Level, i);
 		level.Offset = imageSize.LayerSize;
 		level.Width = width;
 		level.Height = height;
@@ -438,7 +438,7 @@ static ImageSize GetNormalImageSize(const FormatInformation& format, uint32_t wi
 	return imageSize;
 }
 
-static ImageSize GetCompressedImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels) noexcept
+static ImageSize GetCompressedImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
 {
 	const auto maxMip = CountMipLevels(width, height, depth);
 	assert(maxMip >= mipLevels);
@@ -453,7 +453,7 @@ static ImageSize GetCompressedImageSize(const FormatInformation& format, uint32_
 	
 	for (auto i = 0u; i < mipLevels; i++)
 	{
-		auto& level = imageSize.Level[i];
+		auto& level = gsl::at(imageSize.Level, i);
 		level.Offset = imageSize.LayerSize;
 		level.Width = (width + blockWidth - 1) / blockWidth;
 		level.Height = (height + blockHeight - 1) / blockHeight;
@@ -473,7 +473,7 @@ static ImageSize GetCompressedImageSize(const FormatInformation& format, uint32_
 	return imageSize;
 }
 
-ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels) noexcept
+ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
 {
 	assert(width > 0);
 	assert(height > 0);
@@ -503,12 +503,13 @@ ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t
 	}
 }
 
-uint64_t GetImagePixelOffset(const ImageSize& imageSize, int32_t i, int32_t j, int32_t k, uint32_t level, uint32_t layer) noexcept
+uint64_t GetImagePixelOffset(const ImageSize& imageSize, int32_t i, int32_t j, int32_t k, uint32_t level, uint32_t layer)
 {
-	return imageSize.LayerSize * layer + imageSize.Level[level].Offset + k * imageSize.Level[level].PlaneSize + j * imageSize.Level[level].Stride + i * imageSize.PixelSize;
+	const auto& mipLevel = gsl::at(imageSize.Level, level);
+	return imageSize.LayerSize * layer + mipLevel.Offset + k * mipLevel.PlaneSize + j * mipLevel.Stride + i * imageSize.PixelSize;
 }
 
-bool NeedsYCBCRConversion(VkFormat format) noexcept
+bool NeedsYCBCRConversion(VkFormat format)
 {
 	return format == VK_FORMAT_G8B8G8R8_422_UNORM ||
 		format == VK_FORMAT_B8G8R8G8_422_UNORM ||

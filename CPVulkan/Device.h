@@ -13,7 +13,7 @@ class Queue;
 class Device final
 {
 public:
-	Device() noexcept;
+	Device();
 	Device(const Device&) = delete;
 	Device(Device&&) = delete;
 	~Device();
@@ -57,7 +57,7 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR CreateBuffer(const VkBufferCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBuffer* pBuffer);
 	VKAPI_ATTR void VKAPI_PTR DestroyBuffer(VkBuffer buffer, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateBufferView(const VkBufferViewCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkBufferView* pView);
-	VKAPI_ATTR void VKAPI_PTR DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator) noexcept;
+	VKAPI_ATTR void VKAPI_PTR DestroyBufferView(VkBufferView bufferView, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR VkResult VKAPI_PTR CreateImage(const VkImageCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkImage* pImage);
 	VKAPI_ATTR void VKAPI_PTR DestroyImage(VkImage image, const VkAllocationCallbacks* pAllocator);
 	VKAPI_ATTR void VKAPI_PTR GetImageSubresourceLayout(VkImage image, const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout);
