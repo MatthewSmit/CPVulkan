@@ -30,6 +30,14 @@ bool Platform::SupportsSparse()
 	return false;
 }
 
+uint64_t Platform::GetMemorySize()
+{
+	MEMORYSTATUSEX status{sizeof(MEMORYSTATUSEX)};
+	const auto result = GlobalMemoryStatusEx(&status);
+	assert(result != 0);
+	return status.ullTotalPhys;
+}
+
 #undef CreateMutex
 void* Platform::CreateMutex(bool initialState, bool manualReset)
 {

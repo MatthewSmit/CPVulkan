@@ -9,6 +9,8 @@ namespace Platform
 
 	bool SupportsSparse();
 
+	uint64_t GetMemorySize();
+
 	void* CreateMutex(bool initialState, bool manualReset);
 	void* CreateSemaphoreExport(bool initialState, bool manualReset, const void* exportSemaphore);
 	void CloseMutex(void* mutex);

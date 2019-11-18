@@ -344,7 +344,7 @@ void PhysicalDevice::GetMemoryProperties(VkPhysicalDeviceMemoryProperties* pMemo
 	pMemoryProperties->memoryTypes[0].propertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 	pMemoryProperties->memoryTypes[0].heapIndex = 0;
 	pMemoryProperties->memoryHeapCount = 1;
-	pMemoryProperties->memoryHeaps[0].size = 0xFFFFFFFFFFFFFFFF;
+	pMemoryProperties->memoryHeaps[0].size = Platform::GetMemorySize();
 	pMemoryProperties->memoryHeaps[0].flags = VK_MEMORY_HEAP_DEVICE_LOCAL_BIT;
 }
 
