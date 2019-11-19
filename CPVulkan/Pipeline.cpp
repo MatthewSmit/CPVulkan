@@ -151,10 +151,17 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 {
 	assert(pRasterizationState->sType == VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO);
 
-	auto next = pRasterizationState->pNext;
+#if defined(VK_EXT_line_rasterization)
+	auto lineRasterizationMode = VK_LINE_RASTERIZATION_MODE_DEFAULT_EXT;
+	auto stippledLineEnable = false;
+	auto lineStippleFactor = 0u;
+	auto lineStipplePattern = 0u;
+#endif
+
+	auto next = static_cast<const VkBaseInStructure*>(pRasterizationState->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT:
@@ -163,8 +170,17 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_DEPTH_CLIP_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
 
+#if defined(VK_EXT_line_rasterization)
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			{
+				const auto rasterizationStateExt = reinterpret_cast<const VkPipelineRasterizationLineStateCreateInfoEXT*>(next);
+				lineRasterizationMode = rasterizationStateExt->lineRasterizationMode;
+				stippledLineEnable = rasterizationStateExt->stippledLineEnable;
+				lineStippleFactor = rasterizationStateExt->lineStippleFactor;
+				lineStipplePattern = rasterizationStateExt->lineStipplePattern;
+				break;
+			}
+#endif
 
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD:
 			FATAL_ERROR();
@@ -172,7 +188,7 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (pRasterizationState->flags)
@@ -192,6 +208,13 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 		pRasterizationState->depthBiasClamp,
 		pRasterizationState->depthBiasSlopeFactor,
 		pRasterizationState->lineWidth,
+
+#if defined(VK_EXT_line_rasterization)
+		lineRasterizationMode,
+		stippledLineEnable,
+		lineStippleFactor,
+		lineStipplePattern,
+#endif
 	};
 }
 
@@ -336,10 +359,80 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 		FATAL_ERROR();
 	}
 
-	return DynamicState
+	DynamicState dynamicState{};
+	for (auto i = 0u; i < pDynamicState->dynamicStateCount; i++)
 	{
-		ArrayToVector(pDynamicState->dynamicStateCount, pDynamicState->pDynamicStates),
-	};
+		switch (pDynamicState->pDynamicStates[i])
+		{
+		case VK_DYNAMIC_STATE_VIEWPORT:
+			dynamicState.DynamicViewport = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_SCISSOR:
+			dynamicState.DynamicScissor = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_LINE_WIDTH:
+			dynamicState.DynamicLineWidth = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_DEPTH_BIAS:
+			dynamicState.DynamicDepthBias = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_BLEND_CONSTANTS:
+			dynamicState.DynamicBlendConstants = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_DEPTH_BOUNDS:
+			dynamicState.DynamicDepthBounds = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK:
+			dynamicState.DynamicStencilCompareMask = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_STENCIL_WRITE_MASK:
+			dynamicState.DynamicStencilWriteMask = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_STENCIL_REFERENCE:
+			dynamicState.DynamicStencilReference = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_VIEWPORT_W_SCALING_NV:
+			dynamicState.DynamicViewportWScaling = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_DISCARD_RECTANGLE_EXT:
+			dynamicState.DynamicDiscardRectangle = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_SAMPLE_LOCATIONS_EXT:
+			dynamicState.DynamicSampleLocations = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_VIEWPORT_SHADING_RATE_PALETTE_NV:
+			dynamicState.DynamicViewportShadingRatePalette = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_VIEWPORT_COARSE_SAMPLE_ORDER_NV:
+			dynamicState.DynamicViewportCoarseSampleOrder = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_EXCLUSIVE_SCISSOR_NV:
+			dynamicState.DynamicExclusiveScissor = true;
+			break;
+			
+		case VK_DYNAMIC_STATE_LINE_STIPPLE_EXT:
+			dynamicState.DynamicLineStipple = true;
+			break;
+			
+		default: FATAL_ERROR();
+		}
+	}
+
+	return dynamicState;;
 }
 
 static std::tuple<int, ShaderFunction*> LoadShaderStage(SpirvJit* jit, const struct VkPipelineShaderStageCreateInfo& stage)

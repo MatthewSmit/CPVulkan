@@ -468,120 +468,98 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vec
 
 static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, uint8_t* vertexData, int vertexStride,
                              uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
-                             const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p, 
-                             VkCullModeFlags cullMode, float& depth)
+                             const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p,
+                             VkCullModeFlags cullMode, float& depth, bool& front)
 {
-	if (!(cullMode & VK_CULL_MODE_BACK_BIT))
+	auto area = EdgeFunction(p0, p1, p2);
+
+	float w0;
+	float w1;
+	float w2;
+	if (area < 0)
 	{
-		const auto area = EdgeFunction(p0, p1, p2);
-		auto w0 = EdgeFunction(p1, p2, p);
-		auto w1 = EdgeFunction(p2, p0, p);
-		auto w2 = EdgeFunction(p0, p1, p);
+		area = -area;
+		front = false;
+		w0 = EdgeFunction(p2, p1, p);
+		w1 = EdgeFunction(p0, p2, p);
+		w2 = EdgeFunction(p1, p0, p);
+	}
+	else
+	{
+		front = true;
+		w0 = EdgeFunction(p1, p2, p);
+		w1 = EdgeFunction(p2, p0, p);
+		w2 = EdgeFunction(p0, p1, p);
+	}
 
-		if (w0 >= 0 && w1 >= 0 && w2 >= 0)
+	if (w0 < 0 || w1 < 0 || w2 < 0 || ((cullMode & VK_CULL_MODE_BACK_BIT) && !front) || ((cullMode & VK_CULL_MODE_FRONT_BIT) && front))
+	{
+		return false;
+	}
+
+	w0 /= area;
+	w1 /= area;
+	w2 /= area;
+
+	depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
+
+	for (auto input : inputData)
+	{
+		const auto data0 = vertexData + p0Index * vertexStride + input.offset;
+		const auto data1 = vertexData + p1Index * vertexStride + input.offset;
+		const auto data2 = vertexData + p2Index * vertexStride + input.offset;
+		switch (input.format)
 		{
-			w0 /= area;
-			w1 /= area;
-			w2 /= area;
+		case VK_FORMAT_R32G32_SFLOAT:
+			*reinterpret_cast<glm::vec2*>(input.pointer) =
+				*reinterpret_cast<glm::vec2*>(data0) * w0 +
+				*reinterpret_cast<glm::vec2*>(data1) * w1 +
+				*reinterpret_cast<glm::vec2*>(data2) * w2;
+			break;
 
-			depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
+		case VK_FORMAT_R32G32B32_SFLOAT:
+			*reinterpret_cast<glm::vec3*>(input.pointer) =
+				*reinterpret_cast<glm::vec3*>(data0) * w0 +
+				*reinterpret_cast<glm::vec3*>(data1) * w1 +
+				*reinterpret_cast<glm::vec3*>(data2) * w2;
+			break;
 
-			for (auto input : inputData)
-			{
-				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
-				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
-				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
-				switch (input.format)
-				{
-				case VK_FORMAT_R32G32_SFLOAT:
-					*reinterpret_cast<glm::vec2*>(input.pointer) =
-						*reinterpret_cast<glm::vec2*>(data0)* w0 +
-						*reinterpret_cast<glm::vec2*>(data1)* w1 +
-						*reinterpret_cast<glm::vec2*>(data2)* w2;
-					break;
+		case VK_FORMAT_R32G32B32A32_SFLOAT:
+			*reinterpret_cast<glm::vec4*>(input.pointer) =
+				*reinterpret_cast<glm::vec4*>(data0) * w0 +
+				*reinterpret_cast<glm::vec4*>(data1) * w1 +
+				*reinterpret_cast<glm::vec4*>(data2) * w2;
+			break;
 
-				case VK_FORMAT_R32G32B32_SFLOAT:
-					*reinterpret_cast<glm::vec3*>(input.pointer) =
-						*reinterpret_cast<glm::vec3*>(data0)* w0 +
-						*reinterpret_cast<glm::vec3*>(data1)* w1 +
-						*reinterpret_cast<glm::vec3*>(data2)* w2;
-					break;
-
-				case VK_FORMAT_R32G32B32A32_SFLOAT:
-					*reinterpret_cast<glm::vec4*>(input.pointer) =
-						*reinterpret_cast<glm::vec4*>(data0)* w0 +
-						*reinterpret_cast<glm::vec4*>(data1)* w1 +
-						*reinterpret_cast<glm::vec4*>(data2)* w2;
-					break;
-
-				default:
-					FATAL_ERROR();
-				}
-			}
-
-			return true;
+		default:
+			FATAL_ERROR();
 		}
 	}
 
-	if (!(cullMode & VK_CULL_MODE_FRONT_BIT))
-	{
-		const auto area = EdgeFunction(p2, p1, p0);
-		auto w0 = EdgeFunction(p2, p1, p);
-		auto w1 = EdgeFunction(p0, p2, p);
-		auto w2 = EdgeFunction(p1, p0, p);
-
-		if (w0 >= 0 && w1 >= 0 && w2 >= 0)
-		{
-			w0 /= area;
-			w1 /= area;
-			w2 /= area;
-
-			depth = (p0 * w0 + p1 * w1 + p2 * w2).z;
-
-			for (auto input : inputData)
-			{
-				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
-				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
-				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
-				switch (input.format)
-				{
-				case VK_FORMAT_R32G32_SFLOAT:
-					*reinterpret_cast<glm::vec2*>(input.pointer) =
-						*reinterpret_cast<glm::vec2*>(data0) * w0 +
-						*reinterpret_cast<glm::vec2*>(data1) * w1 +
-						*reinterpret_cast<glm::vec2*>(data2) * w2;
-					break;
-
-				case VK_FORMAT_R32G32B32_SFLOAT:
-					*reinterpret_cast<glm::vec3*>(input.pointer) =
-						*reinterpret_cast<glm::vec3*>(data0) * w0 +
-						*reinterpret_cast<glm::vec3*>(data1) * w1 +
-						*reinterpret_cast<glm::vec3*>(data2) * w2;
-					break;
-
-				case VK_FORMAT_R32G32B32A32_SFLOAT:
-					*reinterpret_cast<glm::vec4*>(input.pointer) =
-						*reinterpret_cast<glm::vec4*>(data0) * w0 +
-						*reinterpret_cast<glm::vec4*>(data1) * w1 +
-						*reinterpret_cast<glm::vec4*>(data2) * w2;
-					break;
-
-				default:
-					FATAL_ERROR();
-				}
-			}
-
-			return true;
-		}
-	}
-
-	return false;
+	return true;
 }
 
 static float GetDepthPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j)
 {
 	// TODO: Optimise so depth checking uses native type
 	return GetDepthPixel(deviceState, format, image, i, j, 0, 0, 0);
+}
+
+template<typename T>
+bool CompareTest(T reference, T value, VkCompareOp compare)
+{
+	switch (compare)
+	{
+	case VK_COMPARE_OP_NEVER: return false;
+	case VK_COMPARE_OP_LESS: return value < reference;
+	case VK_COMPARE_OP_EQUAL: return value = reference;
+	case VK_COMPARE_OP_LESS_OR_EQUAL: return value <= reference;
+	case VK_COMPARE_OP_GREATER: return value > reference;
+	case VK_COMPARE_OP_NOT_EQUAL: return value != reference;
+	case VK_COMPARE_OP_GREATER_OR_EQUAL: return value >= reference;
+	case VK_COMPARE_OP_ALWAYS: return true;
+	default: FATAL_ERROR();
+	}
 }
 
 static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& output)
@@ -621,7 +599,8 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	LoadUniforms(deviceState, module, uniformData, PIPELINE_GRAPHICS);
 	
 	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
-	std::pair<VkAttachmentDescription, Image*> depthImage;
+	std::pair<VkAttachmentDescription, Image*> depthImage{};
+	std::pair<VkAttachmentDescription, Image*> stencilImage{};
 	
 	for (auto i = 0u; i < deviceState->currentRenderPass->getSubpasses()[0].ColourAttachments.size(); i++)
 	{
@@ -634,7 +613,15 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	{
 		const auto attachmentIndex = deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment.attachment;
 		const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
-		depthImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+		auto format = deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getFormat();
+		if (GetFormatInformation(format).DepthStencil.DepthOffset != INVALID_OFFSET)
+		{
+			depthImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+		}
+		if (GetFormatInformation(format).DepthStencil.StencilOffset != INVALID_OFFSET)
+		{
+			stencilImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+		}
 	}
 	
 	const auto image = images[0].second;
@@ -652,21 +639,14 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 
 	for (auto i = 0u; i < numberTriangles; i++)
 	{
-		uint32_t p0Index;
-		uint32_t p1Index;
-		uint32_t p2Index;
+		auto p0Index = i * 3 + 0;
+		auto p1Index = i * 3 + 1;
+		auto p2Index = i * 3 + 2;
 		if (rasterisationState.FrontFace == VK_FRONT_FACE_CLOCKWISE)
 		{
-			p0Index = i * 3 + 0;
-			p1Index = i * 3 + 1;
-			p2Index = i * 3 + 2;
+			std::swap(p0Index, p2Index);
 		}
-		else
-		{
-			p0Index = i * 3 + 2;
-			p1Index = i * 3 + 1;
-			p2Index = i * 3 + 0;
-		}
+
 		const auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
 		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
 		const auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
@@ -683,50 +663,189 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 				const auto p = glm::vec2(xf, yf);
 				
 				float depth;
+				bool front;
 				if (GetFragmentInput(inputData, output.outputData.get(), output.outputStride,
 				                     p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
-				                     rasterisationState.CullMode, depth))
+				                     rasterisationState.CullMode, depth, front))
 				{
-					if (depthImage.second)
-					{
-						const auto currentDepth = GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y);
-						if (currentDepth <= depth)
-						{
-							continue;
-						}
-					}
 					builtinInput->fragCoord.z = depth;
+					
+					// TODO: 27.2. Discard Rectangles Test
+					// TODO: 27.3. Scissor Test
+					// TODO: 27.4. Exclusive Scissor Test
+					// TODO: 27.5. Sample Mask
+					 
+					// TODO: If early per-fragment operations are enabled by the fragment shader, these operations are also performed:
+					// TODO: 27.11. Depth Bounds Test
+					// TODO: 27.12. Stencil Test
+					// TODO: 27.13. Depth Test
+					// TODO: 27.14. Representative Fragment Test
+					// TODO: 27.15. Sample Counting
 
 					shaderStage->getEntryPoint()();
-					
-					for (auto j = 0; j < MAX_FRAGMENT_OUTPUT_ATTACHMENTS; j++)
-					{
-						if (images[j].second)
-						{
-							void* dataPtr = nullptr;
-							for (auto data : outputData)
-							{
-								if (data.location == j)
-								{
-									dataPtr = data.pointer;
-									break;
-								}
-							}
-							assert(dataPtr);
 
-							SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(dataPtr));
-						}
+					// TODO: 27.8. Mixed attachment samples
+					// TODO: 27.9. Multisample Coverage
+					// TODO: 27.10. Depth and Stencil Operations
+					// TODO: 27.11. Depth Bounds Test
+					 
+					// 27.12. Stencil Test
+					auto stencilResult = true;
+					auto& stencilOpState = front
+						                       ? deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().Front
+						                       : deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().Back;
+
+					uint8_t stencilReference = stencilOpState.reference;
+					uint8_t stencil = 0;
+					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDynamicState().DynamicStencilReference)
+					{
+						FATAL_ERROR();
 					}
 					
-					if (depthImage.second)
+					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().StencilTestEnable)
+					{
+						auto compareMask = stencilOpState.compareMask;
+						if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDynamicState().DynamicStencilCompareMask)
+						{
+							FATAL_ERROR();
+						}
+
+						stencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0);
+						stencilResult = CompareTest(stencilReference & compareMask, stencil & compareMask, stencilOpState.compareOp);
+					}
+					 
+					// 27.13. Depth Test
+					auto depthResult = true;
+					const auto currentDepth = depthImage.second ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y) : 0;
+					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().DepthTestEnable)
+					{
+						if (depthImage.second)
+						{
+							if (deviceState->pipeline[PIPELINE_GRAPHICS]->getRasterizationState().DepthClampEnable)
+							{
+								FATAL_ERROR();
+							}
+							
+							depthResult = CompareTest(currentDepth, depth, deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().DepthCompareOp);
+						}
+					}
+					auto depthWrite = depthResult && deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().DepthWriteEnable && depthImage.second;
+
+					// Stencil & Depth Write
+					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().StencilTestEnable && stencilImage.second)
+					{
+						const auto stencilOperation = !stencilResult ? stencilOpState.failOp : (!depthResult ? stencilOpState.depthFailOp : stencilOpState.passOp);
+						uint8_t writeValue;
+						switch (stencilOperation)
+						{
+						case VK_STENCIL_OP_KEEP:
+							writeValue = stencil;
+							break;
+							
+						case VK_STENCIL_OP_ZERO:
+							writeValue = 0;
+							break;
+							
+						case VK_STENCIL_OP_REPLACE:
+							writeValue = stencilReference;
+							break;
+							
+						case VK_STENCIL_OP_INCREMENT_AND_CLAMP:
+							writeValue = stencil < 0xFF ? stencil + 1 : 0xFF;
+							break;
+							
+						case VK_STENCIL_OP_DECREMENT_AND_CLAMP:
+							writeValue = stencil > 0 ? stencil - 1 : 0;
+							break;
+							
+						case VK_STENCIL_OP_INVERT:
+							writeValue = ~stencil;
+							break;
+							
+						case VK_STENCIL_OP_INCREMENT_AND_WRAP:
+							writeValue = stencil + 1;
+							break;
+							
+						case VK_STENCIL_OP_DECREMENT_AND_WRAP:
+							writeValue = stencil - 1;
+							break;
+							
+						default: FATAL_ERROR();
+						}
+
+						auto writeMask = stencilOpState.writeMask;
+						if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDynamicState().DynamicStencilWriteMask)
+						{
+							FATAL_ERROR();
+						}
+
+						writeValue = (writeValue & writeMask) | (stencil & ~writeMask);
+
+						if (depthWrite)
+						{
+							const VkClearDepthStencilValue input
+							{
+								depth,
+								writeValue,
+							};
+
+							// TODO: No clamp if float format?
+							SetPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0, input);
+						}
+						else
+						{
+							const VkClearDepthStencilValue input
+							{
+								currentDepth,
+								writeValue,
+							};
+
+							// TODO: No clamp if float format?
+							SetPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0, input);
+						}
+					}
+					else if (depthWrite)
 					{
 						const VkClearDepthStencilValue input
 						{
 							depth,
-							0
+							stencilImage.second == nullptr ? 0u : GetStencilPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0),
 						};
+
+						// TODO: No clamp if float format?
 						SetPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0, input);
+					}
+					 
+					// TODO: 27.14. Representative Fragment Test
+					// TODO: 27.15. Sample Counting
+					// TODO: 27.16. Fragment Coverage To Color
+					// TODO: 27.17. Coverage Reduction
+					 
+					if (stencilResult && depthResult)
+					{
+						// TODO: 28.1. Blending
+						// TODO: 28.2. Logical Operations
+						// TODO: 28.3. Color Write Mask
+
+						for (auto j = 0u; j < MAX_FRAGMENT_OUTPUT_ATTACHMENTS; j++)
+						{
+							if (images[j].second)
+							{
+								void* dataPtr = nullptr;
+								for (auto data : outputData)
+								{
+									if (data.location == j)
+									{
+										dataPtr = data.pointer;
+										break;
+									}
+								}
+								assert(dataPtr);
+
+								SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(dataPtr));
+							}
+						}
 					}
 				}
 			}

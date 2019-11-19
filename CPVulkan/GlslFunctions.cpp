@@ -236,7 +236,7 @@ static void GetFormatOffset(Image* image, const VkImageSubresourceRange& subreso
 	assert(subresourceRange.levelCount == 1);
 
 	offset = image->getImageSize().Level[0].Offset;
-	offset = image->getImageSize().Level[0].LevelSize;
+	size = image->getImageSize().Level[0].LevelSize;
 }
 
 template<int length>

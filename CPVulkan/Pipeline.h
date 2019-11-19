@@ -53,6 +53,13 @@ struct RasterizationState
 	float DepthBiasClamp;
 	float DepthBiasSlopeFactor;
 	float LineWidth;
+
+#if defined(VK_EXT_line_rasterization)
+	VkLineRasterizationModeEXT LineRasterizationMode;
+	bool StippledLineEnable;
+	uint32_t LineStippleFactor;
+	uint32_t LineStipplePattern;
+#endif
 };
 
 struct MultisampleState
@@ -88,7 +95,22 @@ struct ColourBlendState
 
 struct DynamicState
 {
-	std::vector<VkDynamicState> DynamicStates;
+	bool DynamicViewport;
+	bool DynamicScissor;
+	bool DynamicLineWidth;
+	bool DynamicDepthBias;
+	bool DynamicBlendConstants;
+	bool DynamicDepthBounds;
+	bool DynamicStencilCompareMask;
+	bool DynamicStencilWriteMask;
+	bool DynamicStencilReference;
+	bool DynamicViewportWScaling;
+	bool DynamicDiscardRectangle;
+	bool DynamicSampleLocations;
+	bool DynamicViewportShadingRatePalette;
+	bool DynamicViewportCoarseSampleOrder;
+	bool DynamicExclusiveScissor;
+	bool DynamicLineStipple;
 };
 
 class ShaderFunction final
