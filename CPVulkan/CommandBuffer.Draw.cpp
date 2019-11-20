@@ -539,12 +539,6 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, ui
 	return true;
 }
 
-static float GetDepthPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j)
-{
-	// TODO: Optimise so depth checking uses native type
-	return GetDepthPixel(deviceState, format, image, i, j, 0, 0, 0);
-}
-
 template<typename T>
 bool CompareTest(T reference, T value, VkCompareOp compare)
 {
@@ -560,6 +554,323 @@ bool CompareTest(T reference, T value, VkCompareOp compare)
 	case VK_COMPARE_OP_ALWAYS: return true;
 	default: FATAL_ERROR();
 	}
+}
+
+template<bool IsSource>
+static glm::fvec4 ApplyBlendFactor(glm::fvec4 source, glm::fvec4 destination, glm::fvec4 constant, const VkPipelineColorBlendAttachmentState& blendState)
+{
+	const auto colourBlendFactor = IsSource ? blendState.srcColorBlendFactor : blendState.dstColorBlendFactor;
+	const auto alphaBlendFactor = IsSource ? blendState.srcAlphaBlendFactor : blendState.dstAlphaBlendFactor;
+	glm::fvec4 value{};
+	switch (colourBlendFactor)
+	{
+	case VK_BLEND_FACTOR_ZERO:
+		break;
+		
+	case VK_BLEND_FACTOR_ONE:
+		value = glm::fvec4(1);
+		break;
+		
+	case VK_BLEND_FACTOR_SRC_COLOR:
+		value = source;
+		break;
+		
+	case VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR:
+		value = glm::fvec4(1) - source;
+		break;
+		
+	case VK_BLEND_FACTOR_DST_COLOR:
+		value = destination;
+		break;
+		
+	case VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR:
+		value = glm::fvec4(1) - destination;
+		break;
+
+	case VK_BLEND_FACTOR_SRC_ALPHA:
+		value = glm::vec4(source.a);
+		break;
+
+	case VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA:
+		value = glm::vec4(1 - source.a);
+		break;
+
+	case VK_BLEND_FACTOR_DST_ALPHA:
+		value = glm::vec4(destination.a);
+		break;
+
+	case VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA:
+		value = glm::vec4(1 - destination.a);
+		break;
+
+	case VK_BLEND_FACTOR_CONSTANT_COLOR:
+		value = constant;
+		break;
+		
+	case VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR:
+		value = glm::fvec4(1) - constant;
+		break;
+
+	case VK_BLEND_FACTOR_CONSTANT_ALPHA:
+		value = glm::vec4(constant.a);
+		break;
+
+	case VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA:
+		value = glm::vec4(1 - constant.a);
+		break;
+		
+	case VK_BLEND_FACTOR_SRC_ALPHA_SATURATE:
+		{
+			auto factor = std::min(source.a, 1 - destination.a);
+			value = glm::fvec4(factor, factor, factor, 1);
+			break;
+		}
+		
+	case VK_BLEND_FACTOR_SRC1_COLOR: FATAL_ERROR();
+	case VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR: FATAL_ERROR();
+	case VK_BLEND_FACTOR_SRC1_ALPHA: FATAL_ERROR();
+	case VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: FATAL_ERROR();
+	default: FATAL_ERROR();
+	}
+
+	if (colourBlendFactor != alphaBlendFactor)
+	{
+		switch (alphaBlendFactor)
+		{
+		case VK_BLEND_FACTOR_ZERO:
+			value.a = 0;
+			break;
+
+		case VK_BLEND_FACTOR_ONE:
+		case VK_BLEND_FACTOR_SRC_ALPHA_SATURATE:
+			value.a = 1;
+			break;
+
+		case VK_BLEND_FACTOR_SRC_COLOR:
+		case VK_BLEND_FACTOR_SRC_ALPHA:
+			value.a = source.a;
+			break;
+
+		case VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR:
+		case VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA:
+			value.a = 1 - source.a;
+			break;
+
+		case VK_BLEND_FACTOR_DST_COLOR:
+		case VK_BLEND_FACTOR_DST_ALPHA:
+			value.a = destination.a;
+			break;
+
+		case VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR:
+		case VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA:
+			value.a = 1 - destination.a;
+			break;
+			
+		case VK_BLEND_FACTOR_CONSTANT_COLOR:
+		case VK_BLEND_FACTOR_CONSTANT_ALPHA:
+			value.a = constant.a;
+			break;
+			
+		case VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR:
+		case VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA:
+			value.a = 1 - constant.a;
+			break;
+			
+		case VK_BLEND_FACTOR_SRC1_COLOR: FATAL_ERROR();
+		case VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR: FATAL_ERROR();
+		case VK_BLEND_FACTOR_SRC1_ALPHA: FATAL_ERROR();
+		case VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: FATAL_ERROR();
+		default: FATAL_ERROR();
+		}
+	}
+
+	return value;
+}
+
+static glm::fvec4 ApplyBlend(glm::fvec4 source, glm::fvec4 destination, glm::fvec4 constant, const VkPipelineColorBlendAttachmentState& blendState)
+{
+	const auto sourceBlendFactor = ApplyBlendFactor<true>(source, destination, constant, blendState);
+	const auto destinationBlendFactor = ApplyBlendFactor<false>(source, destination, constant, blendState);
+
+	glm::fvec4 value{};
+	switch (blendState.colorBlendOp)
+	{
+	case VK_BLEND_OP_ADD:
+		value = source * sourceBlendFactor + destination * destinationBlendFactor;
+		break;
+
+	case VK_BLEND_OP_SUBTRACT:
+		value = source * sourceBlendFactor - destination * destinationBlendFactor;
+		break;
+		
+	case VK_BLEND_OP_REVERSE_SUBTRACT:
+		value = destination * destinationBlendFactor - source * sourceBlendFactor;
+		break;
+
+	case VK_BLEND_OP_MIN:
+		value = glm::min(source, destination);
+		break;
+
+	case VK_BLEND_OP_MAX:
+		value = glm::max(source, destination);
+		break;
+		
+	case VK_BLEND_OP_ZERO_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_SRC_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_DST_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_SRC_OVER_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_DST_OVER_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_SRC_IN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_DST_IN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_SRC_OUT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_DST_OUT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_SRC_ATOP_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_DST_ATOP_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_XOR_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_MULTIPLY_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_SCREEN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_OVERLAY_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_DARKEN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_LIGHTEN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_COLORDODGE_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_COLORBURN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_HARDLIGHT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_SOFTLIGHT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_DIFFERENCE_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_EXCLUSION_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_INVERT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_INVERT_RGB_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_LINEARDODGE_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_LINEARBURN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_VIVIDLIGHT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_LINEARLIGHT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_PINLIGHT_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_HARDMIX_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_HSL_HUE_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_HSL_SATURATION_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_HSL_COLOR_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_HSL_LUMINOSITY_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_PLUS_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_PLUS_CLAMPED_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_PLUS_CLAMPED_ALPHA_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_PLUS_DARKER_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_MINUS_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_MINUS_CLAMPED_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_CONTRAST_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_INVERT_OVG_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_RED_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_GREEN_EXT: FATAL_ERROR();
+	case VK_BLEND_OP_BLUE_EXT: FATAL_ERROR();
+	default: FATAL_ERROR();
+	}
+
+	if (blendState.colorBlendOp != blendState.alphaBlendOp)
+	{
+		switch (blendState.alphaBlendOp)
+		{
+		case VK_BLEND_OP_ADD:
+			value.a = source.a * sourceBlendFactor.a + destination.a * destinationBlendFactor.a;
+			break;
+			
+		case VK_BLEND_OP_SUBTRACT:
+			value.a = source.a * sourceBlendFactor.a - destination.a * destinationBlendFactor.a;
+			break;
+
+		case VK_BLEND_OP_REVERSE_SUBTRACT:
+			value.a = destination.a * destinationBlendFactor.a - source.a * sourceBlendFactor.a;
+			break;
+
+		case VK_BLEND_OP_MIN:
+			value.a = std::min(source.a, destination.a);
+			break;
+			
+		case VK_BLEND_OP_MAX:
+			value.a = std::max(source.a, destination.a);
+			break;
+			
+		case VK_BLEND_OP_ZERO_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_SRC_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_DST_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_SRC_OVER_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_DST_OVER_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_SRC_IN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_DST_IN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_SRC_OUT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_DST_OUT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_SRC_ATOP_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_DST_ATOP_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_XOR_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_MULTIPLY_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_SCREEN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_OVERLAY_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_DARKEN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_LIGHTEN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_COLORDODGE_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_COLORBURN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_HARDLIGHT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_SOFTLIGHT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_DIFFERENCE_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_EXCLUSION_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_INVERT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_INVERT_RGB_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_LINEARDODGE_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_LINEARBURN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_VIVIDLIGHT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_LINEARLIGHT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_PINLIGHT_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_HARDMIX_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_HSL_HUE_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_HSL_SATURATION_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_HSL_COLOR_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_HSL_LUMINOSITY_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_PLUS_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_PLUS_CLAMPED_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_PLUS_CLAMPED_ALPHA_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_PLUS_DARKER_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_MINUS_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_MINUS_CLAMPED_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_CONTRAST_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_INVERT_OVG_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_RED_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_GREEN_EXT: FATAL_ERROR();
+		case VK_BLEND_OP_BLUE_EXT: FATAL_ERROR();
+		default: FATAL_ERROR();
+		}
+	}
+
+	return value;
+}
+
+// TODO: Merge glslfunctions version, probably move to imagesampler
+static void GetFormatOffset(Image* image, uint64_t& offset, uint64_t& size)
+{
+	offset = image->getImageSize().Level[0].Offset;
+	size = image->getImageSize().Level[0].LevelSize;
+}
+
+template<int length>
+glm::vec<length, uint32_t> GetImageRange(Image* image);
+
+template<>
+glm::uvec2 GetImageRange<2>(Image* image)
+{
+	return glm::uvec2{image->getWidth(), image->getHeight()};
+}
+
+template<typename ReturnType, typename CoordinateType>
+static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, Image* image, CoordinateType coordinates)
+{
+	uint64_t offset;
+	uint64_t size;
+	GetFormatOffset(image, offset, size);
+	auto data = image->getData(offset, size);
+	auto range = GetImageRange<CoordinateType::length()>(image);
+
+	return GetPixel<ReturnType>(deviceState,
+	                            format,
+	                            data,
+	                            range,
+	                            coordinates);
 }
 
 static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& output)
@@ -717,7 +1028,8 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 					 
 					// 27.13. Depth Test
 					auto depthResult = true;
-					const auto currentDepth = depthImage.second ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y) : 0;
+					// TODO: Optimise so depth checking uses native type
+					const auto currentDepth = depthImage.second ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0) : 0;
 					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().DepthTestEnable)
 					{
 						if (depthImage.second)
@@ -824,10 +1136,6 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 					 
 					if (stencilResult && depthResult)
 					{
-						// TODO: 28.1. Blending
-						// TODO: 28.2. Logical Operations
-						// TODO: 28.3. Color Write Mask
-
 						for (auto j = 0u; j < MAX_FRAGMENT_OUTPUT_ATTACHMENTS; j++)
 						{
 							if (images[j].second)
@@ -843,7 +1151,36 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 								}
 								assert(dataPtr);
 
-								SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(dataPtr));
+								if (GetFormatInformation(images[j].first.format).Base == BaseType::UInt ||
+									GetFormatInformation(images[j].first.format).Base == BaseType::SInt)
+								{
+									FATAL_ERROR();
+								}
+
+								auto colour = *static_cast<glm::fvec4*>(dataPtr);
+								
+								// 28.1. Blending
+								const auto& blend = deviceState->pipeline[PIPELINE_GRAPHICS]->getColourBlendState().Attachments[j];
+								const auto destination = ImageFetch<glm::fvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
+								if (blend.blendEnable)
+								{
+									auto constant = *reinterpret_cast<const glm::fvec4*>(deviceState->pipeline[PIPELINE_GRAPHICS]->getColourBlendState().BlendConstants);
+									colour = ApplyBlend(colour, destination, constant, blend);
+								}
+
+								// 28.2. Logical Operations
+								if (deviceState->pipeline[PIPELINE_GRAPHICS]->getColourBlendState().LogicOpEnable)
+								{
+									FATAL_ERROR();
+								}
+
+								// 28.3. Color Write Mask
+								colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
+								colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
+								colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
+								colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
+
+								SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
 							}
 						}
 					}

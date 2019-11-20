@@ -512,18 +512,18 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 	{
 	case BaseType::UNorm:
 	case BaseType::SNorm:
+	case BaseType::UScaled:
+	case BaseType::SScaled:
 	case BaseType::UFloat:
 	case BaseType::SFloat:
 	case BaseType::SRGB:
 		SetPixel(deviceState, format, image, i, j, k, mipLevel, layer, value.float32);
 		break;
 
-	case BaseType::UScaled:
 	case BaseType::UInt:
 		SetPixel(deviceState, format, image, i, j, k, mipLevel, layer, value.uint32);
 		break;
 		
-	case BaseType::SScaled:
 	case BaseType::SInt:
 		SetPixel(deviceState, format, image, i, j, k, mipLevel, layer, value.int32);
 		break;
