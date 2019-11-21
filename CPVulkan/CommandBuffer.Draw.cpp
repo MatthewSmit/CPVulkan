@@ -155,7 +155,7 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 {
 	for (const auto& data : uniformData)
 	{
-		const auto descriptorSet = deviceState->descriptorSets[data.set][pipelineIndex];
+		const auto descriptorSet = deviceState->pipelineState[pipelineIndex].descriptorSets[data.set];
 		VkDescriptorType descriptorType;
 		Descriptor* value;
 		descriptorSet->getBinding(data.binding, descriptorType, value);
@@ -363,13 +363,13 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 	}
 }
 
-static std::vector<uint32_t> ProcessInputAssembler(DeviceState* deviceState, uint32_t vertexCount)
+static std::vector<uint32_t> ProcessInputAssembler(DeviceState* deviceState, uint32_t firstVertex, uint32_t vertexCount)
 {
 	// TODO: Calculate offsets here too
 	std::vector<uint32_t> results(vertexCount);
 	for (auto i = 0u; i < vertexCount; i++)
 	{
-		results[i] = i;
+		results[i] = firstVertex + i;
 	}
 	return results;
 }
@@ -379,7 +379,7 @@ static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceSta
 	// TODO: Calculate offsets here too
 	std::vector<uint32_t> results(indexCount);
 
-	if (deviceState->pipeline[0]->getInputAssemblyState().PrimitiveRestartEnable)
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState().PrimitiveRestartEnable)
 	{
 		FATAL_ERROR();
 	}
@@ -418,8 +418,8 @@ static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceSta
 
 static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vector<uint32_t>& assemblerOutput)
 {
-	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(0);
-	const auto& vertexInput = deviceState->pipeline[0]->getVertexInputState();
+	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(0);
+	const auto& vertexInput = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexInputState();
 
 	const auto module = shaderStage->getModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
@@ -880,9 +880,9 @@ static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, Image* i
 
 static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& output)
 {
-	const auto& inputAssembly = deviceState->pipeline[0]->getInputAssemblyState();
-	const auto& shaderStage = deviceState->pipeline[0]->getShaderStage(4);
-	const auto& rasterisationState = deviceState->pipeline[0]->getRasterizationState();
+	const auto& inputAssembly = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState();
+	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(4);
+	const auto& rasterisationState = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getRasterizationState();
 
 	if (inputAssembly.Topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
 	{
@@ -918,16 +918,16 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	std::pair<VkAttachmentDescription, Image*> depthImage{};
 	std::pair<VkAttachmentDescription, Image*> stencilImage{};
 	
-	for (auto i = 0u; i < deviceState->currentRenderPass->getSubpasses()[0].ColourAttachments.size(); i++)
+	for (auto i = 0u; i < deviceState->currentSubpass->ColourAttachments.size(); i++)
 	{
-		const auto attachmentIndex = deviceState->currentRenderPass->getSubpasses()[0].ColourAttachments[i].attachment;
+		const auto attachmentIndex = deviceState->currentSubpass->ColourAttachments[i].attachment;
 		const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
 		images[i] = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
 	}
 	
-	if (deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
+	if (deviceState->currentSubpass->DepthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
 	{
-		const auto attachmentIndex = deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment.attachment;
+		const auto attachmentIndex = deviceState->currentSubpass->DepthStencilAttachment.attachment;
 		const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
 		auto format = deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getFormat();
 		if (GetFormatInformation(format).DepthStencil.DepthOffset != INVALID_OFFSET)
@@ -939,9 +939,35 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 			stencilImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
 		}
 	}
+
+	uint32_t width = 0;
+	uint32_t height = 0;
+	if (depthImage.second)
+	{
+		width = depthImage.second->getWidth();
+		height = depthImage.second->getHeight();
+	}
+	else if (stencilImage.second)
+	{
+		width = stencilImage.second->getWidth();
+		height = stencilImage.second->getHeight();
+	}
+	else
+	{
+		for (auto i = 0u; i < MAX_FRAGMENT_OUTPUT_ATTACHMENTS; i++)
+		{
+			width = images[0].second->getWidth();
+			height = images[0].second->getHeight();
+			break;
+		}
+	}
+
+	if (width == 0 || height == 0)
+	{
+		FATAL_ERROR();
+	}
 	
-	const auto image = images[0].second;
-	const auto halfPixel = glm::vec2(1.0f / image->getWidth(), 1.0f / image->getHeight()) * 0.5f;
+	const auto halfPixel = glm::vec2(1.0f / width, 1.0f / height) * 0.5f;
 
 	const auto numberTriangles = output.vertexCount / 3;
 
@@ -967,15 +993,15 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
 		const auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
 		
-		for (auto y = 0u; y < image->getHeight(); y++)
+		for (auto y = 0u; y < height; y++)
 		{
-			const auto yf = (static_cast<float>(y) / image->getHeight() + halfPixel.y) * 2 - 1;
+			const auto yf = (static_cast<float>(y) / height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 			
-			for (auto x = 0u; x < image->getWidth(); x++)
+			for (auto x = 0u; x < width; x++)
 			{
-				const auto xf = (static_cast<float>(x) / image->getWidth() + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : image->getWidth() - x - 1;
+				const auto xf = (static_cast<float>(x) / width + halfPixel.x) * 2 - 1;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 				
 				float depth;
@@ -1009,20 +1035,20 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 					// 27.12. Stencil Test
 					auto stencilResult = true;
 					auto& stencilOpState = front
-						                       ? deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().Front
-						                       : deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().Back;
+						                       ? deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().Front
+						                       : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().Back;
 
 					uint8_t stencilReference = stencilOpState.reference;
 					uint8_t stencil = 0;
-					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDynamicState().DynamicStencilReference)
+					if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilReference)
 					{
 						FATAL_ERROR();
 					}
 					
-					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().StencilTestEnable)
+					if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().StencilTestEnable)
 					{
 						auto compareMask = stencilOpState.compareMask;
-						if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDynamicState().DynamicStencilCompareMask)
+						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilCompareMask)
 						{
 							FATAL_ERROR();
 						}
@@ -1035,22 +1061,22 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 					auto depthResult = true;
 					// TODO: Optimise so depth checking uses native type
 					const auto currentDepth = depthImage.second ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0) : 0;
-					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().DepthTestEnable)
+					if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthTestEnable)
 					{
 						if (depthImage.second)
 						{
-							if (deviceState->pipeline[PIPELINE_GRAPHICS]->getRasterizationState().DepthClampEnable)
+							if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getRasterizationState().DepthClampEnable)
 							{
 								FATAL_ERROR();
 							}
 							
-							depthResult = CompareTest(currentDepth, depth, deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().DepthCompareOp);
+							depthResult = CompareTest(currentDepth, depth, deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthCompareOp);
 						}
 					}
-					auto depthWrite = depthResult && deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().DepthWriteEnable && depthImage.second;
+					auto depthWrite = depthResult && deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthWriteEnable && depthImage.second;
 
 					// Stencil & Depth Write
-					if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDepthStencilState().StencilTestEnable && stencilImage.second)
+					if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().StencilTestEnable && stencilImage.second)
 					{
 						const auto stencilOperation = !stencilResult ? stencilOpState.failOp : (!depthResult ? stencilOpState.depthFailOp : stencilOpState.passOp);
 						uint8_t writeValue;
@@ -1092,7 +1118,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 						}
 
 						auto writeMask = stencilOpState.writeMask;
-						if (deviceState->pipeline[PIPELINE_GRAPHICS]->getDynamicState().DynamicStencilWriteMask)
+						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilWriteMask)
 						{
 							FATAL_ERROR();
 						}
@@ -1165,16 +1191,16 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 								auto colour = *static_cast<glm::fvec4*>(dataPtr);
 								
 								// 28.1. Blending
-								const auto& blend = deviceState->pipeline[PIPELINE_GRAPHICS]->getColourBlendState().Attachments[j];
+								const auto& blend = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().Attachments[j];
 								const auto destination = ImageFetch<glm::fvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
 								if (blend.blendEnable)
 								{
-									auto constant = *reinterpret_cast<const glm::fvec4*>(deviceState->pipeline[PIPELINE_GRAPHICS]->getColourBlendState().BlendConstants);
+									auto constant = *reinterpret_cast<const glm::fvec4*>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().BlendConstants);
 									colour = ApplyBlend(colour, destination, constant, blend);
 								}
 
 								// 28.2. Logical Operations
-								if (deviceState->pipeline[PIPELINE_GRAPHICS]->getColourBlendState().LogicOpEnable)
+								if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
 								{
 									FATAL_ERROR();
 								}
@@ -1197,7 +1223,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 
 static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
 {
-	const auto& shaderStage = deviceState->pipeline[1]->getShaderStage(5);
+	const auto& shaderStage = deviceState->pipelineState[PIPELINE_COMPUTE].pipeline->getShaderStage(5);
 	
 	const auto module = shaderStage->getModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
@@ -1278,25 +1304,25 @@ public:
 			FATAL_ERROR();
 		}
 
-		if (firstVertex != 0)
+		if (firstInstance != 0)
 		{
 			FATAL_ERROR();
 		}
 
-		const auto assemblerOutput = ProcessInputAssembler(deviceState, vertexCount);
+		const auto assemblerOutput = ProcessInputAssembler(deviceState, firstVertex, vertexCount);
 		const auto vertexOutput = ProcessVertexShader(deviceState, assemblerOutput);
 
-		if (deviceState->pipeline[0]->getShaderStage(1) != nullptr)
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 		{
 			FATAL_ERROR();
 		}
 
-		if (deviceState->pipeline[0]->getShaderStage(2) != nullptr)
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 		{
 			FATAL_ERROR();
 		}
 
-		if (deviceState->pipeline[0]->getShaderStage(3) != nullptr)
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 		{
 			FATAL_ERROR();
 		}
@@ -1343,6 +1369,11 @@ public:
 			FATAL_ERROR();
 		}
 
+		if (firstInstance != 1)
+		{
+			FATAL_ERROR();
+		}
+
 		if (firstIndex != 0)
 		{
 			FATAL_ERROR();
@@ -1356,17 +1387,17 @@ public:
 		const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, indexCount);
 		const auto vertexOutput = ProcessVertexShader(deviceState, assemblerOutput);
 
-		if (deviceState->pipeline[0]->getShaderStage(1) != nullptr)
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 		{
 			FATAL_ERROR();
 		}
 
-		if (deviceState->pipeline[0]->getShaderStage(2) != nullptr)
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 		{
 			FATAL_ERROR();
 		}
 
-		if (deviceState->pipeline[0]->getShaderStage(3) != nullptr)
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 		{
 			FATAL_ERROR();
 		}
@@ -1555,7 +1586,7 @@ public:
 			else
 			{
 				assert(attachment.aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT));
-				const auto attachmentReference = deviceState->currentRenderPass->getSubpasses()[0].DepthStencilAttachment.attachment;
+				const auto attachmentReference = deviceState->currentSubpass->DepthStencilAttachment.attachment;
 				format = deviceState->currentRenderPass->getAttachments()[attachmentReference].format;
 				imageView = deviceState->currentFramebuffer->getAttachments()[attachmentReference];
 			}

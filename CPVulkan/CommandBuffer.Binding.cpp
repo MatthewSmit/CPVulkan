@@ -26,7 +26,7 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		gsl::at(deviceState->pipeline, bindPoint) = pipeline;
+		gsl::at(deviceState->pipelineState, bindPoint).pipeline = pipeline;
 	}
 
 private:
@@ -119,7 +119,7 @@ public:
 	{
 		for (auto i = 0u; i < descriptorSets.size(); i++)
 		{
-			deviceState->descriptorSets[i + firstSet][bindPoint] = descriptorSets[i];
+			deviceState->pipelineState[bindPoint].descriptorSets[i + firstSet] = descriptorSets[i];
 		}
 
 		if (!dynamicOffsets.empty())
@@ -174,6 +174,9 @@ public:
 		case VK_INDEX_TYPE_UINT32:
 			deviceState->indexBindingStride = 4;
 			break;
+
+		default:
+			FATAL_ERROR();
 		}
 	}
 

@@ -235,7 +235,7 @@ private:
 	VkFilter filter;
 };
 
-class UpdateBufferCommand : public Command
+class UpdateBufferCommand final : public Command
 {
 public:
 	UpdateBufferCommand(Buffer* dstBuffer, uint64_t dstOffset, uint64_t dataSize, const void* pData) :
@@ -270,7 +270,7 @@ private:
 	uint8_t data[65536];
 };
 
-class FillBufferCommand : public Command
+class FillBufferCommand final : public Command
 {
 public:
 	FillBufferCommand(Buffer* dstBuffer, uint64_t dstOffset, uint64_t size, uint32_t data) :
@@ -574,16 +574,13 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
+		deviceState->currentSubpass = &renderPass->getSubpasses()[0];
+		deviceState->currentSubpassIndex = 0;
 		deviceState->currentRenderPass = renderPass;
 		deviceState->currentFramebuffer = framebuffer;
 		deviceState->currentRenderArea = renderArea;
-		
-		if (renderPass->getSubpasses().size() != 1)
-		{
-			FATAL_ERROR();
-		}
 
-		for (auto attachmentReference : renderPass->getSubpasses()[0].ColourAttachments)
+		for (auto attachmentReference : deviceState->currentSubpass->ColourAttachments)
 		{
 			if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 			{
@@ -598,7 +595,7 @@ public:
 			}
 		}
 
-		const auto attachmentReference = renderPass->getSubpasses()[0].DepthStencilAttachment;
+		const auto attachmentReference = deviceState->currentSubpass->DepthStencilAttachment;
 		if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 		{
 			const auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
@@ -633,6 +630,23 @@ private:
 	std::vector<VkClearValue> clearValues;
 };
 
+class NextSubpassCommand final : public Command
+{
+public:
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "NextSubpass: Next subpass" << std::endl;
+	}
+#endif
+	
+	void Process(DeviceState* deviceState) override
+	{
+		deviceState->currentSubpassIndex += 1;
+		deviceState->currentSubpass = &deviceState->currentRenderPass->getSubpasses()[deviceState->currentSubpassIndex];
+	}
+};
+
 class EndRenderPassCommand final : public Command
 {
 public:
@@ -662,7 +676,9 @@ public:
 			DumpImage("LatestRenderDepth.dds", imageView->getImage(), imageView);
 		}
 #endif
-		
+
+		deviceState->currentSubpass = nullptr;
+		deviceState->currentSubpassIndex = 0;
 		deviceState->currentRenderPass = nullptr;
 		deviceState->currentFramebuffer = nullptr;
 		// TODO
@@ -897,6 +913,12 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 	                                                            UnwrapVulkan<Framebuffer>(pRenderPassBegin->framebuffer),
 	                                                            renderArea,
 	                                                            clearValues));
+}
+
+void CommandBuffer::NextSubpass(VkSubpassContents contents)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<NextSubpassCommand>());
 }
 
 void CommandBuffer::EndRenderPass()

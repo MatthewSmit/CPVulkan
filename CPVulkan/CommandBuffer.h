@@ -83,7 +83,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR CopyQueryPoolResults(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize stride, VkQueryResultFlags flags) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR PushConstants(VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pValues);
 	VKAPI_ATTR void VKAPI_PTR BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents);
-	VKAPI_ATTR void VKAPI_PTR NextSubpass(VkSubpassContents contents) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR NextSubpass(VkSubpassContents contents);
 	VKAPI_ATTR void VKAPI_PTR EndRenderPass();
 	VKAPI_ATTR void VKAPI_PTR ExecuteCommands(uint32_t commandBufferCount, const VkCommandBuffer* pCommandBuffers);
 

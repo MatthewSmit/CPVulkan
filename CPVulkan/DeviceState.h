@@ -8,6 +8,8 @@ class Pipeline;
 class RenderPass;
 class SpirvJit;
 
+struct Subpass;
+
 struct ImageFunctions
 {
 	float (*GetPixelDepth)(const void* ptr);
@@ -24,10 +26,15 @@ struct ImageFunctions
 
 struct DeviceState
 {
-	Pipeline* pipeline[MAX_PIPELINES];
+	struct
+	{
+		Pipeline* pipeline;
+		DescriptorSet* descriptorSets[MAX_BOUND_DESCRIPTOR_SETS];
+		uint32_t descriptorSetDynamicOffset[MAX_BOUND_DESCRIPTOR_SETS][MAX_DESCRIPTOR_SET_UNIFORM_BUFFERS_DYNAMIC + MAX_DESCRIPTOR_SET_STORAGE_BUFFERS_DYNAMIC];
+	} pipelineState[MAX_PIPELINES];
+	
 	VkViewport viewports[MAX_VIEWPORTS];
 	VkRect2D scissors[MAX_VIEWPORTS];
-	DescriptorSet* descriptorSets[MAX_BOUND_DESCRIPTOR_SETS][MAX_PIPELINES];
 	Buffer* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
 	uint64_t vertexBindingOffset[MAX_VERTEX_INPUT_BINDINGS];
 	Buffer* indexBinding;
@@ -35,6 +42,8 @@ struct DeviceState
 	uint32_t indexBindingStride;
 	uint8_t pushConstants[MAX_PUSH_CONSTANTS_SIZE];
 
+	const Subpass* currentSubpass;
+	uint32_t currentSubpassIndex;
 	RenderPass* currentRenderPass;
 	Framebuffer* currentFramebuffer;
 	VkRect2D currentRenderArea;

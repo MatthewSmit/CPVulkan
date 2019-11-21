@@ -34,7 +34,7 @@ add_executable(CPVulkanSamples
 	#"16-vulkan_1_1/16-vulkan_1_1.cpp"
 	#"copy_blit_image/copy_blit_image.cpp"
 	#"create_debug_report_callback/create_debug_report_callback.cpp"
-	##"draw_subpasses/draw_subpasses.cpp"												#vkCmdNextSubpass
+	##"draw_subpasses/draw_subpasses.cpp"												#TRIANGLE_STRIP
 	"draw_textured_cube/draw_textured_cube.cpp"
 	##"dynamic_uniform/dynamic_uniform.cpp"												#BindDescriptorSetsCommand - dynamicOffsets
 	##"enable_validation_with_callback/enable_validation_with_callback.cpp"				#vkCreateDebugReportCallback
@@ -46,9 +46,9 @@ add_executable(CPVulkanSamples
 	#"instance_extension_properties/instance_extension_properties.cpp"
 	#"instance_layer_extension_properties/instance_layer_extension_properties.cpp"
 	#"instance_layer_properties/instance_layer_properties.cpp"
-	##"memory_barriers/memory_barriers.cpp"												#Multilayer clearing
+	##"memory_barriers/memory_barriers.cpp"												#Output looks wrong
 	#"multiple_sets/multiple_sets.cpp"
-	##"multithreaded_command_buffers/multithreaded_command_buffers.cpp"					#ClearColourImageCommand - imagelayer > 1
+	#"multithreaded_command_buffers/multithreaded_command_buffers.cpp"
 	##"occlusion_query/occlusion_query.cpp"												#vkResetQueryPool
 	##"pipeline_cache/pipeline_cache.cpp"												#PipelineCache::GetData
 	#"pipeline_derivative/pipeline_derivative.cpp"
