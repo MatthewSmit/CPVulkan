@@ -857,14 +857,27 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 	assert(state == State::Recording);
 	assert(pRenderPassBegin->sType == VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO);
 
-	auto next = pRenderPassBegin->pNext;
+	auto renderArea = pRenderPassBegin->renderArea;
+	
+	auto next = static_cast<const VkBaseInStructure*>(pRenderPassBegin->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_RENDER_PASS_BEGIN_INFO:
-			FATAL_ERROR();
+			{
+				const auto renderPassInfo = reinterpret_cast<const VkDeviceGroupRenderPassBeginInfo*>(next);
+				if (renderPassInfo->deviceMask != 1)
+				{
+					FATAL_ERROR();
+				}
+				if (renderPassInfo->deviceRenderAreaCount)
+				{
+					renderArea = renderPassInfo->pDeviceRenderAreas[0];
+				}
+				break;
+			}
 			
 		case VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO_KHR:
 			FATAL_ERROR();
@@ -875,14 +888,14 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 		default:
 			break;
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	std::vector<VkClearValue> clearValues(pRenderPassBegin->clearValueCount);
 	memcpy(clearValues.data(), pRenderPassBegin->pClearValues, sizeof(VkClearValue) * pRenderPassBegin->clearValueCount);
 	commands.push_back(std::make_unique<BeginRenderPassCommand>(UnwrapVulkan<RenderPass>(pRenderPassBegin->renderPass), 
 	                                                            UnwrapVulkan<Framebuffer>(pRenderPassBegin->framebuffer),
-	                                                            pRenderPassBegin->renderArea,
+	                                                            renderArea,
 	                                                            clearValues));
 }
 

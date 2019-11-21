@@ -161,7 +161,9 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR GetRefreshCycleDurationGOOGLE(VkSwapchainKHR swapchain, VkRefreshCycleDurationGOOGLE* pDisplayTimingProperties);
 	VKAPI_ATTR VkResult VKAPI_PTR GetPastPresentationTimingGOOGLE(VkSwapchainKHR swapchain, uint32_t* pPresentationTimingCount, VkPastPresentationTimingGOOGLE* pPresentationTimings);
 
+#if defined(VK_EXT_hdr_metadata)
 	VKAPI_ATTR void VKAPI_PTR SetHdrMetadata(uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const VkHdrMetadataEXT* pMetadata);
+#endif
 
 	VKAPI_ATTR VkResult VKAPI_PTR SetDebugUtilsObjectName(const VkDebugUtilsObjectNameInfoEXT* pNameInfo);
 	VKAPI_ATTR VkResult VKAPI_PTR SetDebugUtilsObjectTag(const VkDebugUtilsObjectTagInfoEXT* pTagInfo);

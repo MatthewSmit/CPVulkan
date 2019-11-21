@@ -745,11 +745,6 @@ VkResult Device::GetDeviceGroupSurfacePresentModes(VkSurfaceKHR surface, VkDevic
 	FATAL_ERROR();
 }
 
-VkResult Device::AcquireNextImage2(const VkAcquireNextImageInfoKHR* pAcquireInfo, uint32_t* pImageIndex)
-{
-	FATAL_ERROR();
-}
-
 VkResult Device::CreateSharedSwapchains(uint32_t swapchainCount, const VkSwapchainCreateInfoKHR* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchains)
 {
 	FATAL_ERROR();
@@ -865,10 +860,12 @@ VkResult Device::GetPastPresentationTimingGOOGLE(VkSwapchainKHR swapchain, uint3
 	FATAL_ERROR();
 }
 
+#if defined(VK_EXT_hdr_metadata)
 void Device::SetHdrMetadata(uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const VkHdrMetadataEXT* pMetadata)
 {
 	FATAL_ERROR();
 }
+#endif
 
 VkResult Device::SetDebugUtilsObjectName(const VkDebugUtilsObjectNameInfoEXT* pNameInfo)
 {

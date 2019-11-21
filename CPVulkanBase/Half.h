@@ -75,6 +75,16 @@ namespace glm
 
 namespace std // NOLINT(cert-dcl58-cpp)
 {
+	inline float sin(half x) noexcept
+	{
+		return std::sin(x.toFloat());
+	}
+
+	inline float cos(half x) noexcept
+	{
+		return std::cos(x.toFloat());
+	}
+
 	inline float pow(half x, half y) noexcept
 	{
 		return std::pow(x.toFloat(), y.toFloat());

@@ -37,17 +37,6 @@ static int32_t wrap(int32_t v, int32_t size, VkSamplerAddressMode addressMode)
 }
 
 template<typename T>
-T wrap(T v, T size, VkSamplerAddressMode addressMode)
-{
-	T result;
-	for (auto i = 0; i < T::length(); i++)
-	{
-		result[i] = wrap(v[i], size[i], addressMode);
-	}
-	return result;
-}
-
-template<typename T>
 T frac(T value)
 {
 	T result;
@@ -293,45 +282,90 @@ ResultType GetPixelLinear(DeviceState* deviceState, VkFormat format, gsl::span<u
 }
 
 template<typename ResultType, typename RangeType, typename CoordinateType>
-ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates, VkFilter filter)
+ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], RangeType range[MAX_MIP_LEVELS], uint32_t levels, CoordinateType coordinates,
+                       float lod, VkFilter magFilter, VkFilter minFilter, VkSamplerMipmapMode mipmapMode, VkSamplerAddressMode addressModeU, VkSamplerAddressMode addressModeV, VkSamplerAddressMode addressModeW,
+                       bool anisotropyEnable, bool compareEnable, VkCompareOp compareOperation, VkBorderColor borderColour, bool unnormalisedCoordinates)
 {
 	static_assert(std::is_same<typename CoordinateType::value_type, float>::value);
 	
 	using IntCoordinateType = glm::vec<CoordinateType::length(), int32_t>;
+
+	const VkSamplerAddressMode addressMode[]
+	{
+		addressModeU,
+		addressModeV,
+		addressModeW,
+	};
 	
-	switch (filter)
+	if (lod != 0)
+	{
+		FATAL_ERROR();
+	}
+
+	if (magFilter != minFilter)
+	{
+		FATAL_ERROR();
+	}
+
+	if (mipmapMode != VK_SAMPLER_MIPMAP_MODE_NEAREST)
+	{
+		FATAL_ERROR();
+	}
+
+	if (anisotropyEnable)
+	{
+		FATAL_ERROR();
+	}
+
+	if (compareEnable)
+	{
+		FATAL_ERROR();
+	}
+
+	if (unnormalisedCoordinates)
+	{
+		FATAL_ERROR();
+	}
+
+	switch (minFilter)
 	{
 	case VK_FILTER_NEAREST:
 		{
-			constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 			constexpr auto shift = 0.0f; // 0.0 for conventional, 0.5 for corner-sampled
-
+			
 			IntCoordinateType newCoordinates;
 			for (auto i = 0; i < IntCoordinateType::length(); i++)
 			{
-				newCoordinates[i] = static_cast<int32_t>(std::floor(coordinates[i] * range[i] + shift));
+				newCoordinates[i] = static_cast<int32_t>(std::floor(coordinates[i] * range[0][i] + shift));
+				newCoordinates[i] = wrap(newCoordinates[i], range[0][i], addressMode[i]);
+				
+				if (newCoordinates[i] < 0)
+				{
+					// TODO: Border colour
+					FATAL_ERROR();
+				}
 			}
-			newCoordinates = wrap<IntCoordinateType>(newCoordinates, range, addressMode);
-
-			return GetPixel<ResultType>(deviceState, format, data, range, newCoordinates);
+			
+			return GetPixel<ResultType>(deviceState, format, data[0], range[0], newCoordinates);
 		}
 		
 	case VK_FILTER_LINEAR:
 		{
-			constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
-			constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
-
-			IntCoordinateType newCoordinates0;
-			for (auto i = 0; i < IntCoordinateType::length(); i++)
-			{
-				newCoordinates0[i] = static_cast<int32_t>(std::floor(coordinates[i] * range[i] - shift));
-			}
-			IntCoordinateType newCoordinates1 = newCoordinates0 + 1;
-			newCoordinates0 = wrap<IntCoordinateType>(newCoordinates0, range, addressMode);
-			newCoordinates1 = wrap<IntCoordinateType>(newCoordinates1, range, addressMode);
-			
-			const auto interpolation = frac(coordinates * static_cast<CoordinateType>(range) - shift);
-			return GetPixelLinear<ResultType, IntCoordinateType>(deviceState, format, data, range, newCoordinates0, newCoordinates1, interpolation);
+			// 	constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+			// 	constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
+			//
+			// 	IntCoordinateType newCoordinates0;
+			// 	for (auto i = 0; i < IntCoordinateType::length(); i++)
+			// 	{
+			// 		newCoordinates0[i] = static_cast<int32_t>(std::floor(coordinates[i] * range[i] - shift));
+			// 	}
+			// 	IntCoordinateType newCoordinates1 = newCoordinates0 + 1;
+			// 	newCoordinates0 = wrap<IntCoordinateType>(newCoordinates0, range, addressMode);
+			// 	newCoordinates1 = wrap<IntCoordinateType>(newCoordinates1, range, addressMode);
+			//
+			// 	const auto interpolation = frac(coordinates * static_cast<CoordinateType>(range) - shift);
+			// 	return GetPixelLinear<ResultType, IntCoordinateType>(deviceState, format, data, range, newCoordinates0, newCoordinates1, interpolation);
+			FATAL_ERROR();
 		}
 		
 	case VK_FILTER_CUBIC_IMG:
@@ -339,6 +373,14 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 		
 	default: FATAL_ERROR();
 	}
+}
+
+template<typename ResultType, typename RangeType, typename CoordinateType>
+ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates, VkFilter filter)
+{
+	return SampleImage<ResultType>(deviceState, format, &data, &range, 1, coordinates, 1, filter, filter, VK_SAMPLER_MIPMAP_MODE_NEAREST,
+	                               VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, false, false, VK_COMPARE_OP_NEVER,
+	                               VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK, false);
 }
 
 template glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec1 range, glm::fvec1 coordinates, VkFilter filter);
@@ -353,144 +395,29 @@ template glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::
 template glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec2 range, glm::fvec2 coordinates, VkFilter filter);
 template glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec3 range, glm::fvec3 coordinates, VkFilter filter);
 
-template<>
-glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec2 range, glm::fvec2 coordinates, float lod, Sampler* sampler)
+template<typename ResultType, typename RangeType, typename CoordinateType>
+ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], RangeType range[MAX_MIP_LEVELS], uint32_t levels, CoordinateType coordinates, float lod, Sampler* sampler)
 {
-	if (lod != 0)
-	{
-		FATAL_ERROR();
-	}
-	
 	if (sampler->getFlags() != 0)
 	{
 		FATAL_ERROR();
 	}
-	
-	if (sampler->getMagFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-	
-	if (sampler->getMinFilter() != VK_FILTER_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMipmapMode() != VK_SAMPLER_MIPMAP_MODE_NEAREST)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getAddressModeU() != VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getAddressModeV() != VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getAddressModeW() != VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMipLodBias() != 0)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getAnisotropyEnable())
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMaxAnisotropy() != 1)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getCompareEnable())
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getCompareOp() != VK_COMPARE_OP_NEVER)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMinLod() != 0)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getMaxLod() != 0)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getBorderColor() != VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE)
-	{
-		FATAL_ERROR();
-	}
-
-	if (sampler->getUnnormalisedCoordinates())
-	{
-		FATAL_ERROR();
-	}
-
-	constexpr auto shift = 0.0f; // 0.0 for conventional, 0.5 for corner-sampled
-
-	glm::ivec2 newCoordinates;
-	newCoordinates.x = static_cast<int32_t>(std::floor(coordinates.x * range.x + shift));
-	newCoordinates.y = static_cast<int32_t>(std::floor(coordinates.y * range.y + shift));
-	
-	newCoordinates = wrap<glm::ivec2>(newCoordinates, range, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
-
-	return GetPixel<glm::fvec4>(deviceState, format, data, range, newCoordinates);
-
-	// 	case VK_FILTER_LINEAR:
-	// 		{
-	// 			constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
-	// 			
-	// 			auto i0 = static_cast<int32_t>(std::floor(u - shift));
-	// 			auto j0 = static_cast<int32_t>(std::floor(v - shift));
-	// 			auto k0 = static_cast<int32_t>(std::floor(w - shift));
-	// 			
-	// 			const auto i1 = wrap(i0 + 1, image->getWidth(), addressMode);
-	// 			const auto j1 = wrap(j0 + 1, image->getHeight(), addressMode);
-	// 			const auto k1 = wrap(k0 + 1, image->getDepth(), addressMode);
-	//
-	// 			i0 = wrap(i0, image->getWidth(), addressMode);
-	// 			j0 = wrap(j0, image->getHeight(), addressMode);
-	// 			k0 = wrap(k0, image->getDepth(), addressMode);
-	// 			
-	// 			const auto alpha = frac(u - shift);
-	// 			const auto beta = frac(v - shift);
-	// 			const auto gamma = frac(w - shift);
-	// 			
-	// 			const auto i0j0k0 = GetPixel<ReturnType>(format, image, i0, j0, k0);
-	// 			const auto i0j0k1 = GetPixel<ReturnType>(format, image, i0, j0, k1);
-	// 			const auto i0j1k0 = GetPixel<ReturnType>(format, image, i0, j1, k0);
-	// 			const auto i0j1k1 = GetPixel<ReturnType>(format, image, i0, j1, k1);
-	// 			const auto i1j0k0 = GetPixel<ReturnType>(format, image, i1, j0, k0);
-	// 			const auto i1j0k1 = GetPixel<ReturnType>(format, image, i1, j0, k1);
-	// 			const auto i1j1k0 = GetPixel<ReturnType>(format, image, i1, j1, k0);
-	// 			const auto i1j1k1 = GetPixel<ReturnType>(format, image, i1, j1, k1);
-	//
-	// 			const auto ij0k0 = lerp(i0j0k0, i1j0k0, alpha);
-	// 			const auto ij0k1 = lerp(i0j0k1, i1j0k1, alpha);
-	// 			const auto ij1k0 = lerp(i0j1k0, i1j1k0, alpha);
-	// 			const auto ij1k1 = lerp(i0j1k1, i1j1k1, alpha);
-	//
-	// 			const auto ijk0 = lerp(ij0k0, ij1k0, beta);
-	// 			const auto ijk1 = lerp(ij0k1, ij1k1, beta);
-	//
-	// 			return lerp(ijk0, ijk1, gamma);
-	// 		}
+	return SampleImage<ResultType>(deviceState, format, data, range, levels, coordinates, lod, sampler->getMagFilter(), sampler->getMinFilter(), sampler->getMipmapMode(),
+	                               sampler->getAddressModeU(), sampler->getAddressModeV(), sampler->getAddressModeW(), sampler->getAnisotropyEnable(), sampler->getCompareEnable(), 
+	                               sampler->getCompareOp(), sampler->getBorderColour(), sampler->getUnnormalisedCoordinates());
 }
+
+template glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec1 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec1 coordinates, float lod, Sampler* sampler);
+template glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec2 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec2 coordinates, float lod, Sampler* sampler);
+template glm::fvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec3 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec3 coordinates, float lod, Sampler* sampler);
+
+template glm::ivec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec1 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec1 coordinates, float lod, Sampler* sampler);
+template glm::ivec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec2 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec2 coordinates, float lod, Sampler* sampler);
+template glm::ivec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec3 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec3 coordinates, float lod, Sampler* sampler);
+
+template glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec1 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec1 coordinates, float lod, Sampler* sampler);
+template glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec2 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec2 coordinates, float lod, Sampler* sampler);
+template glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec3 range[MAX_MIP_LEVELS], uint32_t levels, glm::fvec3 coordinates, float lod, Sampler* sampler);
 
 
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, VkClearDepthStencilValue value)

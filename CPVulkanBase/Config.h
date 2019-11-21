@@ -19,6 +19,7 @@
 #undef VK_EXT_display_surface_counter
 #undef VK_EXT_display_control
 #undef VK_KHR_get_display_properties2
+#undef VK_EXT_hdr_metadata // Win32 does not support HDR
 
 #define CV_DEBUG_NONE 0
 #define CV_DEBUG_LOG 1
@@ -46,7 +47,7 @@ constexpr auto WIDE_LINES = true;
 constexpr auto LARGE_POINTS = true;
 constexpr auto ALPHA_TO_ONE = true;
 constexpr auto MULTI_VIEWPORT = false;
-constexpr auto SAMPLER_ANISOTROPY = true;
+constexpr auto SAMPLER_ANISOTROPY = false; // TODO
 constexpr auto TEXTURE_COMPRESSION_ETC2 = true;
 constexpr auto TEXTURE_COMPRESSION_ASTC_LDR = true;
 constexpr auto TEXTURE_COMPRESSION_BC = true;
@@ -145,8 +146,8 @@ constexpr auto SUB_TEXEL_PRECISION_BITS = 4;
 constexpr auto MIPMAP_PRECISION_BITS = 4;
 constexpr auto MAX_DRAW_INDEXED_INDEX_VALUE = 0xFFFFFFFF;
 constexpr auto MAX_DRAW_INDIRECT_COUNT = 0xFFFF;
-constexpr auto MAX_SAMPLER_LOD_BIAS = 2;
-constexpr auto MAX_SAMPLER_ANISOTROPY = 16;
+constexpr auto MAX_SAMPLER_LOD_BIAS = 2.0f;
+constexpr auto MAX_SAMPLER_ANISOTROPY = 16.0f;
 constexpr auto MAX_VIEWPORTS = 16;
 constexpr uint32_t MAX_VIEWPORT_DIMENSIONS[2]{4096, 4096};
 constexpr float VIEWPORT_BOUNDS_RANGE[2]{-8192, 8192};

@@ -252,7 +252,11 @@ VULKAN_FUNCTION(GetSwapchainCounter, VkResult, Device, void*, VkSwapchainKHR, Vk
 VULKAN_FUNCTION(GetRefreshCycleDurationGOOGLE, VkResult, Device, void*, VkSwapchainKHR, VkRefreshCycleDurationGOOGLE*)
 VULKAN_FUNCTION(GetPastPresentationTimingGOOGLE, VkResult, Device, void*, VkSwapchainKHR, uint32_t*, VkPastPresentationTimingGOOGLE*)
 VULKAN_FUNCTION(SetDiscardRectangle, void, CommandBuffer, void*, uint32_t, uint32_t, const VkRect2D*)
+
+#if defined(VK_EXT_hdr_metadata)
 VULKAN_FUNCTION(SetHdrMetadata, void, Device, void*, uint32_t, const VkSwapchainKHR*, const VkHdrMetadataEXT*)
+#endif
+
 VULKAN_FUNCTION(SetDebugUtilsObjectName, VkResult, Device, void*, const VkDebugUtilsObjectNameInfoEXT*)
 VULKAN_FUNCTION(SetDebugUtilsObjectTag, VkResult, Device, void*, const VkDebugUtilsObjectTagInfoEXT*)
 VULKAN_FUNCTION(BeginDebugUtilsLabel, void, Queue, void*, const VkDebugUtilsLabelEXT*)

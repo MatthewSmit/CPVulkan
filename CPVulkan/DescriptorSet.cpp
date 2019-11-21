@@ -7,75 +7,70 @@
 
 void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 {
-	if (descriptorWrite.dstArrayElement)
+	auto targetBinding = descriptorWrite.dstBinding;
+	auto targetArrayElement = descriptorWrite.dstArrayElement;
+	for (auto i = 0u; i < descriptorWrite.descriptorCount; i++)
 	{
-		FATAL_ERROR();
-	}
-
-	if (descriptorWrite.descriptorCount != 1)
-	{
-		FATAL_ERROR();
-	}
-
-	for (auto& binding : bindings)
-	{
-		if (std::get<0>(binding) == descriptorWrite.descriptorType && std::get<1>(binding) == descriptorWrite.dstBinding)
+		if (targetBinding >= numberBindings)
 		{
-			Bindings newBinding{};
-			switch (descriptorWrite.descriptorType)
-			{
-			case VK_DESCRIPTOR_TYPE_SAMPLER:
-				newBinding.ImageDescriptor.Type = ImageDescriptorType::None;
-				newBinding.ImageDescriptor.Data.Image = nullptr;
-				newBinding.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
-				break;
-				
-			case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				newBinding.ImageDescriptor.Type = ImageDescriptorType::Image;
-				newBinding.ImageDescriptor.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
-				newBinding.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
-				break;
-				
-			case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-			case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-			case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-				// newBinding.ImageInfo = *descriptorWrite.pImageInfo;
-				// break;
-				FATAL_ERROR();
-				
-			case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-			case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-				newBinding.ImageDescriptor.Type = ImageDescriptorType::Buffer;
-				newBinding.ImageDescriptor.Data.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
-				newBinding.ImageDescriptor.Sampler = nullptr;
-				break;
-				
-			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: 
-			case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC: 
-			case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC: 
-				newBinding.BufferInfo = *descriptorWrite.pBufferInfo;
-				if (newBinding.BufferInfo.range == VK_WHOLE_SIZE)
-				{
-					newBinding.BufferInfo.range = UnwrapVulkan<Buffer>(newBinding.BufferInfo.buffer)->getSize() - newBinding.BufferInfo.offset;
-				}
-				break;
-				
-			case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
-				FATAL_ERROR();
-				
-			case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
-				FATAL_ERROR();
-				
-			default:
-				FATAL_ERROR();
-			}
-			binding = std::make_tuple(descriptorWrite.descriptorType, descriptorWrite.dstBinding, newBinding);
-			return;
+			FATAL_ERROR();
 		}
+		
+		if (targetArrayElement >= bindingValues[targetBinding].count)
+		{
+			FATAL_ERROR();
+		}
+
+		if (descriptorWrite.descriptorType != bindingTypes[targetBinding])
+		{
+			FATAL_ERROR();
+		}
+
+		auto& value = bindingValues[targetBinding].values[targetArrayElement];
+
+		switch (descriptorWrite.descriptorType)
+		{
+		case VK_DESCRIPTOR_TYPE_SAMPLER:
+			value.ImageDescriptor.Type = ImageDescriptorType::None;
+			value.ImageDescriptor.Data.Image = nullptr;
+			value.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+			break;
+						
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+			value.ImageDescriptor.Type = ImageDescriptorType::Image;
+			value.ImageDescriptor.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
+			value.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+			break;
+						
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: FATAL_ERROR();
+			
+		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+			value.ImageDescriptor.Type = ImageDescriptorType::Buffer;
+			value.ImageDescriptor.Data.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
+			value.ImageDescriptor.Sampler = nullptr;
+			break;
+			
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+			value.BufferInfo = *descriptorWrite.pBufferInfo;
+			if (value.BufferInfo.range == VK_WHOLE_SIZE)
+			{
+				value.BufferInfo.range = UnwrapVulkan<Buffer>(value.BufferInfo.buffer)->getSize() - value.BufferInfo.offset;
+			}
+			break;
+			
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV: FATAL_ERROR();
+		default: FATAL_ERROR();
+		}
+
+		targetArrayElement += 1;
 	}
-	
-	FATAL_ERROR();
 }
 
 void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites, uint32_t descriptorCopyCount, const VkCopyDescriptorSet* pDescriptorCopies)
@@ -125,9 +120,25 @@ VkResult DescriptorSet::Create(DescriptorPool* descriptorPool, VkDescriptorSetLa
 
 	for (const auto& binding : descriptorSetLayout->getBindings())
 	{
-		if (binding.descriptorCount != 1)
+		descriptorSet->numberBindings = std::max(descriptorSet->numberBindings, binding.binding + 1);
+	}
+
+	descriptorSet->bindingTypes = std::unique_ptr<VkDescriptorType[]>(new VkDescriptorType[descriptorSet->numberBindings]);
+	descriptorSet->bindingValues = std::unique_ptr<Descriptor[]>(new Descriptor[descriptorSet->numberBindings]);
+	for (auto i = 0u; i < descriptorSet->numberBindings; i++)
+	{
+		descriptorSet->bindingValues[i].count = 0;
+	}
+
+	for (const auto& binding : descriptorSetLayout->getBindings())
+	{
+		assert(descriptorSet->bindingValues[binding.binding].count == 0);
+		descriptorSet->bindingTypes[binding.binding] = binding.descriptorType;
+		descriptorSet->bindingValues[binding.binding].count = binding.descriptorCount;
+		descriptorSet->bindingValues[binding.binding].values = std::unique_ptr<DescriptorValue[]>(new DescriptorValue[binding.descriptorCount]);
+		for (auto i = 0u; i < binding.descriptorCount; i++)
 		{
-			FATAL_ERROR();
+			descriptorSet->bindingValues[binding.binding].values[i] = {};
 		}
 
 		// TODO: Stage flags
@@ -136,8 +147,6 @@ VkResult DescriptorSet::Create(DescriptorPool* descriptorPool, VkDescriptorSetLa
 		{
 			FATAL_ERROR();
 		}
-		
-		descriptorSet->bindings.emplace_back(std::make_tuple(binding.descriptorType, binding.binding, Bindings{}));
 	}
 
 	WrapVulkan(descriptorSet, pDescriptorSet);

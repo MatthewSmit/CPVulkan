@@ -41,12 +41,12 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 	sampler->addressModeW = pCreateInfo->addressModeW;
 	sampler->mipLodBias = pCreateInfo->mipLodBias;
 	sampler->anisotropyEnable = pCreateInfo->anisotropyEnable;
-	sampler->maxAnisotropy = pCreateInfo->maxAnisotropy;
+	sampler->maxAnisotropy = std::min(pCreateInfo->maxAnisotropy, MAX_SAMPLER_ANISOTROPY);
 	sampler->compareEnable = pCreateInfo->compareEnable;
 	sampler->compareOp = pCreateInfo->compareOp;
 	sampler->minLod = pCreateInfo->minLod;
 	sampler->maxLod = pCreateInfo->maxLod;
-	sampler->borderColor = pCreateInfo->borderColor;
+	sampler->borderColour = pCreateInfo->borderColor;
 	sampler->unnormalisedCoordinates = pCreateInfo->unnormalizedCoordinates;
 
 	WrapVulkan(sampler, pSampler);

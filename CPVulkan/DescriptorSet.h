@@ -1,8 +1,6 @@
 #pragma once
 #include "Base.h"
 
-#include <vector>
-
 class DescriptorSetLayout;
 
 enum class ImageDescriptorType
@@ -25,10 +23,16 @@ struct ImageDescriptor
 	Sampler* Sampler;
 };
 
-union Bindings
+union DescriptorValue
 {
 	ImageDescriptor ImageDescriptor;
 	VkDescriptorBufferInfo BufferInfo;
+};
+
+struct Descriptor
+{
+	uint32_t count;
+	std::unique_ptr<DescriptorValue[]> values;
 };
 
 class DescriptorSet final
@@ -50,10 +54,19 @@ public:
 
 	static VkResult Create(DescriptorPool* descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet);
 
-	[[nodiscard]] const std::vector<std::tuple<VkDescriptorType, uint32_t, Bindings>>& getBindings() const { return bindings; }
+	[[nodiscard]] uint32_t getNumberBindings() const { return numberBindings; }
+	
+	void getBinding(uint32_t binding, VkDescriptorType& descriptorType, Descriptor*& value) const
+	{
+		assert(binding < numberBindings);
+		descriptorType = bindingTypes[binding];
+		value = &bindingValues[binding];
+	}
 
 private:
 	DescriptorSetLayout* layout{};
 
-	std::vector<std::tuple<VkDescriptorType, uint32_t, Bindings>> bindings{};
+	uint32_t numberBindings{};
+	std::unique_ptr<VkDescriptorType[]> bindingTypes{};
+	std::unique_ptr<Descriptor[]> bindingValues{};
 };

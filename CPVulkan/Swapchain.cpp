@@ -36,8 +36,14 @@ VkResult Swapchain::GetImages(uint32_t* pSwapchainImageCount, VkImage* vkImage) 
 	});
 }
 
-VkResult Swapchain::AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex)
+VkResult Device::GetSwapchainImages(VkSwapchainKHR swapchain, uint32_t* pSwapchainImageCount, VkImage* pSwapchainImages)
 {
+	return UnwrapVulkan<Swapchain>(swapchain)->GetImages(pSwapchainImageCount, pSwapchainImages);
+}
+
+VkResult Swapchain::AcquireNextImage(uint64_t, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex)
+{
+	// Assume image is always ready
 	*pImageIndex = 0;
 	if (semaphore)
 	{
@@ -48,6 +54,16 @@ VkResult Swapchain::AcquireNextImage(uint64_t timeout, VkSemaphore semaphore, Vk
 		UnwrapVulkan<Fence>(fence)->Signal();
 	}
 	return VK_SUCCESS;
+}
+
+VkResult Device::AcquireNextImage(VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex)
+{
+	return UnwrapVulkan<Swapchain>(swapchain)->AcquireNextImage(timeout, semaphore, fence, pImageIndex);
+}
+
+VkResult Device::AcquireNextImage2(const VkAcquireNextImageInfoKHR* pAcquireInfo, uint32_t* pImageIndex)
+{
+	return UnwrapVulkan<Swapchain>(pAcquireInfo->swapchain)->AcquireNextImage(pAcquireInfo->timeout, pAcquireInfo->semaphore, pAcquireInfo->fence, pImageIndex);
 }
 
 VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchain)
@@ -166,14 +182,4 @@ void Device::DestroySwapchain(VkSwapchainKHR swapchain, const VkAllocationCallba
 	{
 		Free(UnwrapVulkan<Swapchain>(swapchain), pAllocator);
 	}
-}
-
-VkResult Device::GetSwapchainImages(VkSwapchainKHR swapchain, uint32_t* pSwapchainImageCount, VkImage* pSwapchainImages)
-{
-	return UnwrapVulkan<Swapchain>(swapchain)->GetImages(pSwapchainImageCount, pSwapchainImages);
-}
-
-VkResult Device::AcquireNextImage(VkSwapchainKHR swapchain, uint64_t timeout, VkSemaphore semaphore, VkFence fence, uint32_t* pImageIndex)
-{
-	return UnwrapVulkan<Swapchain>(swapchain)->AcquireNextImage(timeout, semaphore, fence, pImageIndex);
 }

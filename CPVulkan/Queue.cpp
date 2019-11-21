@@ -25,7 +25,8 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 				FATAL_ERROR();
 
 			case VK_STRUCTURE_TYPE_DEVICE_GROUP_SUBMIT_INFO:
-				FATAL_ERROR();
+				// We can just ignore as all device indices must be 0
+				break;
 
 			case VK_STRUCTURE_TYPE_PROTECTED_SUBMIT_INFO:
 				FATAL_ERROR();
@@ -97,7 +98,8 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_PRESENT_INFO_KHR:
-			FATAL_ERROR();
+			// We can just ignore as all device indices must be 0
+			break;
 
 		case VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR:
 			FATAL_ERROR();

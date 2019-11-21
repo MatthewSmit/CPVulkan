@@ -84,6 +84,8 @@ static constexpr uint32_t CountMipLevels(uint32_t width, uint32_t height, uint32
 	return clog2(std::max(std::max(width, height), depth));
 }
 
+constexpr auto MAX_MIP_LEVELS = CountMipLevels(MAX_IMAGE_DIMENSION_1D, MAX_IMAGE_DIMENSION_2D, MAX_IMAGE_DIMENSION_3D);
+
 struct ImageSize
 {
 	uint64_t TotalSize;
@@ -97,10 +99,10 @@ struct ImageSize
 		uint64_t LevelSize;
 		uint64_t PlaneSize;
 		uint64_t Stride;
-		uint64_t Width;
-		uint64_t Height;
-		uint64_t Depth;
-	} Level[CountMipLevels(MAX_IMAGE_DIMENSION_1D, MAX_IMAGE_DIMENSION_2D, MAX_IMAGE_DIMENSION_3D)];
+		uint32_t Width;
+		uint32_t Height;
+		uint32_t Depth;
+	} Level[MAX_MIP_LEVELS];
 
 	uint64_t PixelSize;
 };

@@ -415,11 +415,7 @@ static bool IsOpaqueType(SPIRV::SPIRVType* spirvType)
 		
 	case OpTypeArray:
 	case OpTypeRuntimeArray:
-		if (IsOpaqueType(spirvType->getArrayElementType()))
-		{
-			FATAL_ERROR();
-		}
-		return false;
+		return IsOpaqueType(spirvType->getArrayElementType());
 		
 	case OpTypePointer:
 	case OpTypeOpaque:
@@ -843,12 +839,8 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleI
 	{
 		FATAL_ERROR();
 	}
-	if (resultType->getVectorComponentCount() != 4 || !resultType->getVectorComponentType()->isTypeFloat(32) || coordinateType->getVectorComponentCount() != 2 || !coordinateType->getVectorComponentType()->isTypeFloat(32))
-	{
-		FATAL_ERROR();
-	}
 
-	const auto functionName = "@Image.Sample.Implicit." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + ".Lod";
+	const auto functionName = "@Image.Sample.Implicit." + GetTypeName(resultType) + "." + GetTypeName(coordinateType);
 	const auto cachedFunction = state.functionCache.find(functionName);
 	if (cachedFunction != state.functionCache.end())
 	{
@@ -1630,7 +1622,14 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			// case OpImageQueryLod: break;
 			// case OpImageQueryLevels: break;
 			// case OpImageQuerySamples: break;
-			// case OpConvertFToU: break;
+
+		case OpConvertFToU:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateFPToUI(ConvertValue(state, op->getOperand(0), currentFunction),
+				                                       ConvertType(state, op->getType()));
+				break;
+			}
 
 		case OpConvertFToS:
 			{
@@ -1639,9 +1638,22 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				                                       ConvertType(state, op->getType()));
 				break;
 			}
-
-			// case OpConvertSToF: break;
-			// case OpConvertUToF: break;
+			
+		case OpConvertSToF:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateSIToFP(ConvertValue(state, op->getOperand(0), currentFunction),
+				                                       ConvertType(state, op->getType()));
+				break;
+			}
+			
+		case OpConvertUToF:
+			{
+				const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+				llvmValue = state.builder.CreateUIToFP(ConvertValue(state, op->getOperand(0), currentFunction),
+				                                       ConvertType(state, op->getType()));
+				break;
+			}
 
 		case OpUConvert:
 			{
@@ -2918,9 +2930,16 @@ std::string STL_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 			return "";
 			
 		case StorageClassGeneric:
+			FATAL_ERROR();
+			
 		case StorageClassPushConstant:
+			return "_pc_";
+			
 		case StorageClassAtomicCounter:
+			FATAL_ERROR();
+			
 		case StorageClassImage:
+			FATAL_ERROR();
 
 		default:
 			FATAL_ERROR();

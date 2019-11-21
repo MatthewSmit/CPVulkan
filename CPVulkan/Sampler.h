@@ -32,7 +32,7 @@ public:
 	[[nodiscard]] VkCompareOp getCompareOp() const { return compareOp; }
 	[[nodiscard]] float getMinLod() const { return minLod; }
 	[[nodiscard]] float getMaxLod() const { return maxLod; }
-	[[nodiscard]] VkBorderColor getBorderColor() const { return borderColor; }
+	[[nodiscard]] VkBorderColor getBorderColour() const { return borderColour; }
 	[[nodiscard]] bool getUnnormalisedCoordinates() const { return unnormalisedCoordinates; }
 
 private:
@@ -50,6 +50,6 @@ private:
 	VkCompareOp compareOp{};
 	float minLod{};
 	float maxLod{};
-	VkBorderColor borderColor{};
+	VkBorderColor borderColour{};
 	bool unnormalisedCoordinates{};
 };

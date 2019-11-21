@@ -156,42 +156,47 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 	for (const auto& data : uniformData)
 	{
 		const auto descriptorSet = deviceState->descriptorSets[data.set][pipelineIndex];
-		for (const auto& binding : descriptorSet->getBindings())
+		VkDescriptorType descriptorType;
+		Descriptor* value;
+		descriptorSet->getBinding(data.binding, descriptorType, value);
+		switch (descriptorType)
 		{
-			if (std::get<1>(binding) == data.binding)
+		case VK_DESCRIPTOR_TYPE_SAMPLER:
+		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+			if (value->count == 1)
 			{
-				switch (std::get<0>(binding))
-				{
-				case VK_DESCRIPTOR_TYPE_SAMPLER:
-				case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-				case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-				case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
-				case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
-				case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-					*static_cast<const ImageDescriptor**>(data.pointer) = &std::get<2>(binding).ImageDescriptor;
-					break;
-
-				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
-				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-				case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-				case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-					*static_cast<const void**>(data.pointer) = UnwrapVulkan<Buffer>(std::get<2>(binding).BufferInfo.buffer)->getDataPtr(std::get<2>(binding).BufferInfo.offset, std::get<2>(binding).BufferInfo.range);
-					break;
-
-				case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: FATAL_ERROR();
-				case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT: FATAL_ERROR();
-				case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV: FATAL_ERROR();
-
-				default:
-					FATAL_ERROR();
-				}
-				goto end;
+				*static_cast<const ImageDescriptor**>(data.pointer) = &value->values[0].ImageDescriptor;
 			}
+			else
+			{
+				FATAL_ERROR();
+			}
+			break;
+			
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+			if (value->count == 1)
+			{
+				const auto& bufferInfo = value->values[0].BufferInfo;
+				*static_cast<const void**>(data.pointer) = UnwrapVulkan<Buffer>(bufferInfo.buffer)->getDataPtr(bufferInfo.offset, bufferInfo.range);
+			}
+			else
+			{
+				FATAL_ERROR();
+			}
+			break;
+			
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV: FATAL_ERROR();
+		default: FATAL_ERROR();
 		}
-		FATAL_ERROR();
-
-	end:
-		continue;
 	}
 }
 
