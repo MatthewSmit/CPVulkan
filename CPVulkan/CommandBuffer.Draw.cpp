@@ -167,13 +167,9 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-			if (value->count == 1)
+			for (auto j = 0u; j < value->count; j++)
 			{
-				*static_cast<const ImageDescriptor**>(data.pointer) = &value->values[0].ImageDescriptor;
-			}
-			else
-			{
-				FATAL_ERROR();
+				static_cast<const ImageDescriptor**>(data.pointer)[j] = &value->values[j].ImageDescriptor;
 			}
 			break;
 			
@@ -181,14 +177,10 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-			if (value->count == 1)
+			for (auto j = 0u; j < value->count; j++)
 			{
-				const auto& bufferInfo = value->values[0].BufferInfo;
-				*static_cast<const void**>(data.pointer) = UnwrapVulkan<Buffer>(bufferInfo.buffer)->getDataPtr(bufferInfo.offset, bufferInfo.range);
-			}
-			else
-			{
-				FATAL_ERROR();
+				const auto& bufferInfo = value->values[j].BufferInfo;
+				static_cast<const void**>(data.pointer)[j] = UnwrapVulkan<Buffer>(bufferInfo.buffer)->getDataPtr(bufferInfo.offset, bufferInfo.range);
 			}
 			break;
 			
@@ -338,16 +330,41 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 				}
 
 				const auto location = *locations.begin();
-				maxLocation = std::max(maxLocation, int32_t(location));
-				outputData.push_back(VariableInOutData
+
+				const auto ptr = jit->getPointer(llvmModule, MangleName(variable));
+				if (variable->getType()->getPointerElementType()->isTypeArray())
+				{
+					const auto size = variable->getType()->getPointerElementType()->getArrayLength();
+					const auto type = variable->getType()->getPointerElementType()->getArrayElementType();
+					maxLocation = std::max(maxLocation, int32_t(location + size - 1));
+					const auto variableSize = GetVariableSize(type);
+					for (auto j = 0U; j < size; j++)
 					{
-						jit->getPointer(llvmModule, MangleName(variable)),
-						location,
-						GetVariableFormat(variable->getType()->getPointerElementType()),
-						GetVariableSize(variable->getType()->getPointerElementType()),
-						outputSize
-					});
-				outputSize += GetVariableSize(variable->getType()->getPointerElementType());
+						outputData.push_back(VariableInOutData
+							{
+								static_cast<uint8_t*>(ptr) + j * variableSize,
+								location + j,
+								GetVariableFormat(type),
+								variableSize,
+								outputSize
+							});
+						outputSize += variableSize;
+					}
+				}
+				else
+				{
+					const auto type = variable->getType()->getPointerElementType();
+					maxLocation = std::max(maxLocation, int32_t(location));
+					outputData.push_back(VariableInOutData
+						{
+							ptr,
+							location,
+							GetVariableFormat(type),
+							GetVariableSize(type),
+							outputSize
+						});
+					outputSize += GetVariableSize(type);
+				}
 				break;
 			}
 
