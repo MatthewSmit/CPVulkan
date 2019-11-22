@@ -15,6 +15,7 @@ struct ImageFunctions
 	float (*GetPixelDepth)(const void* ptr);
 	uint8_t (*GetPixelStencil)(const void* ptr);
 	void (*GetPixelF32)(const void* ptr, void* values);
+	void (*GetPixelF32C)(const void* ptr, void* values, uint32_t x, uint32_t y);
 	void (*GetPixelI32)(const void* ptr, void* values);
 	void (*GetPixelU32)(const void* ptr, void* values);
 	

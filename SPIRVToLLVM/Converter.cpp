@@ -835,12 +835,15 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleI
 	const auto resultType = imageSampleImplicitLod->getType();
 	const auto coordinateType = imageSampleImplicitLod->getOpValue(1)->getType();
 
+	const auto cube = spirvImageType->getDescriptor().Dim == DimCube;
+	const auto array = spirvImageType->getDescriptor().Arrayed;
+
 	if (imageSampleImplicitLod->getOpWords().size() > 2)
 	{
 		FATAL_ERROR();
 	}
 
-	const auto functionName = "@Image.Sample.Implicit." + GetTypeName(resultType) + "." + GetTypeName(coordinateType);
+	const auto functionName = "@Image.Sample.Implicit." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + (cube ? ".Cube" : "") + (array ? ".Array" : "");
 	const auto cachedFunction = state.functionCache.find(functionName);
 	if (cachedFunction != state.functionCache.end())
 	{
@@ -872,6 +875,9 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 	const auto coordinateType = imageSampleExplicitLod->getOpValue(1)->getType();
 	const auto operand = imageSampleExplicitLod->getOpWord(2);
 
+	const auto cube = spirvImageType->getDescriptor().Dim == DimCube;
+	const auto array = spirvImageType->getDescriptor().Arrayed;
+
 	if (operand == 2)
 	{
 		if (imageSampleExplicitLod->getOpWords().size() > 4)
@@ -884,7 +890,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 			FATAL_ERROR();
 		}
 
-		const auto functionName = "@Image.Sample.Explicit." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + ".Lod";
+		const auto functionName = "@Image.Sample.Explicit." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + ".Lod" + (cube ? ".Cube" : "") + (array ? ".Array" : "");
 		const auto cachedFunction = state.functionCache.find(functionName);
 		if (cachedFunction != state.functionCache.end())
 		{
@@ -919,12 +925,15 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageFetch* 
 	const auto resultType = imageFetch->getType();
 	const auto coordinateType = imageFetch->getOpValue(1)->getType();
 
+	const auto cube = spirvImageType->getDescriptor().Dim == DimCube;
+	const auto array = spirvImageType->getDescriptor().Arrayed;
+
 	if (imageFetch->getOpWords().size() > 2)
 	{
 		FATAL_ERROR();
 	}
 	
-	const auto functionName = "@Image.Fetch." + GetTypeName(resultType) + "." + GetTypeName(coordinateType);
+	const auto functionName = "@Image.Fetch." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + (cube ? ".Cube" : "") + (array ? ".Array" : "");
 	const auto cachedFunction = state.functionCache.find(functionName);
 	if (cachedFunction != state.functionCache.end())
 	{

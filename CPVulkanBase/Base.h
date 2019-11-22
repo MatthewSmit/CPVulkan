@@ -3,8 +3,6 @@
 #include <vulkan/vk_platform.h>
 #include <vulkan/vulkan_core.h>
 
-#include "Config.h"
-
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 // This is to avoid including Windows.h
 #ifndef DECLARE_HANDLE
@@ -57,6 +55,8 @@ typedef XID RROutput;
 // ReSharper disable once CppUnusedIncludeDirective
 #include <vulkan/vulkan_xlib_xrandr.h>
 #endif
+
+#include "Config.h"
 
 #include <vulkan/vk_icd.h>
 

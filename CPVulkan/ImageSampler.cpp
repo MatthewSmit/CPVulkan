@@ -100,17 +100,38 @@ template<>
 glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec2 range, glm::ivec2 coordinates)
 {
 	const auto& information = GetFormatInformation(format);
-	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
-	
-	if (!functions.GetPixelF32)
+	if (information.Type == FormatType::Compressed)
 	{
-		functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
-	}
+		const auto subX = coordinates.x % information.Compressed.BlockWidth;
+		const auto subY = coordinates.y % information.Compressed.BlockHeight;
+		coordinates.x /= information.Compressed.BlockWidth;
+		coordinates.y /= information.Compressed.BlockHeight;
+		const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
+		auto& functions = deviceState->imageFunctions[format];
 
-	float values[4]{};
-	functions.GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
-	return glm::fvec4(values[0], values[1], values[2], values[3]);
+		if (!functions.GetPixelF32C)
+		{
+			functions.GetPixelF32C = reinterpret_cast<decltype(functions.GetPixelF32C)>(CompileGetPixelF32(deviceState->jit, &information));
+		}
+
+		float values[4]{};
+		functions.GetPixelF32C(data.subspan(offset, information.TotalSize).data(), values, subX, subY);
+		return glm::fvec4(values[0], values[1], values[2], values[3]);
+	}
+	else
+	{
+		const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
+		auto& functions = deviceState->imageFunctions[format];
+
+		if (!functions.GetPixelF32)
+		{
+			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
+		}
+
+		float values[4]{};
+		functions.GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
+		return glm::fvec4(values[0], values[1], values[2], values[3]);
+	}
 }
 
 template<>
@@ -290,6 +311,8 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 	
 	using IntCoordinateType = glm::vec<CoordinateType::length(), int32_t>;
 
+	const auto& information = GetFormatInformation(format);
+
 	const VkSamplerAddressMode addressMode[]
 	{
 		addressModeU,
@@ -332,17 +355,46 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 	case VK_FILTER_NEAREST:
 		{
 			constexpr auto shift = 0.0f; // 0.0 for conventional, 0.5 for corner-sampled
-			
+
 			IntCoordinateType newCoordinates;
-			for (auto i = 0; i < IntCoordinateType::length(); i++)
+			if (information.Type == FormatType::Compressed)
 			{
-				newCoordinates[i] = static_cast<int32_t>(std::floor(coordinates[i] * range[0][i] + shift));
-				newCoordinates[i] = wrap(newCoordinates[i], range[0][i], addressMode[i]);
-				
-				if (newCoordinates[i] < 0)
+				if constexpr (CoordinateType::length() == 2)
 				{
-					// TODO: Border colour
+					uint32_t realRange[]
+					{
+						range[0].x * information.Compressed.BlockWidth,
+						range[0].y * information.Compressed.BlockHeight
+					};
+					for (auto i = 0; i < IntCoordinateType::length(); i++)
+					{
+						newCoordinates[i] = static_cast<int32_t>(std::floor(coordinates[i] * realRange[i] + shift));
+						newCoordinates[i] = wrap(newCoordinates[i], realRange[i], addressMode[i]);
+
+						if (newCoordinates[i] < 0)
+						{
+							// TODO: Border colour
+							FATAL_ERROR();
+						}
+					}
+				}
+				else
+				{
 					FATAL_ERROR();
+				}
+			}
+			else
+			{
+				for (auto i = 0; i < IntCoordinateType::length(); i++)
+				{
+					newCoordinates[i] = static_cast<int32_t>(std::floor(coordinates[i] * range[0][i] + shift));
+					newCoordinates[i] = wrap(newCoordinates[i], range[0][i], addressMode[i]);
+
+					if (newCoordinates[i] < 0)
+					{
+						// TODO: Border colour
+						FATAL_ERROR();
+					}
 				}
 			}
 			
@@ -351,6 +403,11 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 		
 	case VK_FILTER_LINEAR:
 		{
+			if (information.Type == FormatType::Compressed)
+			{
+				FATAL_ERROR();
+			}
+
 			// 	constexpr auto addressMode = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
 			// 	constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
 			//
@@ -398,6 +455,8 @@ template glm::uvec4 SampleImage(DeviceState* deviceState, VkFormat format, gsl::
 template<typename ResultType, typename RangeType, typename CoordinateType>
 ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], RangeType range[MAX_MIP_LEVELS], uint32_t levels, CoordinateType coordinates, float lod, Sampler* sampler)
 {
+	// TODO: 15.9.1. Wrapping Operation
+	// Cube images ignore wrap modes
 	if (sampler->getFlags() != 0)
 	{
 		FATAL_ERROR();

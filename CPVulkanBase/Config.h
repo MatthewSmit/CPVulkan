@@ -5,20 +5,24 @@
 #include <limits>
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
-#undef VK_KHR_external_memory_fd
-#undef VK_EXT_external_memory_dma_buf
 #undef VK_KHR_external_semaphore_fd
 #undef VK_KHR_external_fence_fd
 #endif
 
-#undef VK_EXT_pci_bus_info
-#undef VK_KHR_display
-#undef VK_KHR_display_swapchain
-#undef VK_EXT_direct_mode_display
-#undef VK_EXT_acquire_xlib_display
-#undef VK_EXT_display_surface_counter
-#undef VK_EXT_display_control
-#undef VK_KHR_get_display_properties2
+#undef VK_EXT_pci_bus_info // We are not on a PCI bus
+#undef VK_NV_glsl_shader // Deprecated
+
+// External memory would not work as we are in-process
+#undef VK_KHR_external_memory_fd
+#undef VK_EXT_external_memory_dma_buf
+#undef VK_EXT_external_memory_host
+#undef VK_KHR_external_memory
+#undef VK_KHR_external_memory_win32
+#undef VK_KHR_external_memory_capabilities
+#undef VK_NV_external_memory
+#undef VK_NV_external_memory_win32
+#undef VK_NV_external_memory_capabilities
+
 #undef VK_EXT_hdr_metadata // Win32 does not support HDR
 
 #define CV_DEBUG_NONE 0
@@ -48,9 +52,9 @@ constexpr auto LARGE_POINTS = true;
 constexpr auto ALPHA_TO_ONE = true;
 constexpr auto MULTI_VIEWPORT = false;
 constexpr auto SAMPLER_ANISOTROPY = false; // TODO
-constexpr auto TEXTURE_COMPRESSION_ETC2 = true;
-constexpr auto TEXTURE_COMPRESSION_ASTC_LDR = true;
-constexpr auto TEXTURE_COMPRESSION_BC = true;
+constexpr auto TEXTURE_COMPRESSION_ETC2 = false; // TODO
+constexpr auto TEXTURE_COMPRESSION_ASTC_LDR = false; // TODO
+constexpr auto TEXTURE_COMPRESSION_BC = false; // TODO
 constexpr auto OCCLUSION_QUERY_PRECISE = true;
 constexpr auto PIPELINE_STATISTICS_QUERY = true;
 constexpr auto VERTEX_PIPELINE_STORES_AND_ATOMICS = true;
@@ -136,7 +140,7 @@ constexpr auto MAX_GEOMETRY_TOTAL_OUTPUT_COMPONENTS = 1024;
 constexpr auto MAX_FRAGMENT_INPUT_COMPONENTS = 64;
 constexpr auto MAX_FRAGMENT_OUTPUT_ATTACHMENTS = 8;
 constexpr auto MAX_FRAGMENT_DUAL_SOURCE_ATTACHMENTS = 1;
-constexpr auto MAX_FRAGMENT_COMBINED_OUTPUT_RESOURCES = 4;
+constexpr auto MAX_FRAGMENT_COMBINED_OUTPUT_RESOURCES = 8;
 constexpr auto MAX_COMPUTE_SHARED_MEMORY_SIZE = 16384;
 constexpr uint32_t MAX_COMPUTE_WORK_GROUP_COUNT[3]{65535, 65535, 65535};
 constexpr auto MAX_COMPUTE_WORK_GROUP_INVOCATIONS = 128;
@@ -170,7 +174,7 @@ constexpr auto FRAMEBUFFER_COLOUR_SAMPLE_COUNTS = VK_SAMPLE_COUNT_1_BIT | VK_SAM
 constexpr auto FRAMEBUFFER_DEPTH_SAMPLE_COUNTS = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 constexpr auto FRAMEBUFFER_STENCIL_SAMPLE_COUNTS = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 constexpr auto FRAMEBUFFER_NO_ATTACHMENTS_SAMPLE_COUNTS = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
-constexpr auto MAX_COLOUR_ATTACHMENTS = 4;
+constexpr auto MAX_COLOUR_ATTACHMENTS = 8;
 constexpr auto SAMPLED_IMAGE_COLOUR_SAMPLE_COUNTS = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 constexpr auto SAMPLED_IMAGE_INTEGER_SAMPLE_COUNTS = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
 constexpr auto SAMPLED_IMAGE_DEPTH_SAMPLE_COUNTS = VK_SAMPLE_COUNT_1_BIT | VK_SAMPLE_COUNT_2_BIT | VK_SAMPLE_COUNT_4_BIT | VK_SAMPLE_COUNT_8_BIT | VK_SAMPLE_COUNT_16_BIT | VK_SAMPLE_COUNT_32_BIT | VK_SAMPLE_COUNT_64_BIT;
@@ -197,6 +201,9 @@ constexpr auto SPARSE_RESIDENCY_STANDARD_2D_MULTISAMPLE_BLOCK_SHAPE = false;
 constexpr auto SPARSE_RESIDENCY_STANDARD_3D_BLOCK_SHAPE = false;
 constexpr auto SPARSE_RESIDENCY_ALIGNED_MIP_SIZE = false;
 constexpr auto SPARSE_RESIDENCY_NON_RESIDENT_STRICT = false;
+
+static_assert(MAX_FRAGMENT_OUTPUT_ATTACHMENTS == MAX_COLOUR_ATTACHMENTS);
+static_assert(MAX_FRAGMENT_COMBINED_OUTPUT_RESOURCES >= MAX_FRAGMENT_OUTPUT_ATTACHMENTS);
 
 constexpr auto PIPELINE_GRAPHICS = 0;
 constexpr auto PIPELINE_COMPUTE = 1;

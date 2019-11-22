@@ -370,10 +370,17 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 	llvm::IRBuilder<> builder(*context);
 	auto module = std::make_unique<llvm::Module>("", *context);
 	
-	const auto functionType = llvm::FunctionType::get(builder.getVoidTy(), {
-		                                                  builder.getInt8PtrTy(),
-		                                                  llvm::PointerType::get(builder.getFloatTy(), 0),
-	                                                  }, false);
+	const auto functionType = information->Type == FormatType::Compressed
+		                          ? llvm::FunctionType::get(builder.getVoidTy(), {
+			                                                    builder.getInt8PtrTy(),
+			                                                    llvm::PointerType::get(builder.getFloatTy(), 0),
+			                                                    builder.getInt32Ty(),
+			                                                    builder.getInt32Ty(),
+		                                                    }, false)
+		                          : llvm::FunctionType::get(builder.getVoidTy(), {
+			                                                    builder.getInt8PtrTy(),
+			                                                    llvm::PointerType::get(builder.getFloatTy(), 0),
+		                                                    }, false);
 	const auto function = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
 	                                             llvm::GlobalVariable::ExternalLinkage,
 	                                             "main",
@@ -804,7 +811,162 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 			break;
 		}
 		
-	case FormatType::Compressed: FATAL_ERROR();
+	case FormatType::Compressed:
+		{
+			const auto subX = &*(function->arg_begin() + 2);
+			const auto subY = &*(function->arg_begin() + 3);
+
+			// The type of the block
+			llvm::Type* sourceType;
+			switch (information->TotalSize)
+			{
+			case 4:
+				sourceType = builder.getInt32Ty();
+				break;
+
+			case 8:
+				sourceType = builder.getInt64Ty();
+				break;
+
+			case 16:
+				sourceType = builder.getInt128Ty();
+				break;
+
+			default:
+				FATAL_ERROR();
+			}
+
+			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+			const auto source = builder.CreateLoad(sourcePtr);
+			const auto pixels = builder.CreateAlloca(builder.getFloatTy(), builder.getInt32(4 * information->Compressed.BlockWidth * information->Compressed.BlockHeight));
+
+			// Get function that handles decompression
+			llvm::Function* decompress;
+			switch (information->Format)
+			{
+			case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+			case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+			case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+			case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+			case VK_FORMAT_BC2_UNORM_BLOCK:
+			case VK_FORMAT_BC2_SRGB_BLOCK:
+			case VK_FORMAT_BC3_UNORM_BLOCK:
+			case VK_FORMAT_BC3_SRGB_BLOCK:
+			case VK_FORMAT_BC4_UNORM_BLOCK:
+			case VK_FORMAT_BC4_SNORM_BLOCK:
+			case VK_FORMAT_BC5_UNORM_BLOCK:
+			case VK_FORMAT_BC5_SNORM_BLOCK:
+			case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+			case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+			case VK_FORMAT_BC7_UNORM_BLOCK:
+			case VK_FORMAT_BC7_SRGB_BLOCK:
+				FATAL_ERROR();
+				
+			case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
+			case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
+				decompress = llvm::Function::Create(
+					llvm::FunctionType::get(builder.getVoidTy(), {source->getType(), pixels->getType()}, false), 
+					llvm::GlobalValue::ExternalLinkage, "DecompressETC2R8G8B8", module.get());
+				break;
+				
+			case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
+			case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
+			case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
+			case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
+				FATAL_ERROR();
+				
+			case VK_FORMAT_EAC_R11_UNORM_BLOCK:
+			case VK_FORMAT_EAC_R11_SNORM_BLOCK:
+			case VK_FORMAT_EAC_R11G11_UNORM_BLOCK:
+			case VK_FORMAT_EAC_R11G11_SNORM_BLOCK:
+				FATAL_ERROR();
+				
+			case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
+			case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
+			case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
+				FATAL_ERROR();
+				
+			case VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG:
+			case VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG:
+			case VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG:
+			case VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG:
+			case VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG:
+			case VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG:
+			case VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG:
+			case VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG:
+				FATAL_ERROR();
+				
+			default:
+				FATAL_ERROR();
+			}
+
+			builder.CreateCall(decompress, {source, pixels});
+
+			// Get the offset to the pixels we need
+			auto offset = builder.CreateMul(subY, builder.getInt32(information->Compressed.BlockWidth));
+			offset = builder.CreateAdd(offset, subX);
+			offset = builder.CreateMul(offset, builder.getInt32(4));
+
+			// Set R channel
+			auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+			llvm::Value* value = builder.CreateLoad(builder.CreateGEP(pixels, offset));
+			if (information->Base == BaseType::SRGB)
+			{
+				value = EmitSRGBToLinear(function, builder, value);
+			}
+			builder.CreateStore(value, dst);
+
+			// Set G channel
+			dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+			value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(1))));
+			if (information->Base == BaseType::SRGB)
+			{
+				value = EmitSRGBToLinear(function, builder, value);
+			}
+			builder.CreateStore(value, dst);
+
+			// Set B channel
+			dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+			value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(2))));
+			if (information->Base == BaseType::SRGB)
+			{
+				value = EmitSRGBToLinear(function, builder, value);
+			}
+			builder.CreateStore(value, dst);
+
+			// Set A channel
+			dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+			value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(3))));
+			builder.CreateStore(value, dst);
+			
+			break;
+		}
+		
 	case FormatType::Planar: FATAL_ERROR();
 	case FormatType::PlanarSamplable: FATAL_ERROR();
 	default: assert(false);
@@ -932,7 +1094,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 			else
 			{
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-				builder.CreateStore(builder.getInt32(0), dst);
+				builder.CreateStore(builder.getInt32(1), dst);
 			}
 			break;
 		}
@@ -944,7 +1106,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 				// case BaseType::UNorm: break;
 				// case BaseType::SNorm: break;
 				// case BaseType::UScaled: break;
-				// case BaseType::SScaled: break;
+			case BaseType::SScaled: break;
 				// case BaseType::UInt: break;
 			case BaseType::SInt: break;
 				// case BaseType::UFloat: break;
@@ -1161,7 +1323,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 			else
 			{
 				const auto dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-				builder.CreateStore(builder.getInt32(0), dst);
+				builder.CreateStore(builder.getInt32(1), dst);
 			}
 			break;
 		}
@@ -1172,7 +1334,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 			{
 				// case BaseType::UNorm: break;
 				// case BaseType::SNorm: break;
-				// case BaseType::UScaled: break;
+			case BaseType::UScaled: break;
 				// case BaseType::SScaled: break;
 			case BaseType::UInt: break;
 				// case BaseType::SInt: break;
