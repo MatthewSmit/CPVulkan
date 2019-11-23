@@ -7,7 +7,7 @@
 #include "Queue.h"
 #include "Util.h"
 
-#include <Converter.h>
+#include <Jit.h>
 
 #include <cassert>
 #include <fstream>
@@ -21,7 +21,7 @@ Device::Device() :
 	state->debugOutput = output;
 #endif
 	
-	state->jit = new SpirvJit();
+	state->jit = new CPJit();
 	AddGlslFunctions(state.get());
 }
 

@@ -1,7 +1,5 @@
 #include "SpirvFunctions.h"
 
-#include "Converter.h"
-
 #include <glm/glm.hpp>
 
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0

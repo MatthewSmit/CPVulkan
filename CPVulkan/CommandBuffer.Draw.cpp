@@ -14,7 +14,8 @@
 #include "RenderPass.h"
 #include "Util.h"
 
-#include <Converter.h>
+#include <Jit.h>
+#include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
 #include <SPIRVInstruction.h>
 #include <SPIRVModule.h>
@@ -257,8 +258,8 @@ static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 }
 
 static void GetVariablePointers(const SPIRV::SPIRVModule* module, 
-                                const SpirvCompiledModule* llvmModule, 
-                                SpirvJit* jit, 
+                                const CompiledModule* llvmModule, 
+                                CPJit* jit, 
                                 std::vector<VariableInOutData>& inputData,
                                 std::vector<VariableUniformData>& uniformData, 
                                 std::vector<VariableInOutData>& outputData,

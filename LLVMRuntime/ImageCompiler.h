@@ -1,15 +1,15 @@
 #pragma once
-#include "Converter.h"
+#include "Jit.h"
 
 struct FormatInformation;
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileGetPixelStencil(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileGetPixelDepth(CPJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileGetPixelStencil(CPJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileGetPixelF32(CPJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileGetPixelI32(CPJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileGetPixelU32(CPJit* jit, const FormatInformation* information);
 
-STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileSetPixelF32(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileSetPixelI32(SpirvJit* jit, const FormatInformation* information);
-STL_DLL_EXPORT FunctionPointer CompileSetPixelU32(SpirvJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileSetPixelF32(CPJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileSetPixelI32(CPJit* jit, const FormatInformation* information);
+CP_DLL_EXPORT FunctionPointer CompileSetPixelU32(CPJit* jit, const FormatInformation* information);

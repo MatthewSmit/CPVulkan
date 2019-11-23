@@ -4,18 +4,19 @@ find_package(glm CONFIG REQUIRED)
 find_package(LLVM CONFIG REQUIRED)
 
 add_library(LLVMRuntime SHARED
-	"Converter.cpp"
-	"Converter.h"
-
 	"ImageCompiler.cpp"
 	"ImageCompiler.h"
 
-	"LlvmHelper.cpp"
+	"Jit.cpp"
+	"Jit.h"
+
+	"LLVMHelper.cpp"
+	
+	"SPIRVCompiler.cpp"
+	"SPIRVCompiler.h"
 
 	"SpirvFunctions.cpp"
 	"SpirvFunctions.h"
-
-	"SpirvJit.cpp"
 	)
 
 target_link_libraries(LLVMRuntime PRIVATE CPVulkanBase SPIRVParser glm LLVMBitWriter LLVMCore LLVMOrcJIT LLVMX86AsmParser LLVMX86CodeGen)

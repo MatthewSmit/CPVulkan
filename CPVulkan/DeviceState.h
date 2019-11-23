@@ -2,11 +2,11 @@
 #include "Base.h"
 
 class Buffer;
+class CPJit;
 class DescriptorSet;
 class Framebuffer;
 class Pipeline;
 class RenderPass;
-class SpirvJit;
 
 struct Subpass;
 
@@ -49,7 +49,7 @@ struct DeviceState
 	Framebuffer* currentFramebuffer;
 	VkRect2D currentRenderArea;
 
-	SpirvJit* jit;
+	CPJit* jit;
 	std::unordered_map<VkFormat, ImageFunctions> imageFunctions{};
 	
 #if CV_DEBUG_LEVEL > 0

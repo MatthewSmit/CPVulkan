@@ -1,4 +1,4 @@
-#include "Converter.h"
+#include "SPIRVCompiler.h"
 
 #include "SPIRVInstruction.h"
 #include "SPIRVModule.h"
@@ -2935,7 +2935,7 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	return llvmModule;
 }
 
-std::string STL_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
+std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 {
 	auto name = variable->getName();
 	if (name.empty())

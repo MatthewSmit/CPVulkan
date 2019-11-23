@@ -269,7 +269,7 @@ static llvm::Value* EmitConvert(llvm::IRBuilder<>& builder, llvm::Value* inputVa
 	}
 }
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileGetPixelDepth(CPJit* jit, const FormatInformation* information)
 {
 	assert(information->Type == FormatType::DepthStencil);
 	assert(information->DepthStencil.DepthOffset != INVALID_OFFSET);
@@ -330,7 +330,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelDepth(SpirvJit* jit, const FormatI
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixelStencil(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileGetPixelStencil(CPJit* jit, const FormatInformation* information)
 {
 	assert(information->Type == FormatType::DepthStencil);
 	assert(information->DepthStencil.StencilOffset != INVALID_OFFSET);
@@ -364,7 +364,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelStencil(SpirvJit* jit, const Forma
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileGetPixelF32(CPJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -1028,7 +1028,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileGetPixelI32(CPJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -1257,7 +1257,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelI32(SpirvJit* jit, const FormatInf
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileGetPixelU32(CPJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -1485,7 +1485,7 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelU32(SpirvJit* jit, const FormatInf
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const FormatInformation* information)
 {
 	assert(information->Type == FormatType::DepthStencil);
 
@@ -1863,7 +1863,7 @@ static void EmitSetPackedPixelUInt32(llvm::IRBuilder<>& builder, const FormatInf
 	builder.CreateStore(value, dst);
 }
 
-STL_DLL_EXPORT FunctionPointer CompileSetPixelF32(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileSetPixelF32(CPJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -2182,7 +2182,7 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelF32(SpirvJit* jit, const FormatInf
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileSetPixelI32(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileSetPixelI32(CPJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);
@@ -2331,7 +2331,7 @@ STL_DLL_EXPORT FunctionPointer CompileSetPixelI32(SpirvJit* jit, const FormatInf
 	return jit->getFunctionPointer(compiledModule, "main");
 }
 
-STL_DLL_EXPORT FunctionPointer CompileSetPixelU32(SpirvJit* jit, const FormatInformation* information)
+CP_DLL_EXPORT FunctionPointer CompileSetPixelU32(CPJit* jit, const FormatInformation* information)
 {
 	auto context = std::make_unique<llvm::LLVMContext>();
 	llvm::IRBuilder<> builder(*context);

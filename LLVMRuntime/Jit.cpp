@@ -1,5 +1,6 @@
-#include "Converter.h"
+#include "Jit.h"
 
+#include "SPIRVCompiler.h"
 #include "SpirvFunctions.h"
 
 #include <llvm/ExecutionEngine/Orc/CompileUtils.h>
@@ -20,18 +21,18 @@ inline void strcpy_s(char* destination, const char* source)
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
-class SpirvCompiledModule
+class CompiledModule
 {
 public:
-	SpirvCompiledModule(llvm::Module* module, llvm::orc::ThreadSafeContext context, llvm::orc::JITDylib& dylib);
-	~SpirvCompiledModule();
+	CompiledModule(llvm::Module* module, llvm::orc::ThreadSafeContext context, llvm::orc::JITDylib& dylib);
+	~CompiledModule();
 
 	llvm::Module* module;
 	llvm::orc::ThreadSafeContext context;
 	llvm::orc::JITDylib& dylib;
 };
 
-class SpirvJit::Impl
+class CPJit::Impl
 {
 public:
 	Impl(llvm::orc::JITTargetMachineBuilder&& targetMachineBuilder, llvm::DataLayout&& dataLayout)
@@ -52,14 +53,14 @@ public:
 		}
 	}
 
-	SpirvCompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
+	CompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
 	{
 		auto context = std::make_unique<llvm::LLVMContext>();
 		auto module = ConvertSpirv(context.get(), spirvModule, executionModel);
 		return CompileModule(std::move(context), std::move(module));
 	}
 
-	SpirvCompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
+	CompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
 	{
 		const auto safeContext = llvm::orc::ThreadSafeContext(std::move(context));
 		auto safeModule = llvm::orc::ThreadSafeModule(std::move(module), safeContext);
@@ -77,7 +78,7 @@ public:
 		}
 
 		cantFail(compileLayer.add(dylib, std::move(safeModule), executionSession.allocateVModule()));
-		const auto compiledModule = new SpirvCompiledModule(moduleValue, safeContext, dylib);
+		const auto compiledModule = new CompiledModule(moduleValue, safeContext, dylib);
 		auto userDataPtr = Lookup(compiledModule, "@userData");
 		if (userDataPtr)
 		{
@@ -96,12 +97,12 @@ public:
 		this->userData = userData;
 	}
 
-	llvm::Expected<llvm::JITEvaluatedSymbol> Lookup(const SpirvCompiledModule* module, llvm::StringRef name)
+	llvm::Expected<llvm::JITEvaluatedSymbol> Lookup(const CompiledModule* module, llvm::StringRef name)
 	{
 		return executionSession.lookup(&module->dylib, mangle(name.str()));
 	}
 
-	void* getPointer(const SpirvCompiledModule* module, const std::string& name)
+	void* getPointer(const CompiledModule* module, const std::string& name)
 	{
 		return reinterpret_cast<void*>(cantFail(Lookup(module, name)).getAddress());
 	}
@@ -182,7 +183,7 @@ private:
 	}
 };
 
-SpirvJit::SpirvJit()
+CPJit::CPJit()
 {
 	LLVMInitializeNativeTarget();
 	LLVMInitializeNativeAsmPrinter();
@@ -204,46 +205,46 @@ SpirvJit::SpirvJit()
 	impl = new Impl(std::move(*targetMachineBuilder), std::move(*dataLayout));
 }
 
-SpirvJit::~SpirvJit()
+CPJit::~CPJit()
 {
 	delete impl;
 }
 
-SpirvCompiledModule* SpirvJit::CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
+CompiledModule* CPJit::CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
 {
 	return impl->CompileModule(spirvModule, executionModel);
 }
 
-SpirvCompiledModule* SpirvJit::CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
+CompiledModule* CPJit::CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
 {
 	return impl->CompileModule(std::move(context), std::move(module));
 }
 
-void SpirvJit::AddFunction(const std::string& name, FunctionPointer pointer)
+void CPJit::AddFunction(const std::string& name, FunctionPointer pointer)
 {
 	impl->AddFunction(name, pointer);
 }
 
-void SpirvJit::SetUserData(void* userData)
+void CPJit::SetUserData(void* userData)
 {
 	impl->SetUserData(userData);
 }
 
-void* SpirvJit::getPointer(const SpirvCompiledModule* module, const std::string& name)
+void* CPJit::getPointer(const CompiledModule* module, const std::string& name)
 {
 	return impl->getPointer(module, name);
 }
 
-FunctionPointer SpirvJit::getFunctionPointer(const SpirvCompiledModule* module, const std::string& name)
+FunctionPointer CPJit::getFunctionPointer(const CompiledModule* module, const std::string& name)
 {
 	return reinterpret_cast<FunctionPointer>(getPointer(module, name));
 }
 
-SpirvCompiledModule::SpirvCompiledModule(llvm::Module* module, llvm::orc::ThreadSafeContext context, llvm::orc::JITDylib& dylib) :
+CompiledModule::CompiledModule(llvm::Module* module, llvm::orc::ThreadSafeContext context, llvm::orc::JITDylib& dylib) :
 	module{module},
 	context{std::move(context)},
 	dylib{dylib}
 {
 }
 
-SpirvCompiledModule::~SpirvCompiledModule() = default;
+CompiledModule::~CompiledModule() = default;

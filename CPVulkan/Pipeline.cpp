@@ -5,7 +5,7 @@
 #include "ShaderModule.h"
 #include "Util.h"
 
-#include <Converter.h>
+#include <Jit.h>
 #include <SPIRVFunction.h>
 #include <SPIRVModule.h>
 
@@ -435,7 +435,7 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 	return dynamicState;;
 }
 
-static std::tuple<int, ShaderFunction*> LoadShaderStage(SpirvJit* jit, const struct VkPipelineShaderStageCreateInfo& stage)
+static std::tuple<int, ShaderFunction*> LoadShaderStage(CPJit* jit, const struct VkPipelineShaderStageCreateInfo& stage)
 {
 	assert(stage.sType == VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
 
@@ -478,7 +478,7 @@ static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SP
 	return nullptr;
 }
 
-ShaderFunction::ShaderFunction(SpirvJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name)
+ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name)
 {
 	this->module = module->getModule();
 	this->name = name;

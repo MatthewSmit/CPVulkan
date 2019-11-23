@@ -11,8 +11,8 @@ namespace SPIRV
 	class SPIRVModule;
 }
 
-class SpirvCompiledModule;
-class SpirvJit;
+class CompiledModule;
+class CPJit;
 
 class Device;
 class ShaderFunction;
@@ -118,11 +118,11 @@ class ShaderFunction final
 public:
 	using EntryPoint = void (*)();
 	
-	ShaderFunction(SpirvJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name);
+	ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name);
 	~ShaderFunction();
 
 	[[nodiscard]] const SPIRV::SPIRVModule* getModule() const { return module; }
-	[[nodiscard]] SpirvCompiledModule* getLLVMModule() const { return llvmModule; }
+	[[nodiscard]] CompiledModule* getLLVMModule() const { return llvmModule; }
 	[[nodiscard]] const std::string& getName() const { return name; }
 	[[nodiscard]] EntryPoint getEntryPoint() const { return entryPoint; }
 	
@@ -131,7 +131,7 @@ public:
 
 private:
 	const SPIRV::SPIRVModule* module;
-	SpirvCompiledModule* llvmModule;
+	CompiledModule* llvmModule;
 	std::string name;
 	EntryPoint entryPoint;
 	
