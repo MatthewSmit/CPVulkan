@@ -810,6 +810,52 @@ STL_DLL_EXPORT FunctionPointer CompileGetPixelF32(SpirvJit* jit, const FormatInf
 
 			break;
 		}
+
+	case FormatType::DepthStencil:
+		{
+			llvm::Value* value;
+			switch (information->Format)
+			{
+			case VK_FORMAT_D16_UNORM:
+			case VK_FORMAT_D16_UNORM_S8_UINT:
+				sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getInt16Ty(), 0));
+				value = builder.CreateLoad(sourcePtr);
+				value = EmitConvert<uint16_t, float>(builder, value);
+				break;
+
+			case VK_FORMAT_D24_UNORM_S8_UINT:
+			case VK_FORMAT_X8_D24_UNORM_PACK32:
+				sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getInt32Ty(), 0));
+				value = builder.CreateLoad(sourcePtr);
+				value = builder.CreateAnd(value, builder.getInt32(0x00FFFFFF));
+				value = builder.CreateUIToFP(value, builder.getFloatTy());
+				value = builder.CreateFDiv(value, llvm::ConstantFP::get(builder.getFloatTy(), 0x00FFFFFF));
+				break;
+
+			case VK_FORMAT_D32_SFLOAT:
+			case VK_FORMAT_D32_SFLOAT_S8_UINT:
+				sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getFloatTy(), 0));
+				value = builder.CreateLoad(sourcePtr);
+				break;
+
+			default:
+				FATAL_ERROR();
+			}
+			
+			auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+			builder.CreateStore(value, dst);
+
+			dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+			builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+
+			dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+			builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
+
+			dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+			builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 1), dst);
+			
+			break;
+		}
 		
 	case FormatType::Compressed:
 		{

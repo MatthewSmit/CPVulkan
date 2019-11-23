@@ -264,7 +264,6 @@ static T VFindUMsb(T value)
 
 static void GetFormatOffset(Image* image, const VkImageSubresourceRange& subresourceRange, uint64_t offset[MAX_MIP_LEVELS], uint64_t size[MAX_MIP_LEVELS], uint32_t& baseLevel, uint32_t& levels, uint32_t layer)
 {
-	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
 	if (layer >= subresourceRange.layerCount + subresourceRange.baseArrayLayer)
 	{
 		layer = subresourceRange.layerCount + subresourceRange.baseArrayLayer - 1;
@@ -289,8 +288,6 @@ glm::vec<length, uint32_t> GetImageRange(Image* image, const VkImageSubresourceR
 template<>
 glm::uvec1 GetImageRange<1>(Image* image, const VkImageSubresourceRange& subresourceRange, uint32_t level)
 {
-	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
-
 	const auto& size = image->getImageSize().Level[level + subresourceRange.baseMipLevel];
 	return glm::uvec1{size.Width};
 }
@@ -298,8 +295,6 @@ glm::uvec1 GetImageRange<1>(Image* image, const VkImageSubresourceRange& subreso
 template<>
 glm::uvec2 GetImageRange<2>(Image* image, const VkImageSubresourceRange& subresourceRange, uint32_t level)
 {
-	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
-
 	const auto& size = image->getImageSize().Level[level + subresourceRange.baseMipLevel];
 	return glm::uvec2{size.Width, size.Height};
 }
@@ -307,8 +302,6 @@ glm::uvec2 GetImageRange<2>(Image* image, const VkImageSubresourceRange& subreso
 template<>
 glm::uvec3 GetImageRange<3>(Image* image, const VkImageSubresourceRange& subresourceRange, uint32_t level)
 {
-	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
-
 	const auto& size = image->getImageSize().Level[level + subresourceRange.baseMipLevel];
 	return glm::uvec3{size.Width, size.Height, size.Depth};
 }

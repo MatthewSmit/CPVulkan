@@ -98,7 +98,7 @@ static constexpr FormatInformation MakeDepthFormatInformation(VkFormat format, u
 		features,
 		features,
 		features,
-		static_cast<VkColorComponentFlagBits>(0),
+		static_cast<VkColorComponentFlagBits>(VK_COLOR_COMPONENT_R_BIT),
 		totalSize,
 		elementSize,
 		baseType

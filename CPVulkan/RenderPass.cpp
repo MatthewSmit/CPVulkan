@@ -101,7 +101,9 @@ void Device::DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallba
 	}
 }
 
+#if defined(VK_KHR_create_renderpass2)
 VkResult Device::CreateRenderPass2(const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
 {
 	FATAL_ERROR();
 }
+#endif

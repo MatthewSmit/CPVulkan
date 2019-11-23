@@ -93,9 +93,11 @@ public:
 	VKAPI_ATTR void VKAPI_PTR PushDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR PushDescriptorSetWithTemplate(VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set, const void* pData) { FATAL_ERROR(); } 
 
+#if defined(VK_KHR_create_renderpass2)
 	VKAPI_ATTR void VKAPI_PTR BeginRenderPass2(const VkRenderPassBeginInfo* pRenderPassBegin, const VkSubpassBeginInfoKHR* pSubpassBeginInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR NextSubpass2(const VkSubpassBeginInfoKHR* pSubpassBeginInfo, const VkSubpassEndInfoKHR* pSubpassEndInfo) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR EndRenderPass2(const VkSubpassEndInfoKHR* pSubpassEndInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR EndRenderPass2(const VkSubpassEndInfoKHR* pSubpassEndInfo) { FATAL_ERROR(); }
+#endif
 
 	VKAPI_ATTR void VKAPI_PTR DrawIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride) { FATAL_ERROR(); } 

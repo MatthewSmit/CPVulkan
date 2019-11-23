@@ -128,7 +128,9 @@ public:
 	VKAPI_ATTR VkResult VKAPI_PTR GetSemaphoreFd(const VkSemaphoreGetFdInfoKHR* pGetFdInfo, int* pFd);
 #endif
 
+#if defined(VK_KHR_create_renderpass2)
 	VKAPI_ATTR VkResult VKAPI_PTR CreateRenderPass2(const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass);
+#endif
 	
 	VKAPI_ATTR VkResult VKAPI_PTR GetSwapchainStatus(VkSwapchainKHR swapchain);
 
