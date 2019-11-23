@@ -22,7 +22,7 @@ endif()
 project("CPVulkan")
 
 add_subdirectory("SPIRVParser")
-add_subdirectory("SPIRVToLLVM")
+add_subdirectory("LLVMRuntime")
 add_subdirectory("CPVulkanBase")
 add_subdirectory("CPVulkan")
 add_subdirectory("Samples")

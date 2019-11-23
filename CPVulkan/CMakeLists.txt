@@ -108,7 +108,7 @@ set(FILES
 		"VulkanFunctions.h"
 		)
 
-set(LINKS glm SPIRVParser SPIRVToLLVM Threads::Threads CPVulkanBase)
+set(LINKS glm SPIRVParser LLVMRuntime Threads::Threads CPVulkanBase)
 
 if(WIN32)
 	list(APPEND FILES
