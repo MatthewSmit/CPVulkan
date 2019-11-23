@@ -995,15 +995,15 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[2].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec2>));
 	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[3].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec3>));
 
-	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[2].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec2, true>));
-	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[3].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec3, true>));
-	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[4].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec4, true>));
-	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[2].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec2, true>));
-	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[3].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec3, true>));
-	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[4].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec4, true>));
-	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[2].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec2, true>));
-	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[3].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec3, true>));
-	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[4].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec4, true>));
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[2].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec2, true>));
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[3].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec3, true>));
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[4].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec4, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[2].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec2, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[3].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec3, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[4].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec4, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[2].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec2, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[3].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec3, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[4].Lod.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec4, true>));
 	
 	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[3].Lod.Cube", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec3, false, true>));
 	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[3].Lod.Cube", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec3, false, true>));

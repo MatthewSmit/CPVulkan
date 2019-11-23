@@ -479,10 +479,9 @@ ResultType SampleImageOfLevel(DeviceState* deviceState, const FormatInformation&
 			for (auto i = 0; i < CoordinateType::length(); i++)
 			{
 				newCoordinates0[i] = static_cast<int32_t>(std::floor(coordinates[i] * range[i] - shift));
-				newCoordinates1[i] = newCoordinates0[0] + 1;
-				
+
+				newCoordinates1[i] = wrap(newCoordinates0[i] + 1, range[i], addressMode[i]);
 				newCoordinates0[i] = wrap(newCoordinates0[i], range[i], addressMode[i]);
-				newCoordinates1[i] = wrap(newCoordinates1[i], range[i], addressMode[i]);
 			}
 
 			switch (reductionMode)
