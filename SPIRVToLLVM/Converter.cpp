@@ -885,11 +885,6 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageSampleE
 			FATAL_ERROR();
 		}
 
-		if (resultType->getVectorComponentCount() != 4 || !resultType->getVectorComponentType()->isTypeFloat(32) || coordinateType->getVectorComponentCount() != 2 || !coordinateType->getVectorComponentType()->isTypeFloat(32))
-		{
-			FATAL_ERROR();
-		}
-
 		const auto functionName = "@Image.Sample.Explicit." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + ".Lod" + (cube ? ".Cube" : "") + (array ? ".Array" : "");
 		const auto cachedFunction = state.functionCache.find(functionName);
 		if (cachedFunction != state.functionCache.end())
@@ -1546,7 +1541,51 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			
 			// case OpCopyObject: break;
 			// case OpTranspose: break;
-			// case OpSampledImage: break;
+			 
+		case OpSampledImage:
+			{
+				const auto sampledImage = reinterpret_cast<SPIRV::SPIRVSampledImage*>(instruction);
+
+				// Get storage 3 pointers in size
+				llvm::Value* storage = state.builder.CreateAlloca(state.builder.getInt8PtrTy(), state.builder.getInt32(3));
+				storage = state.builder.CreateBitCast(storage, ConvertType(state, sampledImage->getType()));
+
+				auto image = ConvertValue(state, sampledImage->getOpValue(0), currentFunction);
+				auto sampler = ConvertValue(state, sampledImage->getOpValue(1), currentFunction);
+
+				const auto functionName = "@ImageCombine";
+				const auto cachedFunction = state.functionCache.find(functionName);
+				llvm::Function* function;
+				if (cachedFunction != state.functionCache.end())
+				{
+					function = cachedFunction->second;
+				}
+				else
+				{
+					llvm::Type* params[]
+					{
+						image->getType(),
+						sampler->getType(),
+						storage->getType(),
+					};
+
+					const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+					function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
+					function->addDereferenceableAttr(0, 16);
+					function->addDereferenceableAttr(1, 16);
+					function->addDereferenceableAttr(2, 16);
+					state.functionCache[functionName] = function;
+				}
+
+				state.builder.CreateCall(function, 
+				                         {
+					                         image,
+					                         sampler,
+					                         storage,
+				                         });
+				llvmValue = storage;
+				break;
+			}
 
 		case OpImageSampleImplicitLod:
 			{

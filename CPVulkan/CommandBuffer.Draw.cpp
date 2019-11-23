@@ -892,7 +892,8 @@ static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, Image* i
 	                            format,
 	                            data,
 	                            range,
-	                            coordinates);
+	                            coordinates,
+	                            ReturnType{});
 }
 
 static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& output)

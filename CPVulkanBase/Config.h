@@ -34,7 +34,7 @@ constexpr auto VULKAN_VERSION = VK_API_VERSION_1_1;
 
 constexpr auto ROBUST_BUFFER_ACCESS = true;
 constexpr auto FULL_DRAW_INDEX_UINT32 = true;
-constexpr auto IMAGE_CUBE_ARRAY = true;
+constexpr auto IMAGE_CUBE_ARRAY = false; // TODO: Does not currently work when texture format has B channel
 constexpr auto INDEPENDENT_BLEND = true;
 constexpr auto GEOMETRY_SHADER = false; // TODO
 constexpr auto TESSELLATION_SHADER = false; // TODO
@@ -150,7 +150,7 @@ constexpr auto SUB_TEXEL_PRECISION_BITS = 4;
 constexpr auto MIPMAP_PRECISION_BITS = 4;
 constexpr auto MAX_DRAW_INDEXED_INDEX_VALUE = 0xFFFFFFFF;
 constexpr auto MAX_DRAW_INDIRECT_COUNT = 0xFFFF;
-constexpr auto MAX_SAMPLER_LOD_BIAS = 2.0f;
+constexpr auto MAX_SAMPLER_LOD_BIAS = 32.0f;
 constexpr auto MAX_SAMPLER_ANISOTROPY = 16.0f;
 constexpr auto MAX_VIEWPORTS = 16;
 constexpr uint32_t MAX_VIEWPORT_DIMENSIONS[2]{4096, 4096};

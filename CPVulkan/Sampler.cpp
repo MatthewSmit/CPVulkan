@@ -14,14 +14,17 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	auto next = pCreateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
+		switch (next->sType)
 		{
 		case VK_STRUCTURE_TYPE_SAMPLER_REDUCTION_MODE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			{
+				const auto createInfo = reinterpret_cast<const VkSamplerReductionModeCreateInfoEXT*>(next);
+				sampler->reductionMode = createInfo->reductionMode;
+				break;
+			}
 			
 		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO:
 			FATAL_ERROR();
@@ -29,7 +32,7 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 		default:
 			break;
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 	
 	sampler->flags = pCreateInfo->flags;

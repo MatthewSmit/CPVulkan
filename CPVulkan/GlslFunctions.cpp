@@ -262,7 +262,7 @@ static T VFindUMsb(T value)
 }
 
 
-static void GetFormatOffset(Image* image, const VkImageSubresourceRange& subresourceRange, uint64_t offset[MAX_MIP_LEVELS], uint64_t size[MAX_MIP_LEVELS], uint32_t& levels, uint32_t layer)
+static void GetFormatOffset(Image* image, const VkImageSubresourceRange& subresourceRange, uint64_t offset[MAX_MIP_LEVELS], uint64_t size[MAX_MIP_LEVELS], uint32_t& baseLevel, uint32_t& levels, uint32_t layer)
 {
 	assert(subresourceRange.aspectMask == VK_IMAGE_ASPECT_COLOR_BIT);
 	if (layer >= subresourceRange.layerCount + subresourceRange.baseArrayLayer)
@@ -279,6 +279,7 @@ static void GetFormatOffset(Image* image, const VkImageSubresourceRange& subreso
 		offset[i] = image->getImageSize().Level[i + subresourceRange.baseMipLevel].Offset + layer * image->getImageSize().LayerSize;
 		size[i] = image->getImageSize().Level[i + subresourceRange.baseMipLevel].LevelSize;
 	}
+	baseLevel = subresourceRange.baseMipLevel;
 	levels = subresourceRange.levelCount;
 }
 
@@ -313,7 +314,7 @@ glm::uvec3 GetImageRange<3>(Image* image, const VkImageSubresourceRange& subreso
 }
 
 template<int length>
-static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::vec<length, uint32_t> range[MAX_MIP_LEVELS], uint32_t& levels)
+static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::vec<length, uint32_t> range[MAX_MIP_LEVELS], uint32_t& baseLevel, uint32_t& levels)
 {
 	const auto imageView = descriptor->Data.Image;
 	const auto bufferView = descriptor->Data.Buffer;
@@ -324,6 +325,7 @@ static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::spa
 		format = bufferView->getFormat();
 		data[0] = bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange());
 		range[0] = {static_cast<uint32_t>(bufferView->getRange())};
+		baseLevel = 0;
 		levels = 1;
 		break;
 
@@ -336,7 +338,7 @@ static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::spa
 		format = imageView->getFormat();
 		uint64_t offset[MAX_MIP_LEVELS];
 		uint64_t size[MAX_MIP_LEVELS];
-		GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size, levels, 0);
+		GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size, baseLevel, levels, 0);
 		for (auto i = 0u; i < levels; i++)
 		{
 			data[i] = imageView->getImage()->getData(offset[i], size[i]);
@@ -349,7 +351,7 @@ static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::spa
 }
 
 template<typename CoordinateType>
-static void GetImageDataArray(ImageDescriptor* descriptor, VkFormat& format, CoordinateType coordinates, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::vec<CoordinateType::length() - 1, uint32_t> range[MAX_MIP_LEVELS], uint32_t& levels)
+static void GetImageDataArray(ImageDescriptor* descriptor, VkFormat& format, CoordinateType coordinates, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::vec<CoordinateType::length() - 1, uint32_t> range[MAX_MIP_LEVELS], uint32_t& baseLevel, uint32_t& levels)
 {
 	assert(descriptor->Type == ImageDescriptorType::Image);
 
@@ -363,7 +365,7 @@ static void GetImageDataArray(ImageDescriptor* descriptor, VkFormat& format, Coo
 	format = imageView->getFormat();
 	uint64_t offset[MAX_MIP_LEVELS];
 	uint64_t size[MAX_MIP_LEVELS];
-	GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size, levels, static_cast<uint32_t>(round(coordinates[CoordinateType::length() - 1])));
+	GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size, baseLevel, levels, static_cast<uint32_t>(round(coordinates[CoordinateType::length() - 1])));
 	for (auto i = 0u; i < levels; i++)
 	{
 		data[i] = imageView->getImage()->getData(offset[i], size[i]);
@@ -372,7 +374,7 @@ static void GetImageDataArray(ImageDescriptor* descriptor, VkFormat& format, Coo
 }
 
 template<bool Array>
-void GetImageDataCube(ImageDescriptor* descriptor, VkFormat& format, glm::vec<3 + (Array ? 1 : 0), float> coordinates, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec2 range[MAX_MIP_LEVELS], uint32_t& levels, glm::fvec2& realCoordinates)
+void GetImageDataCube(ImageDescriptor* descriptor, VkFormat& format, glm::vec<3 + (Array ? 1 : 0), float> coordinates, gsl::span<uint8_t> data[MAX_MIP_LEVELS], glm::uvec2 range[MAX_MIP_LEVELS], uint32_t& baseLevel, uint32_t& levels, glm::fvec2& realCoordinates)
 {
 	assert(descriptor->Type == ImageDescriptorType::Image);
 
@@ -445,7 +447,7 @@ void GetImageDataCube(ImageDescriptor* descriptor, VkFormat& format, glm::vec<3 
 	format = imageView->getFormat();
 	uint64_t offset[MAX_MIP_LEVELS];
 	uint64_t size[MAX_MIP_LEVELS];
-	GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size, levels, layer);
+	GetFormatOffset(imageView->getImage(), imageView->getSubresourceRange(), offset, size, baseLevel, levels, layer);
 	for (auto i = 0u; i < levels; i++)
 	{
 		data[i] = imageView->getImage()->getData(offset[i], size[i]);
@@ -464,6 +466,22 @@ static glm::vec<T::length() - 1, typename T::value_type> ReduceDimension(T value
 	return result;
 }
 
+template<typename T>
+static T Swizzle(glm::vec<4, T> vector, VkComponentSwizzle swizzle, int index)
+{
+	switch (swizzle)
+	{
+	case VK_COMPONENT_SWIZZLE_IDENTITY: return vector[index];
+	case VK_COMPONENT_SWIZZLE_ZERO: return 0;
+	case VK_COMPONENT_SWIZZLE_ONE: return 1;
+	case VK_COMPONENT_SWIZZLE_R: return vector.r;
+	case VK_COMPONENT_SWIZZLE_G: return vector.g;
+	case VK_COMPONENT_SWIZZLE_B: return vector.b;
+	case VK_COMPONENT_SWIZZLE_A: return vector.a;
+	default: FATAL_ERROR();
+	}
+}
+
 template<typename ReturnType, typename CoordinateType, bool Array = false, bool Cube = false>
 static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates, float lod)
 {
@@ -473,19 +491,20 @@ static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result,
 	gsl::span<uint8_t> data[MAX_MIP_LEVELS];
 	glm::vec<finalLength, uint32_t> range[MAX_MIP_LEVELS];
 	glm::vec<finalLength, float> realCoordinates;
+	uint32_t baseLevel;
 	uint32_t levels;
 	if constexpr (Cube)
 	{
-		GetImageDataCube<Array>(descriptor, format, *coordinates, data, range, levels, realCoordinates);
+		GetImageDataCube<Array>(descriptor, format, *coordinates, data, range, baseLevel, levels, realCoordinates);
 	}
 	else if constexpr (Array)
 	{
-		GetImageDataArray(descriptor, format, *coordinates, data, range, levels);
+		GetImageDataArray(descriptor, format, *coordinates, data, range, baseLevel, levels);
 		realCoordinates = ReduceDimension(*coordinates);
 	}
 	else
 	{
-		GetImageData(descriptor, format, data, range, levels);
+		GetImageData(descriptor, format, data, range, baseLevel, levels);
 		realCoordinates = *coordinates;
 	}
 
@@ -498,10 +517,27 @@ static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result,
 	                                  format,
 	                                  data,
 	                                  range,
+	                                  baseLevel,
 	                                  levels,
 	                                  realCoordinates,
 	                                  lambda,
 	                                  sampler);
+
+	if (descriptor->Type == ImageDescriptorType::Image)
+	{
+		const auto imageView = descriptor->Data.Image;
+		if ((imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R) ||
+			(imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G) ||
+			(imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B) ||
+			(imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A))
+		{
+			const auto oldResult = *result;
+			result->r = Swizzle(oldResult, imageView->getComponents().r, 0);
+			result->g = Swizzle(oldResult, imageView->getComponents().g, 1);
+			result->b = Swizzle(oldResult, imageView->getComponents().b, 2);
+			result->a = Swizzle(oldResult, imageView->getComponents().a, 3);
+		}
+	}
 }
 
 template<typename ReturnType, typename CoordinateType, bool Array = false, bool Cube = false>
@@ -530,6 +566,7 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 	VkFormat format;
 	gsl::span<uint8_t> data[MAX_MIP_LEVELS];
 	glm::vec<CoordinateType::length() + (Array ? -1 : 0), uint32_t> range[MAX_MIP_LEVELS];
+	uint32_t baseLevel;
 	uint32_t levels;
 	if constexpr (Array)
 	{
@@ -537,9 +574,13 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 	}
 	else
 	{
-		GetImageData(descriptor, format, data, range, levels);
+		GetImageData(descriptor, format, data, range, baseLevel, levels);
 	}
-	if (levels > 1)
+	if (levels != 1)
+	{
+		FATAL_ERROR();
+	}
+	if (baseLevel != 0)
 	{
 		FATAL_ERROR();
 	}
@@ -550,7 +591,8 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 		                               format,
 		                               data[0],
 		                               range[0],
-		                               ReduceDimension(*coordinates));
+		                               ReduceDimension(*coordinates),
+		                               ReturnType{});
 	}
 	else
 	{
@@ -558,8 +600,35 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 		                               format,
 		                               data[0],
 		                               range[0],
-		                               *coordinates);
+		                               *coordinates,
+		                               ReturnType{});
 	}
+
+	if (descriptor->Type == ImageDescriptorType::Image)
+	{
+		const auto imageView = descriptor->Data.Image;
+		if ((imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R) ||
+			(imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G) ||
+			(imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B) ||
+			(imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A))
+		{
+			const auto oldResult = *result;
+			result->r = Swizzle(oldResult, imageView->getComponents().r, 0);
+			result->g = Swizzle(oldResult, imageView->getComponents().g, 1);
+			result->b = Swizzle(oldResult, imageView->getComponents().b, 2);
+			result->a = Swizzle(oldResult, imageView->getComponents().a, 3);
+		}
+	}
+}
+
+static void ImageCombine(ImageDescriptor* image, ImageDescriptor* sampler, ImageDescriptor* result)
+{
+	assert(image->Data.Image != nullptr);
+	assert(sampler->Sampler != nullptr);
+	
+	result->Type = image->Type;
+	result->Data = image->Data;
+	result->Sampler = sampler->Sampler;
 }
 
 void AddGlslFunctions(DeviceState* deviceState)
@@ -886,6 +955,8 @@ void AddGlslFunctions(DeviceState* deviceState)
 	// NMax = 80,
 	// NClamp = 81,
 	
+	jit->AddFunction("@ImageCombine", reinterpret_cast<FunctionPointer>(ImageCombine));
+	
 	jit->AddFunction("@Image.Sample.Implicit.F32[4].F32", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::fvec4, glm::fvec1>));
 	jit->AddFunction("@Image.Sample.Implicit.F32[4].F32[2]", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::fvec4, glm::fvec2>));
 	jit->AddFunction("@Image.Sample.Implicit.F32[4].F32[3]", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::fvec4, glm::fvec3>));
@@ -914,7 +985,33 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@Image.Sample.Implicit.I32[4].F32[4].Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::ivec4, glm::fvec4, true, true>));
 	jit->AddFunction("@Image.Sample.Implicit.U32[4].F32[4].Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::uvec4, glm::fvec4, true, true>));
 	
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec1>));
 	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[2].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec2>));
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[3].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec3>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec1>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[2].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec2>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[3].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec3>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec1>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[2].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec2>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[3].Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec3>));
+
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[2].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec2, true>));
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[3].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec3, true>));
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[4].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec4, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[2].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec2, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[3].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec3, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[4].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec4, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[2].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec2, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[3].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec3, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[4].Array.Lod", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec4, true>));
+	
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[3].Lod.Cube", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec3, false, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[3].Lod.Cube", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec3, false, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[3].Lod.Cube", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec3, false, true>));
+	
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[4].Lod.Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec4, true, true>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[4].Lod.Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec4, true, true>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[4].Lod.Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec4, true, true>));
 	
 	jit->AddFunction("@Image.Fetch.U32[4].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::uvec4, glm::ivec1>));
 }

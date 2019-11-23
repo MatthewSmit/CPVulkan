@@ -34,6 +34,7 @@ public:
 	[[nodiscard]] float getMaxLod() const { return maxLod; }
 	[[nodiscard]] VkBorderColor getBorderColour() const { return borderColour; }
 	[[nodiscard]] bool getUnnormalisedCoordinates() const { return unnormalisedCoordinates; }
+	[[nodiscard]] VkSamplerReductionModeEXT getReductionMode() const { return reductionMode; }
 
 private:
 	VkSamplerCreateFlags flags{};
@@ -52,4 +53,5 @@ private:
 	float maxLod{};
 	VkBorderColor borderColour{};
 	bool unnormalisedCoordinates{};
+	VkSamplerReductionModeEXT reductionMode{VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE_EXT};
 };

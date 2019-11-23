@@ -34,6 +34,7 @@ struct FormatInformation
 	VkFormatFeatureFlags LinearTilingFeatures;
 	VkFormatFeatureFlags OptimalTilingFeatures;
 	VkFormatFeatureFlags BufferFeatures;
+	VkColorComponentFlagBits Channels;
 	uint32_t TotalSize;
 	uint32_t ElementSize;
 	BaseType Base;

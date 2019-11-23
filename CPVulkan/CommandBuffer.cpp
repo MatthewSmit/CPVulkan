@@ -374,7 +374,7 @@ public:
 					const auto size = srcImage->getImageSize();
 					auto value = GetPixel<glm::fvec4>(deviceState, srcImage->getFormat(), srcImage->getData(size.LayerSize * srcArray + size.Level[srcLevel].Offset, size.Level[srcLevel].LevelSize),
 					                                  glm::uvec3{size.Level[srcLevel].Width, size.Level[srcLevel].Height, size.Level[srcLevel].Depth},
-					                                  glm::ivec3{srcX, srcY, srcZ});
+					                                  glm::ivec3{srcX, srcY, srcZ}, glm::fvec4{});
 					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstArray, &value.x);
 				};
 			}
@@ -393,7 +393,7 @@ public:
 					const auto size = srcImage->getImageSize();
 					auto value = GetPixel<glm::uvec4>(deviceState, srcImage->getFormat(), srcImage->getData(size.LayerSize * srcArray + size.Level[srcLevel].Offset, size.Level[srcLevel].LevelSize),
 					                                  glm::uvec3{size.Level[srcLevel].Width, size.Level[srcLevel].Height, size.Level[srcLevel].Depth},
-					                                  glm::ivec3{srcX, srcY, srcZ});
+					                                  glm::ivec3{srcX, srcY, srcZ}, glm::uvec4{});
 					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstArray, &value.x);
 				};
 			}
@@ -412,7 +412,7 @@ public:
 					const auto size = srcImage->getImageSize();
 					auto value = GetPixel<glm::ivec4>(deviceState, srcImage->getFormat(), srcImage->getData(size.LayerSize * srcArray + size.Level[srcLevel].Offset, size.Level[srcLevel].LevelSize),
 					                                  glm::uvec3{size.Level[srcLevel].Width, size.Level[srcLevel].Height, size.Level[srcLevel].Depth},
-					                                  glm::ivec3{srcX, srcY, srcZ});
+					                                  glm::ivec3{srcX, srcY, srcZ}, glm::ivec4{});
 					SetPixel(deviceState, dstImage->getFormat(), dstImage, dstX, dstY, dstZ, dstLevel, dstArray, &value.x);
 				};
 			}

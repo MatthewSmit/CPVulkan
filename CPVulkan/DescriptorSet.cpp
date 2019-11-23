@@ -42,7 +42,12 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			value.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
 			break;
 						
-		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
+			value.ImageDescriptor.Type = ImageDescriptorType::Image;
+			value.ImageDescriptor.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
+			value.ImageDescriptor.Sampler = nullptr;
+			break;
+			
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: FATAL_ERROR();
 			
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
