@@ -130,6 +130,7 @@ public:
 	[[nodiscard]] glm::uvec3 getComputeLocalSize() const { return computeLocalSize; }
 
 private:
+	CPJit* jit;
 	const SPIRV::SPIRVModule* module;
 	CompiledModule* llvmModule;
 	std::string name;

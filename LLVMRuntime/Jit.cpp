@@ -220,6 +220,11 @@ CompiledModule* CPJit::CompileModule(std::unique_ptr<llvm::LLVMContext> context,
 	return impl->CompileModule(std::move(context), std::move(module));
 }
 
+void CPJit::FreeModule(CompiledModule* compiledModule)
+{
+	delete compiledModule;
+}
+
 void CPJit::AddFunction(const std::string& name, FunctionPointer pointer)
 {
 	impl->AddFunction(name, pointer);

@@ -765,21 +765,6 @@ VkResult Device::GetSwapchainStatus(VkSwapchainKHR swapchain)
 	FATAL_ERROR();
 }
 
-VkResult Device::GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipelineInfo, uint32_t* pExecutableCount, VkPipelineExecutablePropertiesKHR* pProperties)
-{
-	FATAL_ERROR();
-}
-
-VkResult Device::GetPipelineExecutableStatistics(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pStatisticCount, VkPipelineExecutableStatisticKHR* pStatistics)
-{
-	FATAL_ERROR();
-}
-
-VkResult Device::GetPipelineExecutableInternalRepresentations(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pInternalRepresentationCount, VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations)
-{
-	FATAL_ERROR();
-}
-
 VkResult Device::DebugMarkerSetObjectTag(const VkDebugMarkerObjectTagInfoEXT* pTagInfo)
 {
 	FATAL_ERROR();

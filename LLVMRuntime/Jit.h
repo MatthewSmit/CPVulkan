@@ -26,6 +26,7 @@ public:
 
 	CompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo);
 	CompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module);
+	void FreeModule(CompiledModule* compiledModule);
 
 	void AddFunction(const std::string& name, FunctionPointer pointer);
 	void SetUserData(void* userData);

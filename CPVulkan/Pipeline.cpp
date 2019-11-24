@@ -473,7 +473,8 @@ static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SP
 	return nullptr;
 }
 
-ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo)
+ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo) :
+	jit{jit}
 {
 	this->module = module->getModule();
 	this->name = name;
@@ -719,7 +720,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 
 ShaderFunction::~ShaderFunction()
 {
-	// TODO: Delete llvmModule
+	jit->FreeModule(llvmModule);
 }
 
 Pipeline::~Pipeline() = default;
@@ -912,3 +913,71 @@ void Device::DestroyPipeline(VkPipeline pipeline, const VkAllocationCallbacks* p
 		Free(UnwrapVulkan<Pipeline>(pipeline), pAllocator);
 	}
 }
+
+#if defined(VK_KHR_pipeline_executable_properties)
+VkResult Device::GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipelineInfo, uint32_t* pExecutableCount, VkPipelineExecutablePropertiesKHR* pProperties)
+{
+	static const char* shaderName[]
+	{
+		"Vertex Shader",
+		"Tessellation Control Shader",
+		"Tessellation Evaluation Shader",
+		"Geometry Shader",
+		"Fragment Shader",
+		"Compute Shader",
+	};
+	
+	const auto pipeline = UnwrapVulkan<Pipeline>(pPipelineInfo->pipeline);
+	auto count = 0u;
+	for (auto i = 0; i < 6; i++)
+	{
+		if (pipeline->getShaderStage(i) != nullptr)
+		{
+			count++;
+		}
+	}
+	
+	if (pProperties == nullptr)
+	{
+		*pExecutableCount = count;
+		return VK_SUCCESS;
+	}
+
+	auto result = VK_SUCCESS;
+	if (count > *pExecutableCount)
+	{
+		count = *pExecutableCount;
+		result = VK_INCOMPLETE;
+	}
+
+	for (auto i = 0u, j = 0u; i < 6 && j < count; i++)
+	{
+		const auto shaderStage = pipeline->getShaderStage(i);
+		if (shaderStage)
+		{
+			pProperties[j].stages = 1 << i;
+			memset(pProperties[j].name, 0, VK_MAX_DESCRIPTION_SIZE);
+			memset(pProperties[j].description, 0, VK_MAX_DESCRIPTION_SIZE);
+
+			// TODO: Expand on this
+			strcpy(pProperties[j].name, shaderName[i]);
+			strcpy(pProperties[j].description, shaderName[i]);
+			
+			pProperties[j].subgroupSize = 1;
+			j++;
+		}
+	}
+	
+	return result;
+}
+
+VkResult Device::GetPipelineExecutableStatistics(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pStatisticCount, VkPipelineExecutableStatisticKHR* pStatistics)
+{
+	FATAL_ERROR();
+}
+
+VkResult Device::GetPipelineExecutableInternalRepresentations(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pInternalRepresentationCount, VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations)
+{
+	FATAL_ERROR();
+}
+#endif

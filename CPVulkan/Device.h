@@ -136,10 +136,12 @@ public:
 
 	VKAPI_ATTR VkResult VKAPI_PTR ImportFenceFd(const VkImportFenceFdInfoKHR* pImportFenceFdInfo);
 	VKAPI_ATTR VkResult VKAPI_PTR GetFenceFd(const VkFenceGetFdInfoKHR* pGetFdInfo, int* pFd);
-	
+
+#if defined(VK_KHR_pipeline_executable_properties)
 	VKAPI_ATTR VkResult VKAPI_PTR GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipelineInfo, uint32_t* pExecutableCount, VkPipelineExecutablePropertiesKHR* pProperties);
 	VKAPI_ATTR VkResult VKAPI_PTR GetPipelineExecutableStatistics(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pStatisticCount, VkPipelineExecutableStatisticKHR* pStatistics);
 	VKAPI_ATTR VkResult VKAPI_PTR GetPipelineExecutableInternalRepresentations(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pInternalRepresentationCount, VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations);
+#endif
 
 	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectTag(const VkDebugMarkerObjectTagInfoEXT* pTagInfo);
 	VKAPI_ATTR VkResult VKAPI_PTR DebugMarkerSetObjectName(const VkDebugMarkerObjectNameInfoEXT* pNameInfo);

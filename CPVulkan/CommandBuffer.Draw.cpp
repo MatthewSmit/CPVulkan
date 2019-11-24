@@ -131,7 +131,7 @@ static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, cons
 	FATAL_ERROR();
 }
 
-static void LoadVertexInput(uint32_t vertex, const VertexInputState& vertexInputState, const Buffer* const vertexBinding[16], const uint64_t vertexBindingOffset[16], const std::vector<VariableInOutData>& vertexInputs)
+static void LoadVertexInput(uint32_t vertex, uint32_t instance, const VertexInputState& vertexInputState, const Buffer* const vertexBinding[16], const uint64_t vertexBindingOffset[16], const std::vector<VariableInOutData>& vertexInputs)
 {
 	for (const auto& attribute : vertexInputState.VertexAttributeDescriptions)
 	{
@@ -140,8 +140,15 @@ static void LoadVertexInput(uint32_t vertex, const VertexInputState& vertexInput
 			if (input.location == attribute.location)
 			{
 				const auto& binding = FindBinding(attribute.binding, vertexInputState);
-				const auto offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * vertex + attribute.offset;
-				memcpy(input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, GetFormatInformation(attribute.format).TotalSize), GetFormatInformation(attribute.format).TotalSize);
+				if (binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX)
+				{
+					const auto offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * vertex + attribute.offset;
+					memcpy(input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, GetFormatInformation(attribute.format).TotalSize), GetFormatInformation(attribute.format).TotalSize);
+				}
+				else
+				{
+					FATAL_ERROR();
+				}
 				goto end;
 			}
 		}
@@ -450,7 +457,7 @@ static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceSta
 	return results;
 }
 
-static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vector<uint32_t>& assemblerOutput)
+static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t instance, const std::vector<uint32_t>& assemblerOutput)
 {
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(0);
 	const auto& vertexInput = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexInputState();
@@ -480,7 +487,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vec
 	LoadUniforms(deviceState, module, uniformData, PIPELINE_GRAPHICS);
 
 	const auto builtinInput = static_cast<VertexBuiltinInput*>(builtinInputPointer);
-	builtinInput->instanceIndex = 0;
+	builtinInput->instanceIndex = instance;
 
 	if (pushConstant.first)
 	{
@@ -491,7 +498,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, const std::vec
 	{
 		builtinInput->vertexIndex = i;
 
-		LoadVertexInput(i, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
+		LoadVertexInput(i, instance, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
 
 		shaderStage->getEntryPoint()();
 		output.builtinData[i] = *static_cast<VertexBuiltinOutput*>(builtinOutputPointer);
@@ -919,17 +926,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(4);
 	const auto& rasterisationState = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getRasterizationState();
 
-	if (inputAssembly.Topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
-	{
-		FATAL_ERROR();
-	}
-
 	if (rasterisationState.RasterizerDiscardEnable)
-	{
-		FATAL_ERROR();
-	}
-
-	if (rasterisationState.PolygonMode != VK_POLYGON_MODE_FILL)
 	{
 		FATAL_ERROR();
 	}
@@ -1004,8 +1001,6 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	
 	const auto halfPixel = glm::vec2(1.0f / width, 1.0f / height) * 0.5f;
 
-	const auto numberTriangles = output.vertexCount / 3;
-
 	if (pushConstant.first)
 	{
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
@@ -1014,7 +1009,19 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	auto builtinInput = static_cast<FragmentBuiltinInput*>(builtinInputPointer);
 	builtinInput->fragCoord = glm::vec4(0, 0, 0, 1);
 
-	for (auto i = 0u; i < numberTriangles; i++)
+	if (inputAssembly.Topology != VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST)
+	{
+		FATAL_ERROR();
+	}
+
+	if (rasterisationState.PolygonMode != VK_POLYGON_MODE_FILL)
+	{
+		FATAL_ERROR();
+	}
+	
+	const auto numberPrimitives = output.vertexCount / 3;
+
+	for (auto i = 0u; i < numberPrimitives; i++)
 	{
 		auto p0Index = i * 3 + 0;
 		auto p1Index = i * 3 + 1;
@@ -1334,35 +1341,28 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		if (instanceCount != 1)
+		for (auto i = 0; i < instanceCount; i++)
 		{
-			FATAL_ERROR();
+			const auto assemblerOutput = ProcessInputAssembler(deviceState, firstVertex, vertexCount);
+			const auto vertexOutput = ProcessVertexShader(deviceState, firstInstance + i, assemblerOutput);
+
+			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
+			{
+				FATAL_ERROR();
+			}
+
+			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
+			{
+				FATAL_ERROR();
+			}
+
+			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
+			{
+				FATAL_ERROR();
+			}
+
+			ProcessFragmentShader(deviceState, vertexOutput);
 		}
-
-		if (firstInstance != 0)
-		{
-			FATAL_ERROR();
-		}
-
-		const auto assemblerOutput = ProcessInputAssembler(deviceState, firstVertex, vertexCount);
-		const auto vertexOutput = ProcessVertexShader(deviceState, assemblerOutput);
-
-		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
-		{
-			FATAL_ERROR();
-		}
-
-		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
-		{
-			FATAL_ERROR();
-		}
-
-		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
-		{
-			FATAL_ERROR();
-		}
-
-		ProcessFragmentShader(deviceState, vertexOutput);
 	}
 
 private:
@@ -1399,16 +1399,6 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		if (instanceCount != 1)
-		{
-			FATAL_ERROR();
-		}
-
-		if (firstInstance != 1)
-		{
-			FATAL_ERROR();
-		}
-
 		if (firstIndex != 0)
 		{
 			FATAL_ERROR();
@@ -1419,25 +1409,28 @@ public:
 			FATAL_ERROR();
 		}
 
-		const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, indexCount);
-		const auto vertexOutput = ProcessVertexShader(deviceState, assemblerOutput);
-
-		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
+		for (auto i = 0; i < instanceCount; i++)
 		{
-			FATAL_ERROR();
-		}
+			const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, indexCount);
+			const auto vertexOutput = ProcessVertexShader(deviceState, firstInstance + i, assemblerOutput);
 
-		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
-		{
-			FATAL_ERROR();
-		}
+			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
+			{
+				FATAL_ERROR();
+			}
 
-		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
-		{
-			FATAL_ERROR();
-		}
+			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
+			{
+				FATAL_ERROR();
+			}
 
-		ProcessFragmentShader(deviceState, vertexOutput);
+			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
+			{
+				FATAL_ERROR();
+			}
+
+			ProcessFragmentShader(deviceState, vertexOutput);
+		}
 	}
 
 private:
