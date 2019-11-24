@@ -233,12 +233,29 @@ static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
 
 static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 {
+	if (type->isTypeArray())
+	{
+		return GetVariableSize(type->getArrayElementType()) * type->getArrayLength();
+	}
+	
 	if (type->isTypeStruct())
 	{
-		// TODO: Alignment & stuff
 		auto size = 0u;
-		for (auto i = 0; i < type->getStructMemberCount(); i++)
+		for (auto i = 0u; i < type->getStructMemberCount(); i++)
 		{
+			const auto decorate = type->getMemberDecorate(i, DecorationOffset);
+			if (decorate && decorate->getLiteral(0) != size)
+			{
+				const auto offset = decorate->getLiteral(0);
+				if (offset < size)
+				{
+					FATAL_ERROR();
+				}
+				else
+				{
+					size = offset;
+				}
+			}
 			size += GetVariableSize(type->getStructMemberType(i));
 		}
 		return size;
@@ -372,7 +389,6 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 		case StorageClassPushConstant:
 			assert(std::get<0>(pushConstant) == nullptr);
 			pushConstant = std::make_pair(jit->getPointer(llvmModule, MangleName(variable)), GetVariableSize(variable->getType()->getPointerElementType()));
-			// TODO: Offset & stuff?
 			break;
 
 		default:

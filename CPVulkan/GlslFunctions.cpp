@@ -264,22 +264,32 @@ static T VFindUMsb(T value)
 
 static void GetFormatOffset(Image* image, const VkImageSubresourceRange& subresourceRange, uint64_t offset[MAX_MIP_LEVELS], uint64_t size[MAX_MIP_LEVELS], uint32_t& baseLevel, uint32_t& levels, uint32_t layer)
 {
-	if (layer >= subresourceRange.layerCount + subresourceRange.baseArrayLayer)
+	auto layerCount = subresourceRange.layerCount;
+	if (layerCount == VK_REMAINING_ARRAY_LAYERS)
 	{
-		layer = subresourceRange.layerCount + subresourceRange.baseArrayLayer - 1;
-	}
-	else if (layer < subresourceRange.baseArrayLayer)
-	{
-		layer = subresourceRange.baseArrayLayer;
+		layerCount = image->getArrayLayers() - subresourceRange.baseArrayLayer;
 	}
 
-	for (auto i = 0u; i < subresourceRange.levelCount; i++)
+	layer += subresourceRange.baseArrayLayer;
+	
+	if (layer >= layerCount + subresourceRange.baseArrayLayer)
+	{
+		layer = layerCount + subresourceRange.baseArrayLayer - 1;
+	}
+
+	baseLevel = subresourceRange.baseMipLevel;
+	levels = subresourceRange.levelCount;
+
+	if (levels == VK_REMAINING_MIP_LEVELS)
+	{
+		levels = image->getMipLevels() - baseLevel;
+	}
+
+	for (auto i = 0u; i < levels; i++)
 	{
 		offset[i] = image->getImageSize().Level[i + subresourceRange.baseMipLevel].Offset + layer * image->getImageSize().LayerSize;
 		size[i] = image->getImageSize().Level[i + subresourceRange.baseMipLevel].LevelSize;
 	}
-	baseLevel = subresourceRange.baseMipLevel;
-	levels = subresourceRange.levelCount;
 }
 
 template<int length>

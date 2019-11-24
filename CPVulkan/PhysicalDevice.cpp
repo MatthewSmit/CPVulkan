@@ -8,10 +8,8 @@
 #include <algorithm>
 #include <cassert>
 
-static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties)
+static VkResult GetImageFormatPropertiesImpl(const FormatInformation& information, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties)
 {
-	const auto& information = GetFormatInformation(format);
-
 	if ((usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) && information.Type != FormatType::DepthStencil)
 	{
 		return VK_ERROR_FORMAT_NOT_SUPPORTED;
@@ -65,7 +63,7 @@ static VkResult GetImageFormatPropertiesImpl(VkFormat format, VkImageType type, 
 		type != VK_IMAGE_TYPE_2D ||
 		(flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT) ||
 		!(information.OptimalTilingFeatures & (VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT)) ||
-		NeedsYCBCRConversion(format) ||
+		NeedsYCBCRConversion(information.Format) ||
 		(usage & (VK_IMAGE_USAGE_SHADING_RATE_IMAGE_BIT_NV | VK_IMAGE_USAGE_FRAGMENT_DENSITY_MAP_BIT_EXT)))
 	{
 		pImageFormatProperties->sampleCounts = VK_SAMPLE_COUNT_1_BIT;
@@ -182,7 +180,8 @@ void PhysicalDevice::GetFormatProperties(VkFormat format, VkFormatProperties* pF
 
 VkResult PhysicalDevice::GetImageFormatProperties(VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties)
 {
-	return GetImageFormatPropertiesImpl(format, type, tiling, usage, flags, pImageFormatProperties);
+	const auto& information = GetFormatInformation(format);
+	return GetImageFormatPropertiesImpl(information, type, tiling, usage, flags, pImageFormatProperties);
 }
 
 void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) const
@@ -1108,6 +1107,7 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 	const auto tiling = pImageFormatInfo->tiling;
 	const auto usage = pImageFormatInfo->usage;
 	const auto flags = pImageFormatInfo->flags;
+	const auto& information = GetFormatInformation(format);
 
 	{
 		auto next = pImageFormatInfo->pNext;
@@ -1120,8 +1120,18 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 				FATAL_ERROR();
 
 			case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO_EXT:
-				FATAL_ERROR();
+				{
+					const auto info = reinterpret_cast<const VkImageStencilUsageCreateInfoEXT*>(next);
 
+					if ((info->stencilUsage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) && information.Type == FormatType::DepthStencil)
+					{
+						return VK_ERROR_FORMAT_NOT_SUPPORTED;
+					}
+					
+					break;
+				}
+
+#if defined(VK_KHR_external_memory_capabilities)
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_IMAGE_FORMAT_INFO:
 				{
 					const auto info = reinterpret_cast<const VkPhysicalDeviceExternalImageFormatInfo*>(next);
@@ -1150,6 +1160,7 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 					property->externalMemoryProperties.externalMemoryFeatures = 0;
 					break;
 				}
+#endif
 
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT:
 				FATAL_ERROR();
@@ -1164,7 +1175,7 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 		}
 	}
 
-	return GetImageFormatPropertiesImpl(format, formatType, tiling, usage, flags, &pImageFormatProperties->imageFormatProperties);
+	return GetImageFormatPropertiesImpl(information, formatType, tiling, usage, flags, &pImageFormatProperties->imageFormatProperties);
 }
 
 void PhysicalDevice::GetQueueFamilyProperties2(uint32_t* pQueueFamilyPropertyCount, VkQueueFamilyProperties2* pQueueFamilyProperties)

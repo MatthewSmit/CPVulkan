@@ -423,6 +423,19 @@ namespace SPIRV
 			return MemberDecorates;
 		}
 
+		const SPIRVMemberDecorate* getMemberDecorate(uint32_t index, Decoration decoration) const
+		{
+			assert(canHaveMemberDecorates());
+			for (const auto& memberDecorate : getMemberDecorates())
+			{
+				if (memberDecorate.first.first == index && memberDecorate.first.second == decoration)
+				{
+					return memberDecorate.second;
+				}
+			}
+			return nullptr;
+		}
+
 	protected:
 		void updateModuleVersion() const;
 

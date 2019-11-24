@@ -527,7 +527,7 @@ public:
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
-		*deviceState->debugOutput << "PushConstants: pushing constants " <<
+		*deviceState->debugOutput << "PushConstants: pushing constant values" <<
 			" with " << layout <<
 			" and offset " << offset <<
 			" and size " << size <<

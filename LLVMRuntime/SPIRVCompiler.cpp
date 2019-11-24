@@ -26,6 +26,7 @@ struct State
 	
 	std::unordered_map<uint32_t, llvm::Type*> typeMapping;
 	std::unordered_map<uint32_t, llvm::Value*> valueMapping;
+	std::unordered_map<llvm::Type*, std::vector<uint32_t>> structIndexMapping;
 	std::unordered_set<uint32_t> variablePointers;
 	std::unordered_map<uint32_t, llvm::Function*> functionMapping;
 	std::unordered_map<std::string, llvm::Function*> functionCache;
@@ -220,6 +221,7 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 		break;
 		
 	case OpTypeArray:
+		// TODO: stride member variables
 		llvmType = llvm::ArrayType::get(ConvertType(state, spirvType->getArrayElementType()), spirvType->getArrayLength());
 		break;
 		
@@ -270,15 +272,52 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 		
 	case OpTypeStruct:
 		{
-			// TODO: Offset/stride member variables
-			
 			const auto strct = static_cast<SPIRV::SPIRVTypeStruct*>(spirvType);
 			const auto& name = strct->getName();
 			auto llvmStruct = llvm::StructType::create(state.context, name);
+			auto& indexMapping = state.structIndexMapping[llvmStruct];
 			llvm::SmallVector<llvm::Type*, 4> types;
+			uint32_t currentOffset = 0;
 			for (size_t i = 0; i != strct->getMemberCount(); ++i)
 			{
-				types.push_back(ConvertType(state, strct->getMemberType(i), true));
+				const auto decorate = strct->getMemberDecorate(i, DecorationOffset);
+				if (decorate && decorate->getLiteral(0) != currentOffset)
+				{
+					const auto offset = decorate->getLiteral(0);
+					if (offset < currentOffset)
+					{
+						FATAL_ERROR();
+					}
+					else
+					{
+						auto difference = offset - currentOffset;
+						while (difference >= 8)
+						{
+							types.push_back(state.builder.getInt64Ty());
+							difference -= 8;
+						}
+						while (difference >= 4)
+						{
+							types.push_back(state.builder.getInt32Ty());
+							difference -= 4;
+						}
+						while (difference >= 2)
+						{
+							types.push_back(state.builder.getInt16Ty());
+							difference -= 2;
+						}
+						while (difference >= 1)
+						{
+							types.push_back(state.builder.getInt8Ty());
+							difference -= 1;
+						}
+					}
+					currentOffset = offset;
+				}
+				const auto llvmMemberType = ConvertType(state, strct->getMemberType(i), true);
+				indexMapping.push_back(types.size());
+				types.push_back(llvmMemberType);
+				currentOffset += (state.layout.getTypeSizeInBits(llvmMemberType) + 7) / 8;
 			}
 			llvmStruct->setBody(types, strct->isPacked());
 			llvmType = llvmStruct;
@@ -293,9 +332,11 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 			name += std::to_string(spirvType->getMatrixRowCount());
 
 			auto llvmStruct = llvm::StructType::create(state.context, name);
+			auto& indexMapping = state.structIndexMapping[llvmStruct];
 			llvm::SmallVector<llvm::Type*, 4> types;
 			for (auto i = 0u; i < spirvType->getMatrixColumnCount(); i++)
 			{
+				indexMapping.push_back(types.size());
 				types.push_back(ConvertType(state, spirvType->getMatrixVectorType(), true));
 			}
 			llvmStruct->setBody(types);
@@ -1380,8 +1421,27 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 						currentType = currentType->getPointerElementType();
 						indices = std::vector<llvm::Value*>{indices.begin() + k, indices.end()};
 						k = -1;
+						continue;
 					}
-					else if (k + 1ULL == indices.size())
+					
+					if (currentType->isStructTy())
+					{
+						// TODO: Detect matrix struct
+						auto index = llvm::cast<llvm::ConstantInt>(indices[k])->getZExtValue();
+						if (state.structIndexMapping.find(currentType) != state.structIndexMapping.end())
+						{
+							index = state.structIndexMapping.at(currentType).at(index);
+							indices[k] = state.builder.getInt32(index);
+						}
+
+						if (k + 1ULL < indices.size())
+						{
+							currentType = currentType->getStructElementType(index);
+							continue;
+						}
+					}
+					
+					if (k + 1ULL == indices.size())
 					{
 						llvm::ArrayRef<llvm::Value*> range{indices.data(), indices.size()};
 						if (accessChain->isInBounds())
@@ -1392,12 +1452,6 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 						{
 							llvmValue = state.builder.CreateGEP(nullptr, llvmValue, range, accessChain->getName());
 						}
-					}
-					else if (currentType->isStructTy())
-					{
-						// TODO: Detect matrix struct
-						auto index = llvm::cast<llvm::ConstantInt>(indices[k])->getZExtValue();
-						currentType = currentType->getStructElementType(index);
 					}
 					else
 					{

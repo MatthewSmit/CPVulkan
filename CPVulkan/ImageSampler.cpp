@@ -549,13 +549,13 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 	ResultType result;
 	if (lod <= 0)
 	{
-		result = SampleImageOfLevel<ResultType, RangeType, CoordinateType>(deviceState, information, data[baseLevel], range[baseLevel], coordinates, magFilter, addressMode,
+		result = SampleImageOfLevel<ResultType, RangeType, CoordinateType>(deviceState, information, data[0], range[0], coordinates, magFilter, addressMode,
 		                                                                   compareEnable, compareOperation, borderColour, unnormalisedCoordinates, reductionMode);
 	}
 	else
 	{
 		const auto maxLevel = static_cast<float>(levels - 1);
-		const auto mipLevel = baseLevel + std::clamp(lod, 0.0f, maxLevel);
+		const auto mipLevel = std::clamp(lod, 0.0f, maxLevel);
 
 		if (mipmapMode == VK_SAMPLER_MIPMAP_MODE_NEAREST)
 		{
