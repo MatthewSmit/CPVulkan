@@ -23,6 +23,7 @@ struct State
 	llvm::LLVMContext& context;
 	llvm::IRBuilder<>& builder;
 	llvm::Module* module;
+	const VkSpecializationInfo* specializationInfo;
 	
 	std::unordered_map<uint32_t, llvm::Type*> typeMapping;
 	std::unordered_map<uint32_t, llvm::Value*> valueMapping;
@@ -470,19 +471,247 @@ static bool IsOpaqueType(SPIRV::SPIRVType* spirvType)
 	}
 }
 
+static bool HasSpecOverride(const State& state, SPIRV::SPIRVValue* spirvValue)
+{
+	if (state.specializationInfo == nullptr || !spirvValue->hasDecorate(DecorationSpecId))
+	{
+		return false;
+	}
+
+	const auto id = *spirvValue->getDecorate(DecorationSpecId).begin();
+	for (auto i = 0u; i < state.specializationInfo->mapEntryCount; i++)
+	{
+		const auto& entry = state.specializationInfo->pMapEntries[i];
+		if (entry.constantID == id)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+template<typename T>
+static T GetSpecOverride(const State& state, SPIRV::SPIRVValue* spirvValue)
+{
+	const auto id = *spirvValue->getDecorate(DecorationSpecId).begin();
+	for (auto i = 0u; i < state.specializationInfo->mapEntryCount; i++)
+	{
+		const auto& entry = state.specializationInfo->pMapEntries[i];
+		if (entry.constantID == id)
+		{
+			if (entry.size != sizeof(T))
+			{
+				FATAL_ERROR();
+			}
+
+			return *reinterpret_cast<const T*>(static_cast<const uint8_t*>(state.specializationInfo->pData) + entry.offset);
+		}
+	}
+
+	FATAL_ERROR();
+}
+
+template<typename T>
+static T GetConstantValue(llvm::Constant* constant)
+{
+	if constexpr (std::is_same<T, bool>::value)
+	{
+		FATAL_ERROR();
+	}
+	
+	if constexpr (std::numeric_limits<T>::is_integer && std::numeric_limits<T>::is_signed)
+	{
+		return constant->getUniqueInteger().getSExtValue();
+	}
+
+	if constexpr (std::numeric_limits<T>::is_integer && !std::numeric_limits<T>::is_signed)
+	{
+		return constant->getUniqueInteger().getZExtValue();
+	}
+	
+	FATAL_ERROR();
+}
+
+template<typename T>
+static llvm::Constant* SetConstantValue(State& state, llvm::Type* type, T value)
+{
+	if constexpr (std::is_same<T, bool>::value)
+	{
+		return value ? llvm::ConstantInt::getTrue(state.context) : llvm::ConstantInt::getFalse(state.context);
+	}
+
+	if constexpr (std::numeric_limits<T>::is_integer)
+	{
+		return llvm::ConstantInt::get(type, value, std::numeric_limits<T>::is_signed);
+	}
+
+	FATAL_ERROR();
+}
+
+template<typename Input, typename Output>
+static llvm::Constant* SpecOperation(State& state, llvm::Type* type, SPIRV::SPIRVValue* lhs, SPIRV::SPIRVValue* rhs, std::function<Output(Input, Input)> operation)
+{
+	const auto llvmLhs = llvm::dyn_cast<llvm::Constant>(ConvertValue(state, lhs, nullptr));
+	const auto llvmRhs = llvm::dyn_cast<llvm::Constant>(ConvertValue(state, rhs, nullptr));
+	if (llvmLhs->getType()->isVectorTy())
+	{
+		FATAL_ERROR();
+	}
+	
+	if (llvmLhs->getType()->isStructTy())
+	{
+		FATAL_ERROR();
+	}
+
+	if (llvmLhs->getType() != llvmRhs->getType())
+	{
+		FATAL_ERROR();
+	}
+
+	const auto realLhs = GetConstantValue<Input>(llvmLhs);
+	const auto realRhs = GetConstantValue<Input>(llvmRhs);
+	const auto realResult = operation(realLhs, realRhs);
+	return SetConstantValue(state, type, realResult);
+}
+
+static llvm::Value* HandleSpecConstantOperation(State& state, SPIRV::SPIRVSpecConstantOp* spirvValue)
+{
+	const auto operation = static_cast<Op>(spirvValue->getOpWord(0));
+	const auto type = ConvertType(state, spirvValue->getType());
+
+	switch (operation)
+	{
+	case OpSConvert:
+	case OpUConvert:
+	case OpFConvert:
+	case OpSNegate:
+	case OpNot:
+		FATAL_ERROR();
+	case OpIAdd:
+		return SpecOperation<int64_t, int64_t>(state, type, spirvValue->getOpValue(1), spirvValue->getOpValue(2), [](auto x, auto y) { return x + y; });
+	case OpISub:
+		return SpecOperation<int64_t, int64_t>(state, type, spirvValue->getOpValue(1), spirvValue->getOpValue(2), [](auto x, auto y) { return x - y; });
+	case OpIMul:
+		return SpecOperation<int64_t, int64_t>(state, type, spirvValue->getOpValue(1), spirvValue->getOpValue(2), [](auto x, auto y) { return x * y; });
+	case OpUDiv:
+		return SpecOperation<uint64_t, uint64_t>(state, type, spirvValue->getOpValue(1), spirvValue->getOpValue(2), [](auto x, auto y) { return x / y; });
+	case OpSDiv:
+		return SpecOperation<int64_t, int64_t>(state, type, spirvValue->getOpValue(1), spirvValue->getOpValue(2), [](auto x, auto y) { return x + y; });
+	case OpUMod:
+	case OpSRem:
+	case OpSMod:
+	case OpShiftRightLogical:
+	case OpShiftRightArithmetic:
+	case OpShiftLeftLogical:
+	case OpBitwiseOr:
+	case OpBitwiseXor:
+	case OpBitwiseAnd:
+	case OpVectorShuffle:
+	case OpCompositeExtract:
+	case OpCompositeInsert:
+	case OpLogicalOr:
+	case OpLogicalAnd:
+	case OpLogicalNot:
+	case OpLogicalEqual:
+	case OpLogicalNotEqual:
+	case OpSelect:
+	case OpIEqual:
+	case OpINotEqual:
+	case OpULessThan:
+	case OpSLessThan:
+	case OpUGreaterThan:
+	case OpSGreaterThan:
+	case OpULessThanEqual:
+	case OpSLessThanEqual:
+	case OpUGreaterThanEqual:
+		FATAL_ERROR();
+	case OpSGreaterThanEqual:
+		return SpecOperation<int64_t, bool>(state, type, spirvValue->getOpValue(1), spirvValue->getOpValue(2), [](auto x, auto y) { return x >= y; });
+	case OpQuantizeToF16:
+	case OpConvertFToS:
+	case OpConvertSToF:
+	case OpConvertFToU:
+	case OpConvertUToF:
+	case OpConvertPtrToU:
+	case OpConvertUToPtr:
+	case OpGenericCastToPtr:
+	case OpPtrCastToGeneric:
+	case OpBitcast:
+	case OpFNegate:
+	case OpFAdd:
+	case OpFSub:
+	case OpFMul:
+	case OpFDiv:
+	case OpFRem:
+	case OpFMod:
+	case OpAccessChain:
+	case OpInBoundsAccessChain:
+	case OpPtrAccessChain:
+	case OpInBoundsPtrAccessChain:
+	default:
+		FATAL_ERROR();
+	}
+}
+
 static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* spirvValue, llvm::Function* currentFunction)
 {
 	switch (spirvValue->getOpCode())
 	{
-	case OpConstant:
 	case OpSpecConstant:
+		if (HasSpecOverride(state, spirvValue))
 		{
 			const auto spirvConstant = static_cast<SPIRV::SPIRVConstant*>(spirvValue);
 			const auto spirvType = spirvConstant->getType();
 			const auto llvmType = ConvertType(state, spirvType);
 			switch (spirvType->getOpCode())
 			{
-			case OpTypeBool:
+			case OpTypeInt:
+				switch (spirvType->getIntegerBitWidth())
+				{
+				case 8:
+					return llvm::ConstantInt::get(llvmType, GetSpecOverride<uint8_t>(state, spirvValue), static_cast<SPIRV::SPIRVTypeInt*>(spirvType)->isSigned());
+					
+				case 16:
+					return llvm::ConstantInt::get(llvmType, GetSpecOverride<uint16_t>(state, spirvValue), static_cast<SPIRV::SPIRVTypeInt*>(spirvType)->isSigned());
+					
+				case 32:
+					return llvm::ConstantInt::get(llvmType, GetSpecOverride<uint32_t>(state, spirvValue), static_cast<SPIRV::SPIRVTypeInt*>(spirvType)->isSigned());
+					
+				case 64:
+					return llvm::ConstantInt::get(llvmType, GetSpecOverride<uint64_t>(state, spirvValue), static_cast<SPIRV::SPIRVTypeInt*>(spirvType)->isSigned());
+					
+				default:
+					FATAL_ERROR();
+				}
+
+			case OpTypeFloat:
+				switch (spirvType->getFloatBitWidth())
+				{
+				case 16:
+					return llvm::ConstantFP::get(llvmType, llvm::APFloat(llvm::APFloat::IEEEhalf(), llvm::APInt(spirvType->getFloatBitWidth(), GetSpecOverride<uint16_t>(state, spirvValue))));
+
+				case 32:
+					return llvm::ConstantFP::get(llvmType, llvm::APFloat(llvm::APFloat::IEEEsingle(), llvm::APInt(spirvType->getFloatBitWidth(), GetSpecOverride<uint32_t>(state, spirvValue))));
+
+				case 64:
+					return llvm::ConstantFP::get(llvmType, llvm::APFloat(llvm::APFloat::IEEEdouble(), llvm::APInt(spirvType->getFloatBitWidth(), GetSpecOverride<uint64_t>(state, spirvValue))));
+
+				default:
+					FATAL_ERROR();
+				}
+
+			default:
+				FATAL_ERROR();
+			}
+		}
+		
+	case OpConstant:
+		{
+			const auto spirvConstant = static_cast<SPIRV::SPIRVConstant*>(spirvValue);
+			const auto spirvType = spirvConstant->getType();
+			const auto llvmType = ConvertType(state, spirvType);
+			switch (spirvType->getOpCode())
+			{
 			case OpTypeInt:
 				return llvm::ConstantInt::get(llvmType, spirvConstant->getInt64Value(), static_cast<SPIRV::SPIRVTypeInt*>(spirvType)->isSigned());
 
@@ -516,19 +745,38 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 			}
 		}
 
-	case OpConstantTrue:
 	case OpSpecConstantTrue:
+		if (HasSpecOverride(state, spirvValue))
+		{
+			return GetSpecOverride<VkBool32>(state, spirvValue)
+				       ? llvm::ConstantInt::getTrue(state.context)
+				       : llvm::ConstantInt::getFalse(state.context);
+		}
+		
+	case OpConstantTrue:
 		return llvm::ConstantInt::getTrue(state.context);
 
-	case OpConstantFalse:
 	case OpSpecConstantFalse:
+		if (HasSpecOverride(state, spirvValue))
+		{
+			return GetSpecOverride<VkBool32>(state, spirvValue)
+				       ? llvm::ConstantInt::getTrue(state.context)
+				       : llvm::ConstantInt::getFalse(state.context);
+		}
+		
+	case OpConstantFalse:
 		return llvm::ConstantInt::getFalse(state.context);
 
 	case OpConstantNull:
 		return llvm::Constant::getNullValue(ConvertType(state, spirvValue->getType()));
 
-	case OpConstantComposite:
 	case OpSpecConstantComposite:
+		if (HasSpecOverride(state, spirvValue))
+		{
+			FATAL_ERROR();
+		}
+		
+	case OpConstantComposite:
 		{
 			const auto constantComposite = static_cast<SPIRV::SPIRVConstantComposite*>(spirvValue);
 			std::vector<llvm::Constant*> constants;
@@ -587,12 +835,7 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 		}
 		
 	case OpSpecConstantOp:
-		{
-			// auto BI =
-			// 	createInstFromSpecConstantOp(static_cast<SPIRVSpecConstantOp*>(BV));
-			// return mapValue(BV, transValue(BI, nullptr, nullptr, false));
-			FATAL_ERROR();
-		}
+		return HandleSpecConstantOperation(state, static_cast<SPIRV::SPIRVSpecConstantOp*>(spirvValue));
 
 	case OpUndef:
 		// return mapValue(BV, UndefValue::get(transType(BV->getType())));
@@ -2935,7 +3178,7 @@ static void AddBuiltin(State& state, ExecutionModel executionModel)
 	state.builtinOutputVariable->setAlignment(ALIGNMENT);
 }
 
-std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
+std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo)
 {
 	LLVMInitializeNativeTarget();
 	auto targetMachineBuilder = llvm::orc::JITTargetMachineBuilder::detectHost();
@@ -2965,6 +3208,7 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 		*context,
 		builder,
 		llvmModule.get(),
+		specializationInfo,
 	};
 
 	AddBuiltin(state, executionModel);

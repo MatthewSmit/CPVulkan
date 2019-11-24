@@ -118,7 +118,7 @@ class ShaderFunction final
 public:
 	using EntryPoint = void (*)();
 	
-	ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name);
+	ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo);
 	~ShaderFunction();
 
 	[[nodiscard]] const SPIRV::SPIRVModule* getModule() const { return module; }

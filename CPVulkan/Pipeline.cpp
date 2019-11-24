@@ -456,13 +456,8 @@ static std::tuple<int, ShaderFunction*> LoadShaderStage(CPJit* jit, const struct
 		FATAL_ERROR();
 	}
 
-	if (stage.pSpecializationInfo)
-	{
-		FATAL_ERROR();
-	}
-
 	const auto stageIndex = GetStageIndex(stage.stage);
-	return std::make_tuple(stageIndex, new ShaderFunction(jit, UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName));
+	return std::make_tuple(stageIndex, new ShaderFunction(jit, UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName, stage.pSpecializationInfo));
 }
 
 static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SPIRV::SPIRVExecutionModelKind stage, const char* name)
@@ -478,7 +473,7 @@ static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SP
 	return nullptr;
 }
 
-ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name)
+ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo)
 {
 	this->module = module->getModule();
 	this->name = name;
@@ -718,7 +713,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 		}
 	}
 
-	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex));
+	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex), specializationInfo);
 	this->entryPoint = jit->getFunctionPointer(llvmModule, name);
 }
 

@@ -53,10 +53,10 @@ public:
 		}
 	}
 
-	CompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
+	CompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo)
 	{
 		auto context = std::make_unique<llvm::LLVMContext>();
-		auto module = ConvertSpirv(context.get(), spirvModule, executionModel);
+		auto module = ConvertSpirv(context.get(), spirvModule, executionModel, specializationInfo);
 		return CompileModule(std::move(context), std::move(module));
 	}
 
@@ -210,9 +210,9 @@ CPJit::~CPJit()
 	delete impl;
 }
 
-CompiledModule* CPJit::CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel)
+CompiledModule* CPJit::CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo)
 {
-	return impl->CompileModule(spirvModule, executionModel);
+	return impl->CompileModule(spirvModule, executionModel, specializationInfo);
 }
 
 CompiledModule* CPJit::CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
