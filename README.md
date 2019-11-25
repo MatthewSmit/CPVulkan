@@ -2,7 +2,11 @@
 A CPU Vulkan renderer.
 
 ## Building
-TODO: Uses cmake. Needs llvm 8 and some other things.
+See [building](https://github.com/MatthewSmit/CPVulkan/wiki/Building).
+
+### Quick Guide
+Uses CMake, and requires llvm-8, glm, glslang, vulkan sdk and gsl.
+Actively developed on windows, partial linux support.
 
 ## Usage
 TODO: Use environmental variables.
