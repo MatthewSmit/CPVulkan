@@ -17,18 +17,18 @@
 #include <glm/glm.hpp>
 
 template<typename T>
-static T SAbs(T value)
+static T Abs(T value)
 {
 	return std::abs(value);
 }
 
 template<typename T>
-static T VSAbs(T value)
+static T VAbs(T value)
 {
-	T result{};
+	T result{0};
 	for (auto i = 0; i < T::length(); i++)
 	{
-		result[i] = SAbs(value[i]);
+		result[i] = Abs(value[i]);
 	}
 	return result;
 }
@@ -642,24 +642,36 @@ void AddGlslFunctions(DeviceState* deviceState)
 	// Round = 1,
 	// RoundEven = 2,
 	// Trunc = 3,
-	// FAbs = 4,
 
-	jit->AddFunction("@SAbs.I8", reinterpret_cast<FunctionPointer>(SAbs<int8_t>));
-	jit->AddFunction("@SAbs.I8[2]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i8vec2>));
-	jit->AddFunction("@SAbs.I8[3]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i8vec3>));
-	jit->AddFunction("@SAbs.I8[4]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i8vec4>));
-	jit->AddFunction("@SAbs.I16", reinterpret_cast<FunctionPointer>(SAbs<int16_t>));
-	jit->AddFunction("@SAbs.I16[2]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i16vec2>));
-	jit->AddFunction("@SAbs.I16[3]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i16vec3>));
-	jit->AddFunction("@SAbs.I16[4]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i16vec4>));
-	jit->AddFunction("@SAbs.I32", reinterpret_cast<FunctionPointer>(SAbs<int32_t>));
-	jit->AddFunction("@SAbs.I32[2]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i32vec2>));
-	jit->AddFunction("@SAbs.I32[3]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i32vec3>));
-	jit->AddFunction("@SAbs.I32[4]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i32vec4>));
-	jit->AddFunction("@SAbs.I64", reinterpret_cast<FunctionPointer>(SAbs<int64_t>));
-	jit->AddFunction("@SAbs.I64[2]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i64vec2>));
-	jit->AddFunction("@SAbs.I64[3]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i64vec3>));
-	jit->AddFunction("@SAbs.I64[4]", reinterpret_cast<FunctionPointer>(VSAbs<glm::i64vec4>));
+	jit->AddFunction("@FAbs.F16", reinterpret_cast<FunctionPointer>(Abs<half>));
+	jit->AddFunction("@FAbs.F16[2]", reinterpret_cast<FunctionPointer>(VAbs<glm::f16vec2>));
+	jit->AddFunction("@FAbs.F16[3]", reinterpret_cast<FunctionPointer>(VAbs<glm::f16vec3>));
+	jit->AddFunction("@FAbs.F16[4]", reinterpret_cast<FunctionPointer>(VAbs<glm::f16vec4>));
+	jit->AddFunction("@FAbs.F32", reinterpret_cast<FunctionPointer>(Abs<float>));
+	jit->AddFunction("@FAbs.F32[2]", reinterpret_cast<FunctionPointer>(VAbs<glm::fvec2>));
+	jit->AddFunction("@FAbs.F32[3]", reinterpret_cast<FunctionPointer>(VAbs<glm::fvec3>));
+	jit->AddFunction("@FAbs.F32[4]", reinterpret_cast<FunctionPointer>(VAbs<glm::fvec4>));
+	jit->AddFunction("@FAbs.F64", reinterpret_cast<FunctionPointer>(Abs<double>));
+	jit->AddFunction("@FAbs.F64[2]", reinterpret_cast<FunctionPointer>(VAbs<glm::dvec2>));
+	jit->AddFunction("@FAbs.F64[3]", reinterpret_cast<FunctionPointer>(VAbs<glm::dvec3>));
+	jit->AddFunction("@FAbs.F64[4]", reinterpret_cast<FunctionPointer>(VAbs<glm::dvec4>));
+
+	jit->AddFunction("@SAbs.I8", reinterpret_cast<FunctionPointer>(Abs<int8_t>));
+	jit->AddFunction("@SAbs.I8[2]", reinterpret_cast<FunctionPointer>(VAbs<glm::i8vec2>));
+	jit->AddFunction("@SAbs.I8[3]", reinterpret_cast<FunctionPointer>(VAbs<glm::i8vec3>));
+	jit->AddFunction("@SAbs.I8[4]", reinterpret_cast<FunctionPointer>(VAbs<glm::i8vec4>));
+	jit->AddFunction("@SAbs.I16", reinterpret_cast<FunctionPointer>(Abs<int16_t>));
+	jit->AddFunction("@SAbs.I16[2]", reinterpret_cast<FunctionPointer>(VAbs<glm::i16vec2>));
+	jit->AddFunction("@SAbs.I16[3]", reinterpret_cast<FunctionPointer>(VAbs<glm::i16vec3>));
+	jit->AddFunction("@SAbs.I16[4]", reinterpret_cast<FunctionPointer>(VAbs<glm::i16vec4>));
+	jit->AddFunction("@SAbs.I32", reinterpret_cast<FunctionPointer>(Abs<int32_t>));
+	jit->AddFunction("@SAbs.I32[2]", reinterpret_cast<FunctionPointer>(VAbs<glm::i32vec2>));
+	jit->AddFunction("@SAbs.I32[3]", reinterpret_cast<FunctionPointer>(VAbs<glm::i32vec3>));
+	jit->AddFunction("@SAbs.I32[4]", reinterpret_cast<FunctionPointer>(VAbs<glm::i32vec4>));
+	jit->AddFunction("@SAbs.I64", reinterpret_cast<FunctionPointer>(Abs<int64_t>));
+	jit->AddFunction("@SAbs.I64[2]", reinterpret_cast<FunctionPointer>(VAbs<glm::i64vec2>));
+	jit->AddFunction("@SAbs.I64[3]", reinterpret_cast<FunctionPointer>(VAbs<glm::i64vec3>));
+	jit->AddFunction("@SAbs.I64[4]", reinterpret_cast<FunctionPointer>(VAbs<glm::i64vec4>));
 	
 	// FSign = 6,
 	
