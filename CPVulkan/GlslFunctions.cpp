@@ -325,11 +325,18 @@ static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::spa
 	switch (descriptor->Type)
 	{
 	case ImageDescriptorType::Buffer:
-		format = bufferView->getFormat();
-		data[0] = bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange());
-		range[0] = {static_cast<uint32_t>(bufferView->getRange())};
-		baseLevel = 0;
-		levels = 1;
+		if constexpr (length == 1)
+		{
+			format = bufferView->getFormat();
+			data[0] = bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange());
+			range[0] = glm::uvec1{ static_cast<uint32_t>(bufferView->getRange()) };
+			baseLevel = 0;
+			levels = 1;
+		}
+		else
+		{
+			FATAL_ERROR();
+		}
 		break;
 
 	case ImageDescriptorType::Image:
@@ -511,7 +518,7 @@ static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result,
 		realCoordinates = *coordinates;
 	}
 
-	const auto sampler = descriptor->Sampler;
+	const auto sampler = descriptor->ImageSampler;
 	const auto lambdaBase = lod;
 	constexpr float bias = 0;
 	const auto lambdaPrime = lambdaBase + std::clamp(sampler->getMipLodBias() + bias, -MAX_SAMPLER_LOD_BIAS, MAX_SAMPLER_LOD_BIAS);
@@ -627,11 +634,11 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 static void ImageCombine(ImageDescriptor* image, ImageDescriptor* sampler, ImageDescriptor* result)
 {
 	assert(image->Data.Image != nullptr);
-	assert(sampler->Sampler != nullptr);
+	assert(sampler->ImageSampler != nullptr);
 	
 	result->Type = image->Type;
 	result->Data = image->Data;
-	result->Sampler = sampler->Sampler;
+	result->ImageSampler = sampler->ImageSampler;
 }
 
 void AddGlslFunctions(DeviceState* deviceState)

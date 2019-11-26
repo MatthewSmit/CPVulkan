@@ -487,8 +487,10 @@ ResultType SampleImageOfLevel(DeviceState* deviceState, const FormatInformation&
 			switch (reductionMode)
 			{
 			case VK_SAMPLER_REDUCTION_MODE_WEIGHTED_AVERAGE_EXT:
-				const auto interpolation = frac(coordinates * static_cast<CoordinateType>(range) - shift);
-				return GetPixelLinear<ResultType, IntCoordinateType::length()>(deviceState, format.Format, data, range, newCoordinates0, newCoordinates1, interpolation, borderColourConversion[borderColour]);
+				{
+					const auto interpolation = frac(coordinates * static_cast<CoordinateType>(range) - shift);
+					return GetPixelLinear<ResultType, IntCoordinateType::length()>(deviceState, format.Format, data, range, newCoordinates0, newCoordinates1, interpolation, borderColourConversion[borderColour]);
+				}
 
 			case VK_SAMPLER_REDUCTION_MODE_MIN_EXT:
 				{
@@ -519,8 +521,6 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
                        bool anisotropyEnable, bool compareEnable, VkCompareOp compareOperation, VkBorderColor borderColour, bool unnormalisedCoordinates, VkSamplerReductionModeEXT reductionMode)
 {
 	static_assert(std::is_same<typename CoordinateType::value_type, float>::value);
-	
-	using IntCoordinateType = glm::vec<CoordinateType::length(), int32_t>;
 
 	const auto& information = GetFormatInformation(format);
 

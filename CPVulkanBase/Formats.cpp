@@ -61,8 +61,8 @@ static constexpr FormatInformation MakeFormatInformation(VkFormat format, Format
 	};
 }
 
-static constexpr FormatInformation MakeFormatInformation(VkFormat format, FormatType type, int32_t channels, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
-                                                         uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset)
+static FormatInformation MakeFormatInformation(VkFormat format, FormatType type, int32_t channels, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
+                                               uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset)
 {
 	const auto features = GetFeatures(type);
 	FormatInformation information
@@ -87,8 +87,8 @@ static constexpr FormatInformation MakeFormatInformation(VkFormat format, Format
 	return information;
 }
 
-static constexpr FormatInformation MakeDepthFormatInformation(VkFormat format, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
-                                                              uint32_t depthOffset, uint32_t stencilOffset)
+static FormatInformation MakeDepthFormatInformation(VkFormat format, uint32_t totalSize, uint32_t elementSize, BaseType baseType,
+                                                    uint32_t depthOffset, uint32_t stencilOffset)
 {
 	constexpr auto features = GetFeatures(FormatType::DepthStencil);
 	FormatInformation information
@@ -111,7 +111,7 @@ static constexpr FormatInformation MakeDepthFormatInformation(VkFormat format, u
 	return information;
 }
 
-static constexpr FormatInformation MakeCompressedFormatInformation(VkFormat format, int32_t channels, uint32_t totalSize, BaseType baseType, uint32_t width, uint32_t height)
+static FormatInformation MakeCompressedFormatInformation(VkFormat format, int32_t channels, uint32_t totalSize, BaseType baseType, uint32_t width, uint32_t height)
 {
 	constexpr auto features = GetFeatures(FormatType::Compressed);
 	FormatInformation information
@@ -134,10 +134,10 @@ static constexpr FormatInformation MakeCompressedFormatInformation(VkFormat form
 	return information;
 }
 
-static constexpr FormatInformation MakePackedFormatInformation(VkFormat format, int32_t channels,
-                                                               uint32_t totalSize, BaseType baseType,
-                                                               uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset,
-                                                               uint32_t redBits, uint32_t greenBits, uint32_t blueBits, uint32_t alphaBits)
+static FormatInformation MakePackedFormatInformation(VkFormat format, int32_t channels,
+                                                     uint32_t totalSize, BaseType baseType,
+                                                     uint32_t redOffset, uint32_t greenOffset, uint32_t blueOffset, uint32_t alphaOffset,
+                                                     uint32_t redBits, uint32_t greenBits, uint32_t blueBits, uint32_t alphaBits)
 {
 	constexpr auto features = GetFeatures(FormatType::Packed);
 	FormatInformation information
@@ -172,7 +172,7 @@ static constexpr auto COLOUR_RG = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_
 static constexpr auto COLOUR_RGB = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT;
 static constexpr auto COLOUR_RGBA = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 
-static constexpr FormatInformation formatInformation[]
+static const FormatInformation formatInformation[]
 {
 	MakeFormatInformation(VK_FORMAT_UNDEFINED, FormatType::Normal, COLOUR_NONE, 0),
 	MakePackedFormatInformation(VK_FORMAT_R4G4_UNORM_PACK8, COLOUR_RG, 1, BaseType::UNorm, 4, 0, 0, 0, 4, 4, 0, 0),

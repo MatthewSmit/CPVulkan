@@ -13,11 +13,6 @@
 
 #if !defined(_MSC_VER)
 #define __debugbreak() __asm__("int3")
-
-inline void strcpy_s(char* destination, const char* source)
-{
-	strcpy(destination, source);
-}
 #endif
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 

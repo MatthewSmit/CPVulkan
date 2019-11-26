@@ -31,40 +31,40 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 		switch (descriptorWrite.descriptorType)
 		{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
-			value.ImageDescriptor.Type = ImageDescriptorType::None;
-			value.ImageDescriptor.Data.Image = nullptr;
-			value.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+			value.Image.Type = ImageDescriptorType::None;
+			value.Image.Data.Image = nullptr;
+			value.Image.ImageSampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
 			break;
 						
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
-			value.ImageDescriptor.Type = ImageDescriptorType::Image;
-			value.ImageDescriptor.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
-			value.ImageDescriptor.Sampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+			value.Image.Type = ImageDescriptorType::Image;
+			value.Image.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
+			value.Image.ImageSampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
 			break;
 						
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
-			value.ImageDescriptor.Type = ImageDescriptorType::Image;
-			value.ImageDescriptor.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
-			value.ImageDescriptor.Sampler = nullptr;
+			value.Image.Type = ImageDescriptorType::Image;
+			value.Image.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
+			value.Image.ImageSampler = nullptr;
 			break;
 			
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: FATAL_ERROR();
 			
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
-			value.ImageDescriptor.Type = ImageDescriptorType::Buffer;
-			value.ImageDescriptor.Data.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
-			value.ImageDescriptor.Sampler = nullptr;
+			value.Image.Type = ImageDescriptorType::Buffer;
+			value.Image.Data.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
+			value.Image.ImageSampler = nullptr;
 			break;
 			
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-			value.BufferInfo = *descriptorWrite.pBufferInfo;
-			if (value.BufferInfo.range == VK_WHOLE_SIZE)
+			value.Buffer= *descriptorWrite.pBufferInfo;
+			if (value.Buffer.range == VK_WHOLE_SIZE)
 			{
-				value.BufferInfo.range = UnwrapVulkan<Buffer>(value.BufferInfo.buffer)->getSize() - value.BufferInfo.offset;
+				value.Buffer.range = UnwrapVulkan<Buffer>(value.Buffer.buffer)->getSize() - value.Buffer.offset;
 			}
 			break;
 			

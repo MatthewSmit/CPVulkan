@@ -270,7 +270,7 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 			for (auto j = 0u; j < value->count; j++)
 			{
-				static_cast<const ImageDescriptor**>(data.pointer)[j] = &value->values[j].ImageDescriptor;
+				static_cast<const ImageDescriptor**>(data.pointer)[j] = &value->values[j].Image;
 			}
 			break;
 			
@@ -280,7 +280,7 @@ static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* mod
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 			for (auto j = 0u; j < value->count; j++)
 			{
-				const auto& bufferInfo = value->values[j].BufferInfo;
+				const auto& bufferInfo = value->values[j].Buffer;
 				static_cast<const void**>(data.pointer)[j] = UnwrapVulkan<Buffer>(bufferInfo.buffer)->getDataPtr(bufferInfo.offset, bufferInfo.range);
 			}
 			break;
@@ -644,6 +644,8 @@ static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceSta
 
 static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t instance, const std::vector<uint32_t>& assemblerOutput)
 {
+	assert(assemblerOutput.size() <= 0xFFFFFFFF);
+	
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(0);
 	const auto& vertexInput = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexInputState();
 
@@ -666,7 +668,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		std::unique_ptr<uint8_t[]>(new uint8_t[assemblerOutput.size() * outputSize]),
 		sizeof(VertexBuiltinOutput),
 		outputSize,
-		assemblerOutput.size(),
+		static_cast<uint32_t>(assemblerOutput.size()),
 	};
 
 	LoadUniforms(deviceState, module, uniformData, PIPELINE_GRAPHICS);

@@ -20,13 +20,13 @@ struct ImageDescriptor
 		ImageView* Image;
 	} Data;
 
-	Sampler* Sampler;
+	Sampler* ImageSampler;
 };
 
 union DescriptorValue
 {
-	ImageDescriptor ImageDescriptor;
-	VkDescriptorBufferInfo BufferInfo;
+	ImageDescriptor Image;
+	VkDescriptorBufferInfo Buffer;
 };
 
 struct Descriptor
