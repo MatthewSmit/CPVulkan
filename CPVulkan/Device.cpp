@@ -37,7 +37,8 @@ Device::~Device()
 		// Ignore
 	}
 #endif
-	
+
+	state->imageFunctions.clear();
 	delete state->jit;
 }
 
@@ -1026,4 +1027,19 @@ VkResult Device::ReleaseFullScreenExclusiveMode(VkSwapchainKHR swapchain)
 VkResult Device::GetDeviceGroupSurfacePresentModes2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkDeviceGroupPresentModeFlagsKHR* pModes)
 {
 	FATAL_ERROR();
+}
+
+ImageFunctions::ImageFunctions(CPJit* jit) :
+	ImageFunctions{}
+{
+	this->jit = jit;
+}
+
+ImageFunctions::~ImageFunctions()
+{
+	for (auto module : modules)
+	{
+		jit->FreeModule(module);
+	}
+	modules.clear();
 }

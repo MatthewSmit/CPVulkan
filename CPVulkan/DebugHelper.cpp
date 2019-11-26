@@ -75,7 +75,7 @@ std::ostream& operator<<(std::ostream& stream, const VkClearRect& value)
 
 std::ostream& operator<<(std::ostream& stream, const VkClearValue& value)
 {
-	return stream << "ClearValue(" << value.color.float32[0] << ", " << value.color.float32[1] << ", " << value.color.float32[2] << ", " << value.color.float32[3] << ")";
+	return stream << "ClearValue()";
 }
 
 std::ostream& operator<<(std::ostream& stream, const VkExtent3D& value)

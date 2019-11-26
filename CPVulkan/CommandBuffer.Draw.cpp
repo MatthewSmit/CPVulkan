@@ -142,8 +142,8 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 	case BaseType::UInt:
 		{
 			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto& sourceFunctions = deviceState->imageFunctions[sourceFormat];
-			auto& destFunctions = deviceState->imageFunctions[destinationFormat];
+			auto& sourceFunctions = deviceState->getImageFunctions(sourceFormat);
+			auto& destFunctions = deviceState->getImageFunctions(destinationFormat);
 			
 			if (!sourceFunctions.GetPixelU32)
 			{
@@ -164,8 +164,8 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 	case BaseType::SInt:
 		{
 			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto& sourceFunctions = deviceState->imageFunctions[sourceFormat];
-			auto& destFunctions = deviceState->imageFunctions[destinationFormat];
+			auto& sourceFunctions = deviceState->getImageFunctions(sourceFormat);
+			auto& destFunctions = deviceState->getImageFunctions(destinationFormat);
 			
 			if (!sourceFunctions.GetPixelI32)
 			{
@@ -192,8 +192,8 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 	case BaseType::SRGB:
 		{
 			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto& sourceFunctions = deviceState->imageFunctions[sourceFormat];
-			auto& destFunctions = deviceState->imageFunctions[destinationFormat];
+			auto& sourceFunctions = deviceState->getImageFunctions(sourceFormat);
+			auto& destFunctions = deviceState->getImageFunctions(destinationFormat);
 			
 			if (!sourceFunctions.GetPixelF32)
 			{

@@ -58,7 +58,7 @@ float GetDepthPixel(DeviceState* deviceState, VkFormat format, const Image* imag
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	if (!functions.GetPixelDepth)
 	{
 		functions.GetPixelDepth = reinterpret_cast<decltype(functions.GetPixelDepth)>(CompileGetPixelDepth(deviceState->jit, &information));
@@ -71,7 +71,7 @@ uint8_t GetStencilPixel(DeviceState* deviceState, VkFormat format, const Image* 
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	if (!functions.GetPixelStencil)
 	{
 		functions.GetPixelStencil = reinterpret_cast<decltype(functions.GetPixelStencil)>(CompileGetPixelStencil(deviceState->jit, &information));
@@ -90,7 +90,7 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, 1, 1, 1, 1), coordinates.x, 0, 0, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	
 	if (!functions.GetPixelF32)
 	{
@@ -111,6 +111,7 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	}
 
 	const auto& information = GetFormatInformation(format);
+	auto& functions = deviceState->getImageFunctions(format);
 	if (information.Type == FormatType::Compressed)
 	{
 		const auto subX = coordinates.x % information.Compressed.BlockWidth;
@@ -118,7 +119,6 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 		coordinates.x /= information.Compressed.BlockWidth;
 		coordinates.y /= information.Compressed.BlockHeight;
 		const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
-		auto& functions = deviceState->imageFunctions[format];
 
 		if (!functions.GetPixelF32C)
 		{
@@ -132,7 +132,6 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	else
 	{
 		const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
-		auto& functions = deviceState->imageFunctions[format];
 
 		if (!functions.GetPixelF32)
 		{
@@ -155,7 +154,7 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	
 	if (!functions.GetPixelF32)
 	{
@@ -177,7 +176,7 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, 1, 1, 1, 1), coordinates.x, 0, 0, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 
 	if (!functions.GetPixelI32)
 	{
@@ -199,7 +198,7 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 
 	if (!functions.GetPixelI32)
 	{
@@ -221,7 +220,7 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 
 	if (!functions.GetPixelI32)
 	{
@@ -243,7 +242,7 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, 1, 1, 1, 1), coordinates.x, 0, 0, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 
 	if (!functions.GetPixelU32)
 	{
@@ -265,7 +264,7 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 
 	if (!functions.GetPixelU32)
 	{
@@ -287,7 +286,7 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 
 	if (!functions.GetPixelU32)
 	{
@@ -661,7 +660,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	if (!functions.SetPixelDepthStencil)
 	{
 		functions.SetPixelDepthStencil = reinterpret_cast<decltype(functions.SetPixelDepthStencil)>(CompileSetPixelDepthStencil(deviceState->jit, &information));
@@ -700,7 +699,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	if (!functions.SetPixelF32)
 	{
 		functions.SetPixelF32 = reinterpret_cast<decltype(functions.SetPixelF32)>(CompileSetPixelF32(deviceState->jit, &information));
@@ -713,7 +712,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	if (!functions.SetPixelI32)
 	{
 		functions.SetPixelI32 = reinterpret_cast<decltype(functions.SetPixelI32)>(CompileSetPixelI32(deviceState->jit, &information));
@@ -726,7 +725,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->imageFunctions[format];
+	auto& functions = deviceState->getImageFunctions(format);
 	if (!functions.SetPixelU32)
 	{
 		functions.SetPixelU32 = reinterpret_cast<decltype(functions.SetPixelU32)>(CompileSetPixelU32(deviceState->jit, &information));

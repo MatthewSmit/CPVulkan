@@ -2,6 +2,7 @@
 #include "Base.h"
 
 class Buffer;
+class CompiledModule;
 class CPJit;
 class DescriptorSet;
 class Framebuffer;
@@ -10,8 +11,12 @@ class RenderPass;
 
 struct Subpass;
 
-struct ImageFunctions
+class ImageFunctions
 {
+public:
+	ImageFunctions(CPJit* jit);
+	~ImageFunctions();
+
 	float (*GetPixelDepth)(const void* ptr);
 	uint8_t (*GetPixelStencil)(const void* ptr);
 	void (*GetPixelF32)(const void* ptr, void* values);
@@ -23,6 +28,12 @@ struct ImageFunctions
 	void (*SetPixelF32)(void* ptr, const float* values);
 	void (*SetPixelI32)(void* ptr, const int32_t* values);
 	void (*SetPixelU32)(void* ptr, const uint32_t* values);
+
+private:
+	ImageFunctions() = default;
+	
+	std::vector<CompiledModule*> modules{};
+	CPJit* jit;
 };
 
 struct DeviceState
@@ -55,4 +66,16 @@ struct DeviceState
 #if CV_DEBUG_LEVEL > 0
 	std::ofstream* debugOutput;
 #endif
+
+	ImageFunctions& getImageFunctions(VkFormat format)
+	{
+		auto ptr = imageFunctions.find(format);
+		if (ptr != imageFunctions.end())
+		{
+			return ptr->second;
+		}
+
+		imageFunctions.insert(std::make_pair(format, ImageFunctions(jit)));
+		return imageFunctions.at(format);
+	}
 };
