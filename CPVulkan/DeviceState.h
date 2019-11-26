@@ -38,6 +38,7 @@ private:
 
 struct DeviceState
 {
+public:
 	struct
 	{
 		Pipeline* pipeline;
@@ -60,22 +61,22 @@ struct DeviceState
 	Framebuffer* currentFramebuffer;
 	VkRect2D currentRenderArea;
 
+	std::unordered_map<VkFormat, std::unique_ptr<ImageFunctions>> imageFunctions{};
 	CPJit* jit;
-	std::unordered_map<VkFormat, ImageFunctions> imageFunctions{};
 	
 #if CV_DEBUG_LEVEL > 0
 	std::ofstream* debugOutput;
 #endif
 
-	ImageFunctions& getImageFunctions(VkFormat format)
+	ImageFunctions* getImageFunctions(VkFormat format)
 	{
 		auto ptr = imageFunctions.find(format);
 		if (ptr != imageFunctions.end())
 		{
-			return ptr->second;
+			return ptr->second.get();
 		}
 
-		imageFunctions.insert(std::make_pair(format, ImageFunctions(jit)));
-		return imageFunctions.at(format);
+		imageFunctions[format] = std::make_unique<ImageFunctions>(jit);
+		return imageFunctions.at(format).get();
 	}
 };

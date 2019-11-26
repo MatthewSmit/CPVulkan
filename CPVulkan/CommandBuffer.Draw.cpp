@@ -142,44 +142,44 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 	case BaseType::UInt:
 		{
 			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto& sourceFunctions = deviceState->getImageFunctions(sourceFormat);
-			auto& destFunctions = deviceState->getImageFunctions(destinationFormat);
+			auto sourceFunctions = deviceState->getImageFunctions(sourceFormat);
+			auto destFunctions = deviceState->getImageFunctions(destinationFormat);
 			
-			if (!sourceFunctions.GetPixelU32)
+			if (!sourceFunctions->GetPixelU32)
 			{
-				sourceFunctions.GetPixelU32 = reinterpret_cast<decltype(sourceFunctions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &sourceInformation));
+				sourceFunctions->GetPixelU32 = reinterpret_cast<decltype(sourceFunctions->GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &sourceInformation));
 			}
 			
-			if (!destFunctions.SetPixelU32)
+			if (!destFunctions->SetPixelU32)
 			{
-				destFunctions.SetPixelU32 = reinterpret_cast<decltype(destFunctions.SetPixelU32)>(CompileSetPixelU32(deviceState->jit, &destinationInformation));
+				destFunctions->SetPixelU32 = reinterpret_cast<decltype(destFunctions->SetPixelU32)>(CompileSetPixelU32(deviceState->jit, &destinationInformation));
 			}
 
 			uint32_t values[4];
-			sourceFunctions.GetPixelU32(source, values);
-			destFunctions.SetPixelU32(destination, values);
+			sourceFunctions->GetPixelU32(source, values);
+			destFunctions->SetPixelU32(destination, values);
 			break;
 		}
 		
 	case BaseType::SInt:
 		{
 			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto& sourceFunctions = deviceState->getImageFunctions(sourceFormat);
-			auto& destFunctions = deviceState->getImageFunctions(destinationFormat);
+			auto sourceFunctions = deviceState->getImageFunctions(sourceFormat);
+			auto destFunctions = deviceState->getImageFunctions(destinationFormat);
 			
-			if (!sourceFunctions.GetPixelI32)
+			if (!sourceFunctions->GetPixelI32)
 			{
-				sourceFunctions.GetPixelI32 = reinterpret_cast<decltype(sourceFunctions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &sourceInformation));
+				sourceFunctions->GetPixelI32 = reinterpret_cast<decltype(sourceFunctions->GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &sourceInformation));
 			}
 			
-			if (!destFunctions.SetPixelI32)
+			if (!destFunctions->SetPixelI32)
 			{
-				destFunctions.SetPixelI32 = reinterpret_cast<decltype(destFunctions.SetPixelI32)>(CompileSetPixelI32(deviceState->jit, &destinationInformation));
+				destFunctions->SetPixelI32 = reinterpret_cast<decltype(destFunctions->SetPixelI32)>(CompileSetPixelI32(deviceState->jit, &destinationInformation));
 			}
 
 			int32_t values[4];
-			sourceFunctions.GetPixelI32(source, values);
-			destFunctions.SetPixelI32(destination, values);
+			sourceFunctions->GetPixelI32(source, values);
+			destFunctions->SetPixelI32(destination, values);
 			break;
 		}
 		
@@ -192,22 +192,22 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 	case BaseType::SRGB:
 		{
 			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto& sourceFunctions = deviceState->getImageFunctions(sourceFormat);
-			auto& destFunctions = deviceState->getImageFunctions(destinationFormat);
+			auto sourceFunctions = deviceState->getImageFunctions(sourceFormat);
+			auto destFunctions = deviceState->getImageFunctions(destinationFormat);
 			
-			if (!sourceFunctions.GetPixelF32)
+			if (!sourceFunctions->GetPixelF32)
 			{
-				sourceFunctions.GetPixelF32 = reinterpret_cast<decltype(sourceFunctions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &sourceInformation));
+				sourceFunctions->GetPixelF32 = reinterpret_cast<decltype(sourceFunctions->GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &sourceInformation));
 			}
 			
-			if (!destFunctions.SetPixelF32)
+			if (!destFunctions->SetPixelF32)
 			{
-				destFunctions.SetPixelF32 = reinterpret_cast<decltype(destFunctions.SetPixelF32)>(CompileSetPixelF32(deviceState->jit, &destinationInformation));
+				destFunctions->SetPixelF32 = reinterpret_cast<decltype(destFunctions->SetPixelF32)>(CompileSetPixelF32(deviceState->jit, &destinationInformation));
 			}
 
 			float values[4];
-			sourceFunctions.GetPixelF32(source, values);
-			destFunctions.SetPixelF32(destination, values);
+			sourceFunctions->GetPixelF32(source, values);
+			destFunctions->SetPixelF32(destination, values);
 			break;
 		}
 		

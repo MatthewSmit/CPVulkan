@@ -58,26 +58,26 @@ float GetDepthPixel(DeviceState* deviceState, VkFormat format, const Image* imag
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->getImageFunctions(format);
-	if (!functions.GetPixelDepth)
+	auto functions = deviceState->getImageFunctions(format);
+	if (!functions->GetPixelDepth)
 	{
-		functions.GetPixelDepth = reinterpret_cast<decltype(functions.GetPixelDepth)>(CompileGetPixelDepth(deviceState->jit, &information));
+		functions->GetPixelDepth = reinterpret_cast<decltype(functions->GetPixelDepth)>(CompileGetPixelDepth(deviceState->jit, &information));
 	}
 
-	return functions.GetPixelDepth(image->getDataPtr(offset, information.TotalSize));
+	return functions->GetPixelDepth(image->getDataPtr(offset, information.TotalSize));
 }
 
 uint8_t GetStencilPixel(DeviceState* deviceState, VkFormat format, const Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer)
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->getImageFunctions(format);
-	if (!functions.GetPixelStencil)
+	auto functions = deviceState->getImageFunctions(format);
+	if (!functions->GetPixelStencil)
 	{
-		functions.GetPixelStencil = reinterpret_cast<decltype(functions.GetPixelStencil)>(CompileGetPixelStencil(deviceState->jit, &information));
+		functions->GetPixelStencil = reinterpret_cast<decltype(functions->GetPixelStencil)>(CompileGetPixelStencil(deviceState->jit, &information));
 	}
 
-	return functions.GetPixelStencil(image->getDataPtr(offset, information.TotalSize));
+	return functions->GetPixelStencil(image->getDataPtr(offset, information.TotalSize));
 }
 
 template<>
@@ -90,15 +90,15 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, 1, 1, 1, 1), coordinates.x, 0, 0, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 	
-	if (!functions.GetPixelF32)
+	if (!functions->GetPixelF32)
 	{
-		functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
+		functions->GetPixelF32 = reinterpret_cast<decltype(functions->GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
 	}
 
 	float values[4]{};
-	functions.GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::fvec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -111,7 +111,7 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	}
 
 	const auto& information = GetFormatInformation(format);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 	if (information.Type == FormatType::Compressed)
 	{
 		const auto subX = coordinates.x % information.Compressed.BlockWidth;
@@ -120,26 +120,26 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 		coordinates.y /= information.Compressed.BlockHeight;
 		const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
 
-		if (!functions.GetPixelF32C)
+		if (!functions->GetPixelF32C)
 		{
-			functions.GetPixelF32C = reinterpret_cast<decltype(functions.GetPixelF32C)>(CompileGetPixelF32(deviceState->jit, &information));
+			functions->GetPixelF32C = reinterpret_cast<decltype(functions->GetPixelF32C)>(CompileGetPixelF32(deviceState->jit, &information));
 		}
 
 		float values[4]{};
-		functions.GetPixelF32C(data.subspan(offset, information.TotalSize).data(), values, subX, subY);
+		functions->GetPixelF32C(data.subspan(offset, information.TotalSize).data(), values, subX, subY);
 		return glm::fvec4(values[0], values[1], values[2], values[3]);
 	}
 	else
 	{
 		const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
 
-		if (!functions.GetPixelF32)
+		if (!functions->GetPixelF32)
 		{
-			functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
+			functions->GetPixelF32 = reinterpret_cast<decltype(functions->GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
 		}
 
 		float values[4]{};
-		functions.GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
+		functions->GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
 		return glm::fvec4(values[0], values[1], values[2], values[3]);
 	}
 }
@@ -154,15 +154,15 @@ glm::fvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 	
-	if (!functions.GetPixelF32)
+	if (!functions->GetPixelF32)
 	{
-		functions.GetPixelF32 = reinterpret_cast<decltype(functions.GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
+		functions->GetPixelF32 = reinterpret_cast<decltype(functions->GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &information));
 	}
 
 	float values[4]{};
-	functions.GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelF32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::fvec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -176,15 +176,15 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, 1, 1, 1, 1), coordinates.x, 0, 0, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 
-	if (!functions.GetPixelI32)
+	if (!functions->GetPixelI32)
 	{
-		functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
+		functions->GetPixelI32 = reinterpret_cast<decltype(functions->GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
-	functions.GetPixelI32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelI32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::ivec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -198,15 +198,15 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 
-	if (!functions.GetPixelI32)
+	if (!functions->GetPixelI32)
 	{
-		functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
+		functions->GetPixelI32 = reinterpret_cast<decltype(functions->GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
-	functions.GetPixelI32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelI32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::ivec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -220,15 +220,15 @@ glm::ivec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 
-	if (!functions.GetPixelI32)
+	if (!functions->GetPixelI32)
 	{
-		functions.GetPixelI32 = reinterpret_cast<decltype(functions.GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
+		functions->GetPixelI32 = reinterpret_cast<decltype(functions->GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
-	functions.GetPixelI32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelI32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::ivec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -242,15 +242,15 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, 1, 1, 1, 1), coordinates.x, 0, 0, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 
-	if (!functions.GetPixelU32)
+	if (!functions->GetPixelU32)
 	{
-		functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
+		functions->GetPixelU32 = reinterpret_cast<decltype(functions->GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
-	functions.GetPixelU32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelU32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::uvec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -264,15 +264,15 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 
-	if (!functions.GetPixelU32)
+	if (!functions->GetPixelU32)
 	{
-		functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
+		functions->GetPixelU32 = reinterpret_cast<decltype(functions->GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
-	functions.GetPixelU32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelU32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::uvec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -286,15 +286,15 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, range.z, 1, 1), coordinates.x, coordinates.y, coordinates.z, 0, 0);
-	auto& functions = deviceState->getImageFunctions(format);
+	auto functions = deviceState->getImageFunctions(format);
 
-	if (!functions.GetPixelU32)
+	if (!functions->GetPixelU32)
 	{
-		functions.GetPixelU32 = reinterpret_cast<decltype(functions.GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
+		functions->GetPixelU32 = reinterpret_cast<decltype(functions->GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &information));
 	}
 
 	uint32_t values[4]{};
-	functions.GetPixelU32(data.subspan(offset, information.TotalSize).data(), values);
+	functions->GetPixelU32(data.subspan(offset, information.TotalSize).data(), values);
 	return glm::uvec4(values[0], values[1], values[2], values[3]);
 }
 
@@ -660,13 +660,13 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->getImageFunctions(format);
-	if (!functions.SetPixelDepthStencil)
+	auto functions = deviceState->getImageFunctions(format);
+	if (!functions->SetPixelDepthStencil)
 	{
-		functions.SetPixelDepthStencil = reinterpret_cast<decltype(functions.SetPixelDepthStencil)>(CompileSetPixelDepthStencil(deviceState->jit, &information));
+		functions->SetPixelDepthStencil = reinterpret_cast<decltype(functions->SetPixelDepthStencil)>(CompileSetPixelDepthStencil(deviceState->jit, &information));
 	}
 
-	functions.SetPixelDepthStencil(image->getDataPtr(offset, information.TotalSize), value.depth, value.stencil);
+	functions->SetPixelDepthStencil(image->getDataPtr(offset, information.TotalSize), value.depth, value.stencil);
 }
 
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, VkClearColorValue value)
@@ -699,37 +699,37 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->getImageFunctions(format);
-	if (!functions.SetPixelF32)
+	auto functions = deviceState->getImageFunctions(format);
+	if (!functions->SetPixelF32)
 	{
-		functions.SetPixelF32 = reinterpret_cast<decltype(functions.SetPixelF32)>(CompileSetPixelF32(deviceState->jit, &information));
+		functions->SetPixelF32 = reinterpret_cast<decltype(functions->SetPixelF32)>(CompileSetPixelF32(deviceState->jit, &information));
 	}
 
-	functions.SetPixelF32(image->getDataPtr(offset, information.TotalSize), values);
+	functions->SetPixelF32(image->getDataPtr(offset, information.TotalSize), values);
 }
 
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, int32_t values[4])
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->getImageFunctions(format);
-	if (!functions.SetPixelI32)
+	auto functions = deviceState->getImageFunctions(format);
+	if (!functions->SetPixelI32)
 	{
-		functions.SetPixelI32 = reinterpret_cast<decltype(functions.SetPixelI32)>(CompileSetPixelI32(deviceState->jit, &information));
+		functions->SetPixelI32 = reinterpret_cast<decltype(functions->SetPixelI32)>(CompileSetPixelI32(deviceState->jit, &information));
 	}
 
-	functions.SetPixelI32(image->getDataPtr(offset, information.TotalSize), values);
+	functions->SetPixelI32(image->getDataPtr(offset, information.TotalSize), values);
 }
 
 void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, uint32_t values[4])
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
-	auto& functions = deviceState->getImageFunctions(format);
-	if (!functions.SetPixelU32)
+	auto functions = deviceState->getImageFunctions(format);
+	if (!functions->SetPixelU32)
 	{
-		functions.SetPixelU32 = reinterpret_cast<decltype(functions.SetPixelU32)>(CompileSetPixelU32(deviceState->jit, &information));
+		functions->SetPixelU32 = reinterpret_cast<decltype(functions->SetPixelU32)>(CompileSetPixelU32(deviceState->jit, &information));
 	}
 
-	functions.SetPixelU32(image->getDataPtr(offset, information.TotalSize), values);
+	functions->SetPixelU32(image->getDataPtr(offset, information.TotalSize), values);
 }
