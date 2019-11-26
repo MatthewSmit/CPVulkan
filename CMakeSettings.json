@@ -50,9 +50,27 @@
       "wslPath": "${defaultWSLPath}",
       "addressSanitizerRuntimeFlags": "detect_leaks=0",
       "variables": [],
-      "addressSanitizerEnabled": false,
+      "addressSanitizerEnabled": true,
       "cmakeToolchain": "",
-      "environments": [ { "VULKAN_SDK": "/home/programmdude/1.1.126.0/x86_64" } ]
+      "environments": [
+        {
+          "VULKAN_SDK": "/home/programmdude/1.1.126.0/x86_64",
+          "VK_ICD_FILENAMES": "/mnt/c/Work/CPVulkan/CPVulkan/CPVulkan.json"
+        }
+      ]
+    },
+    {
+      "name": "x86-Release",
+      "generator": "Ninja",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "addressSanitizerEnabled": true,
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "-v",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "variables": []
     }
   ]
 }

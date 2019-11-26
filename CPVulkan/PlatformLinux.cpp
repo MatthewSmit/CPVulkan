@@ -1,6 +1,9 @@
 #include "Platform.h"
 
 #include <unistd.h>
+#include <sys/sysinfo.h>
+
+#include <cstdint>
 
 /*
  * WIN32 Events for POSIX
@@ -15,8 +18,6 @@
 #include <cerrno>
 #define WAIT_TIMEOUT ETIMEDOUT
 #endif
-
-#include <cstdint>
 
 namespace neosmart
 {
@@ -525,6 +526,14 @@ bool Platform::SupportsSparse()
 	return true;
 }
 
+uint64_t Platform::GetMemorySize()
+{
+	struct sysinfo info;
+	auto result = sysinfo(&info);
+	assert(result != -1);
+	return info.totalram;
+}
+
 void* Platform::CreateMutex(bool initialState, bool manualReset)
 {
 	const auto event = neosmart::CreateEvent(manualReset, initialState);
@@ -533,6 +542,11 @@ void* Platform::CreateMutex(bool initialState, bool manualReset)
 		FATAL_ERROR();
 	}
 	return event;
+}
+
+void* Platform::CreateSemaphoreExport(bool initialState, bool manualReset, const void* exportSemaphore)
+{
+	FATAL_ERROR();
 }
 
 void Platform::CloseMutex(void* mutex)
