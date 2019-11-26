@@ -59,8 +59,8 @@ struct ComputeBuiltinInput
 
 struct VertexOutput
 {
-	std::unique_ptr<VertexBuiltinOutput[]> builtinData;
-	std::unique_ptr<uint8_t[]> outputData;
+	std::vector<VertexBuiltinOutput> builtinData;
+	std::vector<uint8_t> outputData;
 	uint64_t builtinStride;
 	uint64_t outputStride;
 	uint32_t vertexCount;
@@ -661,11 +661,17 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
 	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
+
+	uint32_t vertexSize = 0;
+	for (auto i : assemblerOutput)
+	{
+		vertexSize = std::max(vertexSize, i + 1);
+	}
 	
 	VertexOutput output
 	{
-		std::unique_ptr<VertexBuiltinOutput[]>(new VertexBuiltinOutput[assemblerOutput.size()]),
-		std::unique_ptr<uint8_t[]>(new uint8_t[assemblerOutput.size() * outputSize]),
+		std::vector<VertexBuiltinOutput>(vertexSize),
+		std::vector<uint8_t>(vertexSize * outputSize),
 		sizeof(VertexBuiltinOutput),
 		outputSize,
 		static_cast<uint32_t>(assemblerOutput.size()),
@@ -692,14 +698,14 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 
 		for (const auto& data : outputData)
 		{
-			memcpy(output.outputData.get() + i * output.outputStride + data.offset, data.pointer, data.size);
+			memcpy(output.outputData.data() + i * output.outputStride + data.offset, data.pointer, data.size);
 		}
 	}
 	
 	return output;
 }
 
-static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, uint8_t* vertexData, int vertexStride,
+static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, const uint8_t* vertexData, int vertexStride,
                              uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
                              const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p,
                              VkCullModeFlags cullMode, float& depth, bool& front)
@@ -745,23 +751,23 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, ui
 		{
 		case VK_FORMAT_R32G32_SFLOAT:
 			*reinterpret_cast<glm::vec2*>(input.pointer) =
-				*reinterpret_cast<glm::vec2*>(data0) * w0 +
-				*reinterpret_cast<glm::vec2*>(data1) * w1 +
-				*reinterpret_cast<glm::vec2*>(data2) * w2;
+				*reinterpret_cast<const glm::vec2*>(data0) * w0 +
+				*reinterpret_cast<const glm::vec2*>(data1) * w1 +
+				*reinterpret_cast<const glm::vec2*>(data2) * w2;
 			break;
 
 		case VK_FORMAT_R32G32B32_SFLOAT:
 			*reinterpret_cast<glm::vec3*>(input.pointer) =
-				*reinterpret_cast<glm::vec3*>(data0) * w0 +
-				*reinterpret_cast<glm::vec3*>(data1) * w1 +
-				*reinterpret_cast<glm::vec3*>(data2) * w2;
+				*reinterpret_cast<const glm::vec3*>(data0) * w0 +
+				*reinterpret_cast<const glm::vec3*>(data1) * w1 +
+				*reinterpret_cast<const glm::vec3*>(data2) * w2;
 			break;
 
 		case VK_FORMAT_R32G32B32A32_SFLOAT:
 			*reinterpret_cast<glm::vec4*>(input.pointer) =
-				*reinterpret_cast<glm::vec4*>(data0) * w0 +
-				*reinterpret_cast<glm::vec4*>(data1) * w1 +
-				*reinterpret_cast<glm::vec4*>(data2) * w2;
+				*reinterpret_cast<const glm::vec4*>(data0) * w0 +
+				*reinterpret_cast<const glm::vec4*>(data1) * w1 +
+				*reinterpret_cast<const glm::vec4*>(data2) * w2;
 			break;
 
 		default:
@@ -1354,7 +1360,7 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 
 				float depth;
 				bool front;
-				if (GetFragmentInput(inputData, output.outputData.get(), output.outputStride,
+				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
 				                     p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
@@ -1402,7 +1408,7 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 
 				float depth;
 				bool front;
-				if (GetFragmentInput(inputData, output.outputData.get(), output.outputStride,
+				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
 				                     p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
