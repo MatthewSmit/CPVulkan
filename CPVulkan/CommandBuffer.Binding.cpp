@@ -17,6 +17,8 @@ public:
 	{
 	}
 
+	~BindPipelineCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -42,6 +44,8 @@ public:
 		viewports{std::move(viewports)}
 	{
 	}
+
+	~SetViewportCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -71,6 +75,8 @@ public:
 		scissors{std::move(scissors)}
 	{
 	}
+
+	~SetScissorCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -103,6 +109,8 @@ public:
 		dynamicOffsets{std::move(dynamicOffsets)}
 	{
 	}
+
+	~BindDescriptorSetsCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -145,6 +153,8 @@ public:
 		indexType{indexType}
 	{
 	}
+
+	~BindIndexBufferCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -195,6 +205,8 @@ public:
 		bufferOffsets{std::move(bufferOffsets)}
 	{
 	}
+
+	~BindVertexBuffersCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override

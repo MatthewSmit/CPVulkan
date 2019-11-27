@@ -5,6 +5,8 @@
 #define NOMINMAX
 #include <Windows.h>
 
+static uint64_t performanceToNanoseconds;
+
 void Platform::Initialise()
 {
 	static auto initialised = false;
@@ -23,6 +25,17 @@ void Platform::Initialise()
 	{
 		FATAL_ERROR();
 	}
+
+	LARGE_INTEGER frequency;
+	const auto result = QueryPerformanceFrequency(&frequency);
+	assert(result != 0);
+
+	performanceToNanoseconds = static_cast<uint64_t>(1e9 / frequency.QuadPart);
+	if (performanceToNanoseconds == 0)
+	{
+		// This shouldn't happen, as it would indicate a sub nanosecond timer
+		performanceToNanoseconds = 1;
+	}
 }
 
 bool Platform::SupportsSparse()
@@ -37,6 +50,26 @@ uint64_t Platform::GetMemorySize()
 	assert(result != 0);
 	return status.ullTotalPhys;
 }
+
+uint64_t Platform::GetTimestamp()
+{
+	LARGE_INTEGER timestamp;
+	const auto result = QueryPerformanceCounter(&timestamp);
+	assert(result != 0);
+	return timestamp.QuadPart;
+}
+
+float Platform::GetTimestampPeriod()
+{
+	return performanceToNanoseconds;
+}
+
+#if defined(VK_EXT_calibrated_timestamps)
+VkTimeDomainEXT Platform::GetTimeDomain()
+{
+	return VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_EXT;
+}
+#endif
 
 #undef CreateMutex
 void* Platform::CreateMutex(bool initialState, bool manualReset)

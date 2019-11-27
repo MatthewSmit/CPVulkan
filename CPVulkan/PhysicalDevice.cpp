@@ -291,7 +291,7 @@ void PhysicalDevice::GetProperties(VkPhysicalDeviceProperties* pProperties) cons
 	pProperties->limits.storageImageSampleCounts = STORAGE_IMAGE_SAMPLE_COUNTS;
 	pProperties->limits.maxSampleMaskWords = MAX_SAMPLE_MASK_WORDS;
 	pProperties->limits.timestampComputeAndGraphics = TIMESTAMP_COMPUTE_AND_GRAPHICS;
-	pProperties->limits.timestampPeriod = TIMESTAMP_PERIOD;
+	pProperties->limits.timestampPeriod = Platform::GetTimestampPeriod();
 	pProperties->limits.maxClipDistances = MAX_CLIP_DISTANCES;
 	pProperties->limits.maxCullDistances = MAX_CULL_DISTANCES;
 	pProperties->limits.maxCombinedClipAndCullDistances = MAX_COMBINED_CLIP_AND_CULL_DISTANCES;
@@ -1488,3 +1488,26 @@ VkResult PhysicalDevice::GetSurfaceFormats2(const VkPhysicalDeviceSurfaceInfo2KH
 
 	return VK_SUCCESS;
 }
+
+#if defined(VK_EXT_calibrated_timestamps)
+VkResult PhysicalDevice::GetCalibrateableTimeDomains(uint32_t* pTimeDomainCount, VkTimeDomainEXT* pTimeDomains)
+{
+	if (pTimeDomains == nullptr)
+	{
+		*pTimeDomainCount = 1;
+		return VK_SUCCESS;
+	}
+	else
+	{
+		if (*pTimeDomainCount == 0)
+		{
+			*pTimeDomainCount = 1;
+			return VK_INCOMPLETE;
+		}
+
+		*pTimeDomainCount = 1;
+		*pTimeDomains = Platform::GetTimeDomain();
+		return VK_SUCCESS;
+	}
+}
+#endif

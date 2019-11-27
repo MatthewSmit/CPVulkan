@@ -40,6 +40,8 @@ public:
 	{
 	}
 
+	~BlitImageCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -247,6 +249,8 @@ public:
 		memcpy(data, pData, dataSize);
 	}
 
+	~UpdateBufferCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -284,6 +288,8 @@ public:
 			this->size = dstBuffer->getSize() - dstOffset;
 		}
 	}
+
+	~FillBufferCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -334,6 +340,8 @@ public:
 		regions{std::move(regions)}
 	{
 	}
+
+	~ResolveImageCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -467,6 +475,8 @@ public:
 	{
 	}
 
+	~SetEventCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -492,6 +502,8 @@ public:
 		stageMask{stageMask}
 	{
 	}
+
+	~ResetEventCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -559,6 +571,8 @@ public:
 		clearValues{std::move(clearValues)}
 	{
 	}
+
+	~BeginRenderPassCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -692,6 +706,8 @@ public:
 		commands{std::move(commands)}
 	{
 	}
+
+	~ExecuteCommandsCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override

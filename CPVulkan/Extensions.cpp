@@ -104,7 +104,15 @@ PFN_vkVoidFunction ExtensionGroup::getFunction(const char* name, bool device) co
 			}
 		}
 	}
-	
+
+	// Weird hack for device extensions that have instance entry points
+#if defined(VK_EXT_calibrated_timestamps)
+	if (strcmp("vkGetPhysicalDeviceCalibrateableTimeDomainsEXT", name) == 0)
+	{
+		return GetInitialExtensions().FindExtension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME).EntryPoints[0].Function;
+	}
+#endif
+
 	return nullptr;
 }
 
@@ -1626,7 +1634,7 @@ ExtensionGroup& GetInitialExtensions()
 				true,
 				{
 					{"vkGetPhysicalDeviceCalibrateableTimeDomainsEXT", GET_TRAMPOLINE(PhysicalDevice, GetCalibrateableTimeDomains), false},
-					{"vkGetCalibratedTimestampsEXT", GET_TRAMPOLINE(Device, GetCalibratedTimestamps), false},
+					{"vkGetCalibratedTimestampsEXT", GET_TRAMPOLINE(Device, GetCalibratedTimestamps), true},
 				}
 			},
 #endif

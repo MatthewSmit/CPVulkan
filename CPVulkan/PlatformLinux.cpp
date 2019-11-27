@@ -1,7 +1,9 @@
 #include "Platform.h"
 
-#include <unistd.h>
 #include <sys/sysinfo.h>
+
+#include <time.h>
+#include <unistd.h>
 
 #include <cstdint>
 
@@ -529,10 +531,30 @@ bool Platform::SupportsSparse()
 uint64_t Platform::GetMemorySize()
 {
 	struct sysinfo info;
-	auto result = sysinfo(&info);
+	const auto result = sysinfo(&info);
 	assert(result != -1);
 	return info.totalram;
 }
+
+uint64_t Platform::GetTimestamp()
+{
+	struct timespec time;
+	const auto result = clock_gettime(CLOCK_MONOTONIC_RAW, &time);
+	assert(result != -1);
+	return time.tv_nsec + time.tv_sec * 1000000000ULL;
+}
+
+float Platform::GetTimestampPeriod()
+{
+	return 1;
+}
+
+#if defined(VK_EXT_calibrated_timestamps)
+VkTimeDomainEXT Platform::GetTimeDomain()
+{
+	return VK_TIME_DOMAIN_CLOCK_MONOTONIC_RAW_EXT;
+}
+#endif
 
 void* Platform::CreateMutex(bool initialState, bool manualReset)
 {

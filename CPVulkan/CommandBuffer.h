@@ -79,8 +79,8 @@ public:
 	VKAPI_ATTR void VKAPI_PTR BeginQuery(VkQueryPool queryPool, uint32_t query, VkQueryControlFlags flags);
 	VKAPI_ATTR void VKAPI_PTR EndQuery(VkQueryPool queryPool, uint32_t query);
 	VKAPI_ATTR void VKAPI_PTR ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount);
-	VKAPI_ATTR void VKAPI_PTR WriteTimestamp(VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t query) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR CopyQueryPoolResults(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize stride, VkQueryResultFlags flags) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR WriteTimestamp(VkPipelineStageFlagBits pipelineStage, VkQueryPool queryPool, uint32_t query);
+	VKAPI_ATTR void VKAPI_PTR CopyQueryPoolResults(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount, VkBuffer dstBuffer, VkDeviceSize dstOffset, VkDeviceSize stride, VkQueryResultFlags flags);
 	VKAPI_ATTR void VKAPI_PTR PushConstants(VkPipelineLayout layout, VkShaderStageFlags stageFlags, uint32_t offset, uint32_t size, const void* pValues);
 	VKAPI_ATTR void VKAPI_PTR BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegin, VkSubpassContents contents);
 	VKAPI_ATTR void VKAPI_PTR NextSubpass(VkSubpassContents contents);

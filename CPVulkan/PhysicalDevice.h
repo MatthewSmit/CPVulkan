@@ -71,7 +71,9 @@ public:
 
 	VKAPI_ATTR void VKAPI_PTR GetMultisampleProperties(VkSampleCountFlagBits samples, VkMultisamplePropertiesEXT* pMultisampleProperties) { FATAL_ERROR(); }
 
-	VKAPI_ATTR VkResult VKAPI_PTR GetCalibrateableTimeDomains(uint32_t* pTimeDomainCount, VkTimeDomainEXT* pTimeDomains) { FATAL_ERROR(); }
+#if defined(VK_EXT_calibrated_timestamps)
+	VKAPI_ATTR VkResult VKAPI_PTR GetCalibrateableTimeDomains(uint32_t* pTimeDomainCount, VkTimeDomainEXT* pTimeDomains);
+#endif
 	
 	VKAPI_ATTR VkResult VKAPI_PTR GetCooperativeMatrixPropertiesNV(uint32_t* pPropertyCount, VkCooperativeMatrixPropertiesNV* pProperties) { FATAL_ERROR(); }
 

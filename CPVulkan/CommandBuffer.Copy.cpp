@@ -22,6 +22,8 @@ public:
 	{
 	}
 
+	~CopyBufferCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -58,6 +60,8 @@ public:
 		regions{std::move(regions)}
 	{
 	}
+
+	~CopyImageCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -464,6 +468,8 @@ public:
 	{
 	}
 
+	~CopyBufferToImageCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -771,6 +777,8 @@ public:
 		regions{std::move(regions)}
 	{
 	}
+
+	~CopyImageToBufferCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override

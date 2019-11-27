@@ -1954,6 +1954,8 @@ public:
 	{
 	}
 
+	~DrawCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -2010,6 +2012,8 @@ public:
 		firstInstance{firstInstance}
 	{
 	}
+
+	~DrawIndexedCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -2068,6 +2072,8 @@ public:
 		stride{stride}
 	{
 	}
+
+	~DrawIndirectCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -2129,6 +2135,8 @@ public:
 	{
 	}
 
+	~DrawIndexedIndirectCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -2188,6 +2196,8 @@ public:
 	{
 	}
 
+	~DispatchCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -2219,6 +2229,8 @@ public:
 		ranges{std::move(ranges)}
 	{
 	}
+
+	~ClearColourImageCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -2274,6 +2286,8 @@ public:
 	{
 	}
 
+	~ClearDepthStencilImageCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -2324,6 +2338,8 @@ public:
 		rects{std::move(rects)}
 	{
 	}
+
+	~ClearAttachmentsCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
@@ -2411,6 +2427,8 @@ public:
 	{
 	}
 
+	~DrawIndirectCountCommand() override = default;
+
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override
 	{
@@ -2470,6 +2488,8 @@ public:
 		stride{stride}
 	{
 	}
+
+	~DrawIndexedIndirectCountCommand() override = default;
 
 #if CV_DEBUG_LEVEL > 0
 	void DebugOutput(DeviceState* deviceState) override

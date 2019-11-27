@@ -935,7 +935,13 @@ VkResult Device::GetMemoryHostPointerProperties(VkExternalMemoryHandleTypeFlagBi
 
 VkResult Device::GetCalibratedTimestamps(uint32_t timestampCount, const VkCalibratedTimestampInfoEXT* pTimestampInfos, uint64_t* pTimestamps, uint64_t* pMaxDeviation)
 {
-	FATAL_ERROR();
+	for (auto i = 0u; i < timestampCount; i++)
+	{
+		assert(pTimestampInfos[i].timeDomain == Platform::GetTimeDomain());
+		pTimestamps[i] = Platform::GetTimestamp();
+	}
+	*pMaxDeviation = 0;
+	return VK_SUCCESS;
 }
 
 VkResult Device::InitializePerformanceApiINTEL(const VkInitializePerformanceApiInfoINTEL* pInitializeInfo)
@@ -969,11 +975,6 @@ void Device::SetLocalDimmingAMD(VkSwapchainKHR swapChain, VkBool32 localDimmingE
 }
 
 VkDeviceAddress Device::GetBufferDeviceAddress(const VkBufferDeviceAddressInfoEXT* pInfo)
-{
-	FATAL_ERROR();
-}
-
-void Device::ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount)
 {
 	FATAL_ERROR();
 }
