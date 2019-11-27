@@ -27,6 +27,12 @@
 
 class PipelineLayout;
 
+struct AssemblerOutput
+{
+	uint32_t RawId;
+	uint32_t VertexId;
+};
+
 struct VertexBuiltinInput
 {
 	int32_t vertexIndex;
@@ -589,21 +595,22 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 	}
 }
 
-static std::vector<uint32_t> ProcessInputAssembler(DeviceState* deviceState, uint32_t firstVertex, uint32_t vertexCount)
+static std::vector<AssemblerOutput> ProcessInputAssembler(DeviceState* deviceState, uint32_t firstVertex, uint32_t vertexCount)
 {
 	// TODO: Calculate offsets here too
-	std::vector<uint32_t> results(vertexCount);
+	std::vector<AssemblerOutput> results(vertexCount);
 	for (auto i = 0u; i < vertexCount; i++)
 	{
-		results[i] = firstVertex + i;
+		results[i].RawId = i;
+		results[i].VertexId = firstVertex + i;
 	}
 	return results;
 }
 
-static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceState, uint32_t indexCount)
+static std::vector<AssemblerOutput> ProcessInputAssemblerIndexed(DeviceState* deviceState, uint32_t firstIndex, uint32_t indexCount, uint32_t vertexOffset)
 {
 	// TODO: Calculate offsets here too
-	std::vector<uint32_t> results(indexCount);
+	std::vector<AssemblerOutput> results(indexCount);
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState().PrimitiveRestartEnable)
 	{
@@ -617,21 +624,24 @@ static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceSta
 	case 1:
 		for (auto i = 0u; i < indexCount; i++)
 		{
-			results[i] = indexData[i];
+			results[i].RawId = i;
+			results[i].VertexId = vertexOffset + indexData[firstIndex + i];
 		}
 		break;
 		
 	case 2:
 		for (auto i = 0u; i < indexCount; i++)
 		{
-			results[i] = reinterpret_cast<uint16_t*>(indexData)[i];
+			results[i].RawId = i;
+			results[i].VertexId = vertexOffset + reinterpret_cast<uint16_t*>(indexData)[firstIndex + i];
 		}
 		break;
 
 	case 4:
 		for (auto i = 0u; i < indexCount; i++)
 		{
-			results[i] = reinterpret_cast<uint32_t*>(indexData)[i];
+			results[i].RawId = i;
+			results[i].VertexId = vertexOffset + reinterpret_cast<uint32_t*>(indexData)[firstIndex + i];
 		}
 		break;
 		
@@ -642,7 +652,7 @@ static std::vector<uint32_t> ProcessInputAssemblerIndexed(DeviceState* deviceSta
 	return results;
 }
 
-static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t instance, const std::vector<uint32_t>& assemblerOutput)
+static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t instance, const std::vector<AssemblerOutput>& assemblerOutput)
 {
 	assert(assemblerOutput.size() <= 0xFFFFFFFF);
 	
@@ -661,17 +671,11 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
 	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
-
-	uint32_t vertexSize = 0;
-	for (auto i : assemblerOutput)
-	{
-		vertexSize = std::max(vertexSize, i + 1);
-	}
 	
 	VertexOutput output
 	{
-		std::vector<VertexBuiltinOutput>(vertexSize),
-		std::vector<uint8_t>(vertexSize * outputSize),
+		std::vector<VertexBuiltinOutput>(assemblerOutput.size()),
+		std::vector<uint8_t>(assemblerOutput.size() * outputSize),
 		sizeof(VertexBuiltinOutput),
 		outputSize,
 		static_cast<uint32_t>(assemblerOutput.size()),
@@ -687,18 +691,18 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
 	}
 
-	for (auto i : assemblerOutput)
+	for (auto vertex : assemblerOutput)
 	{
-		builtinInput->vertexIndex = i;
+		builtinInput->vertexIndex = vertex.VertexId;
 
-		LoadVertexInput(deviceState, i, instance, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
+		LoadVertexInput(deviceState, vertex.VertexId, instance, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
 
 		shaderStage->getEntryPoint()();
-		output.builtinData[i] = *static_cast<VertexBuiltinOutput*>(builtinOutputPointer);
+		output.builtinData[vertex.RawId] = *static_cast<VertexBuiltinOutput*>(builtinOutputPointer);
 
 		for (const auto& data : outputData)
 		{
-			memcpy(output.outputData.data() + i * output.outputStride + data.offset, data.pointer, data.size);
+			memcpy(output.outputData.data() + vertex.RawId * output.outputStride + data.offset, data.pointer, data.size);
 		}
 	}
 	
@@ -1617,7 +1621,7 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		for (auto i = 0; i < instanceCount; i++)
+		for (auto i = 0u; i < instanceCount; i++)
 		{
 			const auto assemblerOutput = ProcessInputAssembler(deviceState, firstVertex, vertexCount);
 			const auto vertexOutput = ProcessVertexShader(deviceState, firstInstance + i, assemblerOutput);
@@ -1675,19 +1679,9 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		if (firstIndex != 0)
+		for (auto i = 0u; i < instanceCount; i++)
 		{
-			FATAL_ERROR();
-		}
-
-		if (vertexOffset != 0)
-		{
-			FATAL_ERROR();
-		}
-
-		for (auto i = 0; i < instanceCount; i++)
-		{
-			const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, indexCount);
+			const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, firstIndex, indexCount, vertexOffset);
 			const auto vertexOutput = ProcessVertexShader(deviceState, firstInstance + i, assemblerOutput);
 
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
@@ -1715,6 +1709,66 @@ private:
 	uint32_t firstIndex;
 	int32_t vertexOffset;
 	uint32_t firstInstance;
+};
+
+class DrawIndirectCommand final : public Command
+{
+public:
+	DrawIndirectCommand(Buffer* buffer, uint64_t offset, uint32_t drawCount, uint32_t stride) :
+		buffer{buffer},
+		offset{offset},
+		drawCount{drawCount},
+		stride{stride}
+	{
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "DrawIndirect: drawing" <<
+			" from " << buffer <<
+			" with offset " << offset <<
+			" and stride " << stride << " " <<
+			drawCount << " vertices" <<
+			std::endl;
+	}
+#endif
+
+	void Process(DeviceState* deviceState) override
+	{
+		for (auto j = 0ULL; j < drawCount; j++)
+		{
+			const auto drawCommand = reinterpret_cast<VkDrawIndirectCommand*>(buffer->getDataPtr(offset + j * stride, sizeof(VkDrawIndirectCommand)));
+			for (auto i = 0u; i < drawCommand->instanceCount; i++)
+			{
+				const auto assemblerOutput = ProcessInputAssembler(deviceState, drawCommand->firstVertex, drawCommand->vertexCount);
+				const auto vertexOutput = ProcessVertexShader(deviceState, drawCommand->firstInstance + i, assemblerOutput);
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				ProcessFragmentShader(deviceState, vertexOutput);
+			}
+		}
+	}
+
+private:
+	Buffer* buffer;
+	uint64_t offset;
+	uint32_t drawCount;
+	uint32_t stride;
 };
 
 class DispatchCommand final : public Command
@@ -1937,6 +1991,66 @@ private:
 	std::vector<VkClearRect> rects;
 };
 
+class DrawIndirectCountCommand final : public Command
+{
+public:
+	DrawIndirectCountCommand(Buffer* buffer, uint64_t offset, Buffer* countBuffer, uint64_t countBufferOffset, uint32_t maxDrawCount, uint32_t stride) :
+		buffer{buffer},
+		offset{offset},
+		countBuffer{countBuffer},
+		countBufferOffset{countBufferOffset},
+		maxDrawCount{maxDrawCount},
+		stride{stride}
+	{
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "DrawIndirectCount" << std::endl;
+	}
+#endif
+
+	void Process(DeviceState* deviceState) override
+	{
+		const auto drawCount = std::min(maxDrawCount, *reinterpret_cast<uint32_t*>(countBuffer->getDataPtr(countBufferOffset, 4)));
+		for (auto j = 0ULL; j < drawCount; j++)
+		{
+			const auto drawCommand = reinterpret_cast<VkDrawIndirectCommand*>(buffer->getDataPtr(offset + j * stride, sizeof(VkDrawIndirectCommand)));
+			for (auto i = 0u; i < drawCommand->instanceCount; i++)
+			{
+				const auto assemblerOutput = ProcessInputAssembler(deviceState, drawCommand->firstVertex, drawCommand->vertexCount);
+				const auto vertexOutput = ProcessVertexShader(deviceState, drawCommand->firstInstance + i, assemblerOutput);
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				ProcessFragmentShader(deviceState, vertexOutput);
+			}
+		}
+	}
+
+private:
+	Buffer* buffer;
+	uint64_t offset;
+	Buffer* countBuffer;
+	uint64_t countBufferOffset;
+	uint32_t maxDrawCount;
+	uint32_t stride;
+};
+
 void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
 	assert(state == State::Recording);
@@ -1947,6 +2061,12 @@ void CommandBuffer::DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uin
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<DrawIndexedCommand>(indexCount, instanceCount, firstIndex, vertexOffset, firstInstance));
+}
+
+void CommandBuffer::DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<DrawIndirectCommand>(UnwrapVulkan<Buffer>(buffer), offset, drawCount, stride));
 }
 
 void CommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
@@ -1995,3 +2115,16 @@ void ClearImage(DeviceState* deviceState, Image* image, VkFormat format, uint32_
 		}
 	}
 }
+
+#if defined(VK_KHR_draw_indirect_count) || defined(VK_AMD_draw_indirect_count)
+void CommandBuffer::DrawIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<DrawIndirectCountCommand>(UnwrapVulkan<Buffer>(buffer), offset, UnwrapVulkan<Buffer>(countBuffer), countBufferOffset, maxDrawCount, stride));
+}
+
+void CommandBuffer::DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
+{
+	FATAL_ERROR();
+}
+#endif

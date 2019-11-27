@@ -57,7 +57,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCount, const VkBuffer* pBuffers, const VkDeviceSize* pOffsets);
 	VKAPI_ATTR void VKAPI_PTR Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
 	VKAPI_ATTR void VKAPI_PTR DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
-	VKAPI_ATTR void VKAPI_PTR DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
 	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 	VKAPI_ATTR void VKAPI_PTR DispatchIndirect(VkBuffer buffer, VkDeviceSize offset) { FATAL_ERROR(); } 
@@ -99,8 +99,10 @@ public:
 	VKAPI_ATTR void VKAPI_PTR EndRenderPass2(const VkSubpassEndInfoKHR* pSubpassEndInfo) { FATAL_ERROR(); }
 #endif
 
-	VKAPI_ATTR void VKAPI_PTR DrawIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride) { FATAL_ERROR(); } 
+#if defined(VK_KHR_draw_indirect_count) || defined(VK_AMD_draw_indirect_count)
+	VKAPI_ATTR void VKAPI_PTR DrawIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
+	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride);
+#endif
 
 	VKAPI_ATTR void VKAPI_PTR DebugMarkerBegin(const VkDebugMarkerMarkerInfoEXT* pMarkerInfo) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DebugMarkerEnd() { FATAL_ERROR(); } 
