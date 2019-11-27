@@ -805,19 +805,19 @@ bool CompareTest(T reference, T value, VkCompareOp compare)
 	}
 }
 
-template<bool IsSource>
-static glm::fvec4 ApplyBlendFactor(glm::fvec4 source, glm::fvec4 destination, glm::fvec4 constant, const VkPipelineColorBlendAttachmentState& blendState)
+template<typename T, bool IsSource>
+static T ApplyBlendFactor(T source, T destination, T constant, const VkPipelineColorBlendAttachmentState& blendState)
 {
 	const auto colourBlendFactor = IsSource ? blendState.srcColorBlendFactor : blendState.dstColorBlendFactor;
 	const auto alphaBlendFactor = IsSource ? blendState.srcAlphaBlendFactor : blendState.dstAlphaBlendFactor;
-	glm::fvec4 value{};
+	T value{};
 	switch (colourBlendFactor)
 	{
 	case VK_BLEND_FACTOR_ZERO:
 		break;
 		
 	case VK_BLEND_FACTOR_ONE:
-		value = glm::fvec4(1);
+		value = T(1);
 		break;
 		
 	case VK_BLEND_FACTOR_SRC_COLOR:
@@ -825,7 +825,7 @@ static glm::fvec4 ApplyBlendFactor(glm::fvec4 source, glm::fvec4 destination, gl
 		break;
 		
 	case VK_BLEND_FACTOR_ONE_MINUS_SRC_COLOR:
-		value = glm::fvec4(1) - source;
+		value = T(1) - source;
 		break;
 		
 	case VK_BLEND_FACTOR_DST_COLOR:
@@ -833,23 +833,23 @@ static glm::fvec4 ApplyBlendFactor(glm::fvec4 source, glm::fvec4 destination, gl
 		break;
 		
 	case VK_BLEND_FACTOR_ONE_MINUS_DST_COLOR:
-		value = glm::fvec4(1) - destination;
+		value = T(1) - destination;
 		break;
 
 	case VK_BLEND_FACTOR_SRC_ALPHA:
-		value = glm::vec4(source.a);
+		value = T(source.a);
 		break;
 
 	case VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA:
-		value = glm::vec4(1 - source.a);
+		value = T(1 - source.a);
 		break;
 
 	case VK_BLEND_FACTOR_DST_ALPHA:
-		value = glm::vec4(destination.a);
+		value = T(destination.a);
 		break;
 
 	case VK_BLEND_FACTOR_ONE_MINUS_DST_ALPHA:
-		value = glm::vec4(1 - destination.a);
+		value = T(1 - destination.a);
 		break;
 
 	case VK_BLEND_FACTOR_CONSTANT_COLOR:
@@ -857,21 +857,21 @@ static glm::fvec4 ApplyBlendFactor(glm::fvec4 source, glm::fvec4 destination, gl
 		break;
 		
 	case VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_COLOR:
-		value = glm::fvec4(1) - constant;
+		value = T(1) - constant;
 		break;
 
 	case VK_BLEND_FACTOR_CONSTANT_ALPHA:
-		value = glm::vec4(constant.a);
+		value = T(constant.a);
 		break;
 
 	case VK_BLEND_FACTOR_ONE_MINUS_CONSTANT_ALPHA:
-		value = glm::vec4(1 - constant.a);
+		value = T(1 - constant.a);
 		break;
 		
 	case VK_BLEND_FACTOR_SRC_ALPHA_SATURATE:
 		{
 			auto factor = std::min(source.a, 1 - destination.a);
-			value = glm::fvec4(factor, factor, factor, 1);
+			value = T(factor, factor, factor, 1);
 			break;
 		}
 		
@@ -936,12 +936,13 @@ static glm::fvec4 ApplyBlendFactor(glm::fvec4 source, glm::fvec4 destination, gl
 	return value;
 }
 
-static glm::fvec4 ApplyBlend(glm::fvec4 source, glm::fvec4 destination, glm::fvec4 constant, const VkPipelineColorBlendAttachmentState& blendState)
+template<typename T>
+static T ApplyBlend(T source, T destination, T constant, const VkPipelineColorBlendAttachmentState& blendState)
 {
-	const auto sourceBlendFactor = ApplyBlendFactor<true>(source, destination, constant, blendState);
-	const auto destinationBlendFactor = ApplyBlendFactor<false>(source, destination, constant, blendState);
+	const auto sourceBlendFactor = ApplyBlendFactor<T, true>(source, destination, constant, blendState);
+	const auto destinationBlendFactor = ApplyBlendFactor<T, false>(source, destination, constant, blendState);
 
-	glm::fvec4 value{};
+	T value{};
 	switch (blendState.colorBlendOp)
 	{
 	case VK_BLEND_OP_ADD:
@@ -1299,36 +1300,103 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 				}
 				assert(dataPtr);
 
-				if (GetFormatInformation(images[j].first.format).Base == BaseType::UInt ||
-					GetFormatInformation(images[j].first.format).Base == BaseType::SInt)
+				switch (GetFormatInformation(images[j].first.format).Base)
 				{
-					FATAL_ERROR();
+				case BaseType::UNorm:
+				case BaseType::SNorm:
+				case BaseType::UScaled:
+				case BaseType::SScaled:
+				case BaseType::UFloat:
+				case BaseType::SFloat:
+				case BaseType::SRGB:
+					{
+						auto colour = *static_cast<glm::fvec4*>(dataPtr);
+
+						// 28.1. Blending
+						const auto& blend = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().Attachments[j];
+						const auto destination = ImageFetch<glm::fvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
+						if (blend.blendEnable)
+						{
+							auto constant = *reinterpret_cast<const glm::fvec4*>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().BlendConstants);
+							colour = ApplyBlend(colour, destination, constant, blend);
+						}
+
+						// 28.2. Logical Operations
+						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
+						{
+							FATAL_ERROR();
+						}
+
+						// 28.3. Color Write Mask
+						colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
+						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
+						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
+						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
+
+						SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
+						break;
+					}
+
+				case BaseType::UInt:
+					{
+						auto colour = *static_cast<glm::uvec4*>(dataPtr);
+
+						// 28.1. Blending
+						const auto& blend = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().Attachments[j];
+						const auto destination = ImageFetch<glm::uvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
+						if (blend.blendEnable)
+						{
+							auto constant = *reinterpret_cast<const glm::uvec4*>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().BlendConstants);
+							colour = ApplyBlend(colour, destination, constant, blend);
+						}
+
+						// 28.2. Logical Operations
+						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
+						{
+							FATAL_ERROR();
+						}
+
+						// 28.3. Color Write Mask
+						colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
+						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
+						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
+						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
+
+						SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
+						break;
+					}
+					
+				case BaseType::SInt:
+					{
+						auto colour = *static_cast<glm::ivec4*>(dataPtr);
+
+						// 28.1. Blending
+						const auto& blend = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().Attachments[j];
+						const auto destination = ImageFetch<glm::ivec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
+						if (blend.blendEnable)
+						{
+							auto constant = *reinterpret_cast<const glm::ivec4*>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().BlendConstants);
+							colour = ApplyBlend(colour, destination, constant, blend);
+						}
+
+						// 28.2. Logical Operations
+						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
+						{
+							FATAL_ERROR();
+						}
+
+						// 28.3. Color Write Mask
+						colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
+						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
+						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
+						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
+
+						SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
+						break;
+					}
+					
+				default: FATAL_ERROR();
 				}
-
-				auto colour = *static_cast<glm::fvec4*>(dataPtr);
-
-				// 28.1. Blending
-				const auto& blend = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().Attachments[j];
-				const auto destination = ImageFetch<glm::fvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
-				if (blend.blendEnable)
-				{
-					auto constant = *reinterpret_cast<const glm::fvec4*>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().BlendConstants);
-					colour = ApplyBlend(colour, destination, constant, blend);
-				}
-
-				// 28.2. Logical Operations
-				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
-				{
-					FATAL_ERROR();
-				}
-
-				// 28.3. Color Write Mask
-				colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
-				colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
-				colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
-				colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
-
-				SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
 			}
 		}
 	}
