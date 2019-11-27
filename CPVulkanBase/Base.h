@@ -370,3 +370,5 @@ LocalType* UnwrapVulkan(typename VulkanTypeHelper<LocalType>::Type vulkanValue) 
 	return reinterpret_cast<LocalType*>(UnwrapVulkan<VulkanTypeHelper<LocalType>::IsNonDispatchable>(reinterpret_cast<uint64_t>(vulkanValue)));
 }
 #pragma warning(pop)
+
+constexpr auto PI = 3.14159265358979323846;
