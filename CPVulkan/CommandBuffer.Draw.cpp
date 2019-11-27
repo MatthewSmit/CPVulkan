@@ -1771,6 +1771,66 @@ private:
 	uint32_t stride;
 };
 
+class DrawIndexedIndirectCommand final : public Command
+{
+public:
+	DrawIndexedIndirectCommand(Buffer* buffer, uint64_t offset, uint32_t drawCount, uint32_t stride) :
+		buffer{buffer},
+		offset{offset},
+		drawCount{drawCount},
+		stride{stride}
+	{
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "DrawIndexedIndirect: drawing" <<
+			" from " << buffer <<
+			" with offset " << offset <<
+			" and stride " << stride << " " <<
+			drawCount << " vertices" <<
+			std::endl;
+	}
+#endif
+
+	void Process(DeviceState* deviceState) override
+	{
+		for (auto j = 0ULL; j < drawCount; j++)
+		{
+			const auto drawCommand = reinterpret_cast<VkDrawIndexedIndirectCommand*>(buffer->getDataPtr(offset + j * stride, sizeof(VkDrawIndexedIndirectCommand)));
+			for (auto i = 0u; i < drawCommand->instanceCount; i++)
+			{
+				const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, drawCommand->firstIndex, drawCommand->indexCount, drawCommand->vertexOffset);
+				const auto vertexOutput = ProcessVertexShader(deviceState, drawCommand->firstInstance + i, assemblerOutput);
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				ProcessFragmentShader(deviceState, vertexOutput);
+			}
+		}
+	}
+
+private:
+	Buffer* buffer;
+	uint64_t offset;
+	uint32_t drawCount;
+	uint32_t stride;
+};
+
 class DispatchCommand final : public Command
 {
 public:
@@ -2051,6 +2111,66 @@ private:
 	uint32_t stride;
 };
 
+class DrawIndexedIndirectCountCommand final : public Command
+{
+public:
+	DrawIndexedIndirectCountCommand(Buffer* buffer, uint64_t offset, Buffer* countBuffer, uint64_t countBufferOffset, uint32_t maxDrawCount, uint32_t stride) :
+		buffer{buffer},
+		offset{offset},
+		countBuffer{countBuffer},
+		countBufferOffset{countBufferOffset},
+		maxDrawCount{maxDrawCount},
+		stride{stride}
+	{
+	}
+
+#if CV_DEBUG_LEVEL > 0
+	void DebugOutput(DeviceState* deviceState) override
+	{
+		*deviceState->debugOutput << "DrawIndexedIndirectCount" << std::endl;
+	}
+#endif
+
+	void Process(DeviceState* deviceState) override
+	{
+		const auto drawCount = std::min(maxDrawCount, *reinterpret_cast<uint32_t*>(countBuffer->getDataPtr(countBufferOffset, 4)));
+		for (auto j = 0ULL; j < drawCount; j++)
+		{
+			const auto drawCommand = reinterpret_cast<VkDrawIndexedIndirectCommand*>(buffer->getDataPtr(offset + j * stride, sizeof(VkDrawIndexedIndirectCommand)));
+			for (auto i = 0u; i < drawCommand->instanceCount; i++)
+			{
+				const auto assemblerOutput = ProcessInputAssemblerIndexed(deviceState, drawCommand->firstIndex, drawCommand->indexCount, drawCommand->vertexOffset);
+				const auto vertexOutput = ProcessVertexShader(deviceState, drawCommand->firstInstance + i, assemblerOutput);
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
+				{
+					FATAL_ERROR();
+				}
+
+				ProcessFragmentShader(deviceState, vertexOutput);
+			}
+		}
+	}
+
+private:
+	Buffer* buffer;
+	uint64_t offset;
+	Buffer* countBuffer;
+	uint64_t countBufferOffset;
+	uint32_t maxDrawCount;
+	uint32_t stride;
+};
+
 void CommandBuffer::Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance)
 {
 	assert(state == State::Recording);
@@ -2067,6 +2187,12 @@ void CommandBuffer::DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t 
 {
 	assert(state == State::Recording);
 	commands.push_back(std::make_unique<DrawIndirectCommand>(UnwrapVulkan<Buffer>(buffer), offset, drawCount, stride));
+}
+
+void CommandBuffer::DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride)
+{
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<DrawIndexedIndirectCommand>(UnwrapVulkan<Buffer>(buffer), offset, drawCount, stride));
 }
 
 void CommandBuffer::Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ)
@@ -2125,6 +2251,7 @@ void CommandBuffer::DrawIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBu
 
 void CommandBuffer::DrawIndexedIndirectCount(VkBuffer buffer, VkDeviceSize offset, VkBuffer countBuffer, VkDeviceSize countBufferOffset, uint32_t maxDrawCount, uint32_t stride)
 {
-	FATAL_ERROR();
+	assert(state == State::Recording);
+	commands.push_back(std::make_unique<DrawIndexedIndirectCountCommand>(UnwrapVulkan<Buffer>(buffer), offset, UnwrapVulkan<Buffer>(countBuffer), countBufferOffset, maxDrawCount, stride));
 }
 #endif

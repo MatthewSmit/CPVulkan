@@ -58,7 +58,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR Draw(uint32_t vertexCount, uint32_t instanceCount, uint32_t firstVertex, uint32_t firstInstance);
 	VKAPI_ATTR void VKAPI_PTR DrawIndexed(uint32_t indexCount, uint32_t instanceCount, uint32_t firstIndex, int32_t vertexOffset, uint32_t firstInstance);
 	VKAPI_ATTR void VKAPI_PTR DrawIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
-	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DrawIndexedIndirect(VkBuffer buffer, VkDeviceSize offset, uint32_t drawCount, uint32_t stride);
 	VKAPI_ATTR void VKAPI_PTR Dispatch(uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ);
 	VKAPI_ATTR void VKAPI_PTR DispatchIndirect(VkBuffer buffer, VkDeviceSize offset) { FATAL_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR CopyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, uint32_t regionCount, const VkBufferCopy* pRegions);
