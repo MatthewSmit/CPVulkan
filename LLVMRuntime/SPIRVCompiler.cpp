@@ -919,7 +919,7 @@ static void ConvertDecoration(llvm::Value* llvmValue, SPIRV::SPIRVValue* spirvVa
 {
 	if (auto alloca = llvm::dyn_cast<llvm::AllocaInst>(llvmValue))
 	{
-		unsigned alignment;
+		uint32_t alignment;
 		if (spirvValue->hasAlignment(&alignment))
 		{
 			alloca->setAlignment(alignment);
@@ -928,7 +928,7 @@ static void ConvertDecoration(llvm::Value* llvmValue, SPIRV::SPIRVValue* spirvVa
 
 	if (auto globalVariable = llvm::dyn_cast<llvm::GlobalVariable>(llvmValue))
 	{
-		unsigned alignment;
+		uint32_t alignment;
 		if (spirvValue->hasAlignment(&alignment))
 		{
 			globalVariable->setAlignment(alignment);

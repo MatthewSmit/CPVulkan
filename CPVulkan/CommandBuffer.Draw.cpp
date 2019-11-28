@@ -73,11 +73,19 @@ struct VertexOutput
 	uint32_t vertexCount;
 };
 
+enum class InterpolationType
+{
+	Perspective,
+	Linear,
+	Flat,
+};
+
 struct VariableInOutData
 {
 	void* pointer;
 	uint32_t location;
 	VkFormat format;
+	InterpolationType interpolation;
 	uint32_t size;
 	uint32_t offset;
 };
@@ -503,11 +511,24 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 
 				const auto location = *locations.begin();
 				const auto size = GetVariableSize(variable->getType()->getPointerElementType());
+				auto interpolationType = InterpolationType::Perspective;
+
+				if (variable->hasDecorate(DecorationNoPerspective))
+				{
+					interpolationType = InterpolationType::Linear;
+				}
+
+				if (variable->hasDecorate(DecorationFlat))
+				{
+					interpolationType = InterpolationType::Flat;
+				}
+				
 				inputData.push_back(VariableInOutData
 					{
 						jit->getPointer(llvmModule, MangleName(variable)),
 						location,
 						GetVariableFormat(variable->getType()->getPointerElementType()),
+						interpolationType,
 						size,
 						inputSize
 					});
@@ -567,6 +588,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 								static_cast<uint8_t*>(ptr) + j * variableSize,
 								location + j,
 								GetVariableFormat(type),
+								InterpolationType::Linear,
 								variableSize,
 								outputSize
 							});
@@ -582,6 +604,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 							ptr,
 							location,
 							GetVariableFormat(type),
+							InterpolationType::Linear,
 							GetVariableSize(type),
 							outputSize
 						});
@@ -716,7 +739,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 }
 
 static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, const uint8_t* vertexData, int vertexStride,
-                             uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
+                             uint32_t provokingVertex, uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
                              const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p,
                              VkCullModeFlags cullMode, float& depth, bool& front)
 {
@@ -754,34 +777,49 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, co
 
 	for (auto input : inputData)
 	{
-		const auto data0 = vertexData + p0Index * vertexStride + input.offset;
-		const auto data1 = vertexData + p1Index * vertexStride + input.offset;
-		const auto data2 = vertexData + p2Index * vertexStride + input.offset;
-		switch (input.format)
+		switch (input.interpolation)
 		{
-		case VK_FORMAT_R32G32_SFLOAT:
-			*reinterpret_cast<glm::vec2*>(input.pointer) =
-				*reinterpret_cast<const glm::vec2*>(data0) * w0 +
-				*reinterpret_cast<const glm::vec2*>(data1) * w1 +
-				*reinterpret_cast<const glm::vec2*>(data2) * w2;
-			break;
+		case InterpolationType::Perspective:
+			// TODO: Perspective interpolation
+		case InterpolationType::Linear:
+			{
+				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
+				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
+				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
+				switch (input.format)
+				{
+				case VK_FORMAT_R32G32_SFLOAT:
+					*reinterpret_cast<glm::vec2*>(input.pointer) =
+						*reinterpret_cast<const glm::vec2*>(data0) * w0 +
+						*reinterpret_cast<const glm::vec2*>(data1) * w1 +
+						*reinterpret_cast<const glm::vec2*>(data2) * w2;
+					break;
 
-		case VK_FORMAT_R32G32B32_SFLOAT:
-			*reinterpret_cast<glm::vec3*>(input.pointer) =
-				*reinterpret_cast<const glm::vec3*>(data0) * w0 +
-				*reinterpret_cast<const glm::vec3*>(data1) * w1 +
-				*reinterpret_cast<const glm::vec3*>(data2) * w2;
-			break;
+				case VK_FORMAT_R32G32B32_SFLOAT:
+					*reinterpret_cast<glm::vec3*>(input.pointer) =
+						*reinterpret_cast<const glm::vec3*>(data0) * w0 +
+						*reinterpret_cast<const glm::vec3*>(data1) * w1 +
+						*reinterpret_cast<const glm::vec3*>(data2) * w2;
+					break;
 
-		case VK_FORMAT_R32G32B32A32_SFLOAT:
-			*reinterpret_cast<glm::vec4*>(input.pointer) =
-				*reinterpret_cast<const glm::vec4*>(data0) * w0 +
-				*reinterpret_cast<const glm::vec4*>(data1) * w1 +
-				*reinterpret_cast<const glm::vec4*>(data2) * w2;
-			break;
+				case VK_FORMAT_R32G32B32A32_SFLOAT:
+					*reinterpret_cast<glm::vec4*>(input.pointer) =
+						*reinterpret_cast<const glm::vec4*>(data0) * w0 +
+						*reinterpret_cast<const glm::vec4*>(data1) * w1 +
+						*reinterpret_cast<const glm::vec4*>(data2) * w2;
+					break;
 
-		default:
-			FATAL_ERROR();
+				default:
+					FATAL_ERROR();
+				}
+				break;
+			}
+			
+		case InterpolationType::Flat:
+			memcpy(input.pointer, vertexData + provokingVertex * vertexStride + input.offset, input.size);
+			break;
+			
+		default: FATAL_ERROR();
 		}
 	}
 
@@ -1688,6 +1726,7 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 
 	for (auto i = 0u; i < numberPrimitives; i++)
 	{
+		auto provokingVertex = i * 3 + 0;
 		auto p0Index = i * 3 + 0;
 		auto p1Index = i * 3 + 1;
 		auto p2Index = i * 3 + 2;
@@ -1714,7 +1753,7 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 				float depth;
 				bool front;
 				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
-				                     p0Index, p1Index, p2Index,
+				                     provokingVertex, p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
 				{
@@ -1741,6 +1780,7 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 
 	for (auto i = 0u; i < numberPrimitives; i++)
 	{
+		auto provokingVertex = i + 0;
 		auto p0Index = i + 0;
 		auto p1Index = i + 1;
 		auto p2Index = i + 2;
@@ -1767,7 +1807,7 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 				float depth;
 				bool front;
 				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
-				                     p0Index, p1Index, p2Index,
+				                     provokingVertex, p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
 				{
@@ -1794,6 +1834,7 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 
 	for (auto i = 0u; i < numberPrimitives; i++)
 	{
+		auto provokingVertex = i + 1;
 		auto p0Index = 0u;
 		auto p1Index = i + 1;
 		auto p2Index = i + 2;
@@ -1820,7 +1861,7 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 				float depth;
 				bool front;
 				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
-				                     p0Index, p1Index, p2Index,
+				                     provokingVertex, p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
 				{
