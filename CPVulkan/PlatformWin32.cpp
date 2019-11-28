@@ -5,7 +5,7 @@
 #define NOMINMAX
 #include <Windows.h>
 
-static uint64_t performanceToNanoseconds;
+static float performanceToNanoseconds;
 
 void Platform::Initialise()
 {
@@ -30,12 +30,7 @@ void Platform::Initialise()
 	const auto result = QueryPerformanceFrequency(&frequency);
 	assert(result != 0);
 
-	performanceToNanoseconds = static_cast<uint64_t>(1e9 / frequency.QuadPart);
-	if (performanceToNanoseconds == 0)
-	{
-		// This shouldn't happen, as it would indicate a sub nanosecond timer
-		performanceToNanoseconds = 1;
-	}
+	performanceToNanoseconds = 1e9f / frequency.QuadPart;
 }
 
 bool Platform::SupportsSparse()

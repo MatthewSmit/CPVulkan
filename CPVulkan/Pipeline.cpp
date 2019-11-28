@@ -740,17 +740,19 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	auto next = pCreateInfo->pNext;
+	auto feedback = false;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_COMPILER_CONTROL_CREATE_INFO_AMD:
 			FATAL_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			feedback = true;
+			break;
 
 		case VK_STRUCTURE_TYPE_PIPELINE_DISCARD_RECTANGLE_STATE_CREATE_INFO_EXT:
 			FATAL_ERROR();
@@ -758,8 +760,10 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		case VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV:
 			FATAL_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
+
+	const auto startTime = feedback ? Platform::GetTimestamp() : 0;
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT)
 	{
@@ -791,12 +795,22 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		FATAL_ERROR();
 	}
 
+	auto shaderTimes = std::vector<uint64_t>(feedback ? pCreateInfo->stageCount : 0);
+
 	for (auto i = 0u; i < pCreateInfo->stageCount; i++)
 	{
+		const auto stageStartTime = feedback ? Platform::GetTimestamp() : 0;
+		
 		int stageIndex;
 		ShaderFunction* shaderFunction;
 		std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pCreateInfo->pStages[i]);
 		pipeline->shaderStages[stageIndex] = std::unique_ptr<ShaderFunction>(shaderFunction);
+
+		const auto stageEndTime = feedback ? Platform::GetTimestamp() : 0;
+		if (feedback)
+		{
+			shaderTimes[i] = stageEndTime - stageStartTime;
+		}
 	}
 
 	pipeline->vertexInputState = Parse(pCreateInfo->pVertexInputState);
@@ -808,6 +822,32 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	pipeline->depthStencilState = Parse(pCreateInfo->pDepthStencilState);
 	pipeline->colourBlendState = Parse(pCreateInfo->pColorBlendState);
 	pipeline->dynamicState = Parse(pCreateInfo->pDynamicState);
+
+	const auto endTime = feedback ? Platform::GetTimestamp() : 0;
+
+	if (feedback)
+	{
+		next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
+		while (next)
+		{
+			if (next->sType == VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT)
+			{
+				const auto feedbackInfo = reinterpret_cast<const VkPipelineCreationFeedbackCreateInfoEXT*>(next);
+				feedbackInfo->pPipelineCreationFeedback->flags = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT_EXT;
+				feedbackInfo->pPipelineCreationFeedback->duration = (endTime - startTime) * static_cast<uint64_t>(Platform::GetTimestampPeriod());
+				assert(feedbackInfo->pipelineStageCreationFeedbackCount == pCreateInfo->stageCount);
+
+				for (auto i = 0u; i < pCreateInfo->stageCount; i++)
+				{
+					feedbackInfo->pPipelineStageCreationFeedbacks[i].flags = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT_EXT;
+					feedbackInfo->pPipelineStageCreationFeedbacks[i].duration = shaderTimes[i] * static_cast<uint64_t>(Platform::GetTimestampPeriod());
+				}
+				
+				break;
+			}
+			next = next->pNext;
+		}
+	}
 
 	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;
