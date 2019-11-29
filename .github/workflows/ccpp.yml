@@ -8,14 +8,18 @@ on:
 
 jobs:
   build:
-    name: Builds on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    name: Build on Ubuntu
+    runs-on: [ubuntu-latest]
     
     steps:
     - uses: actions/checkout@v1
+    - name: get dependancies
+      run: |
+        sudo apt -y install libglm-dev llvm-8-dev libvulkan1
+        wget https://sdk.lunarg.com/sdk/download/1.1.126.0/linux/vulkansdk-linux-1.1.126.0.tar.gz?Human=true -O vulkan-sdk.tar.gz
+        sudo tar -xf vulkan-sdk.tar.gz $HOME/
+        source $HOME/1.1.126.0/setup-env.sh
+        vcpkg install ms-gsl glslang vulkan
     - name: make
       run: |
         mkdir build
