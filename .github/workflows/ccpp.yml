@@ -4,18 +4,17 @@ on:
   push:
     branches: 
       - master
-      - ci-test
 
 jobs:
   build:
-    name: Builds on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
+    name: Build on Ubuntu
+    runs-on: [ubuntu-latest]
     
     steps:
     - uses: actions/checkout@v1
+    - name: get dependancies
+      run: |
+        apt install libglm-dev
     - name: make
       run: |
         mkdir build
