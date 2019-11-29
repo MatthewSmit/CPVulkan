@@ -30,6 +30,7 @@ jobs:
       
     - name: Get Dependencies
       run: |
+        sudo apt -y remove llvm-dev
         sudo apt -y install libglm-dev llvm-8-dev
         source $HOME/1.1.126.0/setup-env.sh
         vcpkg install ms-gsl glslang vulkan
