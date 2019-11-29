@@ -26,6 +26,7 @@ jobs:
       run:  |
         wget https://sdk.lunarg.com/sdk/download/1.1.126.0/linux/vulkansdk-linux-1.1.126.0.tar.gz?Human=true -O vulkan-sdk.tar.gz
         sudo tar -C $HOME/ -xf vulkan-sdk.tar.gz
+        rm -R $HOME/1.1.126.0/source/
       
     - name: Get Dependencies
       run: |
@@ -35,6 +36,7 @@ jobs:
         
     - name: Build
       run: |
+        source $HOME/1.1.126.0/setup-env.sh
         mkdir build
         cd build
         cmake .. -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake
