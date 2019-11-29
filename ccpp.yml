@@ -1,0 +1,24 @@
+name: C/C++ CI
+
+on:
+  push:
+    branches: 
+      - master
+      - ci-test
+
+jobs:
+  build:
+    name: Builds on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    
+    steps:
+    - uses: actions/checkout@v1
+    - name: make
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make
