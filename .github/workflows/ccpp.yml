@@ -27,15 +27,15 @@ jobs:
         wget https://sdk.lunarg.com/sdk/download/1.1.126.0/linux/vulkansdk-linux-1.1.126.0.tar.gz?Human=true -O vulkan-sdk.tar.gz
         sudo tar -C $HOME/ -xf vulkan-sdk.tar.gz
       
-    - name: get dependancies
+    - name: Get Dependencies
       run: |
-        sudo apt -y install libglm-dev llvm-8-dev libvulkan1
+        sudo apt -y install libglm-dev llvm-8-dev
         source $HOME/1.1.126.0/setup-env.sh
         vcpkg install ms-gsl glslang vulkan
         
-    - name: make
+    - name: Build
       run: |
         mkdir build
         cd build
-        cmake ..
+        cmake .. -DCMAKE_TOOLCHAIN_FILE=$VCPKG_INSTALLATION_ROOT/scripts/buildsystems/vcpkg.cmake
         make
