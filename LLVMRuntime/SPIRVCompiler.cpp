@@ -786,6 +786,7 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 			case OpTypeArray:
 				return llvm::ConstantArray::get(llvm::dyn_cast<llvm::ArrayType>(ConvertType(state, constantComposite->getType())), constants);
 				
+			case OpTypeMatrix:
 			case OpTypeStruct:
 				return llvm::ConstantStruct::get(llvm::dyn_cast<llvm::StructType>(ConvertType(state, constantComposite->getType())), constants);
 
@@ -2174,8 +2175,14 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 
 	case OpFMod:
 		{
-			FATAL_ERROR();
-			break;
+			const auto op = static_cast<SPIRV::SPIRVBinary*>(instruction);
+			auto left = ConvertValue(state, op->getOperand(0), currentFunction);
+			auto right = ConvertValue(state, op->getOperand(1), currentFunction);
+			auto frem = state.builder.CreateFRem(left, right);
+			auto copySign = state.builder.CreateBinaryIntrinsic(llvm::Intrinsic::copysign, frem, right, nullptr);
+			auto fadd = state.builder.CreateFAdd(frem, right);
+			auto cmp = state.builder.CreateFCmpONE(frem, copySign);
+			return state.builder.CreateSelect(cmp, fadd, copySign);
 		}
 
 	case OpVectorTimesScalar:
@@ -2736,15 +2743,7 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 	case OpPhi:
 		{
 			auto phi = static_cast<SPIRV::SPIRVPhi*>(instruction);
-			auto llvmPhi = state.builder.CreatePHI(ConvertType(state, phi->getType()), phi->getPairs().size() / 2);
-			phi->foreachPair([&](SPIRV::SPIRVValue* incomingValue, SPIRV::SPIRVBasicBlock* incomingBasicBlock, size_t)
-			{
-				const auto basicBlock = ConvertBasicBlock(state, currentFunction, incomingBasicBlock);
-				const auto translated = ConvertValue(state, incomingValue, currentFunction);
-				llvmPhi->addIncoming(translated, basicBlock);
-			});
-			state.builder.SetInsertPoint(llvmBasicBlock);
-			return llvmPhi;
+			return state.builder.CreatePHI(ConvertType(state, phi->getType()), phi->getPairs().size() / 2);
 		}
 
 	case OpBranch:
@@ -2809,7 +2808,9 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			return state.builder.CreateRet(ConvertValue(state, returnValue->getReturnValue(), currentFunction));
 		}
 
-		// case OpUnreachable: break;
+	case OpUnreachable:
+		return state.builder.CreateUnreachable();
+		
 		// case OpLifetimeStart: break;
 		// case OpLifetimeStop: break;
 		// case OpGroupAsyncCopy: break;
@@ -3014,11 +3015,8 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 		// case OpSubgroupAvcSicGetPackedSkcLumaCountThresholdINTEL: break;
 		// case OpSubgroupAvcSicGetPackedSkcLumaSumThresholdINTEL: break;
 		// case OpSubgroupAvcSicGetInterRawSadsINTEL: break;
-
-	default:
-		FATAL_ERROR();
 	}
-
+	FATAL_ERROR();
 }
 
 static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* currentFunction, const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
@@ -3064,6 +3062,8 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			state.valueMapping[instruction->getId()] = llvmValue;
 		}
 	}
+
+	state.builder.SetInsertPoint(llvmBasicBlock);
 
 	return llvmBasicBlock;
 }
@@ -3214,7 +3214,26 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 
 	for (auto i = 0u; i < spirvModule->getNumFunctions(); i++)
 	{
-		ConvertFunction(state, spirvModule->getFunction(i));
+		const auto function = ConvertFunction(state, spirvModule->getFunction(i));
+		for (auto j = 0u; j < spirvModule->getFunction(i)->getNumBasicBlock(); j++)
+		{
+			const auto spirvBasicBlock = spirvModule->getFunction(i)->getBasicBlock(j);
+			for (auto k = 0u; k < spirvBasicBlock->getNumInst(); k++)
+			{
+				const auto instruction = spirvBasicBlock->getInst(k);
+				if (instruction->getOpCode() == OpPhi)
+				{
+					auto phi = static_cast<SPIRV::SPIRVPhi*>(instruction);
+					auto llvmPhi = llvm::dyn_cast<llvm::PHINode>(ConvertValue(state, phi, function));
+					phi->foreachPair([&](SPIRV::SPIRVValue* incomingValue, SPIRV::SPIRVBasicBlock* incomingBasicBlock, size_t)
+					{
+						const auto phiBasicBlock = ConvertBasicBlock(state, function, incomingBasicBlock);
+						const auto translated = ConvertValue(state, incomingValue, function);
+						llvmPhi->addIncoming(translated, phiBasicBlock);
+					});
+				}
+			}
+		}
 	}
 
 	// Handle Finding Internal Settings, such as WorkgroupSize

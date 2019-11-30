@@ -41,6 +41,7 @@
 #include "SPIRVModule.h"
 #include "SPIRVStream.h"
 #include "SPIRVValue.h"
+#include <complex.h>
 
 namespace SPIRV {
 template <class T, class B>
@@ -143,24 +144,32 @@ void SPIRVGroupDecorateGeneric::decode(std::istream &I) {
   Module->addGroupDecorateGeneric(this);
 }
 
-void SPIRVGroupDecorate::decorateTargets() {
-  for (auto &I : Targets) {
-    auto Target = getOrCreate(I);
-    for (auto &Dec : DecorationGroup->getDecorations()) {
-      assert(Dec->isDecorate());
-      Target->addDecorate(static_cast<SPIRVDecorate *>(Dec));
-    }
-  }
+void SPIRVGroupDecorate::decorateTargets()
+{
+	for (auto targetId : Targets)
+	{
+		auto target = getOrCreate(targetId);
+		for (auto& Dec : DecorationGroup->getDecorations())
+		{
+			assert(Dec->isDecorate());
+			target->addDecorate(static_cast<SPIRVDecorate*>(Dec));
+		}
+	}
 }
 
-void SPIRVGroupMemberDecorate::decorateTargets() {
-  for (auto &I : Targets) {
-    auto Target = getOrCreate(I);
-    for (auto &Dec : DecorationGroup->getDecorations()) {
-      assert(Dec->isMemberDecorate());
-      Target->addMemberDecorate(static_cast<SPIRVMemberDecorate *>(Dec));
-    }
-  }
+void SPIRVGroupMemberDecorate::decorateTargets()
+{
+	for (auto i = 0; i < Targets.size(); i += 2)
+	{
+		const auto targetId = Targets[i];
+		const auto yyy = Targets[i + 1];
+		auto target = getOrCreate(targetId);
+		for (auto& Dec : DecorationGroup->getDecorations())
+		{
+			assert(Dec->isMemberDecorate());
+			target->addMemberDecorate(static_cast<SPIRVMemberDecorate*>(Dec));
+		}
+	}
 }
 
 bool SPIRVDecorateGeneric::Comparator::

@@ -737,9 +737,21 @@ namespace SPIRV
 
 	class SPIRVSource : public SPIRVEntryNoId<OpSource> {
 	public:
-		SPIRVSource(SPIRVModule *M) : SPIRVEntryNoId(M, 3) {}
+		SPIRVSource(SPIRVModule* M) : SPIRVEntryNoId(M, 3) {}
 		SPIRVSource() {}
 		_SPIRV_DCL_ENCDEC
+	private:
+		SPIRVWord file;
+		std::string source;
+	};
+
+	class SPIRVSourceContinued : public SPIRVEntryNoId<OpSourceContinued> {
+	public:
+		SPIRVSourceContinued(SPIRVModule* M) : SPIRVEntryNoId(M, 2) {}
+		SPIRVSourceContinued() {}
+		_SPIRV_DCL_ENCDEC
+	private:
+		std::string source;
 	};
 
 	class SPIRVSourceExtension : public SPIRVEntryNoId<OpSourceExtension> {
@@ -802,7 +814,6 @@ namespace SPIRV
 	// This is also an indication of how much work is left.
 #define _SPIRV_OP(x) typedef SPIRVEntryUnimplemented<Op##x> SPIRV##x;
 	_SPIRV_OP(Nop)
-	_SPIRV_OP(SourceContinued)
 	_SPIRV_OP(Image)
 	_SPIRV_OP(ImageTexelPointer)
 	_SPIRV_OP(ImageSampleDrefImplicitLod)
