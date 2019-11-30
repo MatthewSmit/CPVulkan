@@ -374,6 +374,8 @@ namespace SPIRV
 
 		virtual SPIRVId getExtInstSetId(SPIRVExtInstSetKind Kind) const override;
 
+		virtual const std::map<SPIRVId, SPIRVEntry*>& getEntries() const override { return IdEntryMap; }
+
 		// I/O functions
 		friend spv_ostream &operator<<(spv_ostream &O, SPIRVModule &M);
 		friend std::istream &operator>>(std::istream &I, SPIRVModule &M);

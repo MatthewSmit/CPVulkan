@@ -136,8 +136,8 @@ private:
 	std::string name;
 	EntryPoint entryPoint;
 	
-	bool fragmentOriginUpper;
-	glm::uvec3 computeLocalSize;
+	bool fragmentOriginUpper{};
+	glm::uvec3 computeLocalSize{};
 };
 
 class Pipeline final

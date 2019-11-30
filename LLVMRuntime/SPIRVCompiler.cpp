@@ -844,7 +844,14 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 	case OpVariable:
 		{
 			const auto variable = static_cast<SPIRV::SPIRVVariable*>(spirvValue);
-			const auto isPointer = (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant) && !IsOpaqueType(variable->getType()->getPointerElementType());
+			auto isPointer = (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant) && !IsOpaqueType(variable->getType()->getPointerElementType());
+			if (isPointer)
+			{
+				if (variable->getType()->getPointerElementType()->hasDecorate(DecorationBufferBlock))
+				{
+					isPointer = false;
+				}
+			}
 			const auto llvmType = isPointer
 				                      ? ConvertType(state, variable->getType())
 				                      : ConvertType(state, variable->getType()->getPointerElementType());
@@ -1644,32 +1651,25 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				{
 					indices.insert(indices.begin(), state.builder.getInt32(0));
 				}
+				
+				// TODO: In Bounds
 
-				auto currentType = base->getType()->getPointerElementType();
+				auto currentType = base->getType();
 				llvmValue = base;
-				for (auto k = 1U; k < indices.size(); k++)
+				assert(currentType->isPointerTy());
+				currentType = currentType->getPointerElementType();
+				auto startIndex = 0u;
+				for (auto k = 1u; k <= indices.size(); k++)
 				{
-					if (currentType->isPointerTy())
+					if (k == indices.size())
 					{
-						llvm::ArrayRef<llvm::Value*> range{indices.data(), k};
-						if (accessChain->isInBounds())
-						{
-							llvmValue = state.builder.CreateInBoundsGEP(nullptr, llvmValue, range, accessChain->getName());
-						}
-						else
-						{
-							llvmValue = state.builder.CreateGEP(nullptr, llvmValue, range, accessChain->getName());
-						}
-						llvmValue = state.builder.CreateLoad(llvmValue);
-						currentType = currentType->getPointerElementType();
-						indices = std::vector<llvm::Value*>{indices.begin() + k, indices.end()};
-						k = -1;
-						continue;
+						llvm::ArrayRef<llvm::Value*> range{indices.data() + startIndex, k - startIndex};
+						llvmValue = state.builder.CreateGEP(llvmValue, range);
+						break;
 					}
 					
 					if (currentType->isStructTy())
 					{
-						// TODO: Detect matrix struct
 						auto index = llvm::cast<llvm::ConstantInt>(indices[k])->getZExtValue();
 						if (state.structIndexMapping.find(currentType) != state.structIndexMapping.end())
 						{
@@ -1677,33 +1677,30 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 							indices[k] = state.builder.getInt32(index);
 						}
 
-						if (k + 1ULL < indices.size())
-						{
-							currentType = currentType->getStructElementType(index);
-							continue;
-						}
+						currentType = currentType->getStructElementType(index);
 					}
-					
-					if (k + 1ULL == indices.size())
+					else if (currentType->isVectorTy())
 					{
-						llvm::ArrayRef<llvm::Value*> range{indices.data(), indices.size()};
-						if (accessChain->isInBounds())
-						{
-							llvmValue = state.builder.CreateInBoundsGEP(nullptr, llvmValue, range, accessChain->getName());
-						}
-						else
-						{
-							llvmValue = state.builder.CreateGEP(nullptr, llvmValue, range, accessChain->getName());
-						}
+						currentType = currentType->getVectorElementType();
+					}
+					else if (currentType->isArrayTy())
+					{
+						currentType = currentType->getArrayElementType();
+					}
+					else if (currentType->isPointerTy())
+					{
+						// We assume this is a runtime array
+						// TODO: Bounds check?
+						llvm::ArrayRef<llvm::Value*> range{indices.data() + startIndex, k - startIndex};
+						startIndex = k;
+						llvmValue = state.builder.CreateLoad(state.builder.CreateGEP(llvmValue, range));
+						currentType = currentType->getPointerElementType();
 					}
 					else
 					{
 						FATAL_ERROR();
 					}
 				}
-
-				auto expectedType = ConvertType(state, instruction->getType());
-				assert(expectedType == llvmValue->getType());
 
 				break;
 			}
@@ -1771,6 +1768,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 					break;
 
 				case OpTypeMatrix:
+				case OpTypeArray:
 					llvmValue = state.builder.CreateAlloca(ConvertType(state, compositeConstruct->getType()));
 					for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
 					{
@@ -1781,18 +1779,23 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 					llvmValue = state.builder.CreateLoad(llvmValue);
 					break;
 
-				case OpTypeArray:
-					//   return mapValue(
-					//       BV, ConstantArray::get(dyn_cast<ArrayType>(transType(CC->getType())),
-					//                              CV));
-					FATAL_ERROR();
-
 				case OpTypeStruct:
-					llvmValue = state.builder.CreateAlloca(ConvertType(state, compositeConstruct->getType()));
-					//   return mapValue(BV,
-					//                   ConstantStruct::get(
-					//                       dyn_cast<StructType>(transType(CC->getType())), CV));
-					FATAL_ERROR();
+					{
+						auto structType = ConvertType(state, compositeConstruct->getType());
+						llvmValue = state.builder.CreateAlloca(structType);
+						for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
+						{
+							const auto index = state.structIndexMapping.find(structType) != state.structIndexMapping.end()
+								                   ? state.structIndexMapping.at(structType).at(j)
+								                   : j;
+
+							auto destination = state.builder.CreateConstInBoundsGEP2_32(nullptr, llvmValue, 0, index);
+							auto value = ConvertValue(state, compositeConstruct->getConstituents()[j], currentFunction);
+							state.builder.CreateStore(value, destination);
+						}
+						llvmValue = state.builder.CreateLoad(llvmValue);
+						break;
+					}
 
 				default:
 					FATAL_ERROR();
@@ -1803,7 +1806,7 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 		case OpCompositeExtract:
 			{
 				const auto compositeExtract = reinterpret_cast<SPIRV::SPIRVCompositeExtract*>(instruction);
-				auto composite = ConvertValue(state, compositeExtract->getComposite(), currentFunction);
+				const auto composite = ConvertValue(state, compositeExtract->getComposite(), currentFunction);
 				if (compositeExtract->getComposite()->getType()->isTypeVector())
 				{
 					assert(compositeExtract->getIndices().size() == 1);
@@ -1811,7 +1814,42 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 				}
 				else
 				{
-					llvmValue = state.builder.CreateExtractValue(composite, compositeExtract->getIndices());
+					auto currentType = composite->getType();
+					auto indices = compositeExtract->getIndices();
+					for (auto k = 0u; k <= indices.size(); k++)
+					{
+						if (k == indices.size())
+						{
+							llvmValue = state.builder.CreateExtractValue(composite, indices);
+							break;
+						}
+
+						if (currentType->isStructTy())
+						{
+							if (state.structIndexMapping.find(currentType) != state.structIndexMapping.end())
+							{
+								indices[k] = state.structIndexMapping.at(currentType).at(indices[k]);
+							}
+							currentType = currentType->getStructElementType(indices[k]);
+						}
+						else if (currentType->isArrayTy())
+						{
+							currentType = currentType->getArrayElementType();
+						}
+						else if (currentType->isVectorTy())
+						{
+							assert(k + 1 == indices.size());
+							const auto vectorIndex = indices[k];
+							indices.pop_back();
+							llvmValue = state.builder.CreateExtractValue(composite, indices);
+							llvmValue = state.builder.CreateExtractElement(llvmValue, vectorIndex);
+							break;
+						}
+						else
+						{
+							FATAL_ERROR();
+						}
+					}
 				}
 
 				break;
@@ -1819,19 +1857,53 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 
 		case OpCompositeInsert:
 			{
-				auto compositeInsert = static_cast<SPIRV::SPIRVCompositeInsert*>(instruction);
+				const auto compositeInsert = static_cast<SPIRV::SPIRVCompositeInsert*>(instruction);
+				const auto composite = ConvertValue(state, compositeInsert->getComposite(), currentFunction);
+				const auto value = ConvertValue(state, compositeInsert->getObject(), currentFunction);
 				if (compositeInsert->getComposite()->getType()->isTypeVector())
 				{
 					assert(compositeInsert->getIndices().size() == 1);
-					llvmValue = state.builder.CreateInsertElement(ConvertValue(state, compositeInsert->getComposite(), currentFunction),
-					                                              ConvertValue(state, compositeInsert->getObject(), currentFunction),
-					                                              state.builder.getInt32(compositeInsert->getIndices()[0]));
+					llvmValue = state.builder.CreateInsertElement(composite, value, compositeInsert->getIndices()[0]);
 				}
 				else
 				{
-					llvmValue = state.builder.CreateInsertValue(ConvertValue(state, compositeInsert->getComposite(), currentFunction),
-					                                            ConvertValue(state, compositeInsert->getObject(), currentFunction),
-					                                            compositeInsert->getIndices());
+					auto currentType = composite->getType();
+					auto indices = compositeInsert->getIndices();
+					for (auto k = 0u; k <= indices.size(); k++)
+					{
+						if (k == indices.size())
+						{
+							llvmValue = state.builder.CreateInsertValue(composite, value, indices);
+							break;
+						}
+						
+						if (currentType->isStructTy())
+						{
+							if (state.structIndexMapping.find(currentType) != state.structIndexMapping.end())
+							{
+								indices[k] = state.structIndexMapping.at(currentType).at(indices[k]);
+							}
+							currentType = currentType->getStructElementType(indices[k]);
+						}
+						else if (currentType->isArrayTy())
+						{
+							currentType = currentType->getArrayElementType();
+						}
+						else if (currentType->isVectorTy())
+						{
+							assert(k + 1 == indices.size());
+							const auto vectorIndex = indices[k];
+							indices.pop_back();
+							llvmValue = state.builder.CreateExtractValue(composite, indices);
+							llvmValue = state.builder.CreateInsertElement(llvmValue, value, vectorIndex);
+							llvmValue = state.builder.CreateInsertValue(composite, llvmValue, indices);
+							break;
+						}
+						else
+						{
+							FATAL_ERROR();
+						}
+					}
 				}
 				break;
 			}
@@ -3068,6 +3140,11 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 			FATAL_ERROR();
 		}
 
+		if (instruction->hasType())
+		{
+			assert(ConvertType(state, instruction->getType()) == llvmValue->getType());
+		}
+
 		if (llvmValue && instruction->hasId())
 		{
 			state.valueMapping[instruction->getId()] = llvmValue;
@@ -3224,6 +3301,38 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	for (auto i = 0u; i < spirvModule->getNumFunctions(); i++)
 	{
 		ConvertFunction(state, spirvModule->getFunction(i));
+	}
+
+	// Handle Finding Internal Settings, such as WorkgroupSize
+	if (executionModel == ExecutionModelGLCompute || executionModel == ExecutionModelKernel)
+	{
+		for (const auto& entry : spirvModule->getEntries())
+		{
+			for (const auto& decorate : entry.second->getDecorates())
+			{
+				if (decorate.first == DecorationBuiltIn)
+				{
+					const auto builtin = static_cast<BuiltIn>(decorate.second->getLiteral(0));
+					if (builtin == BuiltInWorkgroupSize)
+					{
+						const auto llvmValue = ConvertValue(state, spirvModule->getValue(entry.first), nullptr);
+						if (!llvmValue->getType()->isVectorTy() || llvmValue->getType()->getVectorNumElements() != 3 || !llvmValue->getType()->getVectorElementType()->isIntegerTy())
+						{
+							FATAL_ERROR();
+						}
+
+						new llvm::GlobalVariable(*state.module,
+						                         llvmValue->getType(),
+						                         true,
+						                         llvm::GlobalValue::ExternalLinkage,
+						                         llvm::dyn_cast<llvm::Constant>(llvmValue),
+						                         "@WorkgroupSize",
+						                         nullptr,
+						                         llvm::GlobalValue::NotThreadLocal);
+					}
+				}
+			}
+		}
 	}
 
 	// TODO: Optimisations

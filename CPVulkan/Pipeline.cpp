@@ -644,7 +644,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 		if (localSize)
 		{
 			const auto& literals = localSize->getLiterals();
-			this->computeLocalSize = glm::ivec3{literals[0], literals[1], literals[2]};
+			this->computeLocalSize = glm::uvec3{literals[0], literals[1], literals[2]};
 		}
 
 		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
@@ -716,6 +716,13 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 
 	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex), specializationInfo);
 	this->entryPoint = jit->getFunctionPointer(llvmModule, name);
+
+	const auto workgroupSizePtr = jit->getPointer(llvmModule, "@WorkgroupSize");
+	if (workgroupSizePtr)
+	{
+		const auto workgroupSizeValue = static_cast<glm::uvec3*>(workgroupSizePtr);
+		this->computeLocalSize = *workgroupSizeValue;
+	}
 }
 
 ShaderFunction::~ShaderFunction()

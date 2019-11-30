@@ -379,6 +379,8 @@ public:
                                                 SPIRVBasicBlock *) = 0;
   virtual SPIRVId getExtInstSetId(SPIRVExtInstSetKind Kind) const = 0;
 
+  virtual const std::map<SPIRVId, SPIRVEntry*>& getEntries() const = 0;
+
   virtual bool
   isAllowedToUseVersion(SPIRV::VersionNumber RequestedVersion) const final {
     return TranslationOpts.isAllowedToUseVersion(RequestedVersion);

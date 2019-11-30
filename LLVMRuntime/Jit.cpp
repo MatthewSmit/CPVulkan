@@ -99,7 +99,28 @@ public:
 
 	void* getPointer(const CompiledModule* module, const std::string& name)
 	{
-		return reinterpret_cast<void*>(cantFail(Lookup(module, name)).getAddress());
+		auto symbol = Lookup(module, name);
+		if (symbol)
+		{
+			return reinterpret_cast<void*>(symbol.get().getAddress());
+		}
+
+		// Return nullptr IFF the only missing symbol is the one we are looking for
+		handleAllErrors(symbol.takeError(), [name](llvm::orc::SymbolsNotFound& snf)
+		{
+			if (snf.getSymbols().size() == 1)
+			{
+				const auto invalidSymbol = *snf.getSymbols().begin();
+				if ((*invalidSymbol).compare(name) == 0)
+				{
+					return;
+				}
+			}
+
+			FATAL_ERROR();
+		});
+		
+		return nullptr;
 	}
 
 private:
