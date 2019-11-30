@@ -2724,6 +2724,23 @@ namespace SPIRV
 
 	DLL_EXPORT SPIRVSpecConstantOp *createSpecConstantOpInst(SPIRVInstruction *Inst);
 	DLL_EXPORT SPIRVInstruction *createInstFromSpecConstantOp(SPIRVSpecConstantOp *C);
+
+	class SPIRVNoLine : public SPIRVInstruction {
+	public:
+		SPIRVNoLine() : SPIRVInstruction(OpNoLine)
+		{
+		}
+
+		void setScope(SPIRVEntry* Scope) override
+		{
+			if (Scope && Scope->getOpCode() == OpLabel)
+			{
+				setParent(static_cast<SPIRVBasicBlock*>(Scope));
+			}
+		}
+
+		_SPIRV_DCL_ENCDEC
+	};
 } // namespace SPIRV
 
 #endif // SPIRV_LIBSPIRV_SPIRVINSTRUCTION_H

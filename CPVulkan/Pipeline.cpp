@@ -1007,8 +1007,8 @@ VkResult Device::GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipel
 			memset(pProperties[j].description, 0, VK_MAX_DESCRIPTION_SIZE);
 
 			// TODO: Expand on this
-			strcpy(pProperties[j].name, shaderName[i]);
-			strcpy(pProperties[j].description, shaderName[i]);
+			strcpy_s(pProperties[j].name, shaderName[i]);
+			strcpy_s(pProperties[j].description, shaderName[i]);
 			
 			pProperties[j].subgroupSize = 1;
 			j++;

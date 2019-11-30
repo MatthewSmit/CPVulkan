@@ -782,6 +782,14 @@ namespace SPIRV
 		SPIRVCapabilityKind Kind;
 	};
 
+	class SPIRVModuleProcessed : public SPIRVEntryNoId<OpModuleProcessed> {
+	public:
+		SPIRVModuleProcessed() {}
+		_SPIRV_DCL_ENCDEC
+	private:
+		std::string S;
+	};
+
 	template <class T> T *bcast(SPIRVEntry *E) { return static_cast<T *>(E); }
 
 	template <spv::Op OC> bool isa(SPIRVEntry *E) {
@@ -839,7 +847,6 @@ namespace SPIRV
 	_SPIRV_OP(ImageSparseGather)
 	_SPIRV_OP(ImageSparseDrefGather)
 	_SPIRV_OP(ImageSparseTexelsResident)
-	_SPIRV_OP(NoLine)
 	_SPIRV_OP(TypeNamedBarrier)
 	_SPIRV_OP(NamedBarrierInitialize)
 	_SPIRV_OP(MemoryNamedBarrier)

@@ -489,16 +489,26 @@ void SPIRVLine::decode(std::istream &I) {
   Module->setCurrentLine(L);
 }
 
-void SPIRVLine::validate() const {
-  assert(OpCode == OpLine);
-  assert(WordCount == 4);
-  assert(get<SPIRVEntry>(FileName)->getOpCode() == OpString);
-  assert(Line != SPIRVWORD_MAX);
-  assert(Column != SPIRVWORD_MAX);
-  assert(!hasId());
+void SPIRVLine::validate() const
+{
+	assert(OpCode == OpLine);
+	assert(WordCount == 4);
+	assert(get<SPIRVEntry>(FileName)->getOpCode() == OpString);
+	assert(Line != SPIRVWORD_MAX);
+	assert(Column != SPIRVWORD_MAX);
+	assert(!hasId());
 }
 
-void SPIRVMemberName::validate() const {
+void SPIRVNoLine::encode(spv_ostream& O) const
+{
+}
+
+void SPIRVNoLine::decode(std::istream& I)
+{
+}
+
+void SPIRVMemberName::validate() const
+{
   assert(OpCode == OpMemberName);
   assert(WordCount == getSizeInWords(Str) + FixedWC);
   assert(get<SPIRVEntry>(Target)->getOpCode() == OpTypeStruct);
@@ -590,6 +600,12 @@ void SPIRVCapability::encode(spv_ostream &O) const { getEncoder(O) << Kind; }
 void SPIRVCapability::decode(std::istream &I) {
   getDecoder(I) >> Kind;
   Module->addCapability(Kind);
+}
+
+void SPIRVModuleProcessed::encode(spv_ostream &O) const { getEncoder(O) << S; }
+
+void SPIRVModuleProcessed::decode(std::istream &I) {
+  getDecoder(I) >> S;
 }
 
 } // namespace SPIRV

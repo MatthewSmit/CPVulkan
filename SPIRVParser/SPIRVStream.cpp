@@ -230,7 +230,7 @@ SPIRVEntry *SPIRVDecoder::getEntry() {
   } else
     Entry->setScope(Scope);
   Entry->setWordCount(WordCount);
-  if (OpCode != OpLine)
+  if (OpCode != OpLine && OpCode != OpNoLine)
     Entry->setLine(M.getCurrentLine());
   IS >> *Entry;
   if (Entry->isEndOfBlock() || OpCode == OpNoLine)
