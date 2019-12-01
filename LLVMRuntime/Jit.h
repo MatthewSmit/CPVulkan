@@ -32,6 +32,7 @@ public:
 	void SetUserData(void* userData);
 
 	void* getPointer(const CompiledModule* module, const std::string& name);
+	void* getOptionalPointer(const CompiledModule* module, const std::string& name);
 	FunctionPointer getFunctionPointer(const CompiledModule* module, const std::string& name);
 
 private:

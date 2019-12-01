@@ -19,6 +19,7 @@ constexpr auto ALIGNMENT = 8;
 
 struct State
 {
+	const SPIRV::SPIRVModule* spirvModule;
 	llvm::DataLayout& layout;
 	llvm::LLVMContext& context;
 	llvm::IRBuilder<>& builder;
@@ -28,6 +29,7 @@ struct State
 	std::unordered_map<uint32_t, llvm::Type*> typeMapping;
 	std::unordered_map<uint32_t, llvm::Value*> valueMapping;
 	std::unordered_map<llvm::Type*, std::vector<uint32_t>> structIndexMapping;
+	std::unordered_map<llvm::Type*, uint32_t> arrayStrideMultiplier;
 	std::unordered_set<uint32_t> variablePointers;
 	std::unordered_map<uint32_t, llvm::Function*> functionMapping;
 	std::unordered_map<std::string, llvm::Function*> functionCache;
@@ -238,9 +240,49 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 		break;
 		
 	case OpTypeArray:
-		// TODO: stride member variables
-		llvmType = llvm::ArrayType::get(ConvertType(state, spirvType->getArrayElementType()), spirvType->getArrayLength());
-		break;
+		{
+			const auto elementType = ConvertType(state, spirvType->getArrayElementType());
+			auto multiplier = 1u;
+			if (spirvType->hasDecorate(DecorationArrayStride))
+			{
+				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
+				const auto originalStride = state.layout.getTypeSizeInBits(elementType) / 8;
+				if (stride != originalStride)
+				{
+					multiplier = stride / originalStride;
+					assert((stride % originalStride) == 0);
+				}
+			}
+			llvmType = llvm::ArrayType::get(elementType, spirvType->getArrayLength() * multiplier);
+			if (multiplier > 1)
+			{
+				state.arrayStrideMultiplier[llvmType] = multiplier;
+			}
+			break;
+		}
+
+	case OpTypeRuntimeArray:
+		{
+			const auto runtimeArray = static_cast<SPIRV::SPIRVTypeRuntimeArray*>(spirvType);
+			const auto elementType = ConvertType(state, runtimeArray->getElementType());
+			auto multiplier = 1u;
+			if (runtimeArray->hasDecorate(DecorationArrayStride))
+			{
+				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
+				const auto originalStride = state.layout.getTypeSizeInBits(elementType) / 8;
+				if (stride != originalStride)
+				{
+					multiplier = stride / originalStride;
+					assert((stride % originalStride) == 0);
+				}
+			}
+			llvmType = llvm::ArrayType::get(elementType, 0);
+			if (multiplier > 1)
+			{
+				state.arrayStrideMultiplier[llvmType] = multiplier;
+			}
+			break;
+		}
 		
 	case OpTypePointer:
 		llvmType = llvm::PointerType::get(ConvertType(state, spirvType->getPointerElementType(), isClassMember), 0);
@@ -379,22 +421,6 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 			//       T, getOrCreateOpaquePtrType(M, transOCLPipeStorageTypeName(PST),
 			//                                   getOCLOpaqueTypeAddrSpace(T->getOpCode())));
 			FATAL_ERROR();
-		}
-
-	case OpTypeRuntimeArray:
-		{
-			const auto runtimeArray = static_cast<SPIRV::SPIRVTypeRuntimeArray*>(spirvType);
-			const auto llvmElementType = ConvertType(state, runtimeArray->getElementType(), isClassMember);
-			// const auto name = DumpType(llvmElementType) + "[]";
-			llvmType = llvm::PointerType::get(llvmElementType, 0);
-
-			// auto llvmStruct = llvm::StructType::create(state.context, name);
-			// llvm::SmallVector<llvm::Type*, 2> types;
-			// types.push_back(llvm::Type::getInt32Ty(state.context));
-			// types.push_back(llvm::PointerType::get(llvmElementType, 0));
-			// llvmStruct->setBody(types);
-			// llvmType = llvmStruct;
-			break;
 		}
 		
 	default:
@@ -619,9 +645,6 @@ static llvm::Value* HandleSpecConstantOperation(State& state, SPIRV::SPIRVSpecCo
 			return state.builder.getFolder().CreateSelect(llvm::dyn_cast<llvm::Constant>(c), llvm::dyn_cast<llvm::Constant>(t), llvm::dyn_cast<llvm::Constant>(f));
 		}
 		
-	case OpQuantizeToF16:
-		FATAL_ERROR();
-		
 	case OpAccessChain:
 		FATAL_ERROR();
 		
@@ -784,7 +807,15 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 				return llvm::ConstantVector::get(constants);
 
 			case OpTypeArray:
-				return llvm::ConstantArray::get(llvm::dyn_cast<llvm::ArrayType>(ConvertType(state, constantComposite->getType())), constants);
+				{
+					const auto arrayType = llvm::dyn_cast<llvm::ArrayType>(ConvertType(state, constantComposite->getType()));
+					if (state.arrayStrideMultiplier.find(arrayType) != state.arrayStrideMultiplier.end())
+					{
+						// TODO: Support stride
+						FATAL_ERROR();
+					}
+					return llvm::ConstantArray::get(arrayType, constants);
+				}
 				
 			case OpTypeMatrix:
 			case OpTypeStruct:
@@ -818,14 +849,8 @@ static llvm::Value* ConvertValueNoDecoration(State& state, SPIRV::SPIRVValue* sp
 	case OpVariable:
 		{
 			const auto variable = static_cast<SPIRV::SPIRVVariable*>(spirvValue);
-			auto isPointer = (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant) && !IsOpaqueType(variable->getType()->getPointerElementType());
-			if (isPointer)
-			{
-				if (variable->getType()->getPointerElementType()->hasDecorate(DecorationBufferBlock))
-				{
-					isPointer = false;
-				}
-			}
+			const auto isPointer = (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant || variable->getStorageClass() == StorageClassStorageBuffer) && 
+				!IsOpaqueType(variable->getType()->getPointerElementType());
 			const auto llvmType = isPointer
 				                      ? ConvertType(state, variable->getType())
 				                      : ConvertType(state, variable->getType()->getPointerElementType());
@@ -1266,6 +1291,20 @@ std::vector<llvm::Value*> MapBuiltin(State& state, const std::vector<llvm::Value
 	}
 }
 
+static llvm::Metadata* getMetadataFromName(State& state, const std::string& name)
+{
+	return llvm::MDNode::get(state.context, llvm::MDString::get(state.context, name));
+}
+
+static std::vector<llvm::Metadata*> getMetadataFromNameAndParameter(State& state, const std::string& name, uint32_t parameter)
+{
+	return
+	{
+		llvm::MDString::get(state.context, name),
+		llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(llvm::Type::getInt32Ty(state.context), parameter))
+	};
+}
+
 static void SetLLVMLoopMetadata(State& state, SPIRV::SPIRVLoopMerge* loopMerge, llvm::BranchInst* branchInstruction)
 {
 	if (!loopMerge)
@@ -1289,63 +1328,66 @@ static void SetLLVMLoopMetadata(State& state, SPIRV::SPIRVLoopMerge* loopMerge, 
 	auto loopControlParameters = loopMerge->getLoopControlParameters();
 	metadata.push_back(llvm::MDNode::get(state.context, self));
 	
-	// // To correctly decode loop control parameters, order of checks for loop
-	// // control masks must match with the order given in the spec (see 3.23),
-	// // i.e. check smaller-numbered bits first.
-	// // Unroll and UnrollCount loop controls can't be applied simultaneously with
-	// // DontUnroll loop control.
-	// if (LC & LoopControlUnrollMask)
-	//   Metadata.push_back(getMetadataFromName("llvm.loop.unroll.enable"));
-	// else if (LC & LoopControlDontUnrollMask)
-	//   Metadata.push_back(getMetadataFromName("llvm.loop.unroll.disable"));
-	// if (LC & LoopControlDependencyInfiniteMask)
-	//   Metadata.push_back(getMetadataFromName("llvm.loop.ivdep.enable"));
-	// if (LC & LoopControlDependencyLengthMask) {
-	//   if (!LoopControlParameters.empty()) {
-	//     Metadata.push_back(llvm::MDNode::get(
-	//         *Context,
-	//         getMetadataFromNameAndParameter("llvm.loop.ivdep.safelen",
-	//                                         LoopControlParameters[NumParam])));
-	//     ++NumParam;
-	//     assert(NumParam <= LoopControlParameters.size() &&
-	//            "Missing loop control parameter!");
-	//   }
-	// }
-	// // Placeholder for LoopControls added in SPIR-V 1.4 spec (see 3.23)
-	// if (LC & LoopControlMinIterationsMask) {
-	//   ++NumParam;
-	//   assert(NumParam <= LoopControlParameters.size() &&
-	//          "Missing loop control parameter!");
-	// }
-	// if (LC & LoopControlMaxIterationsMask) {
-	//   ++NumParam;
-	//   assert(NumParam <= LoopControlParameters.size() &&
-	//          "Missing loop control parameter!");
-	// }
-	// if (LC & LoopControlIterationMultipleMask) {
-	//   ++NumParam;
-	//   assert(NumParam <= LoopControlParameters.size() &&
-	//          "Missing loop control parameter!");
-	// }
-	// if (LC & LoopControlPeelCountMask) {
-	//   ++NumParam;
-	//   assert(NumParam <= LoopControlParameters.size() &&
-	//          "Missing loop control parameter!");
-	// }
-	// if (LC & LoopControlPartialCountMask && !(LC & LoopControlDontUnrollMask)) {
-	//   // If unroll factor is set as '1' - disable loop unrolling
-	//   if (1 == LoopControlParameters[NumParam])
-	//     Metadata.push_back(getMetadataFromName("llvm.loop.unroll.disable"));
-	//   else
-	//     Metadata.push_back(llvm::MDNode::get(
-	//         *Context,
-	//         getMetadataFromNameAndParameter("llvm.loop.unroll.count",
-	//                                         LoopControlParameters[NumParam])));
-	//   ++NumParam;
-	//   assert(NumParam <= LoopControlParameters.size() &&
-	//          "Missing loop control parameter!");
-	// }
-	FATAL_ERROR();
+	// To correctly decode loop control parameters, order of checks for loop
+	// control masks must match with the order given in the spec (see 3.23),
+	// i.e. check smaller-numbered bits first.
+	// Unroll and UnrollCount loop controls can't be applied simultaneously with
+	// DontUnroll loop control.
+	if (loopControl & LoopControlUnrollMask)
+		metadata.push_back(getMetadataFromName(state, "llvm.loop.unroll.enable"));
+	else if (loopControl & LoopControlDontUnrollMask)
+		metadata.push_back(getMetadataFromName(state, "llvm.loop.unroll.disable"));
+	if (loopControl & LoopControlDependencyInfiniteMask)
+		metadata.push_back(getMetadataFromName(state, "llvm.loop.ivdep.enable"));
+	if (loopControl & LoopControlDependencyLengthMask)
+	{
+		if (!loopControlParameters.empty())
+		{
+			metadata.push_back(llvm::MDNode::get(state.context, getMetadataFromNameAndParameter(state, "llvm.loop.ivdep.safelen", loopControlParameters[numParam])));
+			++numParam;
+			assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
+		}
+	}
+	// Placeholder for LoopControls added in SPIR-V 1.4 spec (see 3.23)
+	if (loopControl & LoopControlMinIterationsMask)
+	{
+		FATAL_ERROR();
+		// ++numParam;
+		// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
+	}
+	if (loopControl & LoopControlMaxIterationsMask)
+	{
+		FATAL_ERROR();
+		// ++numParam;
+		// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
+	}
+	if (loopControl & LoopControlIterationMultipleMask)
+	{
+		FATAL_ERROR();
+		// ++numParam;
+		// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
+	}
+	if (loopControl & LoopControlPeelCountMask)
+	{
+		FATAL_ERROR();
+		// ++numParam;
+		// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
+	}
+	if (loopControl & LoopControlPartialCountMask && !(loopControl & LoopControlDontUnrollMask))
+	{
+		// If unroll factor is set as '1' - disable loop unrolling
+		if (loopControlParameters[numParam] == 1)
+		{
+			metadata.push_back(getMetadataFromName(state, "llvm.loop.unroll.disable"));
+		}
+		else
+		{
+			metadata.push_back(llvm::MDNode::get(state.context, getMetadataFromNameAndParameter(state, "llvm.loop.unroll.count", loopControlParameters[numParam])));
+		}
+		++numParam;
+		assert(numParam <= loopControlParameters.size() &&
+			"Missing loop control parameter!");
+	}
 	llvm::MDNode* node = llvm::MDNode::get(state.context, metadata);
 	
 	// Set the first operand to refer itself
@@ -1521,6 +1563,14 @@ static llvm::AtomicOrdering ConvertSemantics(uint32_t semantics)
 	return llvm::AtomicOrdering::Monotonic;
 }
 
+static bool TranslateNonTemporalMetadata(State& state, llvm::Instruction* instruction)
+{
+	llvm::Constant* one = llvm::ConstantInt::get(llvm::Type::getInt32Ty(state.context), 1);
+	llvm::MDNode* node = llvm::MDNode::get(state.context, llvm::ConstantAsMetadata::get(one));
+	instruction->setMetadata(state.module->getMDKindID("nontemporal"), node);
+	return true;
+}
+
 static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* instruction, llvm::Function* currentFunction, llvm::BasicBlock* llvmBasicBlock)
 {
 	switch (instruction->getOpCode())
@@ -1571,8 +1621,7 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			const auto llvmValue = state.builder.CreateAlignedLoad(ConvertValue(state, load->getSrc(), currentFunction), ALIGNMENT, load->SPIRVMemoryAccess::isVolatile(), load->getName());
 			if (load->isNonTemporal())
 			{
-				//   transNonTemporalMetadata(LI);
-				FATAL_ERROR();
+				TranslateNonTemporalMetadata(state, llvmValue);
 			}
 			return llvmValue;
 		}
@@ -1586,13 +1635,23 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			                                                        store->SPIRVMemoryAccess::isVolatile());
 			if (store->isNonTemporal())
 			{
-				//   transNonTemporalMetadata(LI);
-				FATAL_ERROR();
+				TranslateNonTemporalMetadata(state, llvmValue);
 			}
 			return llvmValue;
 		}
 
-		// case OpCopyMemory: break;
+	case OpCopyMemory:
+		{
+			const auto copyMemory = reinterpret_cast<SPIRV::SPIRVCopyMemory*>(instruction);
+			const auto dst = ConvertValue(state, copyMemory->getTarget(), currentFunction);
+			const auto src = ConvertValue(state, copyMemory->getSource(), currentFunction);
+			const auto dstAlign = copyMemory->getTargetMemoryAccessMask() & MemoryAccessAlignedMask ? copyMemory->getTargetAlignment() : ALIGNMENT;
+			const auto srcAlign = copyMemory->getSourceMemoryAccessMask() & MemoryAccessAlignedMask ? copyMemory->getSourceAlignment() : ALIGNMENT;
+			const auto size = state.layout.getTypeSizeInBits(dst->getType()->getPointerElementType()) / 8;
+			return state.builder.CreateMemCpy(dst, dstAlign, src, srcAlign, size, 
+			                                  (copyMemory->getTargetMemoryAccessMask() & MemoryAccessAlignedMask) || (copyMemory->getSourceMemoryAccessMask() & MemoryAccessAlignedMask));
+		}
+		
 		// case OpCopyMemorySized: break;
 
 	case OpAccessChain:
@@ -1637,7 +1696,7 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 
 				if (currentType->isStructTy())
 				{
-					auto index = llvm::cast<llvm::ConstantInt>(indices[k])->getZExtValue();
+					auto index = llvm::dyn_cast<llvm::ConstantInt>(indices[k])->getZExtValue();
 					if (state.structIndexMapping.find(currentType) != state.structIndexMapping.end())
 					{
 						index = state.structIndexMapping.at(currentType).at(index);
@@ -1652,16 +1711,12 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 				}
 				else if (currentType->isArrayTy())
 				{
+					if (state.arrayStrideMultiplier.find(currentType) != state.arrayStrideMultiplier.end())
+					{
+						const auto multiplier = state.arrayStrideMultiplier[currentType];
+						indices[k] = state.builder.CreateMul(indices[k], llvm::ConstantInt::get(indices[k]->getType(), multiplier));
+					}
 					currentType = currentType->getArrayElementType();
-				}
-				else if (currentType->isPointerTy())
-				{
-					// We assume this is a runtime array
-					// TODO: Bounds check?
-					llvm::ArrayRef<llvm::Value*> range{indices.data() + startIndex, k - startIndex};
-					startIndex = k;
-					llvmValue = state.builder.CreateLoad(state.builder.CreateGEP(llvmValue, range));
-					currentType = currentType->getPointerElementType();
 				}
 				else
 				{
@@ -1733,7 +1788,6 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 				break;
 
 			case OpTypeMatrix:
-			case OpTypeArray:
 				llvmValue = state.builder.CreateAlloca(ConvertType(state, compositeConstruct->getType()));
 				for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
 				{
@@ -1743,6 +1797,26 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 				}
 				llvmValue = state.builder.CreateLoad(llvmValue);
 				break;
+				
+			case OpTypeArray:
+				{
+					const auto arrayType = ConvertType(state, compositeConstruct->getType());
+					if (state.arrayStrideMultiplier.find(arrayType) == state.arrayStrideMultiplier.end())
+					{
+						// TODO: Support stride
+						FATAL_ERROR();
+					}
+
+					llvmValue = state.builder.CreateAlloca(arrayType);
+					for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
+					{
+						auto destination = state.builder.CreateConstInBoundsGEP2_32(nullptr, llvmValue, 0, j);
+						auto value = ConvertValue(state, compositeConstruct->getConstituents()[j], currentFunction);
+						state.builder.CreateStore(value, destination);
+					}
+					llvmValue = state.builder.CreateLoad(llvmValue);
+					break;
+				}
 
 			case OpTypeStruct:
 				{
@@ -1797,6 +1871,11 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 				}
 				else if (currentType->isArrayTy())
 				{
+					if (state.arrayStrideMultiplier.find(currentType) != state.arrayStrideMultiplier.end())
+					{
+						// TODO: Support stride
+						FATAL_ERROR();
+					}
 					currentType = currentType->getArrayElementType();
 				}
 				else if (currentType->isVectorTy())
@@ -1846,6 +1925,11 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 				}
 				else if (currentType->isArrayTy())
 				{
+					if (state.arrayStrideMultiplier.find(currentType) != state.arrayStrideMultiplier.end())
+					{
+						// TODO: Support stride
+						FATAL_ERROR();
+					}
 					currentType = currentType->getArrayElementType();
 				}
 				else if (currentType->isVectorTy())
@@ -1866,7 +1950,15 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			FATAL_ERROR();
 		}
 
-		// case OpCopyObject: break;
+	case OpCopyObject:
+		{
+			const auto op = static_cast<SPIRV::SPIRVCopyObject*>(instruction);
+			const auto value = ConvertValue(state, op->getOperand(), currentFunction);
+			const auto tmp = state.builder.CreateAlloca(value->getType());
+			state.builder.CreateStore(value, tmp);
+			return state.builder.CreateLoad(tmp);
+		}
+		
 		// case OpTranspose: break;
 
 	case OpSampledImage:
@@ -2050,8 +2142,18 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			}
 			return value;
 		}
+
+	case OpQuantizeToF16:
+		{
+			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
+			auto value = ConvertValue(state, op->getOperand(0), currentFunction);
+			const auto type = ConvertType(state, op->getType());
+			value = state.builder.CreateFPTrunc(value, type->isVectorTy()
+				                                           ? llvm::VectorType::get(state.builder.getHalfTy(), type->getVectorNumElements()) 
+				                                           : state.builder.getHalfTy());
+			return state.builder.CreateFPExt(value, type);
+		}
 		
-		// case OpQuantizeToF16: break;
 		// case OpConvertPtrToU: break;
 		// case OpSatConvertSToU: break;
 		// case OpSatConvertUToS: break;
@@ -3038,17 +3140,23 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 
 	for (auto i = 0u; i < spirvBasicBlock->getNumInst(); i++)
 	{
+		llvm::FastMathFlags flags{};
 		const auto instruction = spirvBasicBlock->getInst(i);
 		for (const auto decorate : instruction->getDecorates())
 		{
 			if (decorate.first == DecorationRelaxedPrecision)
 			{
 			}
+			else if (decorate.first == DecorationNoContraction)
+			{
+				flags.setAllowContract(false);
+			}
 			else
 			{
 				FATAL_ERROR();
 			}
 		}
+		state.builder.setFastMathFlags(flags);
 
 		const auto llvmValue = ConvertInstruction(state, instruction, currentFunction, llvmBasicBlock);
 		if (instruction->hasType())
@@ -3195,6 +3303,7 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	
 	State state
 	{
+		spirvModule,
 		dataLayout.get(),
 		*context,
 		builder,
@@ -3311,9 +3420,9 @@ std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 			
 		case StorageClassWorkgroup:
 		case StorageClassCrossWorkgroup:
-		case StorageClassPrivate:
 			FATAL_ERROR();
 			
+		case StorageClassPrivate:
 		case StorageClassFunction:
 			return "";
 			

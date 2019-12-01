@@ -37,8 +37,7 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef SPIRV_LIBSPIRV_SPIRVINSTRUCTION_H
-#define SPIRV_LIBSPIRV_SPIRVINSTRUCTION_H
+#pragma once
 
 #include "SPIRVBasicBlock.h"
 #include "SPIRVEnum.h"
@@ -411,35 +410,62 @@ namespace SPIRV
 	class SPIRVMemoryAccess {
 	public:
 		SPIRVMemoryAccess(const std::vector<SPIRVWord> &TheMemoryAccess)
-			: TheMemoryAccessMask(0), Alignment(0) {
+			: TargetMemoryAccessMask(0), TargetAlignment(0), SourceMemoryAccessMask(0), SourceAlignment(0) {
 			memoryAccessUpdate(TheMemoryAccess);
 		}
 
-		SPIRVMemoryAccess() : TheMemoryAccessMask(0), Alignment(0) {}
+		SPIRVMemoryAccess() : TargetMemoryAccessMask(0), TargetAlignment(0), SourceMemoryAccessMask(0), SourceAlignment(0) {}
 
 		void memoryAccessUpdate(const std::vector<SPIRVWord> &MemoryAccess) {
-			if (!MemoryAccess.size())
+			if (MemoryAccess.empty())
+			{
 				return;
-			assert((MemoryAccess.size() == 1 || MemoryAccess.size() == 2) &&
-				"Invalid memory access operand size");
-			TheMemoryAccessMask = MemoryAccess[0];
-			if (MemoryAccess[0] & MemoryAccessAlignedMask) {
-				assert(MemoryAccess.size() == 2 && "Alignment operand is missing");
-				Alignment = MemoryAccess[1];
+			}
+			
+			assert(MemoryAccess.size() <= 4 && "Invalid memory access operand size");
+			auto i = 0;
+			TargetMemoryAccessMask = MemoryAccess[i];
+			if (MemoryAccess[i] & MemoryAccessAlignedMask)
+			{
+				assert(MemoryAccess.size() >= i + 2 && "Alignment operand is missing");
+				TargetAlignment = MemoryAccess[i + 1];
+				i++;
+			}
+			i++;
+
+			if (MemoryAccess.size() >= i + 1)
+			{
+				SourceMemoryAccessMask = MemoryAccess[i];
+				if (MemoryAccess[i] & MemoryAccessAlignedMask)
+				{
+					assert(MemoryAccess.size() >= i + 2 && "Alignment operand is missing");
+					SourceAlignment = MemoryAccess[i + 1];
+					i++;
+				}
+				i++;
+			}
+			else
+			{
+				SourceMemoryAccessMask = TargetMemoryAccessMask;
+				SourceAlignment = TargetAlignment;
 			}
 		}
 		SPIRVWord isVolatile() const {
-			return getMemoryAccessMask() & MemoryAccessVolatileMask;
+			return (TargetMemoryAccessMask & MemoryAccessVolatileMask) || (SourceMemoryAccessMask & MemoryAccessVolatileMask);
 		}
 		SPIRVWord isNonTemporal() const {
-			return getMemoryAccessMask() & MemoryAccessNontemporalMask;
+			return (TargetMemoryAccessMask & MemoryAccessNontemporalMask) || (SourceMemoryAccessMask & MemoryAccessNontemporalMask);
 		}
-		SPIRVWord getMemoryAccessMask() const { return TheMemoryAccessMask; }
-		SPIRVWord getAlignment() const { return Alignment; }
+		SPIRVWord getTargetMemoryAccessMask() const { return TargetMemoryAccessMask; }
+		SPIRVWord getTargetAlignment() const { return TargetAlignment; }
+		SPIRVWord getSourceMemoryAccessMask() const { return SourceMemoryAccessMask; }
+		SPIRVWord getSourceAlignment() const { return SourceAlignment; }
 
 	protected:
-		SPIRVWord TheMemoryAccessMask;
-		SPIRVWord Alignment;
+		SPIRVWord TargetMemoryAccessMask;
+		SPIRVWord TargetAlignment;
+		SPIRVWord SourceMemoryAccessMask;
+		SPIRVWord SourceAlignment;
 	};
 
 	class SPIRVVariable : public SPIRVInstruction {
@@ -1510,6 +1536,7 @@ namespace SPIRV
 	_SPIRV_OP(UConvert)
 	_SPIRV_OP(SConvert)
 	_SPIRV_OP(FConvert)
+	_SPIRV_OP(QuantizeToF16)
 	_SPIRV_OP(SatConvertSToU)
 	_SPIRV_OP(SatConvertUToS)
 	_SPIRV_OP(ConvertPtrToU)
@@ -2725,10 +2752,13 @@ namespace SPIRV
 	DLL_EXPORT SPIRVSpecConstantOp *createSpecConstantOpInst(SPIRVInstruction *Inst);
 	DLL_EXPORT SPIRVInstruction *createInstFromSpecConstantOp(SPIRVSpecConstantOp *C);
 
-	class SPIRVNoLine : public SPIRVInstruction {
+	class SPIRVNoLine : public SPIRVInstruction
+	{
 	public:
 		SPIRVNoLine() : SPIRVInstruction(OpNoLine)
 		{
+			this->setHasNoId();
+			this->setHasNoType();
 		}
 
 		void setScope(SPIRVEntry* Scope) override
@@ -2741,6 +2771,4 @@ namespace SPIRV
 
 		_SPIRV_DCL_ENCDEC
 	};
-} // namespace SPIRV
-
-#endif // SPIRV_LIBSPIRV_SPIRVINSTRUCTION_H
+}

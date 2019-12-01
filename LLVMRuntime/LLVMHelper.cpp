@@ -11,6 +11,11 @@ extern "C" CP_DLL_EXPORT float __gnu_h2f_ieee(half value)
 	return half(value).toFloat();
 }
 
+extern "C" CP_DLL_EXPORT uint16_t __truncdfhf2(double value)
+{
+	return half(value).toRaw();
+}
+
 extern "C" CP_DLL_EXPORT uint32_t FloatToB10G11R11(float values[4])
 {
 	const auto r = ConvertBits<float, UF11>(values[0]);

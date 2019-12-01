@@ -94,6 +94,17 @@ namespace std // NOLINT(cert-dcl58-cpp)
 	{
 		return std::pow(x.toFloat(), y.toFloat());
 	}
+
+	inline bool isnan(half x)
+	{
+		const FloatFormat<half> format(x.toRaw());
+		if ((format.bits & FloatFormat<half>::EXPONENT_MASK) == FloatFormat<half>::EXPONENT_MASK && 
+			(format.bits & FloatFormat<half>::MANTISSA_MASK) != 0)
+		{
+			return true;
+		}
+		return false;
+	}
 	
 	inline bool signbit(half value) noexcept
 	{

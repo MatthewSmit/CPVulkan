@@ -99,26 +99,16 @@ public:
 
 	void* getPointer(const CompiledModule* module, const std::string& name)
 	{
+		return reinterpret_cast<void*>(llvm::cantFail(Lookup(module, name)).getAddress());
+	}
+
+	void* getOptionalPointer(const CompiledModule* module, const std::string& name)
+	{
 		auto symbol = Lookup(module, name);
 		if (symbol)
 		{
 			return reinterpret_cast<void*>(symbol.get().getAddress());
 		}
-
-		// Return nullptr IFF the only missing symbol is the one we are looking for
-		handleAllErrors(symbol.takeError(), [name](llvm::orc::SymbolsNotFound& snf)
-		{
-			if (snf.getSymbols().size() == 1)
-			{
-				const auto invalidSymbol = *snf.getSymbols().begin();
-				if ((*invalidSymbol).compare(name) == 0)
-				{
-					return;
-				}
-			}
-
-			FATAL_ERROR();
-		});
 		
 		return nullptr;
 	}
@@ -254,6 +244,11 @@ void CPJit::SetUserData(void* userData)
 void* CPJit::getPointer(const CompiledModule* module, const std::string& name)
 {
 	return impl->getPointer(module, name);
+}
+
+void* CPJit::getOptionalPointer(const CompiledModule* module, const std::string& name)
+{
+	return impl->getOptionalPointer(module, name);
 }
 
 FunctionPointer CPJit::getFunctionPointer(const CompiledModule* module, const std::string& name)

@@ -95,6 +95,10 @@ struct FloatFormat<half>
 	static constexpr auto EXPONENT_BITS = 5;
 	static constexpr auto MANTISSA_BITS = 10;
 
+	static constexpr auto MANTISSA_MASK = (1 << MANTISSA_BITS) - 1;
+	static constexpr auto EXPONENT_MASK = ((1 << MANTISSA_BITS) - 1) << EXPONENT_BITS;
+	static constexpr auto SIGN_MASK = ((1 << SIGN_BITS) - 1) << (EXPONENT_BITS + MANTISSA_BITS);
+
 	FloatFormat(uint16_t value)
 	{
 		bits = *reinterpret_cast<uint16_t*>(&value);

@@ -717,7 +717,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex), specializationInfo);
 	this->entryPoint = jit->getFunctionPointer(llvmModule, name);
 
-	const auto workgroupSizePtr = jit->getPointer(llvmModule, "@WorkgroupSize");
+	const auto workgroupSizePtr = jit->getOptionalPointer(llvmModule, "@WorkgroupSize");
 	if (workgroupSizePtr)
 	{
 		const auto workgroupSizeValue = static_cast<glm::uvec3*>(workgroupSizePtr);

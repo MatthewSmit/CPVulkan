@@ -144,7 +144,7 @@ static T Clamp(T value, T min, T max)
 template<typename T>
 static T VClamp(T value, T min, T max)
 {
-	T result{};
+	T result{0};
 	for (auto i = 0; i < T::length(); i++)
 	{
 		result[i] = Clamp(value[i], min[i], max[i]);
@@ -257,6 +257,65 @@ static T VFindUMsb(T value)
 	for (auto i = 0; i < T::length(); i++)
 	{
 		result[i] = FindUMsb(value[i]);
+	}
+	return result;
+}
+
+template<typename T>
+static T NMin(T left, T right)
+{
+	if (std::isnan(left))
+	{
+		return right;
+	}
+	return std::min(left, right);
+}
+
+template<typename T>
+static T VNMin(T left, T right)
+{
+	T result{0};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = NMin(left[i], right[i]);
+	}
+	return result;
+}
+
+template<typename T>
+static T NMax(T left, T right)
+{
+	if (std::isnan(left))
+	{
+		return right;
+	}
+	return std::max(left, right);
+}
+
+template<typename T>
+static T VNMax(T left, T right)
+{
+	T result{0};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = NMax(left[i], right[i]);
+	}
+	return result;
+}
+
+template<typename T>
+static T NClamp(T x, T min, T max)
+{
+	return NMin(NMax(x, min), max);
+}
+
+template<typename T>
+static T VNClamp(T x, T min, T max)
+{
+	T result{0};
+	for (auto i = 0; i < T::length(); i++)
+	{
+		result[i] = NClamp(x[i], min[i], max[i]);
 	}
 	return result;
 }
@@ -850,7 +909,18 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@SMax.I64[3].I64[3]", reinterpret_cast<FunctionPointer>(VMax<glm::i64vec3>));
 	jit->AddFunction("@SMax.I64[4].I64[4]", reinterpret_cast<FunctionPointer>(VMax<glm::i64vec4>));
 	
-	// FClamp = 43,
+	jit->AddFunction("@FClamp.F16.F16.F16", reinterpret_cast<FunctionPointer>(Clamp<half>));
+	jit->AddFunction("@FClamp.F16[2].F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VClamp<glm::f16vec2>));
+	jit->AddFunction("@FClamp.F16[3].F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VClamp<glm::f16vec3>));
+	jit->AddFunction("@FClamp.F16[4].F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VClamp<glm::f16vec4>));
+	jit->AddFunction("@FClamp.F32.F32.F32", reinterpret_cast<FunctionPointer>(Clamp<float>));
+	jit->AddFunction("@FClamp.F32[2].F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VClamp<glm::f32vec2>));
+	jit->AddFunction("@FClamp.F32[3].F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VClamp<glm::f32vec3>));
+	jit->AddFunction("@FClamp.F32[4].F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VClamp<glm::f32vec4>));
+	jit->AddFunction("@FClamp.F64.F64.F64", reinterpret_cast<FunctionPointer>(Clamp<double>));
+	jit->AddFunction("@FClamp.F64[2].F64[2].F64[2]", reinterpret_cast<FunctionPointer>(VClamp<glm::f64vec2>));
+	jit->AddFunction("@FClamp.F64[3].F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VClamp<glm::f64vec3>));
+	jit->AddFunction("@FClamp.F64[4].F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VClamp<glm::f64vec4>));
 	
 	jit->AddFunction("@UClamp.U8.U8.U8", reinterpret_cast<FunctionPointer>(Clamp<uint8_t>));
 	jit->AddFunction("@UClamp.U8[2].U8[2].U8[2]", reinterpret_cast<FunctionPointer>(VClamp<glm::u8vec2>));
@@ -973,9 +1043,45 @@ void AddGlslFunctions(DeviceState* deviceState)
 	// InterpolateAtCentroid = 76,
 	// InterpolateAtSample = 77,
 	// InterpolateAtOffset = 78,
-	// NMin = 79,
-	// NMax = 80,
-	// NClamp = 81,
+
+	jit->AddFunction("@NMin.F16.F16", reinterpret_cast<FunctionPointer>(NMin<half>));
+	jit->AddFunction("@NMin.F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VNMin<glm::f16vec2>));
+	jit->AddFunction("@NMin.F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VNMin<glm::f16vec3>));
+	jit->AddFunction("@NMin.F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VNMin<glm::f16vec4>));
+	jit->AddFunction("@NMin.F32.F32", reinterpret_cast<FunctionPointer>(NMin<float>));
+	jit->AddFunction("@NMin.F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VNMin<glm::f32vec2>));
+	jit->AddFunction("@NMin.F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VNMin<glm::f32vec3>));
+	jit->AddFunction("@NMin.F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VNMin<glm::f32vec4>));
+	jit->AddFunction("@NMin.F64.F64", reinterpret_cast<FunctionPointer>(NMin<double>));
+	jit->AddFunction("@NMin.F64[2].F64[2]", reinterpret_cast<FunctionPointer>(VNMin<glm::f64vec2>));
+	jit->AddFunction("@NMin.F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VNMin<glm::f64vec3>));
+	jit->AddFunction("@NMin.F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VNMin<glm::f64vec4>));
+
+	jit->AddFunction("@NMax.F16.F16", reinterpret_cast<FunctionPointer>(NMax<half>));
+	jit->AddFunction("@NMax.F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VNMax<glm::f16vec2>));
+	jit->AddFunction("@NMax.F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VNMax<glm::f16vec3>));
+	jit->AddFunction("@NMax.F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VNMax<glm::f16vec4>));
+	jit->AddFunction("@NMax.F32.F32", reinterpret_cast<FunctionPointer>(NMax<float>));
+	jit->AddFunction("@NMax.F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VNMax<glm::f32vec2>));
+	jit->AddFunction("@NMax.F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VNMax<glm::f32vec3>));
+	jit->AddFunction("@NMax.F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VNMax<glm::f32vec4>));
+	jit->AddFunction("@NMax.F64.F64", reinterpret_cast<FunctionPointer>(NMax<double>));
+	jit->AddFunction("@NMax.F64[2].F64[2]", reinterpret_cast<FunctionPointer>(VNMax<glm::f64vec2>));
+	jit->AddFunction("@NMax.F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VNMax<glm::f64vec3>));
+	jit->AddFunction("@NMax.F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VNMax<glm::f64vec4>));
+
+	jit->AddFunction("@NClamp.F16.F16.F16", reinterpret_cast<FunctionPointer>(NClamp<half>));
+	jit->AddFunction("@NClamp.F16[2].F16[2].F16[2]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f16vec2>));
+	jit->AddFunction("@NClamp.F16[3].F16[3].F16[3]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f16vec3>));
+	jit->AddFunction("@NClamp.F16[4].F16[4].F16[4]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f16vec4>));
+	jit->AddFunction("@NClamp.F32.F32.F32", reinterpret_cast<FunctionPointer>(NClamp<float>));
+	jit->AddFunction("@NClamp.F32[2].F32[2].F32[2]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f32vec2>));
+	jit->AddFunction("@NClamp.F32[3].F32[3].F32[3]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f32vec3>));
+	jit->AddFunction("@NClamp.F32[4].F32[4].F32[4]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f32vec4>));
+	jit->AddFunction("@NClamp.F64.F64.F64", reinterpret_cast<FunctionPointer>(NClamp<double>));
+	jit->AddFunction("@NClamp.F64[2].F64[2].F64[2]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f64vec2>));
+	jit->AddFunction("@NClamp.F64[3].F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f64vec3>));
+	jit->AddFunction("@NClamp.F64[4].F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f64vec4>));
 	
 	jit->AddFunction("@ImageCombine", reinterpret_cast<FunctionPointer>(ImageCombine));
 	
