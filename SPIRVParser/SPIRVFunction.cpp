@@ -116,6 +116,7 @@ void SPIRVFunction::decode(std::istream& I)
 				assert(Param);
 				Module->add(Param);
 				Param->setParent(this);
+				Param->setArgNo(Parameters.size());
 				Parameters.push_back(Param);
 				Decoder.getWordCountAndOpCode();
 				break;

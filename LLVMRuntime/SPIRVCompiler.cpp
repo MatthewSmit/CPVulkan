@@ -385,7 +385,7 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 		
 	case OpTypeMatrix:
 		{
-			auto name = std::string{"Matrix"};
+			auto name = std::string{"@Matrix"};
 			name += std::to_string(spirvType->getMatrixColumnCount());
 			name += 'x';
 			name += std::to_string(spirvType->getMatrixRowCount());
@@ -1696,14 +1696,31 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 
 				if (currentType->isStructTy())
 				{
-					auto index = llvm::dyn_cast<llvm::ConstantInt>(indices[k])->getZExtValue();
-					if (state.structIndexMapping.find(currentType) != state.structIndexMapping.end())
+					auto constantIndex = llvm::dyn_cast<llvm::ConstantInt>(indices[k]);
+					if (constantIndex == nullptr)
 					{
-						index = state.structIndexMapping.at(currentType).at(index);
-						indices[k] = state.builder.getInt32(index);
-					}
+						if (!currentType->getStructName().startswith("@Matrix"))
+						{
+							FATAL_ERROR();
+						}
 
-					currentType = currentType->getStructElementType(index);
+						auto range = llvm::ArrayRef<llvm::Value*>{indices.data() + startIndex, k - startIndex}.vec();
+						range.push_back(state.builder.getInt32(0));
+						llvmValue = state.builder.CreateGEP(llvmValue, range);
+						currentType = currentType->getStructElementType(0);
+						startIndex = k;
+					}
+					else
+					{
+						auto index = constantIndex->getZExtValue();
+						if (state.structIndexMapping.find(currentType) != state.structIndexMapping.end())
+						{
+							index = state.structIndexMapping.at(currentType).at(index);
+							indices[k] = state.builder.getInt32(index);
+						}
+
+						currentType = currentType->getStructElementType(index);
+					}
 				}
 				else if (currentType->isVectorTy())
 				{
