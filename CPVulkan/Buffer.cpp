@@ -164,3 +164,10 @@ VkResult Device::BindBufferMemory2(uint32_t bindInfoCount, const VkBindBufferMem
 
 	return VK_SUCCESS;
 }
+
+#if defined(VK_EXT_buffer_device_address)
+VkDeviceAddress Device::GetBufferDeviceAddress(const VkBufferDeviceAddressInfoEXT* pInfo)
+{
+	return reinterpret_cast<VkDeviceAddress>(UnwrapVulkan<Buffer>(pInfo->buffer)->getData().data());
+}
+#endif

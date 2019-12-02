@@ -331,6 +331,8 @@ static llvm::Type* ConvertType(State& state, SPIRV::SPIRVType* spirvType, bool i
 		
 	case OpTypeStruct:
 		{
+			// TODO: Handle case when on x32 platform and struct contains pointers.
+			// When using the PhysicalStorageBuffer64EXT addressing model, pointers with a class of PhysicalStorageBuffer should be treated as 64 bits wide.
 			const auto strct = static_cast<SPIRV::SPIRVTypeStruct*>(spirvType);
 			const auto& name = strct->getName();
 			auto llvmStruct = llvm::StructType::create(state.context, name);
@@ -487,6 +489,10 @@ static bool IsOpaqueType(SPIRV::SPIRVType* spirvType)
 	case OpTypeSampledImage:
 		return true;
 
+	case OpTypeArray:
+	case OpTypeRuntimeArray:
+		return IsOpaqueType(spirvType->getArrayElementType());
+
 	case OpTypeStruct:
 		for (auto i = 0u; i < spirvType->getStructMemberCount(); i++)
 		{
@@ -496,12 +502,10 @@ static bool IsOpaqueType(SPIRV::SPIRVType* spirvType)
 			}
 		}
 		return false;
-		
-	case OpTypeArray:
-	case OpTypeRuntimeArray:
-		return IsOpaqueType(spirvType->getArrayElementType());
-		
+
 	case OpTypePointer:
+		return spirvType->getModule()->getAddressingModel() == AddressingModelLogical;
+		
 	case OpTypeOpaque:
 	case OpTypeFunction:
 	case OpTypePipe:
@@ -3161,14 +3165,27 @@ static llvm::BasicBlock* ConvertBasicBlock(State& state, llvm::Function* current
 		const auto instruction = spirvBasicBlock->getInst(i);
 		for (const auto decorate : instruction->getDecorates())
 		{
-			if (decorate.first == DecorationRelaxedPrecision)
+			if (decorate.first == DecorationSaturatedConversion)
 			{
+				FATAL_ERROR();
+			}
+			else if (decorate.first == DecorationFPRoundingMode)
+			{
+				FATAL_ERROR();
+			}
+			else if (decorate.first == DecorationFPFastMathMode)
+			{
+				FATAL_ERROR();
 			}
 			else if (decorate.first == DecorationNoContraction)
 			{
 				flags.setAllowContract(false);
 			}
-			else
+			else if (decorate.first == DecorationNoSignedWrap)
+			{
+				FATAL_ERROR();
+			}
+			else if (decorate.first == DecorationNoUnsignedWrap)
 			{
 				FATAL_ERROR();
 			}
@@ -3313,7 +3330,7 @@ std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPI
 	llvm::IRBuilder<> builder(*context);
 	auto llvmModule = std::make_unique<llvm::Module>("", *context);
 
-	if (spirvModule->getAddressingModel() != AddressingModelLogical)
+	if (spirvModule->getAddressingModel() != AddressingModelLogical && spirvModule->getAddressingModel() != AddressingModelPhysicalStorageBuffer64)
 	{
 		FATAL_ERROR();
 	}
@@ -3437,14 +3454,10 @@ std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 			
 		case StorageClassWorkgroup:
 		case StorageClassCrossWorkgroup:
-			FATAL_ERROR();
-			
 		case StorageClassPrivate:
 		case StorageClassFunction:
-			return "";
-			
 		case StorageClassGeneric:
-			FATAL_ERROR();
+			return "";
 			
 		case StorageClassPushConstant:
 			return "_pc_";

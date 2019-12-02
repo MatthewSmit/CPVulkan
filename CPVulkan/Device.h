@@ -200,7 +200,9 @@ public:
 
 	VKAPI_ATTR void VKAPI_PTR SetLocalDimmingAMD(VkSwapchainKHR swapChain, VkBool32 localDimmingEnable);
 
+#if defined(VK_EXT_buffer_device_address)
 	VKAPI_ATTR VkDeviceAddress VKAPI_PTR GetBufferDeviceAddress(const VkBufferDeviceAddressInfoEXT* pInfo);
+#endif
 
 	VKAPI_ATTR void VKAPI_PTR ResetQueryPool(VkQueryPool queryPool, uint32_t firstQuery, uint32_t queryCount);
 

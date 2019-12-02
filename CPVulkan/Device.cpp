@@ -974,11 +974,6 @@ void Device::SetLocalDimmingAMD(VkSwapchainKHR swapChain, VkBool32 localDimmingE
 	FATAL_ERROR();
 }
 
-VkDeviceAddress Device::GetBufferDeviceAddress(const VkBufferDeviceAddressInfoEXT* pInfo)
-{
-	FATAL_ERROR();
-}
-
 #if defined(VK_KHR_timeline_semaphore)
 VkResult Device::GetSemaphoreCounterValue(VkSemaphore semaphore, uint64_t* pValue)
 {

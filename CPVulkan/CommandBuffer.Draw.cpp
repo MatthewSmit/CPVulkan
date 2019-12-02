@@ -618,7 +618,10 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 			pushConstant = std::make_pair(jit->getPointer(llvmModule, MangleName(variable)), GetVariableSize(variable->getType()->getPointerElementType()));
 			break;
 
+		case StorageClassWorkgroup:
+		case StorageClassCrossWorkgroup:
 		case StorageClassPrivate:
+		case StorageClassGeneric:
 			break;
 
 		default:
