@@ -1614,6 +1614,16 @@ static bool TranslateNonTemporalMetadata(State& state, llvm::Instruction* instru
 	return true;
 }
 
+static llvm::Value* GetConstantFloatOrVector(llvm::Type* type, double value)
+{
+	const auto llvmValue = llvm::ConstantFP::get(type, value);
+	if (type->isVectorTy())
+	{
+		return llvm::ConstantVector::getSplat(type->getVectorNumElements(), llvmValue);
+	}
+	return llvmValue;
+}
+
 static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* instruction, llvm::Function* currentFunction, llvm::BasicBlock* llvmBasicBlock)
 {
 	switch (instruction->getOpCode())
@@ -1832,7 +1842,6 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 
 	case OpCompositeConstruct:
 		{
-			// TODO: Optimise if all constant (ie, ConstantVector/ConstantArray/ConstantStruct)
 			const auto compositeConstruct = reinterpret_cast<SPIRV::SPIRVCompositeConstruct*>(instruction);
 
 			llvm::Value* llvmValue;
@@ -1840,16 +1849,20 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			{
 			case OpTypeVector:
 				llvmValue = llvm::UndefValue::get(ConvertType(state, compositeConstruct->getType()));
-				for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
+				for (auto j = 0u, k = 0u; j < compositeConstruct->getConstituents().size(); j++)
 				{
 					const auto element = ConvertValue(state, compositeConstruct->getConstituents()[j], currentFunction);
 					if (element->getType()->isVectorTy())
 					{
-						FATAL_ERROR();
+						for (auto m = 0u; m < element->getType()->getVectorNumElements(); m++)
+						{
+							const auto vectorElement = state.builder.CreateExtractElement(element, m);
+							llvmValue = state.builder.CreateInsertElement(llvmValue, vectorElement, k++);
+						}
 					}
 					else
 					{
-						llvmValue = state.builder.CreateInsertElement(llvmValue, element, j);
+						llvmValue = state.builder.CreateInsertElement(llvmValue, element, k++);
 					}
 				}
 				break;
@@ -2521,10 +2534,28 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			return state.builder.CreateICmpNE(llvmValue, state.builder.getInt32(0));
 		}
 
-		// case OpIsNan: break;
-		// case OpIsInf: break;
-		// case OpIsFinite: break;
-		// case OpIsNormal: break;
+	case OpIsNan:
+		{
+			const auto op = reinterpret_cast<SPIRV::SPIRVUnary*>(instruction);
+			const auto value = ConvertValue(state, op->getOperand(0), currentFunction);
+			return state.builder.CreateFCmpUNO(value, GetConstantFloatOrVector(value->getType(), 0));
+		}
+		
+	case OpIsInf:
+		{
+			FATAL_ERROR();
+		}
+		
+	case OpIsFinite:
+		{
+			FATAL_ERROR();
+		}
+		
+	case OpIsNormal:
+		{
+			FATAL_ERROR();
+		}
+		
 		// case OpSignBitSet: break;
 		// case OpLessOrGreater: break;
 		// case OpOrdered: break;
@@ -2895,8 +2926,18 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 		// case OpEndPrimitive: break;
 		// case OpEmitStreamVertex: break;
 		// case OpEndStreamPrimitive: break;
-		// case OpControlBarrier: break;
-		// case OpMemoryBarrier: break;
+		 
+	case OpControlBarrier:
+		{
+			FATAL_ERROR();
+		}
+		 
+	case OpMemoryBarrier:
+		{
+			const auto op = static_cast<SPIRV::SPIRVAtomicInstBase*>(instruction);
+			auto semantics = static_cast<SPIRV::SPIRVConstant*>(op->getOpValue(1))->getInt32Value();
+			return state.builder.CreateFence(ConvertSemantics(semantics));
+		}
 
 	case OpAtomicLoad:
 		{
