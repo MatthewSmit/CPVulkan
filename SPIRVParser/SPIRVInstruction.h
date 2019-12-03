@@ -100,7 +100,7 @@ namespace SPIRV
 		{
 		};
 
-		SPIRVComponentOperands(std::vector<SPIRVValue *> &&TheOperands)
+		SPIRVComponentOperands(std::vector<SPIRVValue *>&& TheOperands)
 			: Operands(std::move(TheOperands))
 		{
 		};
@@ -109,7 +109,7 @@ namespace SPIRV
 		std::vector<SPIRVType *> getCompOperandTypes()
 		{
 			std::vector<SPIRVType *> Tys;
-			for (auto &I : getCompOperands())
+			for (auto& I : getCompOperands())
 				Tys.push_back(I->getType());
 			return Tys;
 		}
@@ -118,85 +118,99 @@ namespace SPIRV
 		std::vector<SPIRVValue *> Operands;
 	};
 
-	class DLL_EXPORT SPIRVInstruction : public SPIRVValue {
+	class DLL_EXPORT SPIRVInstruction : public SPIRVValue
+	{
 	public:
 		// Complete constructor for instruction with type and id
-		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType *TheType,
-		                 SPIRVId TheId, SPIRVBasicBlock *TheBB);
+		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType* TheType,
+		                 SPIRVId TheId, SPIRVBasicBlock* TheBB);
 		// Complete constructor for instruction with module, type and id
-		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType *TheType,
-		                 SPIRVId TheId, SPIRVBasicBlock *TheBB, SPIRVModule *TheBM);
+		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType* TheType,
+		                 SPIRVId TheId, SPIRVBasicBlock* TheBB, SPIRVModule* TheBM);
 		// Complete constructor for instruction with id but no type
 		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVId TheId,
-		                 SPIRVBasicBlock *TheBB);
+		                 SPIRVBasicBlock* TheBB);
 		// Complete constructor for instruction without type and id
-		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVBasicBlock *TheBB);
+		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVBasicBlock* TheBB);
 		// Complete constructor for instruction with type but no id
-		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType *TheType,
-		                 SPIRVBasicBlock *TheBB);
+		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType* TheType,
+		                 SPIRVBasicBlock* TheBB);
 		// Special constructor for debug instruction
-		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType *TheType,
-		                 SPIRVId TheId, SPIRVModule *TheBM,
-		                 SPIRVBasicBlock *TheBB = nullptr);
+		SPIRVInstruction(unsigned TheWordCount, Op TheOC, SPIRVType* TheType,
+		                 SPIRVId TheId, SPIRVModule* TheBM,
+		                 SPIRVBasicBlock* TheBB = nullptr);
 
 		// Incomplete constructor
 		SPIRVInstruction(Op TheOC = OpNop)
-			: SPIRVValue(TheOC), BB(NULL), DebugScope(nullptr) {}
+			: SPIRVValue(TheOC), BB(NULL), DebugScope(nullptr)
+		{
+		}
 
 		bool isInst() const override { return true; }
-		SPIRVBasicBlock *getParent() const { return BB; }
-		SPIRVInstruction *getPrevious() const { return BB->getPrevious(this); }
-		SPIRVInstruction *getNext() const { return BB->getNext(this); }
+		SPIRVBasicBlock* getParent() const { return BB; }
+		SPIRVInstruction* getPrevious() const { return BB->getPrevious(this); }
+		SPIRVInstruction* getNext() const { return BB->getNext(this); }
 		virtual std::vector<SPIRVValue *> getOperands();
 		std::vector<SPIRVType *> getOperandTypes();
 		static std::vector<SPIRVType *>
-		getOperandTypes(const std::vector<SPIRVValue *> &Ops);
+		getOperandTypes(const std::vector<SPIRVValue*>& Ops);
 
-		void setParent(SPIRVBasicBlock *);
-		void setScope(SPIRVEntry *) override;
-		void addFPRoundingMode(SPIRVFPRoundingModeKind Kind) {
+		void setParent(SPIRVBasicBlock*);
+		void setScope(SPIRVEntry*) override;
+
+		void addFPRoundingMode(SPIRVFPRoundingModeKind Kind)
+		{
 			addDecorate(DecorationFPRoundingMode, Kind);
 		}
+
 		void eraseFPRoundingMode() { eraseDecorate(DecorationFPRoundingMode); }
-		void setSaturatedConversion(bool Enable) {
+
+		void setSaturatedConversion(bool Enable)
+		{
 			if (Enable)
 				addDecorate(DecorationSaturatedConversion);
 			else
 				eraseDecorate(DecorationSaturatedConversion);
 		}
-		bool hasFPRoundingMode(SPIRVFPRoundingModeKind *Kind = nullptr) {
+
+		bool hasFPRoundingMode(SPIRVFPRoundingModeKind* Kind = nullptr)
+		{
 			SPIRVWord V;
 			auto Found = hasDecorate(DecorationFPRoundingMode, 0, &V);
 			if (Found && Kind)
 				*Kind = static_cast<SPIRVFPRoundingModeKind>(V);
 			return Found;
 		}
-		bool isSaturatedConversion() {
+
+		bool isSaturatedConversion()
+		{
 			return hasDecorate(DecorationSaturatedConversion) ||
 				OpCode == OpSatConvertSToU || OpCode == OpSatConvertUToS;
 		}
 
-		SPIRVBasicBlock *getBasicBlock() const { return BB; }
+		SPIRVBasicBlock* getBasicBlock() const { return BB; }
 
-		void setBasicBlock(SPIRVBasicBlock *TheBB) {
+		void setBasicBlock(SPIRVBasicBlock* TheBB)
+		{
 			BB = TheBB;
 			if (TheBB)
 				setModule(TheBB->getModule());
 		}
 
-		void setDebugScope(SPIRVEntry *Scope) { DebugScope = Scope; }
+		void setDebugScope(SPIRVEntry* Scope) { DebugScope = Scope; }
 
-		SPIRVEntry *getDebugScope() const { return DebugScope; }
+		SPIRVEntry* getDebugScope() const { return DebugScope; }
 
 	protected:
 		void validate() const override { SPIRVValue::validate(); }
 
 	private:
-		SPIRVBasicBlock *BB;
-		SPIRVEntry *DebugScope;
+		SPIRVBasicBlock* BB;
+		SPIRVEntry* DebugScope;
 	};
 
-	class SPIRVInstTemplateBase : public SPIRVInstruction {
+	class SPIRVInstTemplateBase : public SPIRVInstruction
+	{
 	public:
 		/// Create an empty instruction. Mainly for getting format information,
 		/// e.g. whether an operand is literal.
@@ -2505,6 +2519,7 @@ namespace SPIRV
 #define _SPIRV_OP(x, ...)                                                      \
   typedef SPIRVInstTemplate<SPIRVImageInstBase, Op##x, __VA_ARGS__> SPIRV##x;
 	// Image instructions
+	_SPIRV_OP(Image, true, 4)
 	_SPIRV_OP(SampledImage, true, 5)
 	_SPIRV_OP(ImageSampleImplicitLod, true, 5, true)
 	_SPIRV_OP(ImageSampleExplicitLod, true, 7, true, 2)

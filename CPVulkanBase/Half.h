@@ -19,6 +19,13 @@ struct half
 public:
 	half() noexcept = default;
 	half(float f) noexcept;
+	
+	static half fromRaw(uint16_t raw)
+	{
+		auto result = half();
+		result.value = raw;
+		return result;
+	}
 
 	[[nodiscard]] float toFloat() const noexcept;
 	[[nodiscard]] uint16_t toRaw() const noexcept { return value; }
@@ -77,7 +84,7 @@ namespace std // NOLINT(cert-dcl58-cpp)
 {
 	inline half abs(half x) noexcept
 	{
-		return x.toRaw() & 0x7FFF;
+		return half::fromRaw(x.toRaw() & 0x7FFF);
 	}
 	
 	inline float sin(half x) noexcept
@@ -98,12 +105,8 @@ namespace std // NOLINT(cert-dcl58-cpp)
 	inline bool isnan(half x)
 	{
 		const FloatFormat<half> format(x.toRaw());
-		if ((format.bits & FloatFormat<half>::EXPONENT_MASK) == FloatFormat<half>::EXPONENT_MASK && 
-			(format.bits & FloatFormat<half>::MANTISSA_MASK) != 0)
-		{
-			return true;
-		}
-		return false;
+		return (format.bits & FloatFormat<half>::EXPONENT_MASK) == FloatFormat<half>::EXPONENT_MASK
+			&& (format.bits & FloatFormat<half>::MANTISSA_MASK) != 0;
 	}
 	
 	inline bool signbit(half value) noexcept

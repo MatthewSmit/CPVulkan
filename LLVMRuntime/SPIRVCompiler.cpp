@@ -1245,6 +1245,45 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageFetch* 
 	return function;
 }
 
+static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVImageRead* imageRead)
+{
+	const auto spirvImageType = static_cast<SPIRV::SPIRVTypeImage*>(imageRead->getOperandTypes()[0]);
+	const auto llvmImageType = CreateOpaqueImageType(state, GetImageTypeName(spirvImageType));
+	
+	const auto resultType = imageRead->getType();
+	const auto coordinateType = imageRead->getOpValue(1)->getType();
+	
+	const auto cube = spirvImageType->getDescriptor().Dim == DimCube;
+	const auto array = spirvImageType->getDescriptor().Arrayed;
+	
+	if (imageRead->getOpWords().size() > 2)
+	{
+		FATAL_ERROR();
+	}
+	
+	const auto functionName = "@Image.Read." + GetTypeName(resultType) + "." + GetTypeName(coordinateType) + (cube ? ".Cube" : "") + (array ? ".Array" : "");
+	const auto cachedFunction = state.functionCache.find(functionName);
+	if (cachedFunction != state.functionCache.end())
+	{
+		return cachedFunction->second;
+	}
+	
+	llvm::Type* params[]
+	{
+		state.builder.getInt8PtrTy(),
+		llvm::PointerType::get(ConvertType(state, resultType), 0),
+		llvmImageType,
+		llvm::PointerType::get(ConvertType(state, coordinateType), 0),
+	};
+	
+	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
+	function->addDereferenceableAttr(1, 16);
+	function->addDereferenceableAttr(3, 16);
+	state.functionCache[functionName] = function;
+	return function;
+}
+
 std::vector<llvm::Value*> MapBuiltin(State& state, BuiltIn builtin, const std::vector<std::pair<BuiltIn, uint32_t>>& builtinMapping)
 {
 	for (const auto mapping : builtinMapping)
@@ -1986,7 +2025,8 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 		{
 			const auto sampledImage = reinterpret_cast<SPIRV::SPIRVSampledImage*>(instruction);
 
-			// Get storage 3 pointers in size
+			// TODO: Could cause issues when called multiple times with same instruction or when returning result from function
+			// Get a storage struct, which is 3 pointers in size
 			llvm::Value* storage = state.builder.CreateAlloca(state.builder.getInt8PtrTy(), state.builder.getInt32(3));
 			storage = state.builder.CreateBitCast(storage, ConvertType(state, sampledImage->getType()));
 
@@ -2093,9 +2133,69 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 
 		// case OpImageGather: break;
 		// case OpImageDrefGather: break;
-		// case OpImageRead: break;
+		 
+	case OpImageRead:
+		{
+			const auto imageRead = reinterpret_cast<SPIRV::SPIRVImageRead*>(instruction);
+			const auto function = GetInbuiltFunction(state, imageRead);
+
+			llvm::Value* args[4];
+			args[0] = state.builder.CreateLoad(state.userData);
+			args[1] = state.builder.CreateAlloca(ConvertType(state, imageRead->getType()));
+			args[2] = ConvertValue(state, imageRead->getOpValue(0), currentFunction);
+			args[3] = ConvertValue(state, imageRead->getOpValue(1), currentFunction);
+
+			const auto tmp3 = state.builder.CreateAlloca(args[3]->getType());
+			state.builder.CreateStore(args[3], tmp3);
+			args[3] = tmp3;
+
+			state.builder.CreateCall(function, args);
+			return state.builder.CreateLoad(args[1]);
+		}
+		
 		// case OpImageWrite: break;
-		// case OpImage: break;
+		
+	case OpImage:
+		{
+			const auto image = reinterpret_cast<SPIRV::SPIRVImage*>(instruction);
+
+			// TODO: Could cause issues when called multiple times with same instruction or when returning result from function
+			// Get a storage struct, which is 3 pointers in size
+			llvm::Value* storage = state.builder.CreateAlloca(state.builder.getInt8PtrTy(), state.builder.getInt32(3));
+			storage = state.builder.CreateBitCast(storage, ConvertType(state, image->getType()));
+			
+			auto sampledImage = ConvertValue(state, image->getOpValue(0), currentFunction);
+
+			const auto functionName = "@ImageGetRaw";
+			const auto cachedFunction = state.functionCache.find(functionName);
+			llvm::Function* function;
+			if (cachedFunction != state.functionCache.end())
+			{
+				function = cachedFunction->second;
+			}
+			else
+			{
+				llvm::Type* params[]
+				{
+					sampledImage->getType(),
+					storage->getType(),
+				};
+			
+				const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+				function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
+				function->addDereferenceableAttr(0, 16);
+				function->addDereferenceableAttr(1, 16);
+				state.functionCache[functionName] = function;
+			}
+			
+			state.builder.CreateCall(function,
+			                         {
+				                         sampledImage,
+				                         storage,
+			                         });
+			return storage;
+		}
+		
 		// case OpImageQueryFormat: break;
 		// case OpImageQueryOrder: break;
 		// case OpImageQuerySizeLod: break;
@@ -3457,7 +3557,7 @@ std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 		case StorageClassPrivate:
 		case StorageClassFunction:
 		case StorageClassGeneric:
-			return "";
+			return "@" + variable->getId();
 			
 		case StorageClassPushConstant:
 			return "_pc_";
@@ -3471,6 +3571,8 @@ std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 		default:
 			FATAL_ERROR();
 		}
+
+		name += ":" + variable->getId();
 	}
 	
 	switch (variable->getStorageClass())
