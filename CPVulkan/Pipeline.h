@@ -123,7 +123,6 @@ public:
 
 	[[nodiscard]] const SPIRV::SPIRVModule* getModule() const { return module; }
 	[[nodiscard]] CompiledModule* getLLVMModule() const { return llvmModule; }
-	[[nodiscard]] const std::string& getName() const { return name; }
 	[[nodiscard]] EntryPoint getEntryPoint() const { return entryPoint; }
 	
 	[[nodiscard]] bool getFragmentOriginUpper() const { return fragmentOriginUpper; }
@@ -133,7 +132,6 @@ private:
 	CPJit* jit;
 	const SPIRV::SPIRVModule* module;
 	CompiledModule* llvmModule;
-	std::string name;
 	EntryPoint entryPoint;
 	
 	bool fragmentOriginUpper{};

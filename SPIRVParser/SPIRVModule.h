@@ -119,6 +119,8 @@ public:
   virtual SPIRVExtInstSetKind getBuiltinSet(SPIRVId) const = 0;
   virtual SPIRVFunction *getEntryPoint(SPIRVExecutionModelKind,
                                        unsigned) const = 0;
+  virtual const std::string& getEntryPointName(SPIRVExecutionModelKind,
+                                               unsigned) const = 0;
   virtual std::set<std::string> &getExtension() = 0;
   virtual SPIRVFunction *getFunction(unsigned) const = 0;
   virtual SPIRVVariable *getVariable(unsigned) const = 0;
@@ -197,7 +199,7 @@ public:
                          const std::vector<SPIRVEntry *> &Targets) = 0;
   virtual SPIRVGroupDecorateGeneric *
   addGroupDecorateGeneric(SPIRVGroupDecorateGeneric *GDec) = 0;
-  virtual void addEntryPoint(SPIRVExecutionModelKind, SPIRVId) = 0;
+  virtual void addEntryPoint(SPIRVExecutionModelKind, const std::string&, SPIRVId) = 0;
   virtual SPIRVForward *addForward(SPIRVType *Ty) = 0;
   virtual SPIRVForward *addForward(SPIRVId, SPIRVType *Ty) = 0;
   virtual SPIRVFunction *addFunction(SPIRVFunction *) = 0;

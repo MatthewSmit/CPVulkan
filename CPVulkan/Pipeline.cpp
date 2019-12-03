@@ -6,6 +6,7 @@
 #include "Util.h"
 
 #include <Jit.h>
+#include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
 #include <SPIRVModule.h>
 
@@ -464,10 +465,10 @@ static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SP
 {
 	for (auto i = 0u; i < module->getNumEntryPoints(stage); i++)
 	{
-		const auto entryPoint = module->getEntryPoint(stage, i);
-		if (entryPoint->getName() == name)
+		const auto entryName = module->getEntryPointName(stage, i);
+		if (entryName == name)
 		{
-			return entryPoint;
+			return module->getEntryPoint(stage, i);
 		}
 	}
 	return nullptr;
@@ -477,7 +478,6 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 	jit{jit}
 {
 	this->module = module->getModule();
-	this->name = name;
 	const auto entryPoint = FindEntryPoint(this->module, static_cast<SPIRV::SPIRVExecutionModelKind>(stageIndex), name);
 	assert(entryPoint);
 
@@ -715,7 +715,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 	}
 
 	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex), specializationInfo);
-	this->entryPoint = jit->getFunctionPointer(llvmModule, name);
+	this->entryPoint = jit->getFunctionPointer(llvmModule, MangleName(entryPoint));
 
 	const auto workgroupSizePtr = jit->getOptionalPointer(llvmModule, "@WorkgroupSize");
 	if (workgroupSizePtr)
@@ -896,7 +896,32 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
-	if (pCreateInfo->flags)
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT)
+	{
+		// TODO
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISPATCH_BASE)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DEFER_COMPILE_BIT_NV)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
+	{
+		FATAL_ERROR();
+	}
+
+	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
 	{
 		FATAL_ERROR();
 	}

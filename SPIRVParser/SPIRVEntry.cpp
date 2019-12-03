@@ -432,7 +432,7 @@ namespace SPIRV
 	void SPIRVEntryPoint::decode(std::istream& I) {
 		getDecoder(I) >> ExecModel >> Target >> Name >> Variables;
 		Module->setName(getOrCreateTarget(), Name);
-		Module->addEntryPoint(ExecModel, Target);
+		Module->addEntryPoint(ExecModel, Name, Target);
 	}
 
 	void SPIRVExecutionMode::encode(spv_ostream& O) const {

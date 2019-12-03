@@ -11,6 +11,7 @@ namespace llvm
 
 namespace SPIRV
 {
+	class SPIRVFunction;
 	class SPIRVModule;
 	class SPIRVVariable;
 }
@@ -18,3 +19,4 @@ namespace SPIRV
 std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo);
 
 std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable);
+std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVFunction* function);

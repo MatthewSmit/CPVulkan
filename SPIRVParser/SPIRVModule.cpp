@@ -58,14 +58,16 @@ namespace SPIRV
 
 	SPIRVModule::~SPIRVModule() {}
 
-	class SPIRVModuleImpl : public SPIRVModule {
+	class SPIRVModuleImpl : public SPIRVModule
+	{
 	public:
 		SPIRVModuleImpl()
 			: SPIRVModule(), NextId(1),
 			  SPIRVVersion(static_cast<SPIRVWord>(VersionNumber::SPIRV_1_0)),
 			  GeneratorId(SPIRVGEN_KhronosLLVMSPIRVTranslator), GeneratorVer(0),
 			  InstSchema(SPIRVISCH_Default), SrcLang(SourceLanguageOpenCL_C),
-			  SrcLangVer(102000) {
+			  SrcLangVer(102000)
+		{
 			AddrModel = sizeof(size_t) == 32 ? AddressingModelPhysical32
 				            : AddressingModelPhysical64;
 			// OpenCL memory model requires Kernel capability
@@ -129,6 +131,14 @@ namespace SPIRV
 				return nullptr;
 			assert(I < Loc->second.size());
 			return get<SPIRVFunction>(Loc->second[I]);
+		}
+		const std::string& getEntryPointName(SPIRVExecutionModelKind EM,
+		                             unsigned I) const override {
+			auto Loc = EntryPointNameVec.find(EM);
+			if (Loc == EntryPointNameVec.end())
+				return nullptr;
+			assert(I < Loc->second.size());
+			return Loc->second[I];
 		}
 		unsigned getNumFunctions() const override { return FuncVec.size(); }
 		unsigned getNumVariables() const override { return VariableVec.size(); }
@@ -204,6 +214,7 @@ namespace SPIRV
 		addGroupMemberDecorate(SPIRVDecorationGroup *Group,
 		                       const std::vector<SPIRVEntry *> &Targets) override;
 		void addEntryPoint(SPIRVExecutionModelKind ExecModel,
+		                   const std::string& name,
 		                   SPIRVId EntryPoint) override;
 		SPIRVForward *addForward(SPIRVType *Ty) override;
 		SPIRVForward *addForward(SPIRVId, SPIRVType *Ty) override;
@@ -434,6 +445,7 @@ namespace SPIRV
 		SPIRVGroupDecVec GroupDecVec;
 		SPIRVExecModelIdSetMap EntryPointSet;
 		SPIRVExecModelIdVecMap EntryPointVec;
+		std::map<SPIRVExecutionModelKind, std::vector<std::string>> EntryPointNameVec;
 		SPIRVStringMap StrMap;
 		SPIRVCapMap CapMap;
 		SPIRVUnknownStructFieldMap UnknownStructFieldMap;
@@ -921,11 +933,14 @@ namespace SPIRV
 	}
 
 	void SPIRVModuleImpl::addEntryPoint(SPIRVExecutionModelKind ExecModel,
-	                                    SPIRVId EntryPoint) {
+	                                    const std::string& name,
+	                                    SPIRVId EntryPoint)
+	{
 		assert(isValid(ExecModel) && "Invalid execution model");
 		assert(EntryPoint != SPIRVID_INVALID && "Invalid entry point");
 		EntryPointSet[ExecModel].insert(EntryPoint);
 		EntryPointVec[ExecModel].push_back(EntryPoint);
+		EntryPointNameVec[ExecModel].push_back(name);
 		addCapabilities(SPIRV::getCapability(ExecModel));
 	}
 

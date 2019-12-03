@@ -1842,8 +1842,15 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 				llvmValue = llvm::UndefValue::get(ConvertType(state, compositeConstruct->getType()));
 				for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
 				{
-					// TODO: Can be vectors or floats
-					llvmValue = state.builder.CreateInsertElement(llvmValue, ConvertValue(state, compositeConstruct->getConstituents()[j], currentFunction), j);
+					const auto element = ConvertValue(state, compositeConstruct->getConstituents()[j], currentFunction);
+					if (element->getType()->isVectorTy())
+					{
+						FATAL_ERROR();
+					}
+					else
+					{
+						llvmValue = state.builder.CreateInsertElement(llvmValue, element, j);
+					}
 				}
 				break;
 
@@ -3325,7 +3332,7 @@ static llvm::Function* ConvertFunction(State& state, const SPIRV::SPIRVFunction*
 
 	const auto llvmFunction = llvm::Function::Create(static_cast<llvm::FunctionType*>(ConvertType(state, spirvFunction->getFunctionType())), 
 	                                                 llvm::GlobalVariable::ExternalLinkage,
-	                                                 spirvFunction->getName(), 
+	                                                 MangleName(spirvFunction), 
 	                                                 state.module);
 
 	for (auto i = 0u; i < spirvFunction->getNumBasicBlock(); i++)
@@ -3557,7 +3564,7 @@ std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 		case StorageClassPrivate:
 		case StorageClassFunction:
 		case StorageClassGeneric:
-			return "@" + variable->getId();
+			return "@" + std::to_string(variable->getId());
 			
 		case StorageClassPushConstant:
 			return "_pc_";
@@ -3571,9 +3578,9 @@ std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 		default:
 			FATAL_ERROR();
 		}
-
-		name += ":" + variable->getId();
 	}
+
+	name += ":" + std::to_string(variable->getId());
 	
 	switch (variable->getStorageClass())
 	{
@@ -3615,4 +3622,15 @@ std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable)
 	default:
 		FATAL_ERROR();
 	}
+}
+
+std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVFunction* function)
+{
+	const auto name = function->getName();
+	if (name.empty())
+	{
+		return "@" + std::to_string(function->getId());
+	}
+
+	return name + ":" + std::to_string(function->getId());
 }
