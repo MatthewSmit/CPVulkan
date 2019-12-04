@@ -1040,6 +1040,59 @@ static std::vector<llvm::Value*> ConvertValue(State& state, std::vector<SPIRV::S
 	return results;
 }
 
+static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVMatrixTimesScalar* matrixTimesScalar)
+{
+	// TODO: Detect row/column major
+	const auto matrix = matrixTimesScalar->getMatrix()->getType();
+	const auto scalar = matrixTimesScalar->getScalar()->getType();
+
+	const auto functionName = "@Matrix.Mult." + GetTypeName(matrix) + "." + GetTypeName(scalar) + ".col";
+	const auto cachedFunction = state.functionCache.find(functionName);
+	if (cachedFunction != state.functionCache.end())
+	{
+		return cachedFunction->second;
+	}
+
+	llvm::Type* params[3];
+	params[0] = llvm::PointerType::get(ConvertType(state, matrixTimesScalar->getType()), 0);
+	params[1] = llvm::PointerType::get(ConvertType(state, matrix), 0);
+	params[2] = ConvertType(state, scalar);
+
+	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
+	function->addDereferenceableAttr(0, 16);
+	function->addDereferenceableAttr(1, 16);
+	state.functionCache[functionName] = function;
+	return function;
+}
+
+static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVVectorTimesMatrix* vectorTimesMatrix)
+{
+	// TODO: Detect row/column major
+	const auto vector = vectorTimesMatrix->getVector()->getType();
+	const auto matrix = vectorTimesMatrix->getMatrix()->getType();
+
+	const auto functionName = "@Matrix.Mult." + GetTypeName(vector) + "." + GetTypeName(matrix) + ".col";
+	const auto cachedFunction = state.functionCache.find(functionName);
+	if (cachedFunction != state.functionCache.end())
+	{
+		return cachedFunction->second;
+	}
+
+	llvm::Type* params[3];
+	params[0] = llvm::PointerType::get(ConvertType(state, vectorTimesMatrix->getType()), 0);
+	params[1] = llvm::PointerType::get(ConvertType(state, vector), 0);
+	params[2] = llvm::PointerType::get(ConvertType(state, matrix), 0);
+	
+	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
+	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
+	function->addDereferenceableAttr(0, 16);
+	function->addDereferenceableAttr(1, 16);
+	function->addDereferenceableAttr(2, 16);
+	state.functionCache[functionName] = function;
+	return function;
+}
+
 static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVMatrixTimesVector* matrixTimesVector)
 {
 	// TODO: Detect row/column major
@@ -1061,7 +1114,7 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVMatrixTimesV
 	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
 	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
 	function->addDereferenceableAttr(0, 16);
-	function->addDereferenceableAttr(1, 64);
+	function->addDereferenceableAttr(1, 16);
 	function->addDereferenceableAttr(2, 16);
 	state.functionCache[functionName] = function;
 	return function;
@@ -1087,9 +1140,9 @@ static llvm::Function* GetInbuiltFunction(State& state, SPIRV::SPIRVMatrixTimesM
 	
 	const auto functionType = llvm::FunctionType::get(llvm::Type::getVoidTy(state.context), params, false);
 	auto function = llvm::Function::Create(functionType, llvm::GlobalValue::ExternalLinkage, 0, functionName, state.module);
-	function->addDereferenceableAttr(0, 64);
-	function->addDereferenceableAttr(1, 64);
-	function->addDereferenceableAttr(2, 64);
+	function->addDereferenceableAttr(0, 16);
+	function->addDereferenceableAttr(1, 16);
+	function->addDereferenceableAttr(2, 16);
 	state.functionCache[functionName] = function;
 	return function;
 }
@@ -2466,8 +2519,48 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			return state.builder.CreateFMul(vector, llvmValue);
 		}
 
-		// case OpMatrixTimesScalar: break;
-		// case OpVectorTimesMatrix: break;
+	case OpMatrixTimesScalar:
+		{
+			const auto matrixTimesScalar = reinterpret_cast<SPIRV::SPIRVMatrixTimesScalar*>(instruction);
+			llvm::Value* args[3];
+			args[1] = ConvertValue(state, matrixTimesScalar->getMatrix(), currentFunction);
+			args[2] = ConvertValue(state, matrixTimesScalar->getScalar(), currentFunction);
+
+			const auto function = GetInbuiltFunction(state, matrixTimesScalar);
+
+			const auto tmp0 = state.builder.CreateAlloca(function->getFunctionType()->getParamType(0)->getPointerElementType());
+			const auto tmp1 = state.builder.CreateAlloca(args[1]->getType());
+			state.builder.CreateStore(args[1], tmp1);
+
+			args[0] = tmp0;
+			args[1] = tmp1;
+
+			state.builder.CreateCall(function, args);
+			return state.builder.CreateLoad(tmp0);
+		}
+
+	case OpVectorTimesMatrix:
+		{
+			const auto vectorTimesMatrix = reinterpret_cast<SPIRV::SPIRVVectorTimesMatrix*>(instruction);
+			llvm::Value* args[3];
+			args[1] = ConvertValue(state, vectorTimesMatrix->getVector(), currentFunction);
+			args[2] = ConvertValue(state, vectorTimesMatrix->getMatrix(), currentFunction);
+
+			const auto function = GetInbuiltFunction(state, vectorTimesMatrix);
+
+			const auto tmp0 = state.builder.CreateAlloca(function->getFunctionType()->getParamType(0)->getPointerElementType());
+			const auto tmp1 = state.builder.CreateAlloca(args[1]->getType());
+			const auto tmp2 = state.builder.CreateAlloca(args[2]->getType());
+			state.builder.CreateStore(args[1], tmp1);
+			state.builder.CreateStore(args[2], tmp2);
+
+			args[0] = tmp0;
+			args[1] = tmp1;
+			args[2] = tmp2;
+
+			state.builder.CreateCall(function, args);
+			return state.builder.CreateLoad(tmp0);
+		}
 
 	case OpMatrixTimesVector:
 		{
