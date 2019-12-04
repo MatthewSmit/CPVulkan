@@ -794,6 +794,13 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, co
 				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
 				switch (input.format)
 				{
+				case VK_FORMAT_R32_SFLOAT:
+					*reinterpret_cast<glm::vec1*>(input.pointer) =
+						*reinterpret_cast<const glm::vec1*>(data0) * w0 +
+						*reinterpret_cast<const glm::vec1*>(data1) * w1 +
+						*reinterpret_cast<const glm::vec1*>(data2) * w2;
+					break;
+
 				case VK_FORMAT_R32G32_SFLOAT:
 					*reinterpret_cast<glm::vec2*>(input.pointer) =
 						*reinterpret_cast<const glm::vec2*>(data0) * w0 +

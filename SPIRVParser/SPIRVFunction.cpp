@@ -97,36 +97,46 @@ void SPIRVFunction::encodeExecutionModes(spv_ostream& O) const
 
 void SPIRVFunction::decode(std::istream& I)
 {
-	auto Decoder = getDecoder(I);
-	Decoder >> Type >> Id >> FCtrlMask >> FuncType;
+	auto decoder = getDecoder(I);
+	decoder >> Type >> Id >> FCtrlMask >> FuncType;
 	Module->addFunction(this);
 	SPIRVDBG(spvdbgs() << "Decode function: " << Id << '\n');
 
-	Decoder.getWordCountAndOpCode();
+	decoder.getWordCountAndOpCode();
 	while (!I.eof())
 	{
-		if (Decoder.OpCode == OpFunctionEnd)
+		if (decoder.OpCode == OpFunctionEnd)
+		{
 			break;
+		}
 
-		switch (Decoder.OpCode)
+		switch (decoder.OpCode)
 		{
 		case OpFunctionParameter:
 			{
-				auto Param = static_cast<SPIRVFunctionParameter*>(Decoder.getEntry());
-				assert(Param);
-				Module->add(Param);
-				Param->setParent(this);
-				Param->setArgNo(Parameters.size());
-				Parameters.push_back(Param);
-				Decoder.getWordCountAndOpCode();
+				const auto parameter = static_cast<SPIRVFunctionParameter*>(decoder.getEntry());
+				assert(parameter);
+				Module->add(parameter);
+				parameter->setParent(this);
+				parameter->setArgNo(Parameters.size());
+				Parameters.push_back(parameter);
+				decoder.getWordCountAndOpCode();
 				break;
 			}
+			
+		case OpLine:
+		case OpNoLine:
+			Module->add(decoder.getEntry());
+			decoder.getWordCountAndOpCode();
+			break;
+
 		case OpLabel:
+			if (!decodeBB(decoder))
 			{
-				if (!decodeBB(Decoder))
-					return;
-				break;
+				return;
 			}
+			break;
+			
 		default:
 			assert(0 && "Invalid SPIRV format");
 		}

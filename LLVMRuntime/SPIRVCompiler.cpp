@@ -1823,6 +1823,36 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 	case OpVectorShuffle:
 		{
 			const auto vectorShuffle = reinterpret_cast<SPIRV::SPIRVVectorShuffle*>(instruction);
+
+			const auto vector1 = ConvertValue(state, vectorShuffle->getVector1(), currentFunction);
+			const auto vector2 = ConvertValue(state, vectorShuffle->getVector2(), currentFunction);
+
+			assert(vector1->getType()->isVectorTy());
+			assert(vector2->getType()->isVectorTy());
+			assert(vector1->getType()->getVectorElementType() == vector2->getType()->getVectorElementType());
+
+			if (vector1->getType()->getVectorNumElements() != vector2->getType()->getVectorNumElements())
+			{
+				auto v1Size = vector1->getType()->getVectorNumElements();
+				llvm::Value* llvmValue = llvm::UndefValue::get(llvm::VectorType::get(vector1->getType()->getVectorElementType(), vectorShuffle->getComponents().size()));
+				for (auto i = 0u; i < vectorShuffle->getComponents().size(); i++)
+				{
+					const auto componentIndex = vectorShuffle->getComponents()[i];
+					if (componentIndex != 0xFFFFFFFF)
+					{
+						if (componentIndex < v1Size)
+						{
+							llvmValue = state.builder.CreateInsertElement(llvmValue, state.builder.CreateExtractElement(vector1, componentIndex), i);
+						}
+						else
+						{
+							llvmValue = state.builder.CreateInsertElement(llvmValue, state.builder.CreateExtractElement(vector2, componentIndex - v1Size), i);
+						}
+					}
+				}
+				return llvmValue;
+			}
+
 			std::vector<llvm::Constant*> components{};
 			for (auto component : vectorShuffle->getComponents())
 			{
@@ -1835,9 +1865,8 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 					components.push_back(llvm::ConstantInt::get(state.builder.getInt32Ty(), component));
 				}
 			}
-			return state.builder.CreateShuffleVector(ConvertValue(state, vectorShuffle->getVector1(), currentFunction),
-			                                         ConvertValue(state, vectorShuffle->getVector2(), currentFunction),
-			                                         llvm::ConstantVector::get(components));
+
+			return state.builder.CreateShuffleVector(vector1, vector2, llvm::ConstantVector::get(components));
 		}
 
 	case OpCompositeConstruct:
@@ -2519,19 +2548,35 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 	case OpAny:
 		{
 			const auto op = reinterpret_cast<SPIRV::SPIRVUnary*>(instruction);
-			auto type = llvm::VectorType::get(state.builder.getInt32Ty(), op->getOperand(0)->getType()->getVectorComponentCount());
-			auto llvmValue = state.builder.CreateZExt(ConvertValue(state, op->getOperand(0), currentFunction), type);
-			llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::experimental_vector_reduce_or, llvmValue);
-			return state.builder.CreateICmpNE(llvmValue, state.builder.getInt32(0));
+			// auto type = llvm::VectorType::get(state.builder.getInt32Ty(), op->getOperand(0)->getType()->getVectorComponentCount());
+			// auto llvmValue = state.builder.CreateZExt(ConvertValue(state, op->getOperand(0), currentFunction), type);
+			// llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::experimental_vector_reduce_or, llvmValue);
+			// return state.builder.CreateICmpNE(llvmValue, state.builder.getInt32(0));
+			const auto vector = ConvertValue(state, op->getOperand(0), currentFunction);
+			auto llvmValue = state.builder.CreateExtractElement(vector, 0ULL);
+			for (auto i = 1u; i < vector->getType()->getVectorNumElements(); i++)
+			{
+				auto tmp = state.builder.CreateExtractElement(vector, i);
+				llvmValue = state.builder.CreateOr(llvmValue, tmp);
+			}
+			return llvmValue;
 		}
 
 	case OpAll:
 		{
 			const auto op = reinterpret_cast<SPIRV::SPIRVUnary*>(instruction);
-			auto type = llvm::VectorType::get(state.builder.getInt32Ty(), op->getOperand(0)->getType()->getVectorComponentCount());
-			auto llvmValue = state.builder.CreateZExt(ConvertValue(state, op->getOperand(0), currentFunction), type);
-			llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::experimental_vector_reduce_and, llvmValue);
-			return state.builder.CreateICmpNE(llvmValue, state.builder.getInt32(0));
+			// auto type = llvm::VectorType::get(state.builder.getInt32Ty(), op->getOperand(0)->getType()->getVectorComponentCount());
+			// auto llvmValue = state.builder.CreateZExt(ConvertValue(state, op->getOperand(0), currentFunction), type);
+			// llvmValue = state.builder.CreateUnaryIntrinsic(llvm::Intrinsic::experimental_vector_reduce_and, llvmValue);
+			// return state.builder.CreateICmpNE(llvmValue, state.builder.getInt32(0));
+			const auto vector = ConvertValue(state, op->getOperand(0), currentFunction);
+			auto llvmValue = state.builder.CreateExtractElement(vector, 0ULL);
+			for (auto i = 1u; i < vector->getType()->getVectorNumElements(); i++)
+			{
+				auto tmp = state.builder.CreateExtractElement(vector, i);
+				llvmValue = state.builder.CreateAnd(llvmValue, tmp);
+			}
+			return llvmValue;
 		}
 
 	case OpIsNan:

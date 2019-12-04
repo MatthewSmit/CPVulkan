@@ -1604,30 +1604,31 @@ namespace SPIRV
 	template <Op OC, SPIRVWord FixedWordCount>
 	class SPIRVFunctionCallGeneric : public SPIRVInstruction {
 	public:
-		SPIRVFunctionCallGeneric(SPIRVType *TheType, SPIRVId TheId,
-		                         const std::vector<SPIRVWord> &TheArgs,
-		                         SPIRVBasicBlock *BB)
-			: SPIRVInstruction(TheArgs.size() + FixedWordCount, OC, TheType, TheId,
-			                   BB),
-			  Args(TheArgs) {
+		SPIRVFunctionCallGeneric(SPIRVType* TheType, SPIRVId TheId,
+		                         const std::vector<SPIRVWord>& TheArgs,
+		                         SPIRVBasicBlock* BB) :
+			SPIRVInstruction(static_cast<uint32_t>(TheArgs.size()) + FixedWordCount, OC, TheType, TheId, BB),
+			Args(TheArgs)
+		{
 			SPIRVFunctionCallGeneric::validate();
 			assert(BB && "Invalid BB");
 		}
-		SPIRVFunctionCallGeneric(SPIRVType *TheType, SPIRVId TheId,
-		                         const std::vector<SPIRVValue *> &TheArgs,
-		                         SPIRVBasicBlock *BB)
-			: SPIRVInstruction(TheArgs.size() + FixedWordCount, OC, TheType, TheId,
-			                   BB) {
+		
+		SPIRVFunctionCallGeneric(SPIRVType* TheType, SPIRVId TheId,
+		                         const std::vector<SPIRVValue *>& TheArgs,
+		                         SPIRVBasicBlock* BB) :
+			SPIRVInstruction(static_cast<uint32_t>(TheArgs.size()) + FixedWordCount, OC, TheType, TheId, BB)
+		{
 			Args = getIds(TheArgs);
 			SPIRVFunctionCallGeneric::validate();
 			assert(BB && "Invalid BB");
 		}
 
-		SPIRVFunctionCallGeneric(SPIRVModule *BM, SPIRVWord ResId, SPIRVType *TheType,
-		                         const std::vector<SPIRVWord> &TheArgs)
-			: SPIRVInstruction(TheArgs.size() + FixedWordCount, OC, TheType, ResId,
-			                   BM),
-			  Args(TheArgs) {}
+		SPIRVFunctionCallGeneric(SPIRVModule* BM, SPIRVWord ResId, SPIRVType* TheType, const std::vector<SPIRVWord>& TheArgs) :
+			SPIRVInstruction(static_cast<uint32_t>(TheArgs.size()) + FixedWordCount, OC, TheType, ResId, BM),
+			Args(TheArgs)
+		{
+		}
 
 		SPIRVFunctionCallGeneric() : SPIRVInstruction(OC) {}
 		const std::vector<SPIRVWord> &getArguments() const { return Args; }
