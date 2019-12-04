@@ -85,6 +85,7 @@ struct VariableInOutData
 	void* pointer;
 	uint32_t location;
 	VkFormat format;
+	SPIRV::SPIRVType* type;
 	InterpolationType interpolation;
 	uint32_t size;
 	uint32_t offset;
@@ -99,16 +100,14 @@ struct VariableUniformData
 
 static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, uint32_t mipLevel, VkFormat format, VkClearColorValue colour)
 {
-	const auto width = image->getImageSize().Level[mipLevel].Width;
-	const auto height = image->getImageSize().Level[mipLevel].Height;
-	const auto depth = image->getImageSize().Level[mipLevel].Depth;
+	const auto& mip = gsl::at(image->getImageSize().Level, mipLevel);
 
 	// TODO: Change to SetPixels when implemented
-	for (auto z = 0u; z < depth; z++)
+	for (auto z = 0u; z < mip.Depth; z++)
 	{
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < mip.Height; y++)
 		{
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < mip.Width; x++)
 			{
 				SetPixel(deviceState, format, image, x, y, z, mipLevel, layer, colour);
 			}
@@ -118,21 +117,31 @@ static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, u
 
 static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, uint32_t mipLevel, VkFormat format, VkClearDepthStencilValue colour)
 {
-	const auto width = image->getImageSize().Level[mipLevel].Width;
-	const auto height = image->getImageSize().Level[mipLevel].Height;
-	const auto depth = image->getImageSize().Level[mipLevel].Depth;
+	const auto& mip = gsl::at(image->getImageSize().Level, mipLevel);
 
 	// TODO: Change to SetPixels when implemented
-	for (auto z = 0u; z < depth; z++)
+	for (auto z = 0u; z < mip.Depth; z++)
 	{
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < mip.Height; y++)
 		{
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < mip.Width; x++)
 			{
 				SetPixel(deviceState, format, image, x, y, z, mipLevel, layer, colour);
 			}
 		}
 	}
+}
+
+static const VkVertexInputAttributeDescription& FindAttribute(uint32_t location, const VertexInputState& vertexInputState)
+{
+	for (const auto& attribute : vertexInputState.VertexAttributeDescriptions)
+	{
+		if (attribute.location == location)
+		{
+			return attribute;
+		}
+	}
+	FATAL_ERROR();
 }
 
 static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, const VertexInputState& vertexInputState)
@@ -144,6 +153,213 @@ static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, cons
 			return bindingDescription;
 		}
 	}
+	FATAL_ERROR();
+}
+
+static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
+{
+	if (type->isTypeMatrix())
+	{
+		return VK_FORMAT_UNDEFINED;
+	}
+
+	if (type->isTypeVector())
+	{
+		if (type->getVectorComponentType()->isTypeFloat(32))
+		{
+			switch (type->getVectorComponentCount())
+			{
+			case 2:
+				return VK_FORMAT_R32G32_SFLOAT;
+			case 3:
+				return VK_FORMAT_R32G32B32_SFLOAT;
+			case 4:
+				return VK_FORMAT_R32G32B32A32_SFLOAT;
+			}
+		}
+
+		if (type->getVectorComponentType()->isTypeFloat(64))
+		{
+			switch (type->getVectorComponentCount())
+			{
+			case 2:
+				return VK_FORMAT_R64G64_SFLOAT;
+			case 3:
+				return VK_FORMAT_R64G64B64_SFLOAT;
+			case 4:
+				return VK_FORMAT_R64G64B64A64_SFLOAT;
+			}
+		}
+
+		if (type->getVectorComponentType()->isTypeInt(32) && static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
+		{
+			switch (type->getVectorComponentCount())
+			{
+			case 2:
+				return VK_FORMAT_R32G32_SINT;
+			case 3:
+				return VK_FORMAT_R32G32B32_SINT;
+			case 4:
+				return VK_FORMAT_R32G32B32A32_SINT;
+			}
+		}
+
+		if (type->getVectorComponentType()->isTypeInt(64) && static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
+		{
+			switch (type->getVectorComponentCount())
+			{
+			case 2:
+				return VK_FORMAT_R64G64_SINT;
+			case 3:
+				return VK_FORMAT_R64G64B64_SINT;
+			case 4:
+				return VK_FORMAT_R64G64B64A64_SINT;
+			}
+		}
+
+		if (type->getVectorComponentType()->isTypeInt(32) && !static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
+		{
+			switch (type->getVectorComponentCount())
+			{
+			case 2:
+				return VK_FORMAT_R32G32_UINT;
+			case 3:
+				return VK_FORMAT_R32G32B32_UINT;
+			case 4:
+				return VK_FORMAT_R32G32B32A32_UINT;
+			}
+		}
+
+		if (type->getVectorComponentType()->isTypeInt(64) && !static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
+		{
+			switch (type->getVectorComponentCount())
+			{
+			case 2:
+				return VK_FORMAT_R64G64_UINT;
+			case 3:
+				return VK_FORMAT_R64G64B64_UINT;
+			case 4:
+				return VK_FORMAT_R64G64B64A64_UINT;
+			}
+		}
+
+		FATAL_ERROR();
+	}
+
+	if (type->isTypeFloat(16))
+	{
+		return VK_FORMAT_R16_SFLOAT;
+	}
+
+	if (type->isTypeFloat(32))
+	{
+		return VK_FORMAT_R32_SFLOAT;
+	}
+
+	if (type->isTypeFloat(64))
+	{
+		return VK_FORMAT_R64_SFLOAT;
+	}
+
+	if (type->isTypeInt(8) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R8_SINT;
+	}
+
+	if (type->isTypeInt(16) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R16_SINT;
+	}
+
+	if (type->isTypeInt(32) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R32_SINT;
+	}
+
+	if (type->isTypeInt(64) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R64_SINT;
+	}
+
+	if (type->isTypeInt(8) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R8_UINT;
+	}
+
+	if (type->isTypeInt(16) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R16_UINT;
+	}
+
+	if (type->isTypeInt(32) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R32_UINT;
+	}
+
+	if (type->isTypeInt(64) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	{
+		return VK_FORMAT_R64_UINT;
+	}
+
+	FATAL_ERROR();
+}
+
+static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
+{
+	if (type->isTypeArray())
+	{
+		const auto size = GetVariableSize(type->getArrayElementType());
+		if (type->hasDecorate(DecorationArrayStride))
+		{
+			const auto stride = *type->getDecorate(DecorationArrayStride).begin();
+			if (stride != size)
+			{
+				FATAL_ERROR();
+			}
+		}
+
+		return size * type->getArrayLength();
+	}
+
+	if (type->isTypeStruct())
+	{
+		auto size = 0u;
+		for (auto i = 0u; i < type->getStructMemberCount(); i++)
+		{
+			const auto decorate = type->getMemberDecorate(i, DecorationOffset);
+			if (decorate && decorate->getLiteral(0) != size)
+			{
+				const auto offset = decorate->getLiteral(0);
+				if (offset < size)
+				{
+					FATAL_ERROR();
+				}
+				else
+				{
+					size = offset;
+				}
+			}
+			size += GetVariableSize(type->getStructMemberType(i));
+		}
+		return size;
+	}
+
+	if (type->isTypeMatrix())
+	{
+		// TODO: Matrix stride & so on
+		return GetVariableSize(type->getMatrixComponentType()) * type->getMatrixColumnCount() * type->getMatrixRowCount();
+	}
+
+	if (type->isTypeVector())
+	{
+		return GetVariableSize(type->getVectorComponentType()) * type->getVectorComponentCount();
+	}
+
+	if (type->isTypeFloat() || type->isTypeInt())
+	{
+		return type->getBitWidth() / 8;
+	}
+
 	FATAL_ERROR();
 }
 
@@ -232,12 +448,16 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 
 static void LoadVertexInput(DeviceState* deviceState, uint32_t vertex, uint32_t instance, const VertexInputState& vertexInputState, const Buffer* const vertexBinding[16], const uint64_t vertexBindingOffset[16], const std::vector<VariableInOutData>& vertexInputs)
 {
-	for (const auto& attribute : vertexInputState.VertexAttributeDescriptions)
+	for (const auto& input : vertexInputs)
 	{
-		for (const auto& input : vertexInputs)
+		if (input.format == VK_FORMAT_UNDEFINED)
 		{
-			if (input.location == attribute.location)
+			assert(input.type->isTypeMatrix());
+			const auto format = GetVariableFormat(input.type->getMatrixVectorType());
+			const auto vectorStride = GetVariableSize(input.type->getMatrixVectorType());
+			for (auto i = 0u; i < input.type->getMatrixColumnCount(); i++)
 			{
+				const auto& attribute = FindAttribute(input.location + i, vertexInputState);
 				const auto& binding = FindBinding(attribute.binding, vertexInputState);
 				uint64_t offset;
 				if (binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX)
@@ -249,25 +469,44 @@ static void LoadVertexInput(DeviceState* deviceState, uint32_t vertex, uint32_t 
 					offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * instance + attribute.offset;
 				}
 				const auto size = GetFormatInformation(attribute.format).TotalSize;
-				if (input.format != attribute.format)
+				const auto pointer = static_cast<uint8_t*>(input.pointer) + i * vectorStride;
+				if (format != attribute.format)
 				{
-					CopyFormatConversion(deviceState, input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), input.format, attribute.format);
+					CopyFormatConversion(deviceState, pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), format, attribute.format);
 				}
 				else
 				{
-					memcpy(input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), size);
+					memcpy(pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), size);
 				}
-				goto end;
 			}
 		}
-		FATAL_ERROR();
-
-	end:
-		continue;
+		else
+		{
+			const auto& attribute = FindAttribute(input.location, vertexInputState);
+			const auto& binding = FindBinding(attribute.binding, vertexInputState);
+			uint64_t offset;
+			if (binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX)
+			{
+				offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * vertex + attribute.offset;
+			}
+			else
+			{
+				offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * instance + attribute.offset;
+			}
+			const auto size = GetFormatInformation(attribute.format).TotalSize;
+			if (input.format != attribute.format)
+			{
+				CopyFormatConversion(deviceState, input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), input.format, attribute.format);
+			}
+			else
+			{
+				memcpy(input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), size);
+			}
+		}
 	}
 }
 
-static void LoadUniforms(DeviceState* deviceState, const SPIRV::SPIRVModule* module, const std::vector<VariableUniformData>& uniformData, int pipelineIndex)
+static void LoadUniforms(DeviceState* deviceState, const std::vector<VariableUniformData>& uniformData, int pipelineIndex)
 {
 	for (const auto& data : uniformData)
 	{
@@ -318,172 +557,6 @@ static float EdgeFunction(const glm::vec4& a, const glm::vec4& b, const glm::vec
 	return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 }
 
-static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
-{
-	if (type->isTypeVector())
-	{
-		if (type->getVectorComponentType()->isTypeFloat(32))
-		{
-			switch (type->getVectorComponentCount())
-			{
-			case 2:
-				return VK_FORMAT_R32G32_SFLOAT;
-			case 3:
-				return VK_FORMAT_R32G32B32_SFLOAT;
-			case 4:
-				return VK_FORMAT_R32G32B32A32_SFLOAT;
-			}
-		}
-		
-		if (type->getVectorComponentType()->isTypeFloat(64))
-		{
-			switch (type->getVectorComponentCount())
-			{
-			case 2:
-				return VK_FORMAT_R64G64_SFLOAT;
-			case 3:
-				return VK_FORMAT_R64G64B64_SFLOAT;
-			case 4:
-				return VK_FORMAT_R64G64B64A64_SFLOAT;
-			}
-		}
-		
-		if (type->getVectorComponentType()->isTypeInt(32) && static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
-		{
-			switch (type->getVectorComponentCount())
-			{
-			case 2:
-				return VK_FORMAT_R32G32_SINT;
-			case 3:
-				return VK_FORMAT_R32G32B32_SINT;
-			case 4:
-				return VK_FORMAT_R32G32B32A32_SINT;
-			}
-		}
-		
-		if (type->getVectorComponentType()->isTypeInt(64) && static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
-		{
-			switch (type->getVectorComponentCount())
-			{
-			case 2:
-				return VK_FORMAT_R64G64_SINT;
-			case 3:
-				return VK_FORMAT_R64G64B64_SINT;
-			case 4:
-				return VK_FORMAT_R64G64B64A64_SINT;
-			}
-		}
-		
-		if (type->getVectorComponentType()->isTypeInt(32) && !static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
-		{
-			switch (type->getVectorComponentCount())
-			{
-			case 2:
-				return VK_FORMAT_R32G32_UINT;
-			case 3:
-				return VK_FORMAT_R32G32B32_UINT;
-			case 4:
-				return VK_FORMAT_R32G32B32A32_UINT;
-			}
-		}
-		
-		if (type->getVectorComponentType()->isTypeInt(64) && !static_cast<SPIRV::SPIRVTypeInt*>(type->getVectorComponentType())->isSigned())
-		{
-			switch (type->getVectorComponentCount())
-			{
-			case 2:
-				return VK_FORMAT_R64G64_UINT;
-			case 3:
-				return VK_FORMAT_R64G64B64_UINT;
-			case 4:
-				return VK_FORMAT_R64G64B64A64_UINT;
-			}
-		}
-	}
-
-	if (type->isTypeFloat(32))
-	{
-		return VK_FORMAT_R32_SFLOAT;
-	}
-
-	if (type->isTypeFloat(64))
-	{
-		return VK_FORMAT_R64_SFLOAT;
-	}
-
-	if (type->isTypeInt(32) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
-	{
-		return VK_FORMAT_R32_SINT;
-	}
-
-	if (type->isTypeInt(64) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
-	{
-		return VK_FORMAT_R64_SINT;
-	}
-
-	if (type->isTypeInt(32) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
-	{
-		return VK_FORMAT_R32_UINT;
-	}
-
-	if (type->isTypeInt(64) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
-	{
-		return VK_FORMAT_R64_UINT;
-	}
-	
-	FATAL_ERROR();
-}
-
-static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
-{
-	if (type->isTypeArray())
-	{
-		// TODO: Array stride & stuff
-		return GetVariableSize(type->getArrayElementType()) * type->getArrayLength();
-	}
-	
-	if (type->isTypeStruct())
-	{
-		auto size = 0u;
-		for (auto i = 0u; i < type->getStructMemberCount(); i++)
-		{
-			const auto decorate = type->getMemberDecorate(i, DecorationOffset);
-			if (decorate && decorate->getLiteral(0) != size)
-			{
-				const auto offset = decorate->getLiteral(0);
-				if (offset < size)
-				{
-					FATAL_ERROR();
-				}
-				else
-				{
-					size = offset;
-				}
-			}
-			size += GetVariableSize(type->getStructMemberType(i));
-		}
-		return size;
-	}
-	
-	if (type->isTypeMatrix())
-	{
-		// TODO: Matrix stride & so on
-		return GetVariableSize(type->getMatrixComponentType()) * type->getMatrixColumnCount() * type->getMatrixRowCount();
-	}
-	
-	if (type->isTypeVector())
-	{
-		return GetVariableSize(type->getVectorComponentType()) * type->getVectorComponentCount();
-	}
-
-	if (type->isTypeFloat() || type->isTypeInt())
-	{
-		return type->getBitWidth() / 8;
-	}
-	
-	FATAL_ERROR();
-}
-
 static void GetVariablePointers(const SPIRV::SPIRVModule* module, 
                                 const CompiledModule* llvmModule, 
                                 CPJit* jit, 
@@ -528,6 +601,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 						jit->getPointer(llvmModule, MangleName(variable)),
 						location,
 						GetVariableFormat(variable->getType()->getPointerElementType()),
+						variable->getType()->getPointerElementType(),
 						interpolationType,
 						size,
 						inputSize
@@ -588,6 +662,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 								static_cast<uint8_t*>(ptr) + j * variableSize,
 								location + j,
 								GetVariableFormat(type),
+								type,
 								InterpolationType::Linear,
 								variableSize,
 								outputSize
@@ -604,6 +679,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 							ptr,
 							location,
 							GetVariableFormat(type),
+							type,
 							InterpolationType::Linear,
 							GetVariableSize(type),
 							outputSize
@@ -716,7 +792,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		static_cast<uint32_t>(assemblerOutput.size()),
 	};
 
-	LoadUniforms(deviceState, module, uniformData, PIPELINE_GRAPHICS);
+	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
 
 	const auto builtinInput = static_cast<VertexBuiltinInput*>(builtinInputPointer);
 	builtinInput->instanceIndex = instance;
@@ -742,6 +818,114 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	}
 	
 	return output;
+}
+
+template<bool Perspective, typename T>
+T SetDatum(T f0, T f1, T p0, T p1, float w0, float w1)
+{
+	return Perspective
+		       ? (w0 * f0 / p0 + w1 * f1 / p1) / (w0 / p0 + w1 / p1)
+		       : w0 * f0 + w1 * f1;
+}
+
+template<bool Perspective, typename T>
+T SetDatum(T f0, T f1, T f2, T p0, T p1, T p2, float w0, float w1, float w2)
+{
+	return Perspective
+		       ? (w0 * f0 / p0 + w1 * f1 / p1 + w2 * f2 / p2) / (w0 / p0 + w1 / p1 + w2 / p2)
+		       : w0 * f0 + w1 * f1 + w2 * f2;
+}
+
+static void SetDatum(const VariableInOutData& input, const void* data)
+{
+	const auto information = GetFormatInformation(input.format);
+	const auto numberElements = information.TotalSize / information.ElementSize;
+	for (auto i = 0u; i < numberElements; i++)
+	{
+		switch (information.Base)
+		{
+		case BaseType::SFloat:
+			switch (information.ElementSize)
+			{
+			case 4:
+				{
+					const auto f = static_cast<const float*>(data)[i];
+					static_cast<float*>(input.pointer)[i] = f;
+					break;
+				}
+
+			default:
+				FATAL_ERROR();
+			}
+			break;
+
+		default:
+			FATAL_ERROR();
+		}
+	}
+}
+
+template<bool Perspective>
+void SetDatum(const VariableInOutData& input, float p0, float p1, const void* data0, const void* data1, float w0, float w1)
+{
+	const auto information = GetFormatInformation(input.format);
+	const auto numberElements = information.TotalSize / information.ElementSize;
+	for (auto i = 0u; i < numberElements; i++)
+	{
+		switch (information.Base)
+		{
+		case BaseType::SFloat:
+			switch (information.ElementSize)
+			{
+			case 4:
+				{
+					const auto f0 = static_cast<const float*>(data0)[i];
+					const auto f1 = static_cast<const float*>(data1)[i];
+					static_cast<float*>(input.pointer)[i] = SetDatum<Perspective>(f0, f1, p0, p1, w0, w1);
+					break;
+				}
+
+			default:
+				FATAL_ERROR();
+			}
+			break;
+
+		default:
+			FATAL_ERROR();
+		}
+	}
+}
+
+template<bool Perspective>
+void SetDatum(const VariableInOutData& input, float p0, float p1, float p2, const void* data0, const void* data1, const void* data2, float w0, float w1, float w2)
+{
+	const auto information = GetFormatInformation(input.format);
+	const auto numberElements = information.TotalSize / information.ElementSize;
+	for (auto i = 0u; i < numberElements; i++)
+	{
+		switch (information.Base)
+		{
+		case BaseType::SFloat:
+			switch (information.ElementSize)
+			{
+			case 4:
+				{
+					const auto f0 = static_cast<const float*>(data0)[i];
+					const auto f1 = static_cast<const float*>(data1)[i];
+					const auto f2 = static_cast<const float*>(data2)[i];
+					static_cast<float*>(input.pointer)[i] = SetDatum<Perspective>(f0, f1, f2, p0, p1, p2, w0, w1, w2);
+					break;
+				}
+
+			default:
+				FATAL_ERROR();
+			}
+			break;
+
+		default:
+			FATAL_ERROR();
+		}
+	}
 }
 
 static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, const uint8_t* vertexData, int vertexStride,
@@ -786,45 +970,20 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, co
 		switch (input.interpolation)
 		{
 		case InterpolationType::Perspective:
-			// TODO: Perspective interpolation
+			{
+				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
+				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
+				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
+				SetDatum<true>(input, p0.w, p1.w, p2.w, data0, data1, data2, w0, w1, w2);
+				break;
+			}
+			
 		case InterpolationType::Linear:
 			{
 				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
 				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
 				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
-				switch (input.format)
-				{
-				case VK_FORMAT_R32_SFLOAT:
-					*reinterpret_cast<glm::vec1*>(input.pointer) =
-						*reinterpret_cast<const glm::vec1*>(data0) * w0 +
-						*reinterpret_cast<const glm::vec1*>(data1) * w1 +
-						*reinterpret_cast<const glm::vec1*>(data2) * w2;
-					break;
-
-				case VK_FORMAT_R32G32_SFLOAT:
-					*reinterpret_cast<glm::vec2*>(input.pointer) =
-						*reinterpret_cast<const glm::vec2*>(data0) * w0 +
-						*reinterpret_cast<const glm::vec2*>(data1) * w1 +
-						*reinterpret_cast<const glm::vec2*>(data2) * w2;
-					break;
-
-				case VK_FORMAT_R32G32B32_SFLOAT:
-					*reinterpret_cast<glm::vec3*>(input.pointer) =
-						*reinterpret_cast<const glm::vec3*>(data0) * w0 +
-						*reinterpret_cast<const glm::vec3*>(data1) * w1 +
-						*reinterpret_cast<const glm::vec3*>(data2) * w2;
-					break;
-
-				case VK_FORMAT_R32G32B32A32_SFLOAT:
-					*reinterpret_cast<glm::vec4*>(input.pointer) =
-						*reinterpret_cast<const glm::vec4*>(data0) * w0 +
-						*reinterpret_cast<const glm::vec4*>(data1) * w1 +
-						*reinterpret_cast<const glm::vec4*>(data2) * w2;
-					break;
-
-				default:
-					FATAL_ERROR();
-				}
+				SetDatum<false>(input, p0.w, p1.w, p2.w, data0, data1, data2, w0, w1, w2);
 				break;
 			}
 			
@@ -1468,11 +1627,12 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 	
 	for (auto i = 0u; i < numberPrimitives; i++)
 	{
-		const auto point = output.builtinData[i].position / output.builtinData[i].position.w;
+		auto p0 = output.builtinData[i].position / output.builtinData[i].position.w;
+		p0.w = output.builtinData[i].position.w;
 		const auto pointScreen = glm::ivec2
 		{
-			static_cast<int32_t>((point.x + 1) * 0.5f * width),
-			static_cast<int32_t>((point.y + 1) * 0.5f * height),
+			static_cast<int32_t>((p0.x + 1) * 0.5f * width),
+			static_cast<int32_t>((p0.y + 1) * 0.5f * height),
 		};
 		const auto pointSize = output.builtinData[i].pointSize;
 		
@@ -1491,26 +1651,10 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 					for (auto input : inputData)
 					{
 						const auto data = output.outputData.data() + i * output.outputStride + input.offset;
-						switch (input.format)
-						{
-						case VK_FORMAT_R32G32_SFLOAT:
-							*reinterpret_cast<glm::vec2*>(input.pointer) = *reinterpret_cast<const glm::vec2*>(data);
-							break;
-
-						case VK_FORMAT_R32G32B32_SFLOAT:
-							*reinterpret_cast<glm::vec3*>(input.pointer) = *reinterpret_cast<const glm::vec3*>(data);
-							break;
-
-						case VK_FORMAT_R32G32B32A32_SFLOAT:
-							*reinterpret_cast<glm::vec4*>(input.pointer) = *reinterpret_cast<const glm::vec4*>(data);
-							break;
-
-						default:
-							FATAL_ERROR();
-						}
+						SetDatum(input, data);
 					}
 					
-					DrawPixel(deviceState, builtinInput, shaderStage, true, point.z, depthImage, stencilImage, images, outputData, x, y);
+					DrawPixel(deviceState, builtinInput, shaderStage, true, p0.z, depthImage, stencilImage, images, outputData, x, y);
 				}
 			}
 		}
@@ -1541,8 +1685,10 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 		const auto p0Index = i * 2 + 0;
 		const auto p1Index = i * 2 + 1;
 
-		const auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
-		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
+		auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		p0.w = output.builtinData[p0Index].position.w;
+		p1.w = output.builtinData[p1Index].position.w;
 		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{width, height}) * 0.5f;
 
 		auto lineDirection = glm::normalize(p1 - p0);
@@ -1574,30 +1720,29 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 							auto t = glm::dot(p - glm::xy(p0), glm::xy(p1) - glm::xy(p0)) / (glm::length(glm::xy(p1) - glm::xy(p0)) * glm::length(glm::xy(p1) - glm::xy(p0)));
 							for (auto input : inputData)
 							{
-								const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
-								const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
-								switch (input.format)
+								switch (input.interpolation)
 								{
-								case VK_FORMAT_R32G32_SFLOAT:
-									*reinterpret_cast<glm::vec2*>(input.pointer) = 
-										*reinterpret_cast<const glm::vec2*>(data0) * (1 - t) +
-										*reinterpret_cast<const glm::vec2*>(data1) * t;
+								case InterpolationType::Perspective:
+									{
+										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										SetDatum<true>(input, p0.w, p1.w, data0, data1, 1 - t, t);
+										break;
+									}
+
+								case InterpolationType::Linear:
+									{
+										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										SetDatum<false>(input, p0.w, p1.w, data0, data1, 1 - t, t);
+										break;
+									}
+
+								case InterpolationType::Flat:
+									memcpy(input.pointer, output.outputData.data() + p0Index * output.outputStride + input.offset, input.size);
 									break;
 
-								case VK_FORMAT_R32G32B32_SFLOAT:
-									*reinterpret_cast<glm::vec3*>(input.pointer) =
-										*reinterpret_cast<const glm::vec3*>(data0) * (1 - t) +
-										*reinterpret_cast<const glm::vec3*>(data1) * t;
-									break;
-
-								case VK_FORMAT_R32G32B32A32_SFLOAT:
-									*reinterpret_cast<glm::vec4*>(input.pointer) =
-										*reinterpret_cast<const glm::vec4*>(data0) * (1 - t) +
-										*reinterpret_cast<const glm::vec4*>(data1) * t;
-									break;
-
-								default:
-									FATAL_ERROR();
+								default: FATAL_ERROR();
 								}
 							}
 							
@@ -1644,8 +1789,10 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 		const auto p0Index = i + 0;
 		const auto p1Index = i + 1;
 
-		const auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
-		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
+		auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		p0.w = output.builtinData[p0Index].position.w;
+		p1.w = output.builtinData[p1Index].position.w;
 		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{width, height}) * 0.5f;
 
 		auto lineDirection = glm::normalize(p1 - p0);
@@ -1677,30 +1824,29 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 							auto t = glm::dot(p - glm::xy(p0), glm::xy(p1) - glm::xy(p0)) / (glm::length(glm::xy(p1) - glm::xy(p0)) * glm::length(glm::xy(p1) - glm::xy(p0)));
 							for (auto input : inputData)
 							{
-								const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
-								const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
-								switch (input.format)
+								switch (input.interpolation)
 								{
-								case VK_FORMAT_R32G32_SFLOAT:
-									*reinterpret_cast<glm::vec2*>(input.pointer) = 
-										*reinterpret_cast<const glm::vec2*>(data0) * (1 - t) +
-										*reinterpret_cast<const glm::vec2*>(data1) * t;
+								case InterpolationType::Perspective:
+									{
+										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										SetDatum<true>(input, p0.w, p1.w, data0, data1, 1 - t, t);
+										break;
+									}
+
+								case InterpolationType::Linear:
+									{
+										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										SetDatum<false>(input, p0.w, p1.w, data0, data1, 1 - t, t);
+										break;
+									}
+
+								case InterpolationType::Flat:
+									memcpy(input.pointer, output.outputData.data() + p0Index * output.outputStride + input.offset, input.size);
 									break;
 
-								case VK_FORMAT_R32G32B32_SFLOAT:
-									*reinterpret_cast<glm::vec3*>(input.pointer) =
-										*reinterpret_cast<const glm::vec3*>(data0) * (1 - t) +
-										*reinterpret_cast<const glm::vec3*>(data1) * t;
-									break;
-
-								case VK_FORMAT_R32G32B32A32_SFLOAT:
-									*reinterpret_cast<glm::vec4*>(input.pointer) =
-										*reinterpret_cast<const glm::vec4*>(data0) * (1 - t) +
-										*reinterpret_cast<const glm::vec4*>(data1) * t;
-									break;
-
-								default:
-									FATAL_ERROR();
+								default: FATAL_ERROR();
 								}
 							}
 							
@@ -1748,9 +1894,12 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 			std::swap(p0Index, p2Index);
 		}
 
-		const auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
-		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
-		const auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
+		auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
+		auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
+		p0.w = output.builtinData[p0Index].position.w;
+		p1.w = output.builtinData[p1Index].position.w;
+		p2.w = output.builtinData[p2Index].position.w;
 
 		for (auto y = 0u; y < height; y++)
 		{
@@ -1802,9 +1951,12 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 			std::swap(p0Index, p2Index);
 		}
 
-		const auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
-		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
-		const auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
+		auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
+		auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
+		p0.w = output.builtinData[p0Index].position.w;
+		p1.w = output.builtinData[p1Index].position.w;
+		p2.w = output.builtinData[p2Index].position.w;
 
 		for (auto y = 0u; y < height; y++)
 		{
@@ -1856,9 +2008,12 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 			std::swap(p0Index, p2Index);
 		}
 
-		const auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
-		const auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
-		const auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
+		auto p0 = output.builtinData[p0Index].position / output.builtinData[p0Index].position.w;
+		auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
+		auto p2 = output.builtinData[p2Index].position / output.builtinData[p2Index].position.w;
+		p0.w = output.builtinData[p0Index].position.w;
+		p1.w = output.builtinData[p1Index].position.w;
+		p2.w = output.builtinData[p2Index].position.w;
 
 		for (auto y = 0u; y < height; y++)
 		{
@@ -1909,7 +2064,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	std::pair<void*, uint32_t> pushConstant{};
 	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
 
-	LoadUniforms(deviceState, module, uniformData, PIPELINE_GRAPHICS);
+	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
 	
 	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
 	std::pair<VkAttachmentDescription, Image*> depthImage{};
@@ -1918,22 +2073,28 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	for (auto i = 0u; i < deviceState->currentSubpass->ColourAttachments.size(); i++)
 	{
 		const auto attachmentIndex = deviceState->currentSubpass->ColourAttachments[i].attachment;
-		const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
-		images[i] = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+		if (attachmentIndex != VK_ATTACHMENT_UNUSED)
+		{
+			const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
+			images[i] = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+		}
 	}
 	
 	if (deviceState->currentSubpass->DepthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
 	{
 		const auto attachmentIndex = deviceState->currentSubpass->DepthStencilAttachment.attachment;
-		const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
-		const auto format = deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getFormat();
-		if (GetFormatInformation(format).DepthStencil.DepthOffset != INVALID_OFFSET)
+		if (attachmentIndex != VK_ATTACHMENT_UNUSED)
 		{
-			depthImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
-		}
-		if (GetFormatInformation(format).DepthStencil.StencilOffset != INVALID_OFFSET)
-		{
-			stencilImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+			const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
+			const auto format = deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getFormat();
+			if (GetFormatInformation(format).DepthStencil.DepthOffset != INVALID_OFFSET)
+			{
+				depthImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+			}
+			if (GetFormatInformation(format).DepthStencil.StencilOffset != INVALID_OFFSET)
+			{
+				stencilImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+			}
 		}
 	}
 
@@ -2032,7 +2193,7 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 
 	assert(inputData.empty() && outputData.empty());
 	
-	LoadUniforms(deviceState, module, uniformData, PIPELINE_COMPUTE);
+	LoadUniforms(deviceState, uniformData, PIPELINE_COMPUTE);
 	
 	if (pushConstant.first)
 	{

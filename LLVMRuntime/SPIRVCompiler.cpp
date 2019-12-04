@@ -1963,7 +1963,7 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 			case OpTypeArray:
 				{
 					const auto arrayType = ConvertType(state, compositeConstruct->getType());
-					if (state.arrayStrideMultiplier.find(arrayType) == state.arrayStrideMultiplier.end())
+					if (state.arrayStrideMultiplier.find(arrayType) != state.arrayStrideMultiplier.end())
 					{
 						// TODO: Support stride
 						FATAL_ERROR();
@@ -2962,8 +2962,8 @@ static llvm::Value* ConvertInstruction(State& state, SPIRV::SPIRVInstruction* in
 				                                                  ? op->getOperand(1)->getType()->getVectorComponentType()
 				                                                  : op->getOperand(1)->getType())->isSigned();
 			auto llvmValue = isSigned
-				                 ? state.builder.CreateSExt(base, shift->getType())
-				                 : state.builder.CreateZExt(base, shift->getType());
+				                 ? state.builder.CreateSExt(shift, base->getType())
+				                 : state.builder.CreateZExt(shift, base->getType());
 			return state.builder.CreateShl(base, llvmValue);
 		}
 
