@@ -1614,14 +1614,22 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 
 static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
                              std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                             std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
-                             uint32_t width, uint32_t height,
+                             std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                              const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 1)
 	{
 		return;
 	}
+
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
+		                      ? deviceState->viewports[0]
+		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 
 	const auto numberPrimitives = output.vertexCount;
 	
@@ -1631,18 +1639,18 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 		p0.w = output.builtinData[i].position.w;
 		const auto pointScreen = glm::ivec2
 		{
-			static_cast<int32_t>((p0.x + 1) * 0.5f * width),
-			static_cast<int32_t>((p0.y + 1) * 0.5f * height),
+			static_cast<int32_t>((p0.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
 		};
 		const auto pointSize = output.builtinData[i].pointSize;
 		
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < viewport.height; y++)
 		{
 			builtinInput->fragCoord.y = y;
 		
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < viewport.width; x++)
 			{
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : width - x - 1;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
 
 				const auto s = 0.5f + (static_cast<int32_t>(x) - pointScreen.x) / pointSize;
 				const auto t = 0.5f + (static_cast<int32_t>(y) - pointScreen.y) / pointSize;
@@ -1663,8 +1671,7 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 
 static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
                             std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                            std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
-                            uint32_t width, uint32_t height,
+                            std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                             const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 2)
@@ -1672,7 +1679,16 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 		return;
 	}
 
-	const auto halfPixel = glm::vec2(1.0f / width, 1.0f / height) * 0.5f;
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
+		                      ? deviceState->viewports[0]
+		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
+
+	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
 	const auto numberPrimitives = output.vertexCount / 2;
 	
 	for (auto i = 0u; i < numberPrimitives; i++)
@@ -1689,7 +1705,7 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 		auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
 		p0.w = output.builtinData[p0Index].position.w;
 		p1.w = output.builtinData[p1Index].position.w;
-		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{width, height}) * 0.5f;
+		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{ viewport.width, viewport.height }) * 0.5f;
 
 		auto lineDirection = glm::normalize(p1 - p0);
 		auto perpendicularLineDirection = glm::fvec2{lineDirection.y, -lineDirection.x};
@@ -1698,15 +1714,15 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 		auto p10 = glm::xy(p1) + perpendicularLineDirection * lineWidth;
 		auto p11 = glm::xy(p1) - perpendicularLineDirection * lineWidth;
 			
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < viewport.height; y++)
 		{
-			const auto yf = (static_cast<float>(y) / height + halfPixel.y) * 2 - 1;
+			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 		
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < viewport.width; x++)
 			{
-				const auto xf = (static_cast<float>(x) / width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : width - x - 1;
+				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 
 				switch (rasterisationState.LineRasterizationMode)
@@ -1767,8 +1783,7 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 
 static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
                              std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                             std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
-                             uint32_t width, uint32_t height,
+                             std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                              const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 2)
@@ -1776,7 +1791,16 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 		return;
 	}
 
-	const auto halfPixel = glm::vec2(1.0f / width, 1.0f / height) * 0.5f;
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
+		                      ? deviceState->viewports[0]
+		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
+
+	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
 	const auto numberPrimitives = output.vertexCount - 1;
 	
 	for (auto i = 0u; i < numberPrimitives; i++)
@@ -1793,7 +1817,7 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 		auto p1 = output.builtinData[p1Index].position / output.builtinData[p1Index].position.w;
 		p0.w = output.builtinData[p0Index].position.w;
 		p1.w = output.builtinData[p1Index].position.w;
-		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{width, height}) * 0.5f;
+		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{ viewport.width, viewport.height }) * 0.5f;
 
 		auto lineDirection = glm::normalize(p1 - p0);
 		auto perpendicularLineDirection = glm::fvec2{lineDirection.y, -lineDirection.x};
@@ -1802,15 +1826,15 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 		auto p10 = glm::xy(p1) + perpendicularLineDirection * lineWidth;
 		auto p11 = glm::xy(p1) - perpendicularLineDirection * lineWidth;
 			
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < viewport.height; y++)
 		{
-			const auto yf = (static_cast<float>(y) / height + halfPixel.y) * 2 - 1;
+			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 		
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < viewport.width; x++)
 			{
-				const auto xf = (static_cast<float>(x) / width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : width - x - 1;
+				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 
 				switch (rasterisationState.LineRasterizationMode)
@@ -1872,7 +1896,6 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
                                 std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
                                 std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
-                                uint32_t width, uint32_t height,
                                 const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 3)
@@ -1880,7 +1903,16 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 		return;
 	}
 
-	const auto halfPixel = glm::vec2(1.0f / width, 1.0f / height) * 0.5f;
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
+		                      ? deviceState->viewports[0]
+		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
+
+	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
 	const auto numberPrimitives = output.vertexCount / 3;
 
 	for (auto i = 0u; i < numberPrimitives; i++)
@@ -1901,15 +1933,15 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 		p1.w = output.builtinData[p1Index].position.w;
 		p2.w = output.builtinData[p2Index].position.w;
 
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < viewport.height; y++)
 		{
-			const auto yf = (static_cast<float>(y) / height + halfPixel.y) * 2 - 1;
+			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < viewport.width; x++)
 			{
-				const auto xf = (static_cast<float>(x) / width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : width - x - 1;
+				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 
 				float depth;
@@ -1928,16 +1960,24 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 
 static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
                                  std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                                 std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
-                                 uint32_t width, uint32_t height,
+                                 std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                                  const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 3)
 	{
 		return;
 	}
+
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
+		                      ? deviceState->viewports[0]
+		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 	
-	const auto halfPixel = glm::vec2(1.0f / width, 1.0f / height) * 0.5f;
+	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
 	const auto numberPrimitives = output.vertexCount - 2;
 
 	for (auto i = 0u; i < numberPrimitives; i++)
@@ -1958,15 +1998,15 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 		p1.w = output.builtinData[p1Index].position.w;
 		p2.w = output.builtinData[p2Index].position.w;
 
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < viewport.height; y++)
 		{
-			const auto yf = (static_cast<float>(y) / height + halfPixel.y) * 2 - 1;
+			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < viewport.width; x++)
 			{
-				const auto xf = (static_cast<float>(x) / width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : width - x - 1;
+				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 
 				float depth;
@@ -1985,8 +2025,7 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 
 static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
                                std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                               std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
-                               uint32_t width, uint32_t height,
+                               std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                                const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 3)
@@ -1994,7 +2033,16 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 		return;
 	}
 
-	const auto halfPixel = glm::vec2(1.0f / width, 1.0f / height) * 0.5f;
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
+	{
+		FATAL_ERROR();
+	}
+
+	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
+		                      ? deviceState->viewports[0]
+		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
+
+	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
 	const auto numberPrimitives = output.vertexCount - 2;
 
 	for (auto i = 0u; i < numberPrimitives; i++)
@@ -2015,15 +2063,15 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 		p1.w = output.builtinData[p1Index].position.w;
 		p2.w = output.builtinData[p2Index].position.w;
 
-		for (auto y = 0u; y < height; y++)
+		for (auto y = 0u; y < viewport.width; y++)
 		{
-			const auto yf = (static_cast<float>(y) / height + halfPixel.y) * 2 - 1;
+			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 
-			for (auto x = 0u; x < width; x++)
+			for (auto x = 0u; x < viewport.width; x++)
 			{
-				const auto xf = (static_cast<float>(x) / width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : width - x - 1;
+				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
+				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 
 				float depth;
@@ -2098,33 +2146,6 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		}
 	}
 
-	uint32_t width = 0;
-	uint32_t height = 0;
-	if (depthImage.second)
-	{
-		width = depthImage.second->getWidth();
-		height = depthImage.second->getHeight();
-	}
-	else if (stencilImage.second)
-	{
-		width = stencilImage.second->getWidth();
-		height = stencilImage.second->getHeight();
-	}
-	else
-	{
-		for (auto i = 0u; i < MAX_FRAGMENT_OUTPUT_ATTACHMENTS; i++)
-		{
-			width = images[0].second->getWidth();
-			height = images[0].second->getHeight();
-			break;
-		}
-	}
-
-	if (width == 0 || height == 0)
-	{
-		FATAL_ERROR();
-	}
-
 	if (pushConstant.first)
 	{
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
@@ -2141,27 +2162,27 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	switch (inputAssembly.Topology)
 	{
 	case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
-		ProcessPointList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, width, height, output, rasterisationState, inputData);
+		ProcessPointList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 		
 	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
-		ProcessLineList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, width, height, output, rasterisationState, inputData);
+		ProcessLineList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 
 	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
-		ProcessLineStrip(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, width, height, output, rasterisationState, inputData);
+		ProcessLineStrip(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 		
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
-		ProcessTriangleList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, width, height, output, rasterisationState, inputData);
+		ProcessTriangleList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 		
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
-		ProcessTriangleStrip(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, width, height, output, rasterisationState, inputData);
+		ProcessTriangleStrip(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 		
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
-		ProcessTriangleFan(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, width, height, output, rasterisationState, inputData);
+		ProcessTriangleFan(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 
 	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY: FATAL_ERROR();
