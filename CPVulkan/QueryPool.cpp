@@ -133,6 +133,9 @@ VkResult QueryPool::Create(const VkQueryPoolCreateInfo* pCreateInfo, const VkAll
 		const auto type = next->sType;
 		switch (type)
 		{
+			// case VK_STRUCTURE_TYPE_QUERY_POOL_PERFORMANCE_CREATE_INFO_KHR:
+			// break;
+			
 		default:
 			break;
 		}

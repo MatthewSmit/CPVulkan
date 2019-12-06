@@ -61,6 +61,10 @@ public:
 	Framebuffer* currentFramebuffer;
 	VkRect2D currentRenderArea;
 
+	uint64_t vertexStorageSize{};
+	void* vertexBuiltinInputStorage{};
+	void* vertexBuiltinOutputStorage{};
+
 	std::unordered_map<VkFormat, std::unique_ptr<ImageFunctions>> imageFunctions{};
 	CPJit* jit;
 	

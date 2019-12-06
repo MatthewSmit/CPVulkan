@@ -3,7 +3,7 @@
 
 #include <vector>
 
-struct EntryPoint
+struct ExtensionEntryPoint
 {
 	const char* Name;
 	PFN_vkVoidFunction Function;
@@ -15,7 +15,7 @@ struct Extension
 	const char* Name;
 	uint32_t Version;
 	bool Device;
-	std::vector<EntryPoint> EntryPoints{};
+	std::vector<ExtensionEntryPoint> EntryPoints{};
 };
 
 class ExtensionGroup

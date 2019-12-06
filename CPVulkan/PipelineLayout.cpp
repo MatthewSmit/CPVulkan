@@ -15,8 +15,18 @@ VkResult PipelineLayout::Create(const VkPipelineLayoutCreateInfo* pCreateInfo, c
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	// TODO
+	pipelineLayout->descriptorSetLayouts = std::vector<DescriptorSetLayout*>(pCreateInfo->setLayoutCount);
+	for (auto i = 0u; i < pCreateInfo->setLayoutCount; i++)
+	{
+		pipelineLayout->descriptorSetLayouts[i] = UnwrapVulkan<DescriptorSetLayout>(pCreateInfo->pSetLayouts[i]);
+	}
 
+	pipelineLayout->pushConstantRanges = std::vector<VkPushConstantRange>(pCreateInfo->pushConstantRangeCount);
+	for (auto i = 0u; i < pCreateInfo->pushConstantRangeCount; i++)
+	{
+		pipelineLayout->pushConstantRanges[i] = pCreateInfo->pPushConstantRanges[i];
+	}
+	
 	WrapVulkan(pipelineLayout, pPipelineLayout);
 	return VK_SUCCESS;
 }

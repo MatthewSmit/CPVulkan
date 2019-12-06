@@ -3,6 +3,8 @@
 
 #include <spirv.hpp>
 
+constexpr auto ALIGNMENT = 8;
+
 namespace llvm
 {
 	class LLVMContext;
@@ -25,7 +27,7 @@ public:
 	~CPJit();
 
 	CompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo);
-	CompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module);
+	CompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module, std::function<void*(const std::string&)> getFunction = nullptr);
 	void FreeModule(CompiledModule* compiledModule);
 
 	void AddFunction(const std::string& name, FunctionPointer pointer);

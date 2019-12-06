@@ -1,5 +1,6 @@
 #include "SPIRVCompiler.h"
 
+#include "Jit.h"
 #include "SPIRVInstruction.h"
 #include "SPIRVModule.h"
 
@@ -14,8 +15,6 @@
 #include <gsl/gsl>
 
 #include <cstdlib>
-
-constexpr auto ALIGNMENT = 8;
 
 struct State
 {

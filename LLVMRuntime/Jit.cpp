@@ -10,11 +10,7 @@
 #include <llvm/ExecutionEngine/Orc/LLJIT.h>
 #include <llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h>
 #include <llvm/ExecutionEngine/SectionMemoryManager.h>
-
-#if !defined(_MSC_VER)
-#define __debugbreak() __asm__("int3")
-#endif
-#define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
+#include <utility>
 
 class CompiledModule
 {
@@ -55,15 +51,15 @@ public:
 		return CompileModule(std::move(context), std::move(module));
 	}
 
-	CompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
+	CompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module, std::function<void*(const std::string&)> getFunction = nullptr)
 	{
 		const auto safeContext = llvm::orc::ThreadSafeContext(std::move(context));
 		auto safeModule = llvm::orc::ThreadSafeModule(std::move(module), safeContext);
 		const auto moduleValue = safeModule.getModule();
 		auto& dylib = executionSession.createJITDylib("shader");
-		dylib.setGenerator([this](llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names)
+		dylib.setGenerator([this, getFunction](llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names)
 		{
-			return getFunctions(parent, names);
+			return getFunctions(parent, names, getFunction);
 		});
 		auto xxx = llvm::orc::DynamicLibrarySearchGenerator::Load(nullptr, dataLayout);
 		
@@ -123,9 +119,9 @@ private:
 
 	std::unordered_map<std::string, FunctionPointer> functions{};
 	llvm::sys::DynamicLibrary library;
-	void* userData;
+	void* userData{};
 
-	llvm::orc::SymbolNameSet getFunctions(llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names)
+	llvm::orc::SymbolNameSet getFunctions(llvm::orc::JITDylib& parent, const llvm::orc::SymbolNameSet& names, std::function<void*(const std::string&)> getFunction = nullptr)
 	{
 		const auto hasGlobalPrefix = (dataLayout.getGlobalPrefix() != '\0');
 		
@@ -139,38 +135,51 @@ private:
 			}
 
 			std::string tmp((*name).data(), (*name).size());
-			auto functionPtr = functions.find(tmp);
-			FunctionPointer function;
-			if (functionPtr != functions.end())
+
+			FunctionPointer function = nullptr;
+			if (getFunction)
 			{
-				function = functionPtr->second;
+				function = reinterpret_cast<FunctionPointer>(getFunction(tmp));
 			}
-			else
+
+			if (!function)
 			{
-				functionPtr = getSpirvFunctions().find(tmp);
+				auto functionPtr = functions.find(tmp);
+				if (functionPtr != functions.end())
+				{
+					function = functionPtr->second;
+				}
+			}
+			
+			if (!function)
+			{
+				auto functionPtr = getSpirvFunctions().find(tmp);
 				if (functionPtr != getSpirvFunctions().end())
 				{
 					function = functionPtr->second;
 				}
-				else
+			}
+
+			if (!function)
+			{
+				if (hasGlobalPrefix)
 				{
-					if (hasGlobalPrefix)
-					{
-						if ((*name).front() != dataLayout.getGlobalPrefix())
-						{
-							continue;
-						}
-						tmp = std::string((*name).data() + (hasGlobalPrefix ? 1 : 0), (*name).size());
-					}
-					if (auto address = library.getAddressOfSymbol(tmp.c_str()))
-					{
-						function = reinterpret_cast<FunctionPointer>(address);
-					}
-					else
+					if ((*name).front() != dataLayout.getGlobalPrefix())
 					{
 						continue;
 					}
+					tmp = std::string((*name).data() + (hasGlobalPrefix ? 1 : 0), (*name).size());
 				}
+				
+				if (const auto address = library.getAddressOfSymbol(tmp.c_str()))
+				{
+					function = reinterpret_cast<FunctionPointer>(address);
+				}
+			}
+
+			if (!function)
+			{
+				continue;
 			}
 
 			addedSymbols.insert(name);
@@ -221,9 +230,9 @@ CompiledModule* CPJit::CompileModule(const SPIRV::SPIRVModule* spirvModule, spv:
 	return impl->CompileModule(spirvModule, executionModel, specializationInfo);
 }
 
-CompiledModule* CPJit::CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module)
+CompiledModule* CPJit::CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module, std::function<void*(const std::string&)> getFunction)
 {
-	return impl->CompileModule(std::move(context), std::move(module));
+	return impl->CompileModule(std::move(context), std::move(module), std::move(getFunction));
 }
 
 void CPJit::FreeModule(CompiledModule* compiledModule)

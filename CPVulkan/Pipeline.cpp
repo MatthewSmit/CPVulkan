@@ -1,11 +1,14 @@
 #include "Pipeline.h"
 
+#include "DescriptorSetLayout.h"
 #include "Device.h"
 #include "DeviceState.h"
+#include "PipelineLayout.h"
 #include "ShaderModule.h"
 #include "Util.h"
 
 #include <Jit.h>
+#include <PipelineCompiler.h>
 #include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
 #include <SPIRVModule.h>
@@ -730,7 +733,41 @@ ShaderFunction::~ShaderFunction()
 	jit->FreeModule(llvmModule);
 }
 
-Pipeline::~Pipeline() = default;
+Pipeline::~Pipeline()
+{
+	jit->FreeModule(vertexModule);
+}
+
+void Pipeline::CompilePipeline()
+{
+	auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(layout->getDescriptorSetLayouts().size());
+	for (auto i = 0u; i < layoutBindings.size(); i++)
+	{
+		layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
+	}
+	
+	vertexModule = CompileVertexPipeline(jit, layoutBindings, [&](const std::string& symbolName)
+	{
+		if (symbolName == "!VertexShader")
+		{
+			return static_cast<void*>(this->shaderStages[0]->getEntryPoint());
+		}
+
+		if (symbolName == "!VertexBuiltinInput")
+		{
+			return jit->getPointer(this->shaderStages[0]->getLLVMModule(), "_builtinInput");
+		}
+
+		if (symbolName == "!VertexBuiltinOutput")
+		{
+			return jit->getPointer(this->shaderStages[0]->getLLVMModule(), "_builtinOutput");
+		}
+
+
+		return static_cast<void*>(nullptr);
+	});
+	vertexEntryPoint = jit->getFunctionPointer(vertexModule, "@VertexProcessing");
+}
 
 VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
 {
@@ -746,6 +783,8 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
+
+	pipeline->jit = device->getState()->jit;
 
 	auto feedback = false;
 	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
@@ -829,6 +868,7 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	pipeline->depthStencilState = Parse(pCreateInfo->pDepthStencilState);
 	pipeline->colourBlendState = Parse(pCreateInfo->pColorBlendState);
 	pipeline->dynamicState = Parse(pCreateInfo->pDynamicState);
+	pipeline->layout = UnwrapVulkan<PipelineLayout>(pCreateInfo->layout);
 
 	const auto endTime = feedback ? Platform::GetTimestamp() : 0;
 
@@ -855,6 +895,8 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 			next = next->pNext;
 		}
 	}
+
+	pipeline->CompilePipeline();
 
 	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;

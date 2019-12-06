@@ -113,11 +113,11 @@ struct DynamicState
 	bool DynamicLineStipple;
 };
 
+using EntryPoint = void (*)();
+
 class ShaderFunction final
 {
 public:
-	using EntryPoint = void (*)();
-	
 	ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo);
 	~ShaderFunction();
 
@@ -153,6 +153,8 @@ public:
 	{
 	}
 
+	void CompilePipeline();
+
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
@@ -168,8 +170,15 @@ public:
 	[[nodiscard]] const ColourBlendState& getColourBlendState() const { return colourBlendState; }
 	[[nodiscard]] const DynamicState& getDynamicState() const { return dynamicState; }
 
+	[[nodiscard]] CompiledModule* getVertexModule() const { return vertexModule; }
+	[[nodiscard]] EntryPoint getVertexEntryPoint() const { return vertexEntryPoint; }
+
 private:
 	std::array<std::unique_ptr<ShaderFunction>, 6> shaderStages;
+
+	CPJit* jit{};
+	CompiledModule* vertexModule{};
+	EntryPoint vertexEntryPoint{};
 	
 	VertexInputState vertexInputState{};
 	InputAssemblyState inputAssemblyState{};
@@ -180,4 +189,6 @@ private:
 	DepthStencilState depthStencilState{};
 	ColourBlendState colourBlendState{};
 	DynamicState dynamicState{};
+	
+	PipelineLayout* layout{};
 };
