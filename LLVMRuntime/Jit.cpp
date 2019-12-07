@@ -32,6 +32,8 @@ public:
 		  dataLayout(dataLayout),
 		  mangle(executionSession, this->dataLayout)
 	{
+		LLVMInitializeNativeTarget();
+		
 		// TODO: Only setOverrideObjectFlagsWithResponsibilityFlags on windows
 		objectLayer.setOverrideObjectFlagsWithResponsibilityFlags(true);
 		objectLayer.setAutoClaimResponsibilityForObjectSymbols(true);

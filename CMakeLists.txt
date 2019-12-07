@@ -4,6 +4,12 @@ SET(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+if (MSVC)
+    if (NOT (MSVC_VERSION LESS 1910))
+      add_compile_options(/permissive-)
+    endif()
+endif()
+
 if(WIN32)
 else()
     set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,--no-undefined")

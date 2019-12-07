@@ -38,8 +38,6 @@ Device::~Device()
 	}
 #endif
 
-	free(state->vertexBuiltinOutputStorage);
-	free(state->vertexBuiltinInputStorage);
 	state->imageFunctions.clear();
 	delete state->jit;
 }

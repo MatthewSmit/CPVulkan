@@ -16,6 +16,7 @@
 
 #include <ImageCompiler.h>
 #include <Jit.h>
+#include <PipelineData.h>
 #include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
 #include <SPIRVInstruction.h>
@@ -40,13 +41,6 @@ struct VertexBuiltinInput
 	int32_t instanceIndex;
 };
 
-struct VertexBuiltinOutput
-{
-	glm::vec4 position;
-	float pointSize;
-	float clipDistance[1];
-};
-
 struct FragmentBuiltinInput
 {
 	glm::vec4 fragCoord;
@@ -66,7 +60,6 @@ struct ComputeBuiltinInput
 
 struct VertexOutput
 {
-	std::vector<uint8_t> outputData;
 	uint64_t builtinStride;
 	uint64_t outputStride;
 	uint32_t vertexCount;
@@ -563,11 +556,10 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
                                 std::vector<VariableUniformData>& uniformData, 
                                 std::vector<VariableInOutData>& outputData,
                                 std::pair<void*, uint32_t>& pushConstant,
+                                uint32_t& inputSize,
                                 uint32_t& outputSize)
 {
 	auto maxLocation = -1;
-	auto inputSize = 0u;
-	
 	for (auto i = 0u; i < module->getNumVariables(); i++)
 	{
 		const auto variable = module->getVariable(i);
@@ -764,15 +756,16 @@ static std::vector<AssemblerOutput> ProcessInputAssemblerIndexed(DeviceState* de
 
 static bool EnsureVertexMemoryStorage(DeviceState* deviceState, uint64_t numberVertices, uint64_t vertexStorageStride)
 {
-	if (deviceState->vertexStorageSize < numberVertices)
+	auto hasChanged = false;
+
+	// TODO: Will probably replace with heap functions eventually, so we can resize without worrying about copying over old data;
+	if (deviceState->vertexOutputStorage.size() < numberVertices * vertexStorageStride)
 	{
-		deviceState->vertexStorageSize = numberVertices;
-		// TODO: Will probably replace with heap functions eventually, so we can resize without worrying about copying over old data;
-		deviceState->vertexBuiltinInputStorage = realloc(deviceState->vertexBuiltinInputStorage, numberVertices * sizeof(VertexBuiltinInput));
-		deviceState->vertexBuiltinOutputStorage = realloc(deviceState->vertexBuiltinOutputStorage, numberVertices * sizeof(VertexBuiltinOutput));
-		return false;
+		deviceState->vertexOutputStorage.resize(numberVertices * vertexStorageStride);
+		hasChanged = true;
 	}
-	return true;
+	
+	return !hasChanged;
 }
 
 static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t instance, const std::vector<AssemblerOutput>& assemblerOutput)
@@ -785,28 +778,22 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	const auto module = shaderStage->getModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
 
-	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
-	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
-
-	auto vertexStorageStride = 0u;
+	auto inputSize = 0u;
+	uint32_t vertexStorageStride = sizeof(VertexBuiltinOutput);
 	std::vector<VariableInOutData> inputData{};
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, vertexStorageStride);
+	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
 
 	if (!EnsureVertexMemoryStorage(deviceState, assemblerOutput.size(), vertexStorageStride))
 	{
-		const auto builtinInput = deviceState->jit->getPointer(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule(), "@builtinInput");
-		*static_cast<void**>(builtinInput) = deviceState->vertexBuiltinInputStorage;
-
-		const auto builtinOutput = deviceState->jit->getPointer(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule(), "@builtinOutput");
-		*static_cast<void**>(builtinOutput) = deviceState->vertexBuiltinOutputStorage;
+		const auto outputStorage = deviceState->jit->getPointer(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule(), "@outputStorage");
+		*static_cast<void**>(outputStorage) = deviceState->vertexOutputStorage.data();
 	}
 	
 	VertexOutput output
 	{
-		std::vector<uint8_t>(assemblerOutput.size() * vertexStorageStride),
 		sizeof(VertexBuiltinOutput),
 		vertexStorageStride,
 		static_cast<uint32_t>(assemblerOutput.size()),
@@ -819,21 +806,15 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
 	}
 
-	const auto allBuiltinInputs = static_cast<VertexBuiltinInput*>(deviceState->vertexBuiltinInputStorage);
-
 	for (auto vertex : assemblerOutput)
 	{
-		allBuiltinInputs[vertex.rawId].instanceIndex = instance;
-		allBuiltinInputs[vertex.rawId].vertexIndex = vertex.vertexId;
-		*static_cast<VertexBuiltinInput*>(builtinInputPointer) = allBuiltinInputs[vertex.rawId];
-
 		LoadVertexInput(deviceState, vertex.vertexId, instance, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
 
-		reinterpret_cast<void(*)(AssemblerOutput*)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(&vertex);
+		reinterpret_cast<void(*)(AssemblerOutput*, uint32_t)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(&vertex, instance);
 
 		for (const auto& data : outputData)
 		{
-			memcpy(output.outputData.data() + vertex.rawId * output.outputStride + data.offset, data.pointer, data.size);
+			memcpy(deviceState->vertexOutputStorage.data() + vertex.rawId * output.outputStride + data.offset, data.pointer, data.size);
 		}
 	}
 	
@@ -1655,7 +1636,7 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 	
 	for (auto i = 0u; i < numberPrimitives; i++)
 	{
-		const auto& builtinData0 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[i];
+		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + i * output.outputStride);
 		
 		auto p0 = builtinData0.position / builtinData0.position.w;
 		p0.w = builtinData0.position.w;
@@ -1680,7 +1661,7 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 				{
 					for (auto input : inputData)
 					{
-						const auto data = output.outputData.data() + i * output.outputStride + input.offset;
+						const auto data = deviceState->vertexOutputStorage.data() + i * output.outputStride + input.offset;
 						SetDatum(input, data);
 					}
 					
@@ -1723,8 +1704,8 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 		const auto p0Index = i * 2 + 0;
 		const auto p1Index = i * 2 + 1;
 
-		const auto& builtinData0 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p0Index];
-		const auto& builtinData1 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p1Index];
+		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
+		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
 
 		auto p0 = builtinData0.position / builtinData0.position.w;
 		auto p1 = builtinData1.position / builtinData1.position.w;
@@ -1765,22 +1746,22 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 								{
 								case InterpolationType::Perspective:
 									{
-										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
 										SetDatum<true>(input, p0.w, p1.w, data0, data1, 1 - t, t);
 										break;
 									}
 
 								case InterpolationType::Linear:
 									{
-										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
 										SetDatum<false>(input, p0.w, p1.w, data0, data1, 1 - t, t);
 										break;
 									}
 
 								case InterpolationType::Flat:
-									memcpy(input.pointer, output.outputData.data() + p0Index * output.outputStride + input.offset, input.size);
+									memcpy(input.pointer, deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset, input.size);
 									break;
 
 								default: FATAL_ERROR();
@@ -1838,8 +1819,8 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 		const auto p0Index = i + 0;
 		const auto p1Index = i + 1;
 
-		const auto& builtinData0 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p0Index];
-		const auto& builtinData1 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p1Index];
+		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
+		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
 
 		auto p0 = builtinData0.position / builtinData0.position.w;
 		auto p1 = builtinData1.position / builtinData1.position.w;
@@ -1880,22 +1861,22 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 								{
 								case InterpolationType::Perspective:
 									{
-										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
 										SetDatum<true>(input, p0.w, p1.w, data0, data1, 1 - t, t);
 										break;
 									}
 
 								case InterpolationType::Linear:
 									{
-										const auto data0 = output.outputData.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = output.outputData.data() + p1Index * output.outputStride + input.offset;
+										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
+										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
 										SetDatum<false>(input, p0.w, p1.w, data0, data1, 1 - t, t);
 										break;
 									}
 
 								case InterpolationType::Flat:
-									memcpy(input.pointer, output.outputData.data() + p0Index * output.outputStride + input.offset, input.size);
+									memcpy(input.pointer, deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset, input.size);
 									break;
 
 								default: FATAL_ERROR();
@@ -1954,9 +1935,9 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 			std::swap(p0Index, p2Index);
 		}
 
-		const auto& builtinData0 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p0Index];
-		const auto& builtinData1 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p1Index];
-		const auto& builtinData2 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p2Index];
+		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
+		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
+		const auto& builtinData2 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p2Index * output.outputStride);
 
 		auto p0 = builtinData0.position / builtinData0.position.w;
 		auto p1 = builtinData1.position / builtinData1.position.w;
@@ -1978,7 +1959,7 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 
 				float depth;
 				bool front;
-				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
+				if (GetFragmentInput(inputData, deviceState->vertexOutputStorage.data(), output.outputStride,
 				                     provokingVertex, p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
@@ -2023,9 +2004,9 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 			std::swap(p0Index, p2Index);
 		}
 
-		const auto& builtinData0 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p0Index];
-		const auto& builtinData1 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p1Index];
-		const auto& builtinData2 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p2Index];
+		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
+		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
+		const auto& builtinData2 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p2Index * output.outputStride);
 
 		auto p0 = builtinData0.position / builtinData0.position.w;
 		auto p1 = builtinData1.position / builtinData1.position.w;
@@ -2047,7 +2028,7 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 
 				float depth;
 				bool front;
-				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
+				if (GetFragmentInput(inputData, deviceState->vertexOutputStorage.data(), output.outputStride,
 				                     provokingVertex, p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
@@ -2092,9 +2073,9 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 			std::swap(p0Index, p2Index);
 		}
 
-		const auto& builtinData0 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p0Index];
-		const auto& builtinData1 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p1Index];
-		const auto& builtinData2 = static_cast<VertexBuiltinOutput*>(deviceState->vertexBuiltinOutputStorage)[p2Index];
+		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
+		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
+		const auto& builtinData2 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p2Index * output.outputStride);
 
 		auto p0 = builtinData0.position / builtinData0.position.w;
 		auto p1 = builtinData1.position / builtinData1.position.w;
@@ -2116,7 +2097,7 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 
 				float depth;
 				bool front;
-				if (GetFragmentInput(inputData, output.outputData.data(), output.outputStride,
+				if (GetFragmentInput(inputData, deviceState->vertexOutputStorage.data(), output.outputStride,
 				                     provokingVertex, p0Index, p1Index, p2Index,
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
@@ -2145,12 +2126,13 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
 	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
 
+	uint32_t inputSize = sizeof(VertexBuiltinOutput);
 	auto outputSize = 0u;
 	std::vector<VariableInOutData> inputData{};
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
+	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
 
 	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
 	
@@ -2245,12 +2227,13 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
 	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
 	
+	auto inputSize = 0u;
 	auto outputSize = 0u;
 	std::vector<VariableInOutData> inputData{};
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, outputSize);
+	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
 
 	assert(inputData.empty() && outputData.empty());
 	
