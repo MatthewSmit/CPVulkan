@@ -1736,22 +1736,22 @@ namespace SPIRV
 
 	bool convertSpirv(std::istream &IS, std::ostream &OS, std::string &ErrMsg,
 	                  bool FromText, bool ToText) {
-		auto SaveOpt = SPIRVUseTextFormat;
-		SPIRVUseTextFormat = FromText;
+		auto SaveOpt = GetSPIRVUseTextFormat();
+		SetSPIRVUseTextFormat(FromText);
 		SPIRV::TranslatorOptions DefaultOpts;
 		SPIRVModuleImpl M(DefaultOpts);
 		IS >> M;
 		if (M.getError(ErrMsg) != SPIRVEC_Success) {
-			SPIRVUseTextFormat = SaveOpt;
+			SetSPIRVUseTextFormat(SaveOpt);
 			return false;
 		}
-		SPIRVUseTextFormat = ToText;
+		SetSPIRVUseTextFormat(ToText);
 		OS << M;
 		if (M.getError(ErrMsg) != SPIRVEC_Success) {
-			SPIRVUseTextFormat = SaveOpt;
+			SetSPIRVUseTextFormat(SaveOpt);
 			return false;
 		}
-		SPIRVUseTextFormat = SaveOpt;
+		SetSPIRVUseTextFormat(SaveOpt);
 		return true;
 	}
 

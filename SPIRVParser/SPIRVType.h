@@ -188,10 +188,20 @@ namespace SPIRV
 	public:
 		static const Op OC = OpTypeFloat;
 		// Complete constructor
-		SPIRVTypeFloat(SPIRVModule *M, SPIRVId TheId, unsigned TheBitWidth)
-			: SPIRVType(M, 3, OC, TheId), BitWidth(TheBitWidth) {}
+		SPIRVTypeFloat(SPIRVModule* module, SPIRVId id, uint32_t bitWidth)
+			: SPIRVType(module, 3, OC, id), BitWidth(bitWidth)
+		{
+		}
+		
 		// Incomplete constructor
-		SPIRVTypeFloat() : SPIRVType(OC), BitWidth(0) {}
+		SPIRVTypeFloat(uint32_t bitWidth) : SPIRVType(OC), BitWidth(bitWidth)
+		{
+		}
+
+        // Incomplete constructor
+		SPIRVTypeFloat() : SPIRVType(OC), BitWidth(0)
+		{
+		}
 
 		unsigned getBitWidth() const { return BitWidth; }
 
@@ -639,7 +649,7 @@ public:
   SPIRVTypeStruct(SPIRVModule *M, SPIRVId TheId,
                   const std::vector<SPIRVType *> &TheMemberTypes,
                   const std::string &TheName)
-      : SPIRVType(M, 2 + TheMemberTypes.size(), OpTypeStruct, TheId) {
+      : SPIRVType(M, 2 + static_cast<uint32_t>(TheMemberTypes.size()), OpTypeStruct, TheId) {
     MemberTypeIdVec.resize(TheMemberTypes.size());
     for (auto &T : TheMemberTypes)
       MemberTypeIdVec.push_back(T->getId());
@@ -656,7 +666,7 @@ public:
   // Incomplete constructor
   SPIRVTypeStruct() : SPIRVType(OpTypeStruct) {}
 
-  SPIRVWord getMemberCount() const { return MemberTypeIdVec.size(); }
+  SPIRVWord getMemberCount() const { return static_cast<uint32_t>(MemberTypeIdVec.size()); }
   SPIRVType *getMemberType(size_t I) const {
     return static_cast<SPIRVType *>(getEntry(MemberTypeIdVec[I]));
   }
@@ -693,7 +703,7 @@ public:
   // Complete constructor
   SPIRVTypeFunction(SPIRVModule *M, SPIRVId TheId, SPIRVType *TheReturnType,
                     const std::vector<SPIRVType *> &TheParameterTypes)
-      : SPIRVType(M, 3 + TheParameterTypes.size(), OpTypeFunction, TheId),
+      : SPIRVType(M, 3 + static_cast<uint32_t>(TheParameterTypes.size()), OpTypeFunction, TheId),
         ReturnType(TheReturnType), ParamTypeVec(TheParameterTypes) {
     validate();
   }
@@ -701,7 +711,7 @@ public:
   SPIRVTypeFunction() : SPIRVType(OpTypeFunction), ReturnType(NULL) {}
 
   SPIRVType *getReturnType() const { return ReturnType; }
-  SPIRVWord getNumParameters() const { return ParamTypeVec.size(); }
+  SPIRVWord getNumParameters() const { return static_cast<uint32_t>(ParamTypeVec.size()); }
   SPIRVType *getParameterType(unsigned I) const { return ParamTypeVec[I]; }
   std::vector<SPIRVEntry *> getNonLiteralOperands() const override {
     std::vector<SPIRVEntry *> Operands(1 + ParamTypeVec.size(), ReturnType);

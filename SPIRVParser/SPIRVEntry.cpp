@@ -91,7 +91,7 @@ namespace SPIRV
 		if (Loc != OpToFactoryMap.end())
 			return Loc->second();
 
-		SPIRVDBG(spvdbgs() << "No factory for OpCode " << (unsigned)OpCode << '\n';)
+		SPIRVDBG(spvdbgs() << "No factory for OpCode " << (unsigned)OpCode << '\n');
 		assert(0 && "Not implemented");
 		return 0;
 	}
@@ -197,7 +197,7 @@ namespace SPIRV
 
 	void SPIRVEntry::encodeWordCountOpCode(spv_ostream& O) const {
 #ifdef _SPIRV_SUPPORT_TEXT_FMT
-		if (SPIRVUseTextFormat) {
+		if (GetSPIRVUseTextFormat()) {
 			getEncoder(O) << WordCount << OpCode;
 			return;
 		}
@@ -261,7 +261,7 @@ namespace SPIRV
 			auto* LinkageAttr = static_cast<const SPIRVDecorateLinkageAttr*>(Dec);
 			setName(LinkageAttr->getLinkageName());
 		}
-		SPIRVDBG(spvdbgs() << "[addDecorate] " << *Dec << '\n';)
+		SPIRVDBG(spvdbgs() << "[addDecorate] " << *Dec << '\n');
 	}
 
 	void SPIRVEntry::addDecorate(Decoration Kind) {
@@ -276,12 +276,12 @@ namespace SPIRV
 
 	void SPIRVEntry::takeDecorates(SPIRVEntry* E) {
 		Decorates = std::move(E->Decorates);
-		SPIRVDBG(spvdbgs() << "[takeDecorates] " << Id << '\n';)
+		SPIRVDBG(spvdbgs() << "[takeDecorates] " << Id << '\n');
 	}
 
 	void SPIRVEntry::setLine(const std::shared_ptr<const SPIRVLine>& L) {
 		Line = L;
-		SPIRVDBG(if (L) spvdbgs() << "[setLine] " << *L << '\n';)
+		SPIRVDBG(if (L) spvdbgs() << "[setLine] " << *L << '\n');
 	}
 
 	void SPIRVEntry::addMemberDecorate(SPIRVMemberDecorate* Dec) {
@@ -289,7 +289,7 @@ namespace SPIRV
 			MemberDecorates.find(Dec->getPair()) == MemberDecorates.end());
 		MemberDecorates[Dec->getPair()] = Dec;
 		Module->addDecorate(Dec);
-		SPIRVDBG(spvdbgs() << "[addMemberDecorate] " << *Dec << '\n';)
+		SPIRVDBG(spvdbgs() << "[addMemberDecorate] " << *Dec << '\n');
 	}
 
 	void SPIRVEntry::addMemberDecorate(SPIRVWord MemberNumber, Decoration Kind) {
@@ -307,7 +307,7 @@ namespace SPIRV
 
 	void SPIRVEntry::takeMemberDecorates(SPIRVEntry* E) {
 		MemberDecorates = std::move(E->MemberDecorates);
-		SPIRVDBG(spvdbgs() << "[takeMemberDecorates] " << Id << '\n';)
+		SPIRVDBG(spvdbgs() << "[takeMemberDecorates] " << Id << '\n');
 	}
 
 	void SPIRVEntry::takeAnnotations(SPIRVForward* E) {

@@ -163,7 +163,7 @@ public:
     for (auto &I : getVec(Name))
       Literals.push_back(I);
     Literals.push_back(Kind);
-    WordCount += Literals.size();
+    WordCount += static_cast<uint32_t>(Literals.size());
   }
   // Incomplete constructor
   SPIRVDecorateLinkageAttr() : SPIRVDecorate() {}
@@ -178,7 +178,7 @@ public:
   static void encodeLiterals(SPIRVEncoder &Encoder,
                              const std::vector<SPIRVWord> &Literals) {
 #ifdef _SPIRV_SUPPORT_TEXT_FMT
-    if (SPIRVUseTextFormat) {
+    if (GetSPIRVUseTextFormat()) {
       Encoder << getString(Literals.cbegin(), Literals.cend() - 1);
       Encoder.OS << " ";
       Encoder << (SPIRVLinkageTypeKind)Literals.back();
@@ -190,7 +190,7 @@ public:
   static void decodeLiterals(SPIRVDecoder &Decoder,
                              std::vector<SPIRVWord> &Literals) {
 #ifdef _SPIRV_SUPPORT_TEXT_FMT
-    if (SPIRVUseTextFormat) {
+    if (GetSPIRVUseTextFormat()) {
       std::string Name;
       Decoder >> Name;
       SPIRVLinkageTypeKind Kind;
@@ -277,7 +277,7 @@ public:
   SPIRVGroupDecorateGeneric(Op OC, SPIRVDecorationGroup *TheGroup,
                             const std::vector<SPIRVId> &TheTargets)
       : SPIRVEntryNoIdGeneric(TheGroup->getModule(),
-                              FixedWC + TheTargets.size(), OC),
+                              FixedWC + static_cast<uint32_t>(TheTargets.size()), OC),
         DecorationGroup(TheGroup), Targets(TheTargets) {}
   // Incomplete constructor
   SPIRVGroupDecorateGeneric(Op OC)

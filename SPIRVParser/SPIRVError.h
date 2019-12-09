@@ -110,10 +110,10 @@ inline bool SPIRVErrorLog::checkError(bool Cond, SPIRVErrorCode ErrCode,
   if (ErrorCode != SPIRVEC_Success)
     return Cond;
   SS << SPIRVErrorMap::map(ErrCode) << " " << Msg;
-  if (SPIRVDbgErrorMsgIncludesSourceInfo && FileName)
+  if (GetSPIRVDbgErrorMsgIncludesSourceInfo() && FileName)
     SS << " [Src: " << FileName << ":" << LineNo << " " << CondString << " ]";
   setError(ErrCode, SS.str());
-  if (SPIRVDbgAbortOnError) {
+  if (GetSPIRVDbgAbortOnError()) {
     spvdbgs() << SS.str() << '\n';
     spvdbgs().flush();
     abort();

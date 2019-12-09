@@ -37,42 +37,31 @@
 ///
 //===----------------------------------------------------------------------===//
 
-#ifndef SPIRV_LIBSPIRV_SPIRVDEBUG_H
-#define SPIRV_LIBSPIRV_SPIRVDEBUG_H
+#pragma once
 
 #include "LLVMSPIRVOpts.h"
 #include "SPIRVUtil.h"
-#include <iostream>
 
-namespace SPIRV {
+#include <iostream>
+	
+DLL_EXPORT bool GetSPIRVDbgEnable();
+DLL_EXPORT bool GetSPIRVDbgErrorMsgIncludesSourceInfo();
+DLL_EXPORT bool GetSPIRVDbgAbortOnError();
 
 #define _SPIRVDBG
 #ifdef _SPIRVDBG
 
 #define SPIRVDBG(x)                                                            \
-  if (SPIRVDbgEnable) {                                                        \
+  if (GetSPIRVDbgEnable()) {                                                   \
     x;                                                                         \
-  }
-
-// Enable debug output.
-DLL_EXPORT extern bool SPIRVDbgEnable;
-
-// Include source file and line number in error message.
-DLL_EXPORT extern bool SPIRVDbgErrorMsgIncludesSourceInfo;
-
-// Enable assert on error
-DLL_EXPORT extern bool SPIRVDbgAbortOnError;
+  } else (void)0
 
 // Output stream for SPIRV debug information.
-inline spv_ostream &spvdbgs() {
-  return std::cerr;
+inline spv_ostream& spvdbgs()
+{
+	return std::cerr;
 }
 
 #else
-
 #define SPIRVDBG(x)
-
 #endif
-
-} // namespace SPIRV
-#endif // SPIRV_LIBSPIRV_SPIRVDEBUG_H

@@ -176,7 +176,7 @@ namespace SPIRV
 
 		void addAllArguments(SPIRVId FirstArgId) {
 			for (size_t I = 0, E = getFunctionType()->getNumParameters(); I != E; ++I)
-				addArgument(I, FirstArgId + I);
+				addArgument(static_cast<uint32_t>(I), FirstArgId + static_cast<uint32_t>(I));
 		}
 		bool decodeBB(SPIRVDecoder&);
 

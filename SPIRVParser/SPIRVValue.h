@@ -308,7 +308,7 @@ namespace SPIRV
 		// Complete constructor for composite constant
 		SPIRVConstantComposite(SPIRVModule* M, SPIRVType* TheType, SPIRVId TheId,
 			const std::vector<SPIRVValue*> TheElements)
-			: SPIRVValue(M, TheElements.size() + 3, OpConstantComposite, TheType,
+			: SPIRVValue(M, static_cast<uint32_t>(TheElements.size()) + 3, OpConstantComposite, TheType,
 				TheId) {
 			Elements = getIds(TheElements);
 			validate();
@@ -346,7 +346,7 @@ namespace SPIRV
 		// Complete constructor for spec composite constant
 		SPIRVSpecConstantComposite(SPIRVModule* M, SPIRVType* TheType, SPIRVId TheId,
 			const std::vector<SPIRVValue*> TheElements)
-			: SPIRVConstantComposite(M, TheElements.size() + 3, OpSpecConstantComposite, TheType, TheId) {
+			: SPIRVConstantComposite(M, static_cast<uint32_t>(TheElements.size()) + 3, OpSpecConstantComposite, TheType, TheId) {
 			Elements = getIds(TheElements);
 			validate();
 		}

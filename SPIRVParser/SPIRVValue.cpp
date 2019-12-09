@@ -49,7 +49,7 @@ void SPIRVValue::setAlignment(SPIRVWord A) {
     return;
   }
   addDecorate(new SPIRVDecorate(DecorationAlignment, this, A));
-  SPIRVDBG(spvdbgs() << "Set alignment " << A << " for obj " << Id << "\n")
+  SPIRVDBG(spvdbgs() << "Set alignment " << A << " for obj " << Id << "\n");
 }
 
 bool SPIRVValue::hasAlignment(SPIRVWord *Result) const {
@@ -65,7 +65,7 @@ void SPIRVValue::setVolatile(bool IsVolatile) {
   }
   addDecorate(new SPIRVDecorate(DecorationVolatile, this));
   SPIRVDBG(spvdbgs() << "Set volatile "
-                     << " for obj " << Id << "\n")
+                     << " for obj " << Id << "\n");
 }
 
 bool SPIRVValue::hasNoSignedWrap() const {
@@ -79,7 +79,7 @@ void SPIRVValue::setNoSignedWrap(bool HasNoSignedWrap) {
   }
   addDecorate(new SPIRVDecorate(DecorationNoSignedWrap, this));
   SPIRVDBG(spvdbgs() << "Set nsw "
-                     << " for obj " << Id << "\n")
+                     << " for obj " << Id << "\n");
 }
 
 bool SPIRVValue::hasNoUnsignedWrap() const {
@@ -93,7 +93,7 @@ void SPIRVValue::setNoUnsignedWrap(bool HasNoUnsignedWrap) {
   }
   addDecorate(new SPIRVDecorate(DecorationNoUnsignedWrap, this));
   SPIRVDBG(spvdbgs() << "Set nuw "
-                     << " for obj " << Id << "\n")
+                     << " for obj " << Id << "\n");
 }
 
 } // namespace SPIRV

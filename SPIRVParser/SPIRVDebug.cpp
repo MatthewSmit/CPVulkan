@@ -39,8 +39,17 @@
 
 #include "SPIRVDebug.h"
 
-using namespace SPIRV;
+bool GetSPIRVDbgEnable()
+{
+	return false;
+}
 
-bool SPIRV::SPIRVDbgEnable = false;
-bool SPIRV::SPIRVDbgAbortOnError = true;
-bool SPIRV::SPIRVDbgErrorMsgIncludesSourceInfo = true;
+bool GetSPIRVDbgErrorMsgIncludesSourceInfo()
+{
+	return false;
+}
+
+bool GetSPIRVDbgAbortOnError()
+{
+	return false;
+}

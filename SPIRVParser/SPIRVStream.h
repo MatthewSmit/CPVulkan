@@ -50,16 +50,17 @@
 #include <string>
 #include <vector>
 
-namespace SPIRV {
-
 #ifndef _SPIRV_SUPPORT_TEXT_FMT
 #define _SPIRV_SUPPORT_TEXT_FMT
 #endif
 
 #ifdef _SPIRV_SUPPORT_TEXT_FMT
 // Use textual format for SPIRV.
-DLL_EXPORT extern bool SPIRVUseTextFormat;
+DLL_EXPORT bool GetSPIRVUseTextFormat();
+DLL_EXPORT void SetSPIRVUseTextFormat(bool value);
 #endif
+
+namespace SPIRV {
 
 class SPIRVFunction;
 class SPIRVBasicBlock;
@@ -106,7 +107,7 @@ const SPIRVDecoder &decodeBinary(const SPIRVDecoder &I, T &V) {
 template <typename T>
 const SPIRVDecoder &operator>>(const SPIRVDecoder &I, T &V) {
 #ifdef _SPIRV_SUPPORT_TEXT_FMT
-  if (SPIRVUseTextFormat) {
+  if (GetSPIRVUseTextFormat()) {
     uint32_t W;
     I.IS >> W;
     V = static_cast<T>(W);
@@ -143,7 +144,7 @@ const SPIRVDecoder &operator>>(const SPIRVDecoder &I, std::vector<T> &V) {
 template <typename T>
 const SPIRVEncoder &operator<<(const SPIRVEncoder &O, T V) {
 #ifdef _SPIRV_SUPPORT_TEXT_FMT
-  if (SPIRVUseTextFormat) {
+  if (GetSPIRVUseTextFormat()) {
     O.OS << V << " ";
     return O;
   }
