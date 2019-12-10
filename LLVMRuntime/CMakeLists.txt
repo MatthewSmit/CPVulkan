@@ -14,8 +14,6 @@ add_library(LLVMRuntime SHARED
 	"Jit.cpp"
 	"Jit.h"
 
-	"LLVMBuilder.h"
-
 	"LLVMHelper.cpp"
 
 	"PipelineCompiler.cpp"

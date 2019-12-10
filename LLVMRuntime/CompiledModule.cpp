@@ -6,7 +6,6 @@
 
 #include <Half.h>
 
-#include <llvm-c/Analysis.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/OrcBindings.h>
 #include <llvm-c/Support.h>
@@ -16,25 +15,25 @@
 
 CP_DLL_EXPORT std::string DumpModule(LLVMModuleRef module)
 {
-	const auto ptr = LLVMPrintModuleToString(module);
-	const std::string str = ptr;
-	LLVMDisposeMessage(ptr);
+	const auto pointer = LLVMPrintModuleToString(module);
+	const std::string str = pointer;
+	LLVMDisposeMessage(pointer);
 	return str;
 }
 
 CP_DLL_EXPORT std::string DumpType(LLVMTypeRef type)
 {
-	const auto ptr = LLVMPrintTypeToString(type);
-	const std::string str = ptr;
-	LLVMDisposeMessage(ptr);
+	const auto pointer = LLVMPrintTypeToString(type);
+	const std::string str = pointer;
+	LLVMDisposeMessage(pointer);
 	return str;
 }
 
 CP_DLL_EXPORT std::string DumpValue(LLVMValueRef value)
 {
-	const auto ptr = LLVMPrintValueToString(value);
-	const auto str = ptr + std::string{"; "} + DumpType(LLVMTypeOf(value));
-	LLVMDisposeMessage(ptr);
+	const auto pointer = LLVMPrintValueToString(value);
+	const auto str = pointer + std::string{"; "} + DumpType(LLVMTypeOf(value));
+	LLVMDisposeMessage(pointer);
 	return str;
 }
 
@@ -65,7 +64,7 @@ CompiledModule::~CompiledModule()
 		const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
 		FATAL_ERROR();
 	}
-	
+
 	LLVMDisposeModule(module);
 	LLVMContextDispose(context);
 }
@@ -86,7 +85,7 @@ uint64_t CompiledModule::ResolveSymbol(const char* name)
 	// 		std::string tmp((*name).data(), (*name).size());
 	//
 	FunctionPointer function = nullptr;
-	
+
 	if (getFunction)
 	{
 		function = reinterpret_cast<FunctionPointer>(getFunction(name));
@@ -170,11 +169,11 @@ CompiledModule* CompiledModuleBuilder::Compile()
 	MainCompilation();
 
 	LLVMDisposeBuilder(builder);
-	
+
 	// TODO: Optimisations
 
 	// TODO: Soft fail?
-	// LLVMVerifyModule(module, LLVMAbortProcessAction, nullptr);
+	// LLVMVerifyModule(module, LLVMAbortProcessAction, nullpointer);
 
 	std::cout << DumpModule(module) << std::endl;
 
@@ -199,8 +198,8 @@ bool CompiledModuleBuilder::HasName(LLVMValueRef value)
 std::string CompiledModuleBuilder::GetName(LLVMValueRef value)
 {
 	size_t length;
-	const auto ptr = LLVMGetValueName2(value, &length);
-	return std::string{ ptr, length };
+	const auto pointer = LLVMGetValueName2(value, &length);
+	return std::string{pointer, length};
 }
 
 void CompiledModuleBuilder::SetName(LLVMValueRef value, const std::string& name)
@@ -350,6 +349,286 @@ LLVMValueRef CompiledModuleBuilder::GlobalVariable(LLVMTypeRef type, bool isCons
 	return global;
 }
 
+LLVMValueRef CompiledModuleBuilder::CreateRetVoid()
+{
+	return LLVMBuildRetVoid(builder);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateRet(LLVMValueRef value)
+{
+	return LLVMBuildRet(builder, value);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAggregateRet(LLVMValueRef* returnValues, uint32_t numberValues)
+{
+	return LLVMBuildAggregateRet(builder, returnValues, numberValues);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateBr(LLVMBasicBlockRef destination)
+{
+	return LLVMBuildBr(builder, destination);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCondBr(LLVMValueRef conditional, LLVMBasicBlockRef thenBlock, LLVMBasicBlockRef elseBlock)
+{
+	return LLVMBuildCondBr(builder, conditional, thenBlock, elseBlock);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSwitch(LLVMValueRef value, LLVMBasicBlockRef elseBlock, uint32_t numberCases)
+{
+	return LLVMBuildSwitch(builder, value, elseBlock, numberCases);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateIndirectBr(LLVMValueRef address, uint32_t numberDestinations)
+{
+	return LLVMBuildIndirectBr(builder, address, numberDestinations);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateInvoke(LLVMValueRef function, LLVMValueRef* arguments, uint32_t numberArguments, LLVMBasicBlockRef thenBlock, LLVMBasicBlockRef catchBlock, const std::string& name)
+{
+	return LLVMBuildInvoke(builder, function, arguments, numberArguments, thenBlock, catchBlock, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateUnreachable()
+{
+	return LLVMBuildUnreachable(builder);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateResume(LLVMValueRef exception)
+{
+	return LLVMBuildResume(builder, exception);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateLandingPad(LLVMTypeRef type, LLVMValueRef PersFn, uint32_t numClauses, const std::string& name)
+{
+	return LLVMBuildLandingPad(builder, type, PersFn, numClauses, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCleanupRet(LLVMValueRef catchPad, LLVMBasicBlockRef block)
+{
+	return LLVMBuildCleanupRet(builder, catchPad, block);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCatchRet(LLVMValueRef catchPad, LLVMBasicBlockRef block)
+{
+	return LLVMBuildCatchRet(builder, catchPad, block);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCatchPad(LLVMValueRef parentPad, LLVMValueRef* args, uint32_t numArgs, const std::string& name)
+{
+	return LLVMBuildCatchPad(builder, parentPad, args, numArgs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCleanupPad(LLVMValueRef parentPad, LLVMValueRef* args, uint32_t numArgs, const std::string& name)
+{
+	return LLVMBuildCleanupPad(builder, parentPad, args, numArgs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCatchSwitch(LLVMValueRef parentPad, LLVMBasicBlockRef unwindBlock, uint32_t numHandlers, const std::string& name)
+{
+	return LLVMBuildCatchSwitch(builder, parentPad, unwindBlock, numHandlers, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAdd(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildAdd(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNSWAdd(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildNSWAdd(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNUWAdd(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildNUWAdd(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFAdd(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildFAdd(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSub(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildSub(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNSWSub(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildNSWSub(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNUWSub(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildNUWSub(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFSub(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildFSub(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateMul(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildMul(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNSWMul(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildNSWMul(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNUWMul(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildNUWMul(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFMul(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildFMul(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateUDiv(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildUDiv(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateExactUDiv(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildExactUDiv(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSDiv(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildSDiv(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateExactSDiv(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildExactSDiv(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFDiv(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildFDiv(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateURem(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildURem(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSRem(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildSRem(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFRem(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildFRem(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateShl(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildShl(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateLShr(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildLShr(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAShr(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildAShr(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAnd(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildAnd(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateOr(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildOr(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateXor(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildXor(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateBinOp(LLVMOpcode opcode, LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildBinOp(builder, opcode, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNeg(LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildNeg(builder, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNSWNeg(LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildNSWNeg(builder, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNUWNeg(LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildNUWNeg(builder, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFNeg(LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildFNeg(builder, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateNot(LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildNot(builder, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateMalloc(LLVMTypeRef type, const std::string& name)
+{
+	return LLVMBuildMalloc(builder, type, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateArrayMalloc(LLVMTypeRef type, LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildArrayMalloc(builder, type, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateMemSet(LLVMValueRef pointer, LLVMValueRef value, LLVMValueRef length, uint32_t alignment)
+{
+	return LLVMBuildMemSet(builder, pointer, value, length, alignment);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateMemCpy(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size)
+{
+	return LLVMBuildMemCpy(builder, destination, destinationAlignment, source, sourceAlignment, size);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateMemMove(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size)
+{
+	return LLVMBuildMemMove(builder, destination, destinationAlignment, source, sourceAlignment, size);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAlloca(LLVMTypeRef type, const std::string& name)
+{
+	return LLVMBuildAlloca(builder, type, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateArrayAlloca(LLVMTypeRef type, LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildArrayAlloca(builder, type, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFree(LLVMValueRef pointer)
+{
+	return LLVMBuildFree(builder, pointer);
+}
+
 LLVMValueRef CompiledModuleBuilder::CreateLoad(LLVMValueRef pointer, bool isVolatile, const std::string& name)
 {
 	const auto value = LLVMBuildLoad(builder, pointer, name.c_str());
@@ -358,9 +637,17 @@ LLVMValueRef CompiledModuleBuilder::CreateLoad(LLVMValueRef pointer, bool isVola
 	return value;
 }
 
-LLVMValueRef CompiledModuleBuilder::CreateStore(LLVMValueRef src, LLVMValueRef dst, bool isVolatile)
+LLVMValueRef CompiledModuleBuilder::CreateLoad(LLVMTypeRef type, LLVMValueRef pointer, bool isVolatile, const std::string& name)
 {
-	const auto value = LLVMBuildStore(builder, src, dst);
+	const auto value = LLVMBuildLoad2(builder, type, pointer, name.c_str());
+	LLVMSetVolatile(value, isVolatile);
+	LLVMSetAlignment(value, ALIGNMENT);
+	return value;
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateStore(LLVMValueRef value, LLVMValueRef pointer, bool isVolatile)
+{
+	value = LLVMBuildStore(builder, value, pointer);
 	LLVMSetVolatile(value, isVolatile);
 	LLVMSetAlignment(value, ALIGNMENT);
 	return value;
@@ -388,4 +675,199 @@ LLVMValueRef CompiledModuleBuilder::CreateGEP(LLVMValueRef pointer, uint32_t ind
 LLVMValueRef CompiledModuleBuilder::CreateGEP(LLVMValueRef pointer, std::vector<LLVMValueRef> indices)
 {
 	return LLVMBuildGEP(builder, pointer, indices.data(), static_cast<uint32_t>(indices.size()), "");
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateGlobalString(const std::string& str, const std::string& name)
+{
+	return LLVMBuildGlobalString(builder, str.c_str(), name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateGlobalStringPtr(const std::string& str, const std::string& name)
+{
+	return LLVMBuildGlobalStringPtr(builder, str.c_str(), name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildTrunc(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateZExt(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildZExt(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSExt(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildSExt(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFPToUI(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildFPToUI(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFPToSI(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildFPToSI(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateUIToFP(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildUIToFP(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSIToFP(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildSIToFP(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFPTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildFPTrunc(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFPExt(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildFPExt(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreatePtrToInt(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildPtrToInt(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateIntToPtr(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildIntToPtr(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildBitCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAddrSpaceCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildAddrSpaceCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateZExtOrBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildZExtOrBitCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSExtOrBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildSExtOrBitCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateTruncOrBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildTruncOrBitCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCast(LLVMOpcode opcode, LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildCast(builder, opcode, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreatePointerCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildPointerCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateIntCast(LLVMValueRef value, LLVMTypeRef destinationType, bool isSigned, const std::string& name)
+{
+	return LLVMBuildIntCast2(builder, value, destinationType, isSigned, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFPCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	return LLVMBuildFPCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateICmp(LLVMIntPredicate opcode, LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildICmp(builder, opcode, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFCmp(LLVMRealPredicate opcode, LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildFCmp(builder, opcode, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreatePhi(LLVMTypeRef type, const std::string& name)
+{
+	return LLVMBuildPhi(builder, type, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCall(LLVMValueRef function, LLVMValueRef* arguments, uint32_t numberArguments, const std::string& name)
+{
+	return LLVMBuildCall(builder, function, arguments, numberArguments, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSelect(LLVMValueRef conditional, LLVMValueRef thenValue, LLVMValueRef elseValue, const std::string& name)
+{
+	return LLVMBuildSelect(builder, conditional, thenValue, elseValue, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateVAArg(LLVMValueRef list, LLVMTypeRef type, const std::string& name)
+{
+	return LLVMBuildVAArg(builder, list, type, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateExtractElement(LLVMValueRef vector, LLVMValueRef Index, const std::string& name)
+{
+	return LLVMBuildExtractElement(builder, vector, Index, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateInsertElement(LLVMValueRef vector, LLVMValueRef element, LLVMValueRef index, const std::string& name)
+{
+	return LLVMBuildInsertElement(builder, vector, element, index, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateShuffleVector(LLVMValueRef value1, LLVMValueRef value2, LLVMValueRef mask, const std::string& name)
+{
+	return LLVMBuildShuffleVector(builder, value1, value2, mask, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateExtractValue(LLVMValueRef aggregate, uint32_t index, const std::string& name)
+{
+	return LLVMBuildExtractValue(builder, aggregate, index, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateInsertValue(LLVMValueRef aggregate, LLVMValueRef element, uint32_t index, const std::string& name)
+{
+	return LLVMBuildInsertValue(builder, aggregate, element, index, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateIsNull(LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildIsNull(builder, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateIsNotNull(LLVMValueRef value, const std::string& name)
+{
+	return LLVMBuildIsNotNull(builder, value, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreatePtrDiff(LLVMValueRef lhs, LLVMValueRef rhs, const std::string& name)
+{
+	return LLVMBuildPtrDiff(builder, lhs, rhs, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateFence(LLVMAtomicOrdering ordering, bool singleThread, const std::string& name)
+{
+	return LLVMBuildFence(builder, ordering, singleThread, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAtomicRMW(LLVMAtomicRMWBinOp opcode, LLVMValueRef pointer, LLVMValueRef value, LLVMAtomicOrdering ordering, bool singleThread)
+{
+	return LLVMBuildAtomicRMW(builder, opcode, pointer, value, ordering, singleThread);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateAtomicCmpXchg(LLVMValueRef pointer, LLVMValueRef cmp, LLVMValueRef New, LLVMAtomicOrdering successOrdering, LLVMAtomicOrdering failureOrdering, bool singleThread)
+{
+	return LLVMBuildAtomicCmpXchg(builder, pointer, cmp, New, successOrdering, failureOrdering, singleThread);
 }

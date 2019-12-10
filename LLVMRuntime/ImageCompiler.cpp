@@ -10,32 +10,6 @@
 
 #include <type_traits>
 
-namespace Intrinsics
-{
-	enum ID
-	{
-		not_intrinsic = 0,
-
-		// Get the intrinsic enums generated from Intrinsics.td
-#define GET_INTRINSIC_ENUM_VALUES
-#include "llvm/IR/IntrinsicEnums.inc"
-#undef GET_INTRINSIC_ENUM_VALUES
-	};
-}
-
-template<int NumberValues>
-static LLVMValueRef CallIntrinsic(LLVMBuilderRef builder, LLVMModuleRef module, Intrinsics::ID intrinsic, std::array<LLVMValueRef, NumberValues> values)
-{
-	std::array<LLVMTypeRef, NumberValues> parameterTypes;
-	for (auto i = 0u; i < NumberValues; i++)
-	{
-		parameterTypes[i] = LLVMTypeOf(values[i]);
-	}
-
-	const auto declaration = LLVMGetIntrinsicDeclaration(module, intrinsic, parameterTypes.data(), parameterTypes.size());
-	return LLVMBuildCall(builder, declaration, values.data(), static_cast<uint32_t>(values.size()), "");
-}
-
 class PixelCompiledModuleBuilder : public CompiledModuleBuilder
 {
 public:
@@ -69,14 +43,14 @@ protected:
 	LLVMValueRef EmitConvertFloatInt(LLVMValueRef inputValue, int64_t maxValue, LLVMTypeRef outputType)
 	{
 		auto value = LLVMBuildFMul(builder, inputValue, LLVMConstReal(LLVMTypeOf(inputValue), static_cast<double>(maxValue)), "");
-		value = CallIntrinsic<1>(builder, module, Intrinsics::round, {value});
+		value = CreateIntrinsic<1>(Intrinsics::round, {value});
 		return LLVMBuildFPToSI(builder, value, outputType, "");
 	}
 
 	LLVMValueRef EmitConvertFloatUInt(LLVMValueRef inputValue, uint64_t maxValue, LLVMTypeRef outputType)
 	{
 		auto value = LLVMBuildFMul(builder, inputValue, LLVMConstReal(LLVMTypeOf(inputValue), static_cast<double>(maxValue)), "");
-		value = CallIntrinsic<1>(builder, module, Intrinsics::round, {value});
+		value = CreateIntrinsic<1>(Intrinsics::round, {value});
 		return LLVMBuildFPToUI(builder, value, outputType, "");
 	}
 
@@ -164,18 +138,18 @@ protected:
 
 	LLVMValueRef CreateMaxNum(LLVMValueRef lhs, LLVMValueRef rhs)
 	{
-		return CallIntrinsic<2>(builder, module, Intrinsics::maxnum, {
-			                        lhs,
-			                        rhs,
-		                        });
+		return CreateIntrinsic<2>(Intrinsics::maxnum, {
+			                          lhs,
+			                          rhs,
+		                          });
 	}
 
 	LLVMValueRef CreateMinNum(LLVMValueRef lhs, LLVMValueRef rhs)
 	{
-		return CallIntrinsic<2>(builder, module, Intrinsics::minnum, {
-			                        lhs,
-			                        rhs,
-		                        });
+		return CreateIntrinsic<2>(Intrinsics::minnum, {
+			                          lhs,
+			                          rhs,
+		                          });
 	}
 };
 
@@ -209,58 +183,6 @@ protected:
 // 		return information->Packed.AlphaOffset;
 // 	}
 // 	FATAL_ERROR();
-// }
-
-// static llvm::Value* EmitLinearToSRGB(llvm::Function* currentFunction, llvm::IRBuilder<>& builder, llvm::Value* inputValue)
-// {
-// 	const auto trueBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
-// 	const auto falseBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
-// 	const auto nextBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
-//
-// 	const auto comparison = builder.CreateFCmpUGT(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0.0031308));
-// 	builder.CreateCondBr(comparison, trueBlock, falseBlock);
-//
-// 	builder.SetInsertPoint(falseBlock);
-// 	const auto falseValue = builder.CreateFMul(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 12.92));
-// 	builder.CreateBr(nextBlock);
-//
-// 	builder.SetInsertPoint(trueBlock);
-// 	llvm::Value* trueValue = builder.CreateBinaryIntrinsic(llvm::Intrinsic::pow, inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 1.0 / 2.4));
-// 	trueValue = builder.CreateFMul(trueValue, llvm::ConstantFP::get(builder.getFloatTy(), 1.055));
-// 	trueValue = builder.CreateFAdd(trueValue, llvm::ConstantFP::get(builder.getFloatTy(), -0.055));
-// 	builder.CreateBr(nextBlock);
-//
-// 	builder.SetInsertPoint(nextBlock);
-// 	auto value = builder.CreatePHI(builder.getFloatTy(), 2);
-// 	value->addIncoming(trueValue, trueBlock);
-// 	value->addIncoming(falseValue, falseBlock);
-// 	return value;
-// }
-//
-// static llvm::Value* EmitSRGBToLinear(llvm::Function* currentFunction, llvm::IRBuilder<>& builder, llvm::Value* inputValue)
-// {
-// 	const auto trueBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
-// 	const auto falseBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
-// 	const auto nextBlock = llvm::BasicBlock::Create(currentFunction->getContext(), "", currentFunction);
-// 	
-// 	const auto comparison = builder.CreateFCmpUGT(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0.04045));
-// 	builder.CreateCondBr(comparison, trueBlock, falseBlock);
-// 	
-// 	builder.SetInsertPoint(falseBlock);
-// 	const auto falseValue = builder.CreateFDiv(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 12.92));
-// 	builder.CreateBr(nextBlock);
-// 	
-// 	builder.SetInsertPoint(trueBlock);
-// 	auto trueValue = builder.CreateFAdd(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0.055));
-// 	trueValue = builder.CreateFDiv(trueValue, llvm::ConstantFP::get(builder.getFloatTy(), 1.055));
-// 	trueValue = builder.CreateBinaryIntrinsic(llvm::Intrinsic::pow, trueValue, llvm::ConstantFP::get(builder.getFloatTy(), 2.4));
-// 	builder.CreateBr(nextBlock);
-// 	
-// 	builder.SetInsertPoint(nextBlock);
-// 	auto value = builder.CreatePHI(builder.getFloatTy(), 2);
-// 	value->addIncoming(trueValue, trueBlock);
-// 	value->addIncoming(falseValue, falseBlock);
-// 	return value;
 // }
 
 class GetDepthPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
@@ -327,39 +249,41 @@ CP_DLL_EXPORT FunctionPointer CompileGetPixelDepth(CPJit* jit, const FormatInfor
 	return GetDepthPixelCompiledModuleBuilder(jit, information).Compile()->getFunctionPointer("main");
 }
 
+class GetStencilPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
+{
+public:
+	GetStencilPixelCompiledModuleBuilder(CPJit* jit, const FormatInformation* information) :
+		PixelCompiledModuleBuilder{jit, information}
+	{
+		assert(information->Type == FormatType::DepthStencil);
+		assert(information->DepthStencil.StencilOffset != INVALID_OFFSET);
+	}
+
+protected:
+	void MainCompilation() override
+	{
+		std::vector<LLVMTypeRef> parameters
+		{
+			LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+		};
+		const auto functionType = LLVMFunctionType(LLVMInt8TypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+		const auto function = LLVMAddFunction(module, "main", functionType);
+		LLVMSetLinkage(function, LLVMExternalLinkage);
+
+		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
+		LLVMPositionBuilderAtEnd(builder, basicBlock);
+
+		auto sourcePtr = LLVMGetParam(function, 0);
+		sourcePtr = CreateGEP(sourcePtr, information->DepthStencil.StencilOffset);
+		const auto value = CreateLoad(sourcePtr);
+
+		LLVMBuildRet(builder, value);
+	}
+};
+
 CP_DLL_EXPORT FunctionPointer CompileGetPixelStencil(CPJit* jit, const FormatInformation* information)
 {
-	// assert(information->Type == FormatType::DepthStencil);
-	// assert(information->DepthStencil.StencilOffset != INVALID_OFFSET);
-	//
-	// auto context = std::make_unique<llvm::LLVMContext>();
-	// llvm::IRBuilder<> builder(*context);
-	// auto module = std::make_unique<llvm::Module>("", *context);
-	//
-	// const auto functionType = llvm::FunctionType::get(builder.getInt8Ty(), {
-	// 	                                                  builder.getInt8PtrTy()
-	//                                                   }, false);
-	// const auto function = llvm::Function::Create(static_cast<llvm::FunctionType*>(functionType),
-	//                                              llvm::GlobalVariable::ExternalLinkage,
-	//                                              "main",
-	//                                              module.get());
-	//
-	// const auto basicBlock = llvm::BasicBlock::Create(*context, "", function);
-	// builder.SetInsertPoint(basicBlock);
-	//
-	// llvm::Value* sourcePtr = &*function->arg_begin();
-	// sourcePtr = builder.CreateConstGEP1_32(sourcePtr, information->DepthStencil.StencilOffset);
-	// const auto value = builder.CreateLoad(sourcePtr);
-	//
-	// builder.CreateRet(value);
-	//
-	// // TODO: Optimise
-	//
-	// Dump(module.get());
-	//
-	// const auto compiledModule = jit->CompileModule(std::move(context), std::move(module));
-	// return jit->getFunctionPointer(compiledModule, "main");
-	FATAL_ERROR();
+	return GetStencilPixelCompiledModuleBuilder(jit, information).Compile()->getFunctionPointer("main");
 }
 
 template<typename ReturnType>
@@ -397,10 +321,11 @@ protected:
 		switch (information->Type)
 		{
 		case FormatType::Normal:
-			CompileGetNormal(sourcePtr, destinationPtr);
+			CompileGetNormal(function, sourcePtr, destinationPtr);
 			break;
 		
 		case FormatType::Packed:
+			// TODO
 			// {
 			// 	switch (information->Base)
 			// 	{
@@ -816,6 +741,7 @@ protected:
 			FATAL_ERROR();
 		
 		case FormatType::DepthStencil:
+			// TODO
 			// {
 			// 	llvm::Value* value;
 			// 	switch (information->Format)
@@ -863,6 +789,7 @@ protected:
 			FATAL_ERROR();
 			
 		case FormatType::Compressed:
+			// TODO
 			// {
 			// 	const auto subX = &*(function->arg_begin() + 2);
 			// 	const auto subY = &*(function->arg_begin() + 3);
@@ -1053,7 +980,7 @@ private:
 		}
 	}
 	
-	void CompileGetNormal(LLVMValueRef sourcePtr, LLVMValueRef destinationPtr)
+	void CompileGetNormal(LLVMValueRef function, LLVMValueRef sourcePtr, LLVMValueRef destinationPtr)
 	{
 		LLVMTypeRef sourceType{};
 		switch (information->Base)
@@ -1095,7 +1022,7 @@ private:
 			{
 				auto value = CreateGEP(sourcePtr, gsl::at(information->Normal.OffsetValues, i) / information->ElementSize);
 				value = CreateLoad(value);
-				value = CompileGetNormalChannel(value, i);
+				value = CompileGetNormalChannel(function, value, i);
 				CreateStore(value, dst);
 			}
 			else
@@ -1106,42 +1033,38 @@ private:
 		}
 	}
 
-	LLVMValueRef CompileGetNormalChannel(LLVMValueRef value, int channel)
+	LLVMValueRef CompileGetNormalChannel(LLVMValueRef function, LLVMValueRef value, int channel)
 	{
 		switch (information->Base)
 		{
 		case BaseType::UNorm:
 		case BaseType::UScaled:
 		case BaseType::UInt:
+			switch (information->ElementSize)
 			{
-				switch (information->ElementSize)
-				{
-				case 1:
-					return EmitConvert<uint8_t, ReturnType>(value);
-				case 2:
-					return EmitConvert<uint16_t, ReturnType>(value);
-				case 4:
-					return EmitConvert<uint32_t, ReturnType>(value);
-				default:
-					FATAL_ERROR();
-				}
+			case 1:
+				return EmitConvert<uint8_t, ReturnType>(value);
+			case 2:
+				return EmitConvert<uint16_t, ReturnType>(value);
+			case 4:
+				return EmitConvert<uint32_t, ReturnType>(value);
+			default:
+				FATAL_ERROR();
 			}
 
 		case BaseType::SNorm:
 		case BaseType::SScaled:
 		case BaseType::SInt:
+			switch (information->ElementSize)
 			{
-				switch (information->ElementSize)
-				{
-				case 1:
-					return EmitConvert<int8_t, ReturnType>(value);
-				case 2:
-					return EmitConvert<int16_t, ReturnType>(value);
-				case 4:
-					return EmitConvert<int32_t, ReturnType>(value);
-				default:
-					FATAL_ERROR();
-				}
+			case 1:
+				return EmitConvert<int8_t, ReturnType>(value);
+			case 2:
+				return EmitConvert<int16_t, ReturnType>(value);
+			case 4:
+				return EmitConvert<int32_t, ReturnType>(value);
+			default:
+				FATAL_ERROR();
 			}
 
 		case BaseType::UFloat:
@@ -1149,70 +1072,68 @@ private:
 
 		case BaseType::SFloat:
 			assert((std::is_same<ReturnType, float>::value));
-			// 		switch (information->ElementSize)
-			// 		{
-			// 		case 2:
-			// 			sourceType = builder.getHalfTy();
-			// 			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-			// 			{
-			// 				return EmitConvert<half, float>(builder, inputValue);
-			// 			};
-			// 			break;
-			//
-			// 		case 4:
-			// 			sourceType = builder.getFloatTy();
-			// 			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-			// 			{
-			// 				return EmitConvert<float, float>(builder, inputValue);
-			// 			};
-			// 			break;
-			//
-			// 		default:
-			// 			FATAL_ERROR();
-			// 		}
-			// 		break;
-			FATAL_ERROR();
+			switch (information->ElementSize)
+			{
+			case 2:
+				return EmitConvert<half, ReturnType>(value);
+			case 4:
+				return EmitConvert<float, ReturnType>(value);
+			default:
+				FATAL_ERROR();
+			}
 
 		case BaseType::SRGB:
 			assert((std::is_same<ReturnType, float>::value));
-			// 		switch (information->ElementSize)
-			// 		{
-			// 		case 1:
-			// 			sourceType = builder.getInt8Ty();
-			// 			process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-			// 			{
-			// 				inputValue = EmitConvert<uint8_t, float>(builder, inputValue);
-			// 				return index == 3 ? inputValue : EmitSRGBToLinear(function, builder, inputValue);
-			// 			};
-			// 			break;
-			//
-			// 		case 2:
-			// 			sourceType = builder.getInt16Ty();
-			// 			process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-			// 			{
-			// 				inputValue = EmitConvert<uint16_t, float>(builder, inputValue);
-			// 				return index == 3 ? inputValue : EmitSRGBToLinear(function, builder, inputValue);
-			// 			};
-			// 			break;
-			//
-			// 		case 4:
-			// 			sourceType = builder.getInt32Ty();
-			// 			process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-			// 			{
-			// 				inputValue = EmitConvert<uint32_t, float>(builder, inputValue);
-			// 				return index == 3 ? inputValue : EmitSRGBToLinear(function, builder, inputValue);
-			// 			};
-			// 			break;
-			//
-			// 		default:
-			// 			FATAL_ERROR();
-			// 		}
-			// 		break;
-			FATAL_ERROR();
+			switch (information->ElementSize)
+			{
+			case 1:
+				return channel == 3 ? EmitConvert<uint8_t, ReturnType>(value) : EmitSRGBToLinear(function, EmitConvert<uint8_t, ReturnType>(value));
+			case 2:
+				return channel == 3 ? EmitConvert<uint16_t, ReturnType>(value) : EmitSRGBToLinear(function, EmitConvert<uint16_t, ReturnType>(value));
+			case 4:
+				return channel == 3 ? EmitConvert<uint32_t, ReturnType>(value) : EmitSRGBToLinear(function, EmitConvert<uint32_t, ReturnType>(value));
+			default:
+				FATAL_ERROR();
+			}
 
 		default:
 			FATAL_ERROR();
 		}
+	}
+	
+	LLVMValueRef EmitSRGBToLinear(LLVMValueRef function, LLVMValueRef inputValue)
+	{
+		const auto trueBlock = LLVMAppendBasicBlockInContext(context, function, "");
+		const auto falseBlock = LLVMAppendBasicBlockInContext(context, function, "");
+		const auto nextBlock = LLVMAppendBasicBlockInContext(context, function, "");
+
+		const auto comparison = CreateFCmpUGT(inputValue, ConstF32(0.04045f));
+		CreateCondBr(comparison, trueBlock, falseBlock);
+
+		LLVMPositionBuilderAtEnd(builder, falseBlock);
+		const auto falseValue = CreateFDiv(inputValue, ConstF32(12.92f));
+		CreateBr(nextBlock);
+
+		LLVMPositionBuilderAtEnd(builder, trueBlock);
+		auto trueValue = CreateFAdd(inputValue, ConstF32(0.055f));
+		trueValue = CreateFDiv(trueValue, ConstF32(1.055f));
+		trueValue = CreateIntrinsic<2>(Intrinsics::pow, {trueValue, ConstF32(2.4f)});
+		CreateBr(nextBlock);
+
+		LLVMPositionBuilderAtEnd(builder, nextBlock);
+		const auto value = CreatePhi(LLVMFloatTypeInContext(context));
+		std::array<LLVMValueRef, 2> incoming
+		{
+			trueValue,
+			falseValue,
+		};
+		std::array<LLVMBasicBlockRef, 2> incomingBlocks
+		{
+			trueBlock,
+			falseBlock,
+		};
+		LLVMAddIncoming(value, incoming.data(), incomingBlocks.data(), 2);
+		return value;
 	}
 };
 
@@ -1263,7 +1184,7 @@ protected:
 		if (information->DepthStencil.DepthOffset != INVALID_OFFSET)
 		{
 			auto dst = destinationPtr;
-			auto value = CreateMinNum(CreateMaxNum(depthSource,  ConstF32(0)), ConstF32(1));
+			auto value = CreateMinNum(CreateMaxNum(depthSource, ConstF32(0)), ConstF32(1));
 			switch (information->Format)
 			{
 			case VK_FORMAT_D16_UNORM:
@@ -1275,7 +1196,7 @@ protected:
 			case VK_FORMAT_D24_UNORM_S8_UINT:
 			case VK_FORMAT_X8_D24_UNORM_PACK32:
 				value = LLVMBuildFMul(builder, value, ConstF32(0x00FFFFFF), "");
-				value = CallIntrinsic<1>(builder, module, Intrinsics::round, {value});
+				value = CreateIntrinsic<1>(Intrinsics::round, {value});
 				value = LLVMBuildFPToUI(builder, value, LLVMInt32TypeInContext(context), "");
 				dst = LLVMBuildBitCast(builder, dst, LLVMPointerType(LLVMInt32TypeInContext(context), 0), "");
 				if (information->Format == VK_FORMAT_D24_UNORM_S8_UINT)
@@ -1611,7 +1532,7 @@ CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const Form
 // 	builder.CreateStore(value, dst);
 // }
 
-template<typename ReturnType>
+template<typename SourceType>
 class SetPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
 {
 public:
@@ -1626,7 +1547,7 @@ protected:
 		std::vector<LLVMTypeRef> parameters
 		{
 			LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-			LLVMPointerType(GetType<ReturnType>(), 0),
+			LLVMPointerType(GetType<SourceType>(), 0),
 		};
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
@@ -1714,58 +1635,41 @@ private:
 
 	LLVMValueRef CompileSetNormalChannel(LLVMValueRef function, LLVMValueRef inputValue, int channel)
 	{
+		// TODO
 		switch (information->Base)
 		{
 		case BaseType::UNorm:
 			{
-				assert((std::is_same<ReturnType, float>::value));
+				assert((std::is_same<SourceType, float>::value));
 				const auto value = CreateMinNum(CreateMaxNum(inputValue, ConstF32(0)), ConstF32(1));
 				switch (information->ElementSize)
 				{
 				case 1:
-					return EmitConvert<float, uint8_t>(value);
+					return EmitConvert<SourceType, uint8_t>(value);
 				case 2:
-					return EmitConvert<float, uint16_t>(value);
+					return EmitConvert<SourceType, uint16_t>(value);
 				case 4:
-					return EmitConvert<float, uint32_t>(value);
+					return EmitConvert<SourceType, uint32_t>(value);
 				default:
 					FATAL_ERROR();
 				}
 			}
 			
 		case BaseType::SNorm:
-			assert((std::is_same<ReturnType, float>::value));
-			switch (information->ElementSize)
 			{
-			case 1:
-				//			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				//			{
-				//				const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
-				//				                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-				//				return EmitConvert<float, int8_t>(builder, value);
-				//			};
-				//			break;
-			
-			case 2:
-				//			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				//			{
-				//				const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
-				//				                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-				//				return EmitConvert<float, int16_t>(builder, value);
-				//			};
-				//			break;
-			
-			case 4:
-				//			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				//			{
-				//				const auto value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), -1)),
-				//				                                        llvm::ConstantFP::get(builder.getFloatTy(), 1));
-				//				return EmitConvert<float, int32_t>(builder, value);
-				//			};
-				//			break;
-			
-			default:
-				FATAL_ERROR();
+				assert((std::is_same<SourceType, float>::value));
+				const auto value = CreateMinNum(CreateMaxNum(inputValue, ConstF32(-1)), ConstF32(1));
+				switch (information->ElementSize)
+				{
+				case 1:
+					return EmitConvert<SourceType, int8_t>(value);
+				case 2:
+					return EmitConvert<SourceType, int16_t>(value);
+				case 4:
+					return EmitConvert<SourceType, int32_t>(value);
+				default:
+					FATAL_ERROR();
+				}
 			}
 		
 		case BaseType::UScaled:
@@ -1775,68 +1679,50 @@ private:
 			FATAL_ERROR();
 			
 		case BaseType::UInt:
-			assert((std::is_same<ReturnType, uint32_t>::value));
+			assert((std::is_same<SourceType, uint32_t>::value));
 			switch (information->ElementSize)
 			{
 			case 1:
-				// 				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue)
-				// 				{
-				// 					const auto tmp = builder.CreateICmpULT(inputValue, builder.getInt32(std::numeric_limits<uint8_t>::max()));
-				// 					inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(std::numeric_limits<uint8_t>::max()));
-				// 					return EmitConvert<uint32_t, uint8_t>(builder, inputValue);
-				// 				};
-				// 				break;
+				{
+					const auto tmp = CreateICmpULT(inputValue, ConstU32(std::numeric_limits<uint8_t>::max()));
+					inputValue = CreateSelect(tmp, inputValue, ConstU32(std::numeric_limits<uint8_t>::max()));
+					return EmitConvert<SourceType, uint8_t>(inputValue);
+				}
 			
 			case 2:
-				// 				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue)
-				// 				{
-				// 					const auto tmp = builder.CreateICmpULT(inputValue, builder.getInt32(std::numeric_limits<uint16_t>::max()));
-				// 					inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(std::numeric_limits<uint16_t>::max()));
-				// 					return EmitConvert<uint32_t, uint16_t>(builder, inputValue);
-				// 				};
-				// 				break;
+				{
+					const auto tmp = CreateICmpULT(inputValue, ConstU32(std::numeric_limits<uint16_t>::max()));
+					inputValue = CreateSelect(tmp, inputValue, ConstU32(std::numeric_limits<uint16_t>::max()));
+					return EmitConvert<SourceType, uint16_t>(inputValue);
+				}
 			
 			case 4:
-				// 				process = EmitConvert<uint32_t, uint32_t>;
-				// 				break;
+				return EmitConvert<SourceType, uint32_t>(inputValue);
 			
 			default:
 				FATAL_ERROR();
 			}
 			
 		case BaseType::SInt:
-			assert((std::is_same<ReturnType, int32_t>::value));
+			assert((std::is_same<SourceType, int32_t>::value));
 			switch (information->ElementSize)
 			{
 			case 1:
-				// 				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue)
-				// 				{
-				// 					auto tmp = builder.CreateICmpSGT(inputValue, builder.getInt32(std::numeric_limits<int8_t>::min()));
-				// 					inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(std::numeric_limits<int8_t>::min()));
-				// 				
-				// 					tmp = builder.CreateICmpSLT(inputValue, builder.getInt32(std::numeric_limits<int8_t>::max()));
-				// 					inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(std::numeric_limits<int8_t>::max()));
-				//
-				// 					return EmitConvert<int32_t, int8_t>(builder, inputValue);
-				// 				};
-				// 				break;
+				{
+					const auto tmp = CreateICmpSGT(inputValue, ConstI32(std::numeric_limits<int8_t>::max()));
+					inputValue = CreateSelect(tmp, inputValue, ConstI32(std::numeric_limits<int8_t>::max()));
+					return EmitConvert<SourceType, uint8_t>(inputValue);
+				}
 			
 			case 2:
-				// 				process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue)
-				// 				{
-				// 					auto tmp = builder.CreateICmpSGT(inputValue, builder.getInt32(std::numeric_limits<int16_t>::min()));
-				// 					inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(std::numeric_limits<int16_t>::min()));
-				//
-				// 					tmp = builder.CreateICmpSLT(inputValue, builder.getInt32(std::numeric_limits<int16_t>::max()));
-				// 					inputValue = builder.CreateSelect(tmp, inputValue, builder.getInt32(std::numeric_limits<int16_t>::max()));
-				//
-				// 					return EmitConvert<int32_t, int16_t>(builder, inputValue);
-				// 				};
-				// 				break;
+				{
+					const auto tmp = CreateICmpSGT(inputValue, ConstI32(std::numeric_limits<int16_t>::max()));
+					inputValue = CreateSelect(tmp, inputValue, ConstI32(std::numeric_limits<int16_t>::max()));
+					return EmitConvert<SourceType, int16_t>(inputValue);
+				}
 			
 			case 4:
-				// 				process = EmitConvert<int32_t, int32_t>;
-				// 				break;
+				return EmitConvert<SourceType, int32_t>(inputValue);
 			
 			default:
 				FATAL_ERROR();
@@ -1846,70 +1732,38 @@ private:
 			FATAL_ERROR();
 			
 		case BaseType::SFloat:
-			assert((std::is_same<ReturnType, float>::value));
+			assert((std::is_same<SourceType, float>::value));
 			switch (information->ElementSize)
 			{
 			case 2:
-				//			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				//			{
-				//				return EmitConvert<float, half>(builder, inputValue);
-				//			};
-				//			break;
+				return EmitConvert<SourceType, half>(inputValue);
 			
 			case 4:
-				//			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				//			{
-				//				return EmitConvert<float, float>(builder, inputValue);
-				//			};
-				//			break;
+				return EmitConvert<SourceType, float>(inputValue);
 			
 			case 8:
-				//			process = [](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int)
-				//			{
-				//				return EmitConvert<float, double>(builder, inputValue);
-				//			};
-				//			break;
+				return EmitConvert<SourceType, double>(inputValue);
 			
 			default:
 				FATAL_ERROR();
 			}
 			
 		case BaseType::SRGB:
-			assert((std::is_same<ReturnType, float>::value));
-			switch (information->ElementSize)
 			{
-			case 1:
-				//			process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-				//			{
-				//				llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-				//				                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
-				//				value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
-				//				return EmitConvert<float, uint8_t>(builder, value);
-				//			};
-				//			break;
-			
-			case 2:
-				//			process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-				//			{
-				//				llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-				//				                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
-				//				value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
-				//				return EmitConvert<float, uint16_t>(builder, value);
-				//			};
-				//			break;
-			
-			case 4:
-				//			process = [function](llvm::IRBuilder<>& builder, llvm::Value* inputValue, int index)
-				//			{
-				//				llvm::Value* value = builder.CreateMinNum(builder.CreateMaxNum(inputValue, llvm::ConstantFP::get(builder.getFloatTy(), 0)),
-				//				                                          llvm::ConstantFP::get(builder.getFloatTy(), 1));
-				//				value = index == 3 ? inputValue : EmitLinearToSRGB(function, builder, inputValue);
-				//				return EmitConvert<float, uint32_t>(builder, value);
-				//			};
-				//			break;
-			
-			default:
-				FATAL_ERROR();
+				assert((std::is_same<SourceType, float>::value));
+				auto value = CreateMinNum(CreateMaxNum(inputValue, ConstF32(0)), ConstF32(1));
+				value = channel == 3 ? value : EmitLinearToSRGB(function, value);
+				switch (information->ElementSize)
+				{
+				case 1:
+					return EmitConvert<SourceType, uint8_t>(value);
+				case 2:
+					return EmitConvert<SourceType, uint16_t>(value);
+				case 4:
+					return EmitConvert<SourceType, uint32_t>(value);
+				default:
+					FATAL_ERROR();
+				}
 			}
 		
 		default:
@@ -1919,10 +1773,46 @@ private:
 	
 	void CompileSetPacked(LLVMValueRef function, LLVMValueRef destinationPtr, LLVMValueRef sourcePtr)
 	{
+		// TODO
 		//EmitSetPackedPixelFloat(function, module.get(), builder, information, destinationPtr, sourcePtr);
 		//EmitSetPackedPixelUInt32(builder, information, destinationPtr, sourcePtr);
 		//EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
 		FATAL_ERROR();
+	}
+
+	LLVMValueRef EmitLinearToSRGB(LLVMValueRef function, LLVMValueRef inputValue)
+	{
+		const auto trueBlock = LLVMAppendBasicBlockInContext(context, function, "");
+		const auto falseBlock = LLVMAppendBasicBlockInContext(context, function, "");
+		const auto nextBlock = LLVMAppendBasicBlockInContext(context, function, "");
+
+		const auto comparison = CreateFCmpUGT(inputValue, ConstF32(0.0031308f));
+		CreateCondBr(comparison, trueBlock, falseBlock);
+
+		LLVMPositionBuilderAtEnd(builder, falseBlock);
+		const auto falseValue = CreateFMul(inputValue, ConstF32(12.92f));
+		CreateBr(nextBlock);
+
+		LLVMPositionBuilderAtEnd(builder, trueBlock);
+		auto trueValue = CreateIntrinsic<2>(Intrinsics::pow, {inputValue, ConstF32(1.0f / 2.4f)});
+		trueValue = CreateFMul(trueValue, ConstF32(1.055f));
+		trueValue = CreateFAdd(trueValue, ConstF32(-0.055f));
+		CreateBr(nextBlock);
+
+		LLVMPositionBuilderAtEnd(builder, nextBlock);
+		const auto value = CreatePhi(LLVMFloatTypeInContext(context));
+		std::array<LLVMValueRef, 2> incoming
+		{
+			trueValue,
+			falseValue,
+		};
+		std::array<LLVMBasicBlockRef, 2> incomingBlocks
+		{
+			trueBlock,
+			falseBlock,
+		};
+		LLVMAddIncoming(value, incoming.data(), incomingBlocks.data(), 2);
+		return value;
 	}
 };
 
