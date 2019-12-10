@@ -41,12 +41,17 @@ struct FormatInformation
 
 	union
 	{
-		struct
+		union
 		{
-			uint32_t RedOffset;
-			uint32_t GreenOffset;
-			uint32_t BlueOffset;
-			uint32_t AlphaOffset;
+			struct
+			{
+				uint32_t Red;
+				uint32_t Green;
+				uint32_t Blue;
+				uint32_t Alpha;
+			} Offset;
+			
+			uint32_t OffsetValues[4];
 		} Normal;
 
 		struct

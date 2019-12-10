@@ -66,7 +66,7 @@ using namespace std;
 int main(int argc, char **argv)
 {
 #ifdef WIN32
-	SetEnvironmentVariableA("VK_ICD_FILENAMES", "C:\\Work\\CPVulkan\\CPVulkan\\CPVulkan.json");
+	SetEnvironmentVariableA("VK_ICD_FILENAMES", R"(C:\Work\CPVulkan\CPVulkan\CPVulkan.json)");
 #endif
 	return sample_main(argc, argv);
 }

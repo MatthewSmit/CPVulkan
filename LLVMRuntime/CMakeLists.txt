@@ -4,11 +4,17 @@ find_package(glm CONFIG REQUIRED)
 find_package(LLVM CONFIG REQUIRED)
 
 add_library(LLVMRuntime SHARED
+	"CompiledModule.cpp"
+	"CompiledModule.h"
+	"CompiledModuleBuilder.h"
+
 	"ImageCompiler.cpp"
 	"ImageCompiler.h"
 
 	"Jit.cpp"
 	"Jit.h"
+
+	"LLVMBuilder.h"
 
 	"LLVMHelper.cpp"
 
@@ -22,6 +28,6 @@ add_library(LLVMRuntime SHARED
 	"SpirvFunctions.h"
 	)
 
-target_link_libraries(LLVMRuntime PRIVATE CPVulkanBase SPIRVParser glm LLVMBitWriter LLVMCore LLVMOrcJIT LLVMX86AsmParser LLVMX86CodeGen)
+target_link_libraries(LLVMRuntime PRIVATE CPVulkanBase SPIRVParser glm LLVM-C)
 target_include_directories(LLVMRuntime PRIVATE ${LLVM_INCLUDE_DIR})
 set_target_properties(LLVMRuntime PROPERTIES INTERFACE_INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})

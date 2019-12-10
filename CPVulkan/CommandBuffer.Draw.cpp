@@ -14,6 +14,7 @@
 #include "RenderPass.h"
 #include "Util.h"
 
+#include <CompiledModule.h>
 #include <ImageCompiler.h>
 #include <Jit.h>
 #include <PipelineData.h>
@@ -589,7 +590,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 				
 				inputData.push_back(VariableInOutData
 					{
-						jit->getPointer(llvmModule, MangleName(variable)),
+						llvmModule->getPointer(MangleName(variable)),
 						location,
 						GetVariableFormat(variable->getType()->getPointerElementType()),
 						variable->getType()->getPointerElementType(),
@@ -622,7 +623,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 				
 				uniformData.push_back(VariableUniformData
 					{
-						jit->getPointer(llvmModule, MangleName(variable)),
+						llvmModule->getPointer(MangleName(variable)),
 						binding,
 						set
 					});
@@ -639,7 +640,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 
 				const auto location = *locations.begin();
 
-				const auto ptr = jit->getPointer(llvmModule, MangleName(variable));
+				const auto ptr = llvmModule->getPointer(MangleName(variable));
 				if (variable->getType()->getPointerElementType()->isTypeArray())
 				{
 					const auto size = variable->getType()->getPointerElementType()->getArrayLength();
@@ -682,7 +683,7 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 
 		case StorageClassPushConstant:
 			assert(std::get<0>(pushConstant) == nullptr);
-			pushConstant = std::make_pair(jit->getPointer(llvmModule, MangleName(variable)), GetVariableSize(variable->getType()->getPointerElementType()));
+			pushConstant = std::make_pair(llvmModule->getPointer(MangleName(variable)), GetVariableSize(variable->getType()->getPointerElementType()));
 			break;
 
 		case StorageClassWorkgroup:
@@ -775,7 +776,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(0);
 	const auto& vertexInput = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexInputState();
 
-	const auto module = shaderStage->getModule();
+	const auto spirvModule = shaderStage->getSPIRVModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
 
 	auto inputSize = 0u;
@@ -784,11 +785,11 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
+	GetVariablePointers(spirvModule, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
 
 	if (!EnsureVertexMemoryStorage(deviceState, assemblerOutput.size(), vertexStorageStride))
 	{
-		const auto outputStorage = deviceState->jit->getPointer(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule(), "@outputStorage");
+		const auto outputStorage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule()->getPointer("@outputStorage");
 		*static_cast<void**>(outputStorage) = deviceState->vertexOutputStorage.data();
 	}
 	
@@ -929,7 +930,7 @@ void SetDatum(const VariableInOutData& input, float p0, float p1, float p2, cons
 	}
 }
 
-static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, const uint8_t* vertexData, int vertexStride,
+static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, const uint8_t* vertexData, uint64_t vertexStride,
                              uint32_t provokingVertex, uint32_t p0Index, uint32_t p1Index, uint32_t p2Index,
                              const glm::vec4& p0, const glm::vec4& p1, const glm::vec4& p2, const glm::vec2& p,
                              VkCullModeFlags cullMode, float& depth, bool& front)
@@ -2120,20 +2121,20 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		FATAL_ERROR();
 	}
 
-	const auto module = shaderStage->getModule();
+	const auto spirvModule = shaderStage->getSPIRVModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
 
-	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
-	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
-
+	const auto builtinInputPointer = llvmModule->getPointer("_builtinInput");
+	const auto builtinOutputPointer = llvmModule->getPointer("_builtinOutput");
+	
 	uint32_t inputSize = sizeof(VertexBuiltinOutput);
 	auto outputSize = 0u;
 	std::vector<VariableInOutData> inputData{};
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
-
+	GetVariablePointers(spirvModule, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
+	
 	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
 	
 	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
@@ -2167,20 +2168,20 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 			}
 		}
 	}
-
+	
 	if (pushConstant.first)
 	{
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
 	}
-
+	
 	auto builtinInput = static_cast<FragmentBuiltinInput*>(builtinInputPointer);
 	builtinInput->fragCoord = glm::vec4(0, 0, 0, 1);
-
+	
 	if (rasterisationState.PolygonMode != VK_POLYGON_MODE_FILL)
 	{
 		FATAL_ERROR();
 	}
-
+	
 	switch (inputAssembly.Topology)
 	{
 	case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
@@ -2190,7 +2191,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
 		ProcessLineList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
-
+	
 	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
 		ProcessLineStrip(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
@@ -2206,7 +2207,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
 		ProcessTriangleFan(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
-
+	
 	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY: FATAL_ERROR();
 	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY: FATAL_ERROR();
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY: FATAL_ERROR();
@@ -2220,12 +2221,12 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 {
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_COMPUTE].pipeline->getShaderStage(5);
 	
-	const auto module = shaderStage->getModule();
+	const auto spirvModule = shaderStage->getSPIRVModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
 	const auto localCount = shaderStage->getComputeLocalSize();
 	
-	const auto builtinInputPointer = deviceState->jit->getPointer(llvmModule, "_builtinInput");
-	const auto builtinOutputPointer = deviceState->jit->getPointer(llvmModule, "_builtinOutput");
+	const auto builtinInputPointer = llvmModule->getPointer("_builtinInput");
+	const auto builtinOutputPointer = llvmModule->getPointer("_builtinOutput");
 	
 	auto inputSize = 0u;
 	auto outputSize = 0u;
@@ -2233,8 +2234,8 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(module, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
-
+	GetVariablePointers(spirvModule, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
+	
 	assert(inputData.empty() && outputData.empty());
 	
 	LoadUniforms(deviceState, uniformData, PIPELINE_COMPUTE);
@@ -2248,7 +2249,7 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 	builtinInput->globalInvocationId = glm::ivec3();
 	builtinInput->localInvocationId = glm::ivec3();
 	builtinInput->workgroupInvocationId = glm::ivec3();
-
+	
 	for (builtinInput->workgroupInvocationId.z = 0, builtinInput->globalInvocationId.z = 0; builtinInput->workgroupInvocationId.z < groupCountZ; builtinInput->workgroupInvocationId.z++)
 	{
 		for (builtinInput->localInvocationId.z = 0u; builtinInput->localInvocationId.z < localCount.z; builtinInput->localInvocationId.z++, builtinInput->globalInvocationId.z++)

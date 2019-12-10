@@ -1,24 +1,13 @@
 #pragma once
 #include <Base.h>
 
-#include <spirv.hpp>
-
 constexpr auto ALIGNMENT = 8;
-
-namespace llvm
-{
-	class LLVMContext;
-	class Module;
-}
-
-namespace SPIRV
-{
-	class SPIRVModule;
-}
 
 class CompiledModule;
 
 using FunctionPointer = void (*)();
+using LLVMOrcJITStackRef = struct LLVMOrcOpaqueJITStack*;
+using LLVMTargetDataRef = struct LLVMOpaqueTargetData*;
 
 class CP_DLL_EXPORT CPJit
 {
@@ -26,16 +15,14 @@ public:
 	CPJit();
 	~CPJit();
 
-	CompiledModule* CompileModule(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo);
-	CompiledModule* CompileModule(std::unique_ptr<llvm::LLVMContext> context, std::unique_ptr<llvm::Module> module, std::function<void*(const std::string&)> getFunction = nullptr);
-	void FreeModule(CompiledModule* compiledModule);
-
 	void AddFunction(const std::string& name, FunctionPointer pointer);
-	void SetUserData(void* userData);
 
-	void* getPointer(const CompiledModule* module, const std::string& name);
-	void* getOptionalPointer(const CompiledModule* module, const std::string& name);
-	FunctionPointer getFunctionPointer(const CompiledModule* module, const std::string& name);
+	[[nodiscard]] FunctionPointer getFunction(const std::string& name);
+	[[nodiscard]] void* getUserData() const;
+	[[nodiscard]] LLVMTargetDataRef getDataLayout() const;
+	[[nodiscard]] LLVMOrcJITStackRef getOrc() const;
+
+	void setUserData(void* userData);
 
 private:
 	class Impl;

@@ -16,9 +16,9 @@ else()
 endif()
 
 if(WIN32)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "C:\\Work\\CPVulkan\\out\\build\\x64-Debug\\CPVulkan\\")
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "C:\\Work\\CPVulkan\\out\\build\\x64-Debug\\CPVulkan\\")
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "C:\\Work\\CPVulkan\\out\\build\\x64-Debug\\CPVulkan\\")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "C:\\Work\\CPVulkan\\output\\")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG "C:\\Work\\CPVulkan\\output\\")
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE "C:\\Work\\CPVulkan\\output\\")
 endif()
 
 project("CPVulkan")

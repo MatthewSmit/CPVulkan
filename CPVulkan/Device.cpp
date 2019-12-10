@@ -1025,17 +1025,9 @@ VkResult Device::GetDeviceGroupSurfacePresentModes2(const VkPhysicalDeviceSurfac
 	FATAL_ERROR();
 }
 
-ImageFunctions::ImageFunctions(CPJit* jit) :
-	ImageFunctions{}
+ImageFunctions::ImageFunctions(CPJit* jit)
 {
 	this->jit = jit;
 }
 
-ImageFunctions::~ImageFunctions()
-{
-	for (auto module : modules)
-	{
-		jit->FreeModule(module);
-	}
-	modules.clear();
-}
+ImageFunctions::~ImageFunctions() = default;

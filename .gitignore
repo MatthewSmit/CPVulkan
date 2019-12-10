@@ -2,3 +2,5 @@
 /out/
 /MSVC/
 /cmake-build-debug/
+/LLVM9
+/output

@@ -17,21 +17,19 @@ public:
 	ImageFunctions(CPJit* jit);
 	~ImageFunctions();
 
-	float (*GetPixelDepth)(const void* ptr);
-	uint8_t (*GetPixelStencil)(const void* ptr);
-	void (*GetPixelF32)(const void* ptr, void* values);
-	void (*GetPixelF32C)(const void* ptr, void* values, uint32_t x, uint32_t y);
-	void (*GetPixelI32)(const void* ptr, void* values);
-	void (*GetPixelU32)(const void* ptr, void* values);
+	float (*GetPixelDepth)(const void* ptr){};
+	uint8_t (*GetPixelStencil)(const void* ptr){};
+	void (*GetPixelF32)(const void* ptr, void* values){};
+	void (*GetPixelF32C)(const void* ptr, void* values, uint32_t x, uint32_t y){};
+	void (*GetPixelI32)(const void* ptr, void* values){};
+	void (*GetPixelU32)(const void* ptr, void* values){};
 	
-	void (*SetPixelDepthStencil)(void* ptr, float depth, uint8_t stencil);
-	void (*SetPixelF32)(void* ptr, const float* values);
-	void (*SetPixelI32)(void* ptr, const int32_t* values);
-	void (*SetPixelU32)(void* ptr, const uint32_t* values);
+	void (*SetPixelDepthStencil)(void* ptr, float depth, uint8_t stencil){};
+	void (*SetPixelF32)(void* ptr, const float* values){};
+	void (*SetPixelI32)(void* ptr, const int32_t* values){};
+	void (*SetPixelU32)(void* ptr, const uint32_t* values){};
 
 private:
-	ImageFunctions() = default;
-	
 	std::vector<CompiledModule*> modules{};
 	CPJit* jit;
 };

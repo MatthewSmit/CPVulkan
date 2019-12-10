@@ -1,13 +1,10 @@
 #pragma once
 #include <Base.h>
 
-#include "spirv.hpp"
+#include <spirv.hpp>
 
-namespace llvm
-{
-	class LLVMContext;
-	class Module;
-}
+class CompiledModule;
+class CPJit;
 
 namespace SPIRV
 {
@@ -16,7 +13,7 @@ namespace SPIRV
 	class SPIRVVariable;
 }
 
-std::unique_ptr<llvm::Module> ConvertSpirv(llvm::LLVMContext* context, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo);
+CP_DLL_EXPORT CompiledModule* CompileSPIRVModule(CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo);
 
-std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVVariable* variable);
-std::string CP_DLL_EXPORT MangleName(const SPIRV::SPIRVFunction* function);
+CP_DLL_EXPORT std::string MangleName(const SPIRV::SPIRVVariable* variable);
+CP_DLL_EXPORT std::string MangleName(const SPIRV::SPIRVFunction* function);

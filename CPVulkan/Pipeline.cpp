@@ -7,6 +7,7 @@
 #include "ShaderModule.h"
 #include "Util.h"
 
+#include <CompiledModule.h>
 #include <Jit.h>
 #include <PipelineCompiler.h>
 #include <SPIRVCompiler.h>
@@ -480,8 +481,8 @@ static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SP
 ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo) :
 	jit{jit}
 {
-	this->module = module->getModule();
-	const auto entryPoint = FindEntryPoint(this->module, static_cast<SPIRV::SPIRVExecutionModelKind>(stageIndex), name);
+	this->spirvModule = module->getModule();
+	const auto entryPoint = FindEntryPoint(this->spirvModule, static_cast<SPIRV::SPIRVExecutionModelKind>(stageIndex), name);
 	assert(entryPoint);
 
 	if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
@@ -717,10 +718,10 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 		}
 	}
 
-	this->llvmModule = jit->CompileModule(this->module, static_cast<spv::ExecutionModel>(stageIndex), specializationInfo);
-	this->entryPoint = jit->getFunctionPointer(llvmModule, MangleName(entryPoint));
-
-	const auto workgroupSizePtr = jit->getOptionalPointer(llvmModule, "@WorkgroupSize");
+	this->llvmModule = CompileSPIRVModule(jit, this->spirvModule, static_cast<spv::ExecutionModel>(stageIndex), specializationInfo);
+	this->entryPoint = this->llvmModule->getFunctionPointer(MangleName(entryPoint));
+	
+	const auto workgroupSizePtr = this->llvmModule->getOptionalPointer("@WorkgroupSize");
 	if (workgroupSizePtr)
 	{
 		const auto workgroupSizeValue = static_cast<glm::uvec3*>(workgroupSizePtr);
@@ -730,12 +731,12 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 
 ShaderFunction::~ShaderFunction()
 {
-	jit->FreeModule(llvmModule);
+	// TODO: delete llvmModule;
 }
 
 Pipeline::~Pipeline()
 {
-	jit->FreeModule(vertexModule);
+	// TODO: delete vertexModule;
 }
 
 void Pipeline::CompilePipeline()
@@ -746,7 +747,7 @@ void Pipeline::CompilePipeline()
 		layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
 	}
 	
-	vertexModule = CompileVertexPipeline(jit, shaderStages[0]->getModule(), layoutBindings, [&](const std::string& symbolName)
+	vertexModule = CompileVertexPipeline(jit, shaderStages[0]->getSPIRVModule(), layoutBindings, [&](const std::string& symbolName)
 	{
 		if (symbolName == "!VertexShader")
 		{
@@ -755,18 +756,17 @@ void Pipeline::CompilePipeline()
 
 		if (symbolName == "!VertexBuiltinInput")
 		{
-			return jit->getPointer(this->shaderStages[0]->getLLVMModule(), "_builtinInput");
+			return this->shaderStages[0]->getLLVMModule()->getPointer("_builtinInput");
 		}
-
+		
 		if (symbolName == "!VertexBuiltinOutput")
 		{
-			return jit->getPointer(this->shaderStages[0]->getLLVMModule(), "_builtinOutput");
+			return this->shaderStages[0]->getLLVMModule()->getPointer("_builtinOutput");
 		}
-
 
 		return static_cast<void*>(nullptr);
 	});
-	vertexEntryPoint = jit->getFunctionPointer(vertexModule, "@VertexProcessing");
+	vertexEntryPoint = vertexModule->getFunctionPointer("@VertexProcessing");
 }
 
 VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)

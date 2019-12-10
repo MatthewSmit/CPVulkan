@@ -66,20 +66,20 @@ std::unordered_map<std::string, FunctionPointer>& getSpirvFunctions()
 {
 	static std::unordered_map<std::string, FunctionPointer> functions
 	{
-		{"@Vector.Dot.F32[2]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec2>)},
-		{"@Vector.Dot.F32[3]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec3>)},
-		{"@Vector.Dot.F32[4]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec4>)},
+		{"@Vector.Dot.F32.F32[2]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec2>)},
+		{"@Vector.Dot.F32.F32[3]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec3>)},
+		{"@Vector.Dot.F32.F32[4]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec4>)},
 		
-		{"@Matrix.Mult.F32[2,2].F32.col", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat2x2, true, float>)},
-		{"@Matrix.Mult.F32[3,3].F32.col", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat3x3, true, float>)},
-		{"@Matrix.Mult.F32[4,4].F32.col", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat4x4, true, float>)},
+		{"@Matrix.Mult.F32[2,2,col].F32[2,2,col].F32", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat2x2, true, float>)},
+		{"@Matrix.Mult.F32[3,3,col].F32[3,3,col].F32", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat3x3, true, float>)},
+		{"@Matrix.Mult.F32[4,4,col].F32[4,4,col].F32", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat4x4, true, float>)},
 		
-		{"@Matrix.Mult.F32[4].F32[4,4].col", reinterpret_cast<FunctionPointer>(MultiplicationVM<glm::vec4, glm::mat4x4, true>)},
+		{"@Matrix.Mult.F32[4].F32[4].F32[4,4,col]", reinterpret_cast<FunctionPointer>(MultiplicationVM<glm::vec4, glm::mat4x4, true>)},
 		
-		{"@Matrix.Mult.F32[3,3].F32[3].col", reinterpret_cast<FunctionPointer>(MultiplicationMV<glm::mat3x3, true, glm::vec3>)},
-		{"@Matrix.Mult.F32[4,4].F32[4].col", reinterpret_cast<FunctionPointer>(MultiplicationMV<glm::mat4x4, true, glm::vec4>)},
+		{"@Matrix.Mult.F32[3].F32[3,3,col].F32[3]", reinterpret_cast<FunctionPointer>(MultiplicationMV<glm::mat3x3, true, glm::vec3>)},
+		{"@Matrix.Mult.F32[4].F32[4,4,col].F32[4]", reinterpret_cast<FunctionPointer>(MultiplicationMV<glm::mat4x4, true, glm::vec4>)},
 		
-		{"@Matrix.Mult.F32[4,4].F32[4,4].col", reinterpret_cast<FunctionPointer>(MultiplicationMM<glm::mat4x4, true, glm::mat4x4, true>)},
+		{"@Matrix.Mult.F32[4,4,col].F32[4,4,col].F32[4,4,col]", reinterpret_cast<FunctionPointer>(MultiplicationMM<glm::mat4x4, true, glm::mat4x4, true>)},
 	};
 	return functions;
 }

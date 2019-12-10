@@ -121,7 +121,7 @@ public:
 	ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo);
 	~ShaderFunction();
 
-	[[nodiscard]] const SPIRV::SPIRVModule* getModule() const { return module; }
+	[[nodiscard]] const SPIRV::SPIRVModule* getSPIRVModule() const { return spirvModule; }
 	[[nodiscard]] CompiledModule* getLLVMModule() const { return llvmModule; }
 	[[nodiscard]] EntryPoint getEntryPoint() const { return entryPoint; }
 	
@@ -130,7 +130,7 @@ public:
 
 private:
 	CPJit* jit;
-	const SPIRV::SPIRVModule* module;
+	const SPIRV::SPIRVModule* spirvModule;
 	CompiledModule* llvmModule;
 	EntryPoint entryPoint;
 	
