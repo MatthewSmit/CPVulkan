@@ -1,9 +1,0 @@
-dEQP-VK.renderpass.suballocation.simple.color
-dEQP-VK.renderpass.suballocation.simple.depth
-dEQP-VK.renderpass.suballocation.simple.stencil
-dEQP-VK.renderpass.suballocation.simple.depth_stencil
-dEQP-VK.renderpass.suballocation.simple.color_depth
-dEQP-VK.renderpass.suballocation.simple.color_stencil
-dEQP-VK.renderpass.suballocation.simple.color_depth_stencil
-dEQP-VK.renderpass.suballocation.simple.no_attachments
-dEQP-VK.renderpass.suballocation.simple.color_unused_omit_blend_state

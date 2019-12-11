@@ -52,7 +52,7 @@ CompiledModule::CompiledModule(CPJit* jit, LLVMContextRef context, LLVMModuleRef
 		const auto error = LLVMOrcAddEagerlyCompiledIR(jit->getOrc(), &orcModule, module, SymbolResolverStub, this);
 		if (error)
 		{
-			const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
+			const auto errorMessage = LLVMGetErrorMessage(error);
 			TODO_ERROR();
 		}
 	});
@@ -65,7 +65,7 @@ CompiledModule::~CompiledModule()
 		const auto error = LLVMOrcRemoveModule(jit->getOrc(), orcModule);
 		if (error)
 		{
-			const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
+			const auto errorMessage = LLVMGetErrorMessage(error);
 			TODO_ERROR();
 		}
 	});
@@ -142,10 +142,9 @@ void* CompiledModule::getOptionalPointer(const std::string& name) const
 	jit->RunOnCompileThread([&]()
 	{
 		const auto error = LLVMOrcGetSymbolAddressIn(jit->getOrc(), &symbolAddress, orcModule, name.c_str());
-
 		if (error)
 		{
-			const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
+			const auto errorMessage = LLVMGetErrorMessage(error);
 			TODO_ERROR();
 		}
 	});

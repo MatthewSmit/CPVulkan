@@ -554,10 +554,51 @@ static T Swizzle(glm::vec<4, T> vector, VkComponentSwizzle swizzle, int index)
 	}
 }
 
-template<typename ReturnType, typename CoordinateType, bool Array = false, bool Cube = false>
-static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates, float lod)
+template<typename T, bool isSimple>
+struct VectorPointerImpl;
+
+template<typename T>
+struct VectorPointerImpl<T, true>
 {
-	constexpr auto finalLength = CoordinateType::length() + (Array ? -1 : 0) + (Cube ? -1 : 0);
+	using type = T;
+	using vtype = glm::vec<1, T>;
+	static constexpr int length = 1;
+};
+
+template<typename T>
+struct VectorPointerImpl<T, false>
+{
+	using type = T*;
+	using vtype = T;
+	static constexpr int length = T::length();
+};
+
+template<typename T>
+struct VectorPointer
+{
+	static constexpr bool isSimple = std::is_same<T, int32_t>::value || std::is_same<T, uint32_t>::value || std::is_same<T, float>::value;
+
+	using type = typename VectorPointerImpl<T, isSimple>::type;
+	using vtype = typename VectorPointerImpl<T, isSimple>::vtype;
+	static constexpr int length = VectorPointerImpl<T, isSimple>::length;
+
+	static vtype get(type x)
+	{
+		if constexpr (isSimple)
+		{
+			return vtype{x};
+		}
+		else
+		{
+			return *x;
+		}
+	}
+};
+
+template<typename ReturnType, typename CoordinateType, bool Array = false, bool Cube = false>
+static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, typename VectorPointer<CoordinateType>::type coordinates, float lod)
+{
+	constexpr auto finalLength = VectorPointer<CoordinateType>::length + (Array ? -1 : 0) + (Cube ? -1 : 0);
 		
 	VkFormat format;
 	gsl::span<uint8_t> data[MAX_MIP_LEVELS];
@@ -567,17 +608,17 @@ static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result,
 	uint32_t levels;
 	if constexpr (Cube)
 	{
-		GetImageDataCube<Array>(descriptor, format, *coordinates, data, range, baseLevel, levels, realCoordinates);
+		GetImageDataCube<Array>(descriptor, format, VectorPointer<CoordinateType>::get(coordinates), data, range, baseLevel, levels, realCoordinates);
 	}
 	else if constexpr (Array)
 	{
-		GetImageDataArray(descriptor, format, *coordinates, data, range, baseLevel, levels);
-		realCoordinates = ReduceDimension(*coordinates);
+		GetImageDataArray(descriptor, format, VectorPointer<CoordinateType>::get(coordinates), data, range, baseLevel, levels);
+		realCoordinates = ReduceDimension(VectorPointer<CoordinateType>::get(coordinates));
 	}
 	else
 	{
 		GetImageData(descriptor, format, data, range, baseLevel, levels);
-		realCoordinates = *coordinates;
+		realCoordinates = VectorPointer<CoordinateType>::get(coordinates);
 	}
 
 	const auto sampler = descriptor->ImageSampler;
@@ -613,7 +654,7 @@ static void ImageSampleExplicitLod(DeviceState* deviceState, ReturnType* result,
 }
 
 template<typename ReturnType, typename CoordinateType, bool Array = false, bool Cube = false>
-static void ImageSampleImplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates)
+static void ImageSampleImplicitLod(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, typename VectorPointer<CoordinateType>::type coordinates)
 {
 	// TODO: Lod
 	// 	const auto sampler = descriptor->Sampler;
@@ -631,18 +672,18 @@ static void ImageSampleImplicitLod(DeviceState* deviceState, ReturnType* result,
 }
 
 template<typename ReturnType, typename CoordinateType, bool Array = false, bool Cube = false>
-static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates)
+static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, typename VectorPointer<CoordinateType>::type coordinates)
 {
 	static_assert(!Cube);
 	
 	VkFormat format;
 	gsl::span<uint8_t> data[MAX_MIP_LEVELS];
-	glm::vec<CoordinateType::length() + (Array ? -1 : 0), uint32_t> range[MAX_MIP_LEVELS];
+	glm::vec<VectorPointer<CoordinateType>::length + (Array ? -1 : 0), uint32_t> range[MAX_MIP_LEVELS];
 	uint32_t baseLevel;
 	uint32_t levels;
 	if constexpr (Array)
 	{
-		GetImageDataArray(descriptor, format, *coordinates, data, range, levels);
+		GetImageDataArray(descriptor, format, VectorPointer<CoordinateType>::get(coordinates), data, range, levels);
 	}
 	else
 	{
@@ -663,7 +704,7 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 		                               format,
 		                               data[0],
 		                               range[0],
-		                               ReduceDimension(*coordinates),
+		                               ReduceDimension(VectorPointer<CoordinateType>::get(coordinates)),
 		                               ReturnType{});
 	}
 	else
@@ -672,7 +713,7 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 		                               format,
 		                               data[0],
 		                               range[0],
-		                               *coordinates,
+		                               VectorPointer<CoordinateType>::get(coordinates),
 		                               ReturnType{});
 	}
 
@@ -694,7 +735,7 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 }
 
 template<typename ReturnType, typename CoordinateType, bool Array = false, bool Cube = false>
-static void ImageRead(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, CoordinateType* coordinates)
+static void ImageRead(DeviceState* deviceState, ReturnType* result, ImageDescriptor* descriptor, typename VectorPointer<CoordinateType>::type coordinates)
 {
 	return ImageFetch<ReturnType, CoordinateType, Array, Cube>(deviceState, result, descriptor, coordinates);
 }
@@ -1132,13 +1173,13 @@ void AddGlslFunctions(DeviceState* deviceState)
 	// jit->AddFunction("@Image.Sample.Implicit.I32[4].F32[4].Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::ivec4, glm::fvec4, true, true>));
 	// jit->AddFunction("@Image.Sample.Implicit.U32[4].F32[4].Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::uvec4, glm::fvec4, true, true>));
 	
-	jit->AddFunction("@Image.Sample.Explicit.F32[4].SampledImage[F32,1D].F32.Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec1>));
+	jit->AddFunction("@Image.Sample.Explicit.F32[4].SampledImage[F32,1D].F32.Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, float>));
 	jit->AddFunction("@Image.Sample.Explicit.F32[4].SampledImage[F32,2D].F32[2].Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec2>));
 	jit->AddFunction("@Image.Sample.Explicit.F32[4].SampledImage[F32,3D].F32[3].Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec3>));
-	jit->AddFunction("@Image.Sample.Explicit.I32[4].SampledImage[I32,1D].F32.Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec1>));
+	jit->AddFunction("@Image.Sample.Explicit.I32[4].SampledImage[I32,1D].F32.Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, float>));
 	jit->AddFunction("@Image.Sample.Explicit.I32[4].SampledImage[I32,2D].F32[2].Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec2>));
 	jit->AddFunction("@Image.Sample.Explicit.I32[4].SampledImage[I32,3D].F32[3].Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec3>));
-	jit->AddFunction("@Image.Sample.Explicit.U32[4].SampledImage[U32,1D].F32.Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec1>));
+	jit->AddFunction("@Image.Sample.Explicit.U32[4].SampledImage[U32,1D].F32.Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, float>));
 	jit->AddFunction("@Image.Sample.Explicit.U32[4].SampledImage[U32,2D].F32[2].Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec2>));
 	jit->AddFunction("@Image.Sample.Explicit.U32[4].SampledImage[U32,3D].F32[3].Lod.F32", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec3>));
 
@@ -1159,7 +1200,11 @@ void AddGlslFunctions(DeviceState* deviceState)
 	// jit->AddFunction("@Image.Sample.Explicit.F32[4].F32[4].Lod.Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::fvec4, glm::fvec4, true, true>));
 	// jit->AddFunction("@Image.Sample.Explicit.I32[4].F32[4].Lod.Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::ivec4, glm::fvec4, true, true>));
 	// jit->AddFunction("@Image.Sample.Explicit.U32[4].F32[4].Lod.Cube.Array", reinterpret_cast<FunctionPointer>(ImageSampleExplicitLod<glm::uvec4, glm::fvec4, true, true>));
-	
+
+	jit->AddFunction("@Image.Fetch.F32[4].Image[F32,buffer].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::fvec4, int32_t>));
+	jit->AddFunction("@Image.Fetch.I32[4].Image[I32,buffer].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::ivec4, int32_t>));
+	jit->AddFunction("@Image.Fetch.U32[4].Image[U32,buffer].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::uvec4, int32_t>));
+	 
 	// jit->AddFunction("@Image.Fetch.F32[4].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::fvec4, glm::ivec1>));
 	// jit->AddFunction("@Image.Fetch.I32[4].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::ivec4, glm::ivec1>));
 	// jit->AddFunction("@Image.Fetch.U32[4].I32", reinterpret_cast<FunctionPointer>(ImageFetch<glm::uvec4, glm::ivec1>));
