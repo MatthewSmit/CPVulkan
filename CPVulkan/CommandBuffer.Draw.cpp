@@ -235,8 +235,6 @@ static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
 				return VK_FORMAT_R64G64B64A64_UINT;
 			}
 		}
-
-		FATAL_ERROR();
 	}
 
 	if (type->isTypeFloat(16))
@@ -307,7 +305,7 @@ static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 			const auto stride = *type->getDecorate(DecorationArrayStride).begin();
 			if (stride != size)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 		}
 
@@ -325,7 +323,7 @@ static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 				const auto offset = decorate->getLiteral(0);
 				if (offset < size)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				else
 				{
@@ -435,7 +433,8 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 			break;
 		}
 		
-	default: FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -532,10 +531,17 @@ static void LoadUniforms(DeviceState* deviceState, const std::vector<VariableUni
 			}
 			break;
 			
-		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: FATAL_ERROR();
-		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT: FATAL_ERROR();
-		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV: FATAL_ERROR();
-		default: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+			TODO_ERROR();
+			
+		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
+			TODO_ERROR();
+			
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
+			TODO_ERROR();
+			
+		default:
+			FATAL_ERROR();
 		}
 	}
 }
@@ -717,7 +723,7 @@ static std::vector<AssemblerOutput> ProcessInputAssemblerIndexed(DeviceState* de
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState().PrimitiveRestartEnable)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto indexData = deviceState->indexBinding->getDataPtr(deviceState->indexBindingOffset, static_cast<uint64_t>(indexCount) * deviceState->indexBindingStride);
@@ -787,11 +793,9 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	std::pair<void*, uint32_t> pushConstant{};
 	GetVariablePointers(spirvModule, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
 
-	if (!EnsureVertexMemoryStorage(deviceState, assemblerOutput.size(), vertexStorageStride))
-	{
-		const auto outputStorage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule()->getPointer("@outputStorage");
-		*static_cast<void**>(outputStorage) = deviceState->vertexOutputStorage.data();
-	}
+	EnsureVertexMemoryStorage(deviceState, assemblerOutput.size(), vertexStorageStride);
+	const auto outputStorage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule()->getPointer("@outputStorage");
+	*static_cast<void**>(outputStorage) = deviceState->vertexOutputStorage.data();
 	
 	VertexOutput output
 	{
@@ -993,7 +997,8 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, co
 			memcpy(input.pointer, vertexData + provokingVertex * vertexStride + input.offset, input.size);
 			break;
 			
-		default: FATAL_ERROR();
+		default:
+			FATAL_ERROR();
 		}
 	}
 
@@ -1013,7 +1018,9 @@ bool CompareTest(T reference, T value, VkCompareOp compare)
 	case VK_COMPARE_OP_NOT_EQUAL: return value != reference;
 	case VK_COMPARE_OP_GREATER_OR_EQUAL: return value >= reference;
 	case VK_COMPARE_OP_ALWAYS: return true;
-	default: FATAL_ERROR();
+		
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -1087,11 +1094,20 @@ static T ApplyBlendFactor(T source, T destination, T constant, const VkPipelineC
 			break;
 		}
 		
-	case VK_BLEND_FACTOR_SRC1_COLOR: FATAL_ERROR();
-	case VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR: FATAL_ERROR();
-	case VK_BLEND_FACTOR_SRC1_ALPHA: FATAL_ERROR();
-	case VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: FATAL_ERROR();
-	default: FATAL_ERROR();
+	case VK_BLEND_FACTOR_SRC1_COLOR:
+		TODO_ERROR();
+		
+	case VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR: 
+		TODO_ERROR();
+		
+	case VK_BLEND_FACTOR_SRC1_ALPHA:
+		TODO_ERROR();
+		
+	case VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: 
+		TODO_ERROR();
+		
+	default:
+		FATAL_ERROR();
 	}
 
 	if (colourBlendFactor != alphaBlendFactor)
@@ -1137,11 +1153,20 @@ static T ApplyBlendFactor(T source, T destination, T constant, const VkPipelineC
 			value.a = 1 - constant.a;
 			break;
 			
-		case VK_BLEND_FACTOR_SRC1_COLOR: FATAL_ERROR();
-		case VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR: FATAL_ERROR();
-		case VK_BLEND_FACTOR_SRC1_ALPHA: FATAL_ERROR();
-		case VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA: FATAL_ERROR();
-		default: FATAL_ERROR();
+		case VK_BLEND_FACTOR_SRC1_COLOR:
+			TODO_ERROR();
+			
+		case VK_BLEND_FACTOR_ONE_MINUS_SRC1_COLOR:
+			TODO_ERROR();
+			
+		case VK_BLEND_FACTOR_SRC1_ALPHA:
+			TODO_ERROR();
+			
+		case VK_BLEND_FACTOR_ONE_MINUS_SRC1_ALPHA:
+			TODO_ERROR();
+			
+		default:
+			FATAL_ERROR();
 		}
 	}
 
@@ -1177,53 +1202,55 @@ static T ApplyBlend(T source, T destination, T constant, const VkPipelineColorBl
 		value = glm::max(source, destination);
 		break;
 		
-	case VK_BLEND_OP_ZERO_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_SRC_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_DST_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_SRC_OVER_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_DST_OVER_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_SRC_IN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_DST_IN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_SRC_OUT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_DST_OUT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_SRC_ATOP_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_DST_ATOP_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_XOR_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_MULTIPLY_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_SCREEN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_OVERLAY_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_DARKEN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_LIGHTEN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_COLORDODGE_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_COLORBURN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_HARDLIGHT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_SOFTLIGHT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_DIFFERENCE_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_EXCLUSION_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_INVERT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_INVERT_RGB_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_LINEARDODGE_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_LINEARBURN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_VIVIDLIGHT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_LINEARLIGHT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_PINLIGHT_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_HARDMIX_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_HSL_HUE_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_HSL_SATURATION_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_HSL_COLOR_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_HSL_LUMINOSITY_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_PLUS_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_PLUS_CLAMPED_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_PLUS_CLAMPED_ALPHA_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_PLUS_DARKER_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_MINUS_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_MINUS_CLAMPED_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_CONTRAST_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_INVERT_OVG_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_RED_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_GREEN_EXT: FATAL_ERROR();
-	case VK_BLEND_OP_BLUE_EXT: FATAL_ERROR();
-	default: FATAL_ERROR();
+	case VK_BLEND_OP_ZERO_EXT: TODO_ERROR();
+	case VK_BLEND_OP_SRC_EXT: TODO_ERROR();
+	case VK_BLEND_OP_DST_EXT: TODO_ERROR();
+	case VK_BLEND_OP_SRC_OVER_EXT: TODO_ERROR();
+	case VK_BLEND_OP_DST_OVER_EXT: TODO_ERROR();
+	case VK_BLEND_OP_SRC_IN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_DST_IN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_SRC_OUT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_DST_OUT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_SRC_ATOP_EXT: TODO_ERROR();
+	case VK_BLEND_OP_DST_ATOP_EXT: TODO_ERROR();
+	case VK_BLEND_OP_XOR_EXT: TODO_ERROR();
+	case VK_BLEND_OP_MULTIPLY_EXT: TODO_ERROR();
+	case VK_BLEND_OP_SCREEN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_OVERLAY_EXT: TODO_ERROR();
+	case VK_BLEND_OP_DARKEN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_LIGHTEN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_COLORDODGE_EXT: TODO_ERROR();
+	case VK_BLEND_OP_COLORBURN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_HARDLIGHT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_SOFTLIGHT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_DIFFERENCE_EXT: TODO_ERROR();
+	case VK_BLEND_OP_EXCLUSION_EXT: TODO_ERROR();
+	case VK_BLEND_OP_INVERT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_INVERT_RGB_EXT: TODO_ERROR();
+	case VK_BLEND_OP_LINEARDODGE_EXT: TODO_ERROR();
+	case VK_BLEND_OP_LINEARBURN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_VIVIDLIGHT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_LINEARLIGHT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_PINLIGHT_EXT: TODO_ERROR();
+	case VK_BLEND_OP_HARDMIX_EXT: TODO_ERROR();
+	case VK_BLEND_OP_HSL_HUE_EXT: TODO_ERROR();
+	case VK_BLEND_OP_HSL_SATURATION_EXT: TODO_ERROR();
+	case VK_BLEND_OP_HSL_COLOR_EXT: TODO_ERROR();
+	case VK_BLEND_OP_HSL_LUMINOSITY_EXT: TODO_ERROR();
+	case VK_BLEND_OP_PLUS_EXT: TODO_ERROR();
+	case VK_BLEND_OP_PLUS_CLAMPED_EXT: TODO_ERROR();
+	case VK_BLEND_OP_PLUS_CLAMPED_ALPHA_EXT: TODO_ERROR();
+	case VK_BLEND_OP_PLUS_DARKER_EXT: TODO_ERROR();
+	case VK_BLEND_OP_MINUS_EXT: TODO_ERROR();
+	case VK_BLEND_OP_MINUS_CLAMPED_EXT: TODO_ERROR();
+	case VK_BLEND_OP_CONTRAST_EXT: TODO_ERROR();
+	case VK_BLEND_OP_INVERT_OVG_EXT: TODO_ERROR();
+	case VK_BLEND_OP_RED_EXT: TODO_ERROR();
+	case VK_BLEND_OP_GREEN_EXT: TODO_ERROR();
+	case VK_BLEND_OP_BLUE_EXT: TODO_ERROR();
+		
+	default:
+		FATAL_ERROR();
 	}
 
 	if (blendState.colorBlendOp != blendState.alphaBlendOp)
@@ -1250,53 +1277,55 @@ static T ApplyBlend(T source, T destination, T constant, const VkPipelineColorBl
 			value.a = std::max(source.a, destination.a);
 			break;
 			
-		case VK_BLEND_OP_ZERO_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_SRC_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_DST_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_SRC_OVER_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_DST_OVER_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_SRC_IN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_DST_IN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_SRC_OUT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_DST_OUT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_SRC_ATOP_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_DST_ATOP_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_XOR_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_MULTIPLY_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_SCREEN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_OVERLAY_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_DARKEN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_LIGHTEN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_COLORDODGE_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_COLORBURN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_HARDLIGHT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_SOFTLIGHT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_DIFFERENCE_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_EXCLUSION_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_INVERT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_INVERT_RGB_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_LINEARDODGE_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_LINEARBURN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_VIVIDLIGHT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_LINEARLIGHT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_PINLIGHT_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_HARDMIX_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_HSL_HUE_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_HSL_SATURATION_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_HSL_COLOR_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_HSL_LUMINOSITY_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_PLUS_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_PLUS_CLAMPED_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_PLUS_CLAMPED_ALPHA_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_PLUS_DARKER_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_MINUS_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_MINUS_CLAMPED_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_CONTRAST_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_INVERT_OVG_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_RED_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_GREEN_EXT: FATAL_ERROR();
-		case VK_BLEND_OP_BLUE_EXT: FATAL_ERROR();
-		default: FATAL_ERROR();
+		case VK_BLEND_OP_ZERO_EXT: TODO_ERROR();
+		case VK_BLEND_OP_SRC_EXT: TODO_ERROR();
+		case VK_BLEND_OP_DST_EXT: TODO_ERROR();
+		case VK_BLEND_OP_SRC_OVER_EXT: TODO_ERROR();
+		case VK_BLEND_OP_DST_OVER_EXT: TODO_ERROR();
+		case VK_BLEND_OP_SRC_IN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_DST_IN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_SRC_OUT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_DST_OUT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_SRC_ATOP_EXT: TODO_ERROR();
+		case VK_BLEND_OP_DST_ATOP_EXT: TODO_ERROR();
+		case VK_BLEND_OP_XOR_EXT: TODO_ERROR();
+		case VK_BLEND_OP_MULTIPLY_EXT: TODO_ERROR();
+		case VK_BLEND_OP_SCREEN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_OVERLAY_EXT: TODO_ERROR();
+		case VK_BLEND_OP_DARKEN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_LIGHTEN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_COLORDODGE_EXT: TODO_ERROR();
+		case VK_BLEND_OP_COLORBURN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_HARDLIGHT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_SOFTLIGHT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_DIFFERENCE_EXT: TODO_ERROR();
+		case VK_BLEND_OP_EXCLUSION_EXT: TODO_ERROR();
+		case VK_BLEND_OP_INVERT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_INVERT_RGB_EXT: TODO_ERROR();
+		case VK_BLEND_OP_LINEARDODGE_EXT: TODO_ERROR();
+		case VK_BLEND_OP_LINEARBURN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_VIVIDLIGHT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_LINEARLIGHT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_PINLIGHT_EXT: TODO_ERROR();
+		case VK_BLEND_OP_HARDMIX_EXT: TODO_ERROR();
+		case VK_BLEND_OP_HSL_HUE_EXT: TODO_ERROR();
+		case VK_BLEND_OP_HSL_SATURATION_EXT: TODO_ERROR();
+		case VK_BLEND_OP_HSL_COLOR_EXT: TODO_ERROR();
+		case VK_BLEND_OP_HSL_LUMINOSITY_EXT: TODO_ERROR();
+		case VK_BLEND_OP_PLUS_EXT: TODO_ERROR();
+		case VK_BLEND_OP_PLUS_CLAMPED_EXT: TODO_ERROR();
+		case VK_BLEND_OP_PLUS_CLAMPED_ALPHA_EXT: TODO_ERROR();
+		case VK_BLEND_OP_PLUS_DARKER_EXT: TODO_ERROR();
+		case VK_BLEND_OP_MINUS_EXT: TODO_ERROR();
+		case VK_BLEND_OP_MINUS_CLAMPED_EXT: TODO_ERROR();
+		case VK_BLEND_OP_CONTRAST_EXT: TODO_ERROR();
+		case VK_BLEND_OP_INVERT_OVG_EXT: TODO_ERROR();
+		case VK_BLEND_OP_RED_EXT: TODO_ERROR();
+		case VK_BLEND_OP_GREEN_EXT: TODO_ERROR();
+		case VK_BLEND_OP_BLUE_EXT: TODO_ERROR();
+			
+		default:
+			FATAL_ERROR();
 		}
 	}
 
@@ -1372,7 +1401,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	uint8_t stencil = 0;
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilReference)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().StencilTestEnable)
@@ -1380,7 +1409,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		auto compareMask = stencilOpState.compareMask;
 		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilCompareMask)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		stencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0);
@@ -1397,7 +1426,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		{
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getRasterizationState().DepthClampEnable)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			depthResult = CompareTest(currentDepth, depth, deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthCompareOp);
@@ -1444,13 +1473,14 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			writeValue = stencil - 1;
 			break;
 
-		default: FATAL_ERROR();
+		default:
+			FATAL_ERROR();
 		}
 
 		auto writeMask = stencilOpState.writeMask;
 		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilWriteMask)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		writeValue = (writeValue & writeMask) | (stencil & ~writeMask);
@@ -1536,7 +1566,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 						// 28.2. Logical Operations
 						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
 						{
-							FATAL_ERROR();
+							TODO_ERROR();
 						}
 
 						// 28.3. Color Write Mask
@@ -1565,7 +1595,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 						// 28.2. Logical Operations
 						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
 						{
-							FATAL_ERROR();
+							TODO_ERROR();
 						}
 
 						// 28.3. Color Write Mask
@@ -1594,7 +1624,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 						// 28.2. Logical Operations
 						if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getColourBlendState().LogicOpEnable)
 						{
-							FATAL_ERROR();
+							TODO_ERROR();
 						}
 
 						// 28.3. Color Write Mask
@@ -1607,7 +1637,8 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 						break;
 					}
 					
-				default: FATAL_ERROR();
+				default:
+					FATAL_ERROR();
 				}
 			}
 		}
@@ -1626,7 +1657,7 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
@@ -1685,7 +1716,7 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
@@ -1699,7 +1730,7 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 	{
 		if (rasterisationState.StippledLineEnable)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto p0Index = i * 2 + 0;
@@ -1765,7 +1796,8 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 									memcpy(input.pointer, deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset, input.size);
 									break;
 
-								default: FATAL_ERROR();
+								default:
+									FATAL_ERROR();
 								}
 							}
 							
@@ -1776,12 +1808,13 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 					}
 
 				case VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT:
-					FATAL_ERROR();
+					TODO_ERROR();
 
 				case VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT:
-					FATAL_ERROR();
+					TODO_ERROR();
 
-				default: FATAL_ERROR();
+				default:
+					FATAL_ERROR();
 				}
 			}
 		}
@@ -1800,7 +1833,7 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
@@ -1814,7 +1847,7 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 	{
 		if (rasterisationState.StippledLineEnable)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto p0Index = i + 0;
@@ -1880,7 +1913,8 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 									memcpy(input.pointer, deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset, input.size);
 									break;
 
-								default: FATAL_ERROR();
+								default:
+									FATAL_ERROR();
 								}
 							}
 							
@@ -1891,12 +1925,13 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 					}
 
 				case VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT:
-					FATAL_ERROR();
+					TODO_ERROR();
 
 				case VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT:
-					FATAL_ERROR();
+					TODO_ERROR();
 
-				default: FATAL_ERROR();
+				default:
+					FATAL_ERROR();
 				}
 			}
 		}
@@ -1915,7 +1950,7 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
@@ -1984,7 +2019,7 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
@@ -2053,7 +2088,7 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
@@ -2118,7 +2153,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 
 	if (rasterisationState.RasterizerDiscardEnable)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto spirvModule = shaderStage->getSPIRVModule();
@@ -2179,7 +2214,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	
 	if (rasterisationState.PolygonMode != VK_POLYGON_MODE_FILL)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	switch (inputAssembly.Topology)
@@ -2208,12 +2243,23 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		ProcessTriangleFan(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 	
-	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY: FATAL_ERROR();
-	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY: FATAL_ERROR();
-	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY: FATAL_ERROR();
-	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY: FATAL_ERROR();
-	case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST: FATAL_ERROR();
-	default: FATAL_ERROR();
+	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
+		TODO_ERROR();
+		
+	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
+		TODO_ERROR();
+		
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
+		TODO_ERROR();
+		
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY: 
+		TODO_ERROR();
+		
+	case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
+		TODO_ERROR();
+		
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -2305,17 +2351,17 @@ public:
 
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			ProcessFragmentShader(deviceState, vertexOutput);
@@ -2365,17 +2411,17 @@ public:
 
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			ProcessFragmentShader(deviceState, vertexOutput);
@@ -2427,17 +2473,17 @@ public:
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				ProcessFragmentShader(deviceState, vertexOutput);
@@ -2489,17 +2535,17 @@ public:
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				ProcessFragmentShader(deviceState, vertexOutput);
@@ -2593,7 +2639,7 @@ public:
 			}
 			else
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 		}
 	}
@@ -2645,7 +2691,7 @@ public:
 
 			if ((range.aspectMask & ~(VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT)) != 0)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			ClearImage(deviceState, image, image->getFormat(), range.baseMipLevel, levels, range.baseArrayLayer, layers, range.aspectMask, colour);
@@ -2777,17 +2823,17 @@ public:
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				ProcessFragmentShader(deviceState, vertexOutput);
@@ -2839,17 +2885,17 @@ public:
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(1) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(2) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(3) != nullptr)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				ProcessFragmentShader(deviceState, vertexOutput);

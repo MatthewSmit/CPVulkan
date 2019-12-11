@@ -72,7 +72,7 @@ public:
 		case BaseType::SRGB:
 			if (information.ElementSize > 4)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			else
 			{
@@ -91,7 +91,7 @@ public:
 		case BaseType::UInt:
 			if (information.ElementSize > 4)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			else
 			{
@@ -110,7 +110,7 @@ public:
 		case BaseType::SInt:
 			if (information.ElementSize > 4)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			else
 			{
@@ -126,7 +126,8 @@ public:
 			}
 			break;
 			
-		default: FATAL_ERROR();
+		default:
+			FATAL_ERROR();
 		}
 		
 		for (const auto& region : regions)
@@ -173,7 +174,7 @@ public:
 			}
 			else if (region.srcSubresource.aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			assert(region.srcSubresource.layerCount == region.dstSubresource.layerCount);
@@ -372,7 +373,7 @@ public:
 		case BaseType::SRGB:
 			if (information.ElementSize > 4)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			else
 			{
@@ -391,7 +392,7 @@ public:
 		case BaseType::UInt:
 			if (information.ElementSize > 4)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			else
 			{
@@ -410,7 +411,7 @@ public:
 		case BaseType::SInt:
 			if (information.ElementSize > 4)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			else
 			{
@@ -426,7 +427,8 @@ public:
 			}
 			break;
 		
-		default: FATAL_ERROR();
+		default:
+			FATAL_ERROR();
 		}
 		
 		for (const auto& region : regions)
@@ -741,19 +743,19 @@ VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* pBeginInfo)
 {
 	assert(pBeginInfo->sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO);
 
-	auto next = pBeginInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pBeginInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_COMMAND_BUFFER_BEGIN_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
 			break;
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (poolFlags & VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT)
@@ -769,19 +771,19 @@ VkResult CommandBuffer::Begin(const VkCommandBufferBeginInfo* pBeginInfo)
 	{
 		assert(pBeginInfo->pInheritanceInfo->sType == VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_INFO);
 
-		next = pBeginInfo->pInheritanceInfo->pNext;
+		next = static_cast<const VkBaseInStructure*>(pBeginInfo->pInheritanceInfo->pNext);
 		while (next)
 		{
-			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+			const auto type = next->sType;
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_COMMAND_BUFFER_INHERITANCE_CONDITIONAL_RENDERING_INFO_EXT:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			default:
 				break;
 			}
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			next = next->pNext;
 		}
 	}
 
@@ -814,7 +816,7 @@ VkResult CommandBuffer::Reset(VkCommandBufferResetFlags flags)
 {
 	if (flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	ForceReset();
@@ -902,7 +904,7 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 				const auto renderPassInfo = reinterpret_cast<const VkDeviceGroupRenderPassBeginInfo*>(next);
 				if (renderPassInfo->deviceMask != 1)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				if (renderPassInfo->deviceRenderAreaCount)
 				{
@@ -912,10 +914,10 @@ void CommandBuffer::BeginRenderPass(const VkRenderPassBeginInfo* pRenderPassBegi
 			}
 			
 		case VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_RENDER_PASS_SAMPLE_LOCATIONS_BEGIN_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
 			break;
@@ -956,7 +958,7 @@ void CommandBuffer::ForceReset()
 {
 	if (state == State::Pending)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	commands.clear();

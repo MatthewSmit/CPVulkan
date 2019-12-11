@@ -14,7 +14,7 @@ VkResult BufferView::Create(gsl::not_null<const VkBufferViewCreateInfo*> pCreate
 
 	if (pCreateInfo->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	bufferView->buffer = UnwrapVulkan<Buffer>(pCreateInfo->buffer);

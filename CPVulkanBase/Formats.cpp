@@ -503,10 +503,10 @@ ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t
 		return GetCompressedImageSize(format, width, height, depth, arrayLayers, mipLevels);
 		
 	case FormatType::Planar:
-		FATAL_ERROR();
+		TODO_ERROR();
 		
 	case FormatType::PlanarSamplable:
-		FATAL_ERROR();
+		TODO_ERROR();
 		
 	default:
 		assert(false);

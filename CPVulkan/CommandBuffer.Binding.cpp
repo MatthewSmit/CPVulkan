@@ -132,7 +132,7 @@ public:
 
 		if (!dynamicOffsets.empty())
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 

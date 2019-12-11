@@ -62,7 +62,7 @@ VkResult DescriptorPool::Create(const VkDescriptorPoolCreateInfo* pCreateInfo, c
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_INLINE_UNIFORM_BLOCK_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}

@@ -22,14 +22,14 @@ VkResult Framebuffer::Create(const VkFramebufferCreateInfo* pCreateInfo, const V
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENTS_CREATE_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	framebuffer->attachments = std::vector<ImageView*>(pCreateInfo->attachmentCount);

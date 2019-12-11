@@ -49,14 +49,14 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_SHADER_MODULE_VALIDATION_CACHE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
 
 	if (pCreateInfo->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	imemstream stream{reinterpret_cast<const char*>(pCreateInfo->pCode), pCreateInfo->codeSize};
@@ -68,7 +68,7 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 	{
 		// BM->getError(ErrMsg);
 		// return nullptr;
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	WrapVulkan(shaderModule, pShaderModule);

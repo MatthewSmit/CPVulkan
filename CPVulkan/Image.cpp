@@ -39,7 +39,7 @@ void Device::GetImageMemoryRequirements(VkImage image, VkMemoryRequirements* pMe
 
 void Device::GetImageSparseMemoryRequirements(VkImage image, uint32_t* pSparseMemoryRequirementCount, VkSparseImageMemoryRequirements* pSparseMemoryRequirements)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Image::GetSubresourceLayout(const VkImageSubresource* pSubresource, VkSubresourceLayout* pLayout)
@@ -47,32 +47,32 @@ void Image::GetSubresourceLayout(const VkImageSubresource* pSubresource, VkSubre
 	// TODO: Use InformationFormat
 	if (tiling == VK_IMAGE_TILING_DRM_FORMAT_MODIFIER_EXT)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	else if (tiling != VK_IMAGE_TILING_LINEAR)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	auto const& formatInformation = GetFormatInformation(format);
 	if (formatInformation.Type != FormatType::Normal)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pSubresource->aspectMask != VK_IMAGE_ASPECT_COLOR_BIT)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pSubresource->arrayLayer != 0)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pSubresource->mipLevel != 0)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	pLayout->offset = 0;
@@ -104,28 +104,28 @@ VkResult Image::Create(const VkImageCreateInfo* pCreateInfo, const VkAllocationC
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_IMAGE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_EXTERNAL_FORMAT_ANDROID:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_IMAGE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_EXPLICIT_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMAGE_DRM_FORMAT_MODIFIER_LIST_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMAGE_SWAPCHAIN_CREATE_INFO_KHR:
 			break;
@@ -186,7 +186,7 @@ VkResult Device::BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemor
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_DEVICE_GROUP_INFO:
-				FATAL_ERROR();
+				TODO_ERROR();
 				
 			case VK_STRUCTURE_TYPE_BIND_IMAGE_MEMORY_SWAPCHAIN_INFO_KHR:
 				{
@@ -197,7 +197,7 @@ VkResult Device::BindImageMemory2(uint32_t bindInfoCount, const VkBindImageMemor
 				}
 				
 			case VK_STRUCTURE_TYPE_BIND_IMAGE_PLANE_MEMORY_INFO:
-				FATAL_ERROR();
+				TODO_ERROR();
 				
 			default:
 				break;
@@ -238,7 +238,7 @@ void Device::GetImageMemoryRequirements2(const VkImageMemoryRequirementsInfo2* p
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_IMAGE_PLANE_MEMORY_REQUIREMENTS_INFO:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			default:
 				break;

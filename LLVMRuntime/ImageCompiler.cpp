@@ -166,7 +166,7 @@ protected:
 // 	case 3:
 // 		return information->Packed.AlphaBits;
 // 	}
-// 	FATAL_ERROR();
+// 	TODO_ERROR();
 // }
 //
 // static uint32_t GetPackedOffset(const FormatInformation* information, int index)
@@ -182,7 +182,7 @@ protected:
 // 	case 3:
 // 		return information->Packed.AlphaOffset;
 // 	}
-// 	FATAL_ERROR();
+// 	TODO_ERROR();
 // }
 
 class GetDepthPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
@@ -348,7 +348,7 @@ protected:
 			// 				break;
 			//
 			// 			default:
-			// 				FATAL_ERROR();
+			// 				TODO_ERROR();
 			// 			}
 			//
 			// 			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
@@ -448,7 +448,7 @@ protected:
 			// 				}
 			//
 			// 			default:
-			// 				FATAL_ERROR();
+			// 				TODO_ERROR();
 			// 			}
 			// 			break;
 			// 		}
@@ -473,7 +473,7 @@ protected:
 			// 				break;
 			//
 			// 			default:
-			// 				FATAL_ERROR();
+			// 				TODO_ERROR();
 			// 			}
 			//
 			// 			sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
@@ -544,12 +544,12 @@ protected:
 			// 			break;
 			// 		}
 			// 		 
-			// 	default: FATAL_ERROR();
+			// 	default: TODO_ERROR();
 			// 	}
 			//
 			// 	break;
 			// }
-			FATAL_ERROR();
+			TODO_ERROR();
 			// 	{
 			// 		switch (information->Base)
 			// 		{
@@ -562,7 +562,7 @@ protected:
 			// 			// case BaseType::UFloat: break;
 			// 			// case BaseType::SFloat: break;
 			// 			// case BaseType::SRGB: break;
-			// 		default: FATAL_ERROR();
+			// 		default: TODO_ERROR();
 			// 		}
 			//
 			// 		llvm::Type* sourceType;
@@ -581,7 +581,7 @@ protected:
 			// 			break;
 			//
 			// 		default:
-			// 			FATAL_ERROR();
+			// 			TODO_ERROR();
 			// 		}
 			//
 			// 		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
@@ -644,7 +644,7 @@ protected:
 			//
 			// 		break;
 			// 	}
-			FATAL_ERROR();
+			TODO_ERROR();
 			// 	{
 			// 		switch (information->Base)
 			// 		{
@@ -657,7 +657,7 @@ protected:
 			// 			// case BaseType::UFloat: break;
 			// 			// case BaseType::SFloat: break;
 			// 			// case BaseType::SRGB: break;
-			// 		default: FATAL_ERROR();
+			// 		default: TODO_ERROR();
 			// 		}
 			// 		
 			// 		llvm::Type* sourceType;
@@ -676,7 +676,7 @@ protected:
 			// 			break;
 			//
 			// 		default:
-			// 			FATAL_ERROR();
+			// 			TODO_ERROR();
 			// 		}
 			//
 			// 		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
@@ -738,7 +738,7 @@ protected:
 			//
 			// 		break;
 			// 	}
-			FATAL_ERROR();
+			TODO_ERROR();
 		
 		case FormatType::DepthStencil:
 			// TODO
@@ -769,7 +769,7 @@ protected:
 			// 		break;
 			//
 			// 	default:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 	}
 			// 	
 			// 	auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
@@ -786,7 +786,7 @@ protected:
 			// 	
 			// 	break;
 			// }
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case FormatType::Compressed:
 			// TODO
@@ -811,7 +811,7 @@ protected:
 			// 		break;
 			//
 			// 	default:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 	}
 			//
 			// 	sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
@@ -838,7 +838,7 @@ protected:
 			// 	case VK_FORMAT_BC6H_SFLOAT_BLOCK:
 			// 	case VK_FORMAT_BC7_UNORM_BLOCK:
 			// 	case VK_FORMAT_BC7_SRGB_BLOCK:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 		
 			// 	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
 			// 	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
@@ -851,13 +851,13 @@ protected:
 			// 	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
 			// 	case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
 			// 	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 		
 			// 	case VK_FORMAT_EAC_R11_UNORM_BLOCK:
 			// 	case VK_FORMAT_EAC_R11_SNORM_BLOCK:
 			// 	case VK_FORMAT_EAC_R11G11_UNORM_BLOCK:
 			// 	case VK_FORMAT_EAC_R11G11_SNORM_BLOCK:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 		
 			// 	case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
 			// 	case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
@@ -887,7 +887,7 @@ protected:
 			// 	case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
 			// 	case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
 			// 	case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 		
 			// 	case VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG:
 			// 	case VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG:
@@ -897,10 +897,10 @@ protected:
 			// 	case VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG:
 			// 	case VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG:
 			// 	case VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 		
 			// 	default:
-			// 		FATAL_ERROR();
+			// 		TODO_ERROR();
 			// 	}
 			//
 			// 	builder.CreateCall(decompress, {source, pixels});
@@ -944,13 +944,13 @@ protected:
 			// 	
 			// 	break;
 			// }
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case FormatType::Planar:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case FormatType::PlanarSamplable:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		default:
 			FATAL_ERROR();
@@ -986,7 +986,7 @@ private:
 		switch (information->Base)
 		{
 		case BaseType::UFloat:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case BaseType::SFloat:
 			switch (information->ElementSize)
@@ -1004,7 +1004,7 @@ private:
 				break;
 
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			break;
 
@@ -1049,7 +1049,7 @@ private:
 			case 4:
 				return EmitConvert<uint32_t, ReturnType>(value);
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 		case BaseType::SNorm:
@@ -1064,11 +1064,11 @@ private:
 			case 4:
 				return EmitConvert<int32_t, ReturnType>(value);
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 		case BaseType::UFloat:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case BaseType::SFloat:
 			assert((std::is_same<ReturnType, float>::value));
@@ -1079,7 +1079,7 @@ private:
 			case 4:
 				return EmitConvert<float, ReturnType>(value);
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 		case BaseType::SRGB:
@@ -1093,11 +1093,11 @@ private:
 			case 4:
 				return channel == 3 ? EmitConvert<uint32_t, ReturnType>(value) : EmitSRGBToLinear(function, EmitConvert<uint32_t, ReturnType>(value));
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 	
@@ -1213,7 +1213,7 @@ protected:
 				break;
 		
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			CreateStore(value, dst);
 		}
@@ -1253,7 +1253,7 @@ CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const Form
 // 		break;
 //
 // 	default:
-// 		FATAL_ERROR();
+// 		TODO_ERROR();
 // 	}
 //
 // 	std::function<llvm::Value*(llvm::IRBuilder<>&, llvm::Value*, int)> process;
@@ -1327,11 +1327,11 @@ CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const Form
 // 			}
 //
 // 		default:
-// 			FATAL_ERROR();
+// 			TODO_ERROR();
 // 		}
 // 		
 // 	case BaseType::SFloat:
-// 		FATAL_ERROR();
+// 		TODO_ERROR();
 // 		
 // 	case BaseType::SRGB:
 // 		process = [information, resultType, sourcePtr, function](llvm::IRBuilder<>& builder, llvm::Value* oldValue, int index)
@@ -1357,7 +1357,7 @@ CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const Form
 // 		};
 // 		break;
 // 		
-// 	default: FATAL_ERROR();
+// 	default: TODO_ERROR();
 // 	}
 //
 // 	llvm::Value* value = llvm::ConstantInt::get(resultType, 0);
@@ -1406,7 +1406,7 @@ CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const Form
 // 		break;
 //
 // 	default:
-// 		FATAL_ERROR();
+// 		TODO_ERROR();
 // 	}
 //
 // 	const auto process = [information, resultType, sourcePtr](llvm::IRBuilder<>& builder, llvm::Value* oldValue, int index)
@@ -1482,7 +1482,7 @@ CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const Form
 // 		break;
 //
 // 	default:
-// 		FATAL_ERROR();
+// 		TODO_ERROR();
 // 	}
 //
 // 	const auto process = [information, resultType, sourcePtr](llvm::IRBuilder<>& builder, llvm::Value* oldValue, int index)
@@ -1570,15 +1570,15 @@ protected:
 			break;
 
 		case FormatType::Compressed:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case FormatType::Planar:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case FormatType::PlanarSamplable:
-			FATAL_ERROR();
+			TODO_ERROR();
 
-		default: FATAL_ERROR();
+		default: TODO_ERROR();
 		}
 
 		LLVMBuildRetVoid(builder);
@@ -1591,7 +1591,7 @@ private:
 		switch (information->Base)
 		{
 		case BaseType::UFloat:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case BaseType::SFloat:
 			switch (information->ElementSize)
@@ -1609,7 +1609,7 @@ private:
 				break;
 			
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			break;
 			
@@ -1651,7 +1651,7 @@ private:
 				case 4:
 					return EmitConvert<SourceType, uint32_t>(value);
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 			
@@ -1668,15 +1668,15 @@ private:
 				case 4:
 					return EmitConvert<SourceType, int32_t>(value);
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 		
 		case BaseType::UScaled:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case BaseType::SScaled:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case BaseType::UInt:
 			assert((std::is_same<SourceType, uint32_t>::value));
@@ -1700,7 +1700,7 @@ private:
 				return EmitConvert<SourceType, uint32_t>(inputValue);
 			
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			
 		case BaseType::SInt:
@@ -1725,11 +1725,11 @@ private:
 				return EmitConvert<SourceType, int32_t>(inputValue);
 			
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			
 		case BaseType::UFloat:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case BaseType::SFloat:
 			assert((std::is_same<SourceType, float>::value));
@@ -1745,7 +1745,7 @@ private:
 				return EmitConvert<SourceType, double>(inputValue);
 			
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			
 		case BaseType::SRGB:
@@ -1762,12 +1762,12 @@ private:
 				case 4:
 					return EmitConvert<SourceType, uint32_t>(value);
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 		
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 	
@@ -1777,7 +1777,7 @@ private:
 		//EmitSetPackedPixelFloat(function, module.get(), builder, information, destinationPtr, sourcePtr);
 		//EmitSetPackedPixelUInt32(builder, information, destinationPtr, sourcePtr);
 		//EmitSetPackedPixelInt32(builder, information, destinationPtr, sourcePtr);
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	LLVMValueRef EmitLinearToSRGB(LLVMValueRef function, LLVMValueRef inputValue)

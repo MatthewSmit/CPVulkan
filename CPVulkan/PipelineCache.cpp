@@ -6,7 +6,7 @@
 
 VkResult PipelineCache::GetData(size_t* pDataSize, void* pData)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetPipelineCacheData(VkPipelineCache pipelineCache, size_t* pDataSize, void* pData)
@@ -46,5 +46,5 @@ void Device::DestroyPipelineCache(VkPipelineCache pipelineCache, const VkAllocat
 
 VkResult Device::MergePipelineCaches(VkPipelineCache dstCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }

@@ -15,7 +15,7 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
 	const auto dc = GetDC(win32Surface->hwnd);
 	if (dc == nullptr)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	RECT rect;
@@ -43,12 +43,12 @@ VkResult Swapchain::Present(uint32_t pImageIndex)
 	                  0, 0, image->getWidth(), image->getHeight(),
 	                  image->getDataPtr(0, 1), &bmi, 0, SRCCOPY) == 0)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	if (ReleaseDC(win32Surface->hwnd, dc) != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	if (width != imageWidth || height != imageHeight)

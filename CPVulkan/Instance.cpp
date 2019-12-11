@@ -11,7 +11,7 @@
 #include <vector>
 
 Instance::Instance(PhysicalDevice* physicalDevice) :
-    physicalDevice{physicalDevice}
+	physicalDevice{physicalDevice}
 {
 }
 
@@ -80,18 +80,18 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 
 	auto physicalDevice = Allocate<PhysicalDevice>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE);
 	if (!physicalDevice)
-    {
-        return VK_ERROR_OUT_OF_HOST_MEMORY;
-    }
+	{
+		return VK_ERROR_OUT_OF_HOST_MEMORY;
+	}
 
 	auto instance = Allocate<Instance>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_INSTANCE, physicalDevice);
 	if (!instance)
 	{
-	    Free(physicalDevice, pAllocator);
+		Free(physicalDevice, pAllocator);
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-    physicalDevice->setInstance(instance);
+	physicalDevice->setInstance(instance);
 
 	auto next = pCreateInfo->pNext;
 	while (next)
@@ -100,17 +100,17 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEBUG_REPORT_CALLBACK_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT:
 			instance->debug = *static_cast<const VkDebugUtilsMessengerCreateInfoEXT*>(next);
 			break;
 			
 		case VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_VALIDATION_FLAGS_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -129,13 +129,13 @@ VkResult Instance::Create(const VkInstanceCreateInfo* pCreateInfo, const VkAlloc
 
 		if (pCreateInfo->pApplicationInfo->pNext)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
 	if (pCreateInfo->enabledLayerCount)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	std::vector<const char*> enabledExtensions{};

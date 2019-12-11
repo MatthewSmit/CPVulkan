@@ -23,7 +23,7 @@ void Platform::Initialise()
 
 	if (systemInfo.dwPageSize != 4096)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	LARGE_INTEGER frequency;
@@ -72,7 +72,7 @@ void* Platform::CreateMutex(bool initialState, bool manualReset)
 	const auto event = CreateEventW(nullptr, manualReset, initialState, nullptr);
 	if (event == nullptr)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	return event;
 }
@@ -84,7 +84,7 @@ void* Platform::CreateSemaphoreExport(bool initialState, bool manualReset, const
 	const auto event = CreateEventW(const_cast<LPSECURITY_ATTRIBUTES>(createInfo->pAttributes), manualReset, initialState, createInfo->name);
 	if (event == nullptr)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	return event;
 }
@@ -133,7 +133,7 @@ bool Platform::WaitMultiple(const std::vector<void*>& mutexes, bool waitAll, uin
 		return false;
 	}
 
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 bool Platform::GetMutexStatus(void* mutex)
@@ -148,7 +148,7 @@ bool Platform::GetMutexStatus(void* mutex)
 		return false;
 	}
 	
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void* Platform::AlignedMalloc(size_t size, size_t alignment)

@@ -83,10 +83,10 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_BUFFER_DEVICE_ADDRESS_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_BUFFER_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_EXTERNAL_MEMORY_BUFFER_CREATE_INFO:
 			break;
@@ -99,7 +99,7 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 
 	if (pCreateInfo->flags & VK_BUFFER_CREATE_SPARSE_BINDING_BIT)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto buffer = Allocate<Buffer>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
@@ -114,7 +114,7 @@ VkResult Buffer::Create(gsl::not_null<const VkBufferCreateInfo*> pCreateInfo, co
 	
 	if (pCreateInfo->sharingMode != VK_SHARING_MODE_EXCLUSIVE)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	WrapVulkan(buffer, pBuffer);
@@ -147,7 +147,7 @@ VkResult Device::BindBufferMemory2(uint32_t bindInfoCount, const VkBindBufferMem
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_BIND_BUFFER_MEMORY_DEVICE_GROUP_INFO:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			default:
 				break;

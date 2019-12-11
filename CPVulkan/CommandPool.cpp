@@ -14,7 +14,7 @@ VkResult CommandPool::AllocateCommandBuffers(const VkCommandBufferAllocateInfo* 
 		auto commandBuffer = Allocate<CommandBuffer>(nullptr, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE, deviceState, pAllocateInfo->level, flags);
 		if (!commandBuffer)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 			// return VK_ERROR_OUT_OF_HOST_MEMORY;
 		}
 		commandBuffers.push_back(commandBuffer);
@@ -34,7 +34,7 @@ void CommandPool::FreeCommandBuffers(uint32_t commandBufferCount, const VkComman
 			auto commandBufferPtr = std::find(commandBuffers.begin(), commandBuffers.end(), commandBuffer);
 			if (commandBufferPtr == commandBuffers.end())
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			commandBuffers.erase(commandBufferPtr);
 			Free(commandBuffer, nullptr);

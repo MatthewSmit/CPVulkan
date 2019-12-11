@@ -83,29 +83,29 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_GROUP_SWAPCHAIN_CREATE_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_SWAPCHAIN_COUNTER_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_SWAPCHAIN_DISPLAY_NATIVE_HDR_CREATE_INFO_AMD:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	swapchain->surface = pCreateInfo->surface;
@@ -164,7 +164,7 @@ VkResult Swapchain::Create(const VkSwapchainCreateInfoKHR* pCreateInfo, const Vk
 	
 	if (pCreateInfo->oldSwapchain)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	WrapVulkan(swapchain, pSwapchain);

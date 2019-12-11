@@ -21,13 +21,13 @@ VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAll
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_IMAGE_VIEW_ASTC_DECODE_MODE_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMAGE_VIEW_USAGE_CREATE_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
 			break;
@@ -37,7 +37,7 @@ VkResult ImageView::Create(const VkImageViewCreateInfo* pCreateInfo, const VkAll
 
 	if (pCreateInfo->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	imageView->image = UnwrapVulkan<Image>(pCreateInfo->image);

@@ -2,8 +2,6 @@
 
 #include <glm/glm.hpp>
 
-#define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
-
 template<typename Vector>
 static void Dot(typename Vector::value_type* result, const Vector* x, const Vector* y)
 {

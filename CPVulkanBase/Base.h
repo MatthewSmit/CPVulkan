@@ -70,6 +70,7 @@ inline void strcpy_s(char* destination, const char* source)
 	strcpy(destination, source);
 }
 #endif
+#define TODO_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 #define FATAL_ERROR() if (1) { __debugbreak(); abort(); } else (void)0
 
 #if defined(_MSC_VER)

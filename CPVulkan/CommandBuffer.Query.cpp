@@ -29,7 +29,7 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 private:
@@ -58,7 +58,7 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 private:

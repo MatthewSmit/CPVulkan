@@ -52,7 +52,7 @@ CompiledModule::CompiledModule(CPJit* jit, LLVMContextRef context, LLVMModuleRef
 	if (error)
 	{
 		const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 }
 
@@ -62,7 +62,7 @@ CompiledModule::~CompiledModule()
 	if (error)
 	{
 		const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	LLVMDisposeModule(module);
@@ -140,7 +140,7 @@ void* CompiledModule::getOptionalPointer(const std::string& name) const
 	if (error)
 	{
 		const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	return reinterpret_cast<void*>(symbolAddress);
@@ -343,7 +343,8 @@ LLVMTypeRef CompiledModuleBuilder::ScalarType(LLVMTypeRef type)
 	case LLVMVectorTypeKind:
 		return LLVMGetElementType(type);
 		
-	default: FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -709,21 +710,21 @@ LLVMValueRef CompiledModuleBuilder::CreateGEP(LLVMValueRef pointer, std::vector<
 LLVMValueRef CompiledModuleBuilder::CreateInBoundsGEP(LLVMValueRef pointer, uint32_t index0)
 {
 	const auto value = CreateGEP(pointer, index0);
-	LLVMSetIsInBounds(value, true);
+	// TODO: LLVMSetIsInBounds(value, true);
 	return value;
 }
 
 LLVMValueRef CompiledModuleBuilder::CreateInBoundsGEP(LLVMValueRef pointer, uint32_t index0, uint32_t index1)
 {
 	const auto value = CreateGEP(pointer, index0, index1);
-	LLVMSetIsInBounds(value, true);
+	// TODO: LLVMSetIsInBounds(value, true);
 	return value;
 }
 
 LLVMValueRef CompiledModuleBuilder::CreateInBoundsGEP(LLVMValueRef pointer, std::vector<LLVMValueRef> indices)
 {
 	const auto value = CreateGEP(pointer, std::move(indices));
-	LLVMSetIsInBounds(value, true);
+	// TODO: LLVMSetIsInBounds(value, true);
 	return value;
 }
 

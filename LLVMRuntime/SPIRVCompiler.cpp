@@ -36,7 +36,7 @@ public:
 	{
 		if (spirvModule->getAddressingModel() != AddressingModelLogical && spirvModule->getAddressingModel() != AddressingModelPhysicalStorageBuffer64)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -73,7 +73,7 @@ protected:
 							//	const auto phiBasicBlock = ConvertBasicBlock(state, function, incomingBasicBlock);
 							//	const auto translated = ConvertValue(incomingValue, function);
 							//	llvmPhi->addIncoming(translated, phiBasicBlock);
-							FATAL_ERROR();
+							TODO_ERROR();
 						});
 					}
 				}
@@ -96,7 +96,7 @@ protected:
 							const auto llvmType = LLVMTypeOf(llvmValue);
 							if (LLVMGetTypeKind(llvmType) != LLVMVectorTypeKind || LLVMGetVectorSize(llvmType) != 3 || LLVMGetTypeKind(LLVMGetElementType(llvmType)) != LLVMIntegerTypeKind)
 							{
-								FATAL_ERROR();
+								TODO_ERROR();
 							}
 
 							GlobalVariable(llvmType, true, LLVMExternalLinkage, llvmValue, "@WorkgroupSize");
@@ -142,8 +142,8 @@ private:
 	{
 		switch (type->getOpCode())
 		{
-		case OpTypeVoid: FATAL_ERROR();
-		case OpTypeBool: FATAL_ERROR();
+		case OpTypeVoid: TODO_ERROR();
+		case OpTypeBool: TODO_ERROR();
 
 		case OpTypeInt:
 			return (static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned() ? "I" : "U") + std::to_string(type->getIntegerBitWidth());
@@ -157,12 +157,12 @@ private:
 		case OpTypeMatrix:
 			if (type->hasDecorate(DecorationMatrixStride))
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			if (type->hasDecorate(DecorationRowMajor))
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			return GetTypeName(type->getMatrixComponentType()) + "[" + std::to_string(type->getMatrixColumnCount()) + "," + std::to_string(type->getMatrixRowCount()) + ",col]";
@@ -171,43 +171,43 @@ private:
 			return GetImageTypeName(static_cast<const SPIRV::SPIRVTypeImage*>(type));
 			
 		case OpTypeSampler:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case OpTypeSampledImage:
 			return "Sampled" + GetImageTypeName(static_cast<const SPIRV::SPIRVTypeSampledImage*>(type)->getImageType());
 			
-		case OpTypeArray: FATAL_ERROR();
-		case OpTypeRuntimeArray: FATAL_ERROR();
-		case OpTypeStruct: FATAL_ERROR();
-		case OpTypeOpaque: FATAL_ERROR();
-		case OpTypePointer: FATAL_ERROR();
-		case OpTypeFunction: FATAL_ERROR();
-		case OpTypeEvent: FATAL_ERROR();
-		case OpTypeDeviceEvent: FATAL_ERROR();
-		case OpTypeReserveId: FATAL_ERROR();
-		case OpTypeQueue: FATAL_ERROR();
-		case OpTypePipe: FATAL_ERROR();
-		case OpTypeForwardPointer: FATAL_ERROR();
-		case OpTypePipeStorage: FATAL_ERROR();
-		case OpTypeNamedBarrier: FATAL_ERROR();
-		case OpTypeAccelerationStructureNV: FATAL_ERROR();
-		case OpTypeCooperativeMatrixNV: FATAL_ERROR();
-		case OpTypeVmeImageINTEL: FATAL_ERROR();
-		case OpTypeAvcImePayloadINTEL: FATAL_ERROR();
-		case OpTypeAvcRefPayloadINTEL: FATAL_ERROR();
-		case OpTypeAvcSicPayloadINTEL: FATAL_ERROR();
-		case OpTypeAvcMcePayloadINTEL: FATAL_ERROR();
-		case OpTypeAvcMceResultINTEL: FATAL_ERROR();
-		case OpTypeAvcImeResultINTEL: FATAL_ERROR();
-		case OpTypeAvcImeResultSingleReferenceStreamoutINTEL: FATAL_ERROR();
-		case OpTypeAvcImeResultDualReferenceStreamoutINTEL: FATAL_ERROR();
-		case OpTypeAvcImeSingleReferenceStreaminINTEL: FATAL_ERROR();
-		case OpTypeAvcImeDualReferenceStreaminINTEL: FATAL_ERROR();
-		case OpTypeAvcRefResultINTEL: FATAL_ERROR();
-		case OpTypeAvcSicResultINTEL: FATAL_ERROR();
+		case OpTypeArray: TODO_ERROR();
+		case OpTypeRuntimeArray: TODO_ERROR();
+		case OpTypeStruct: TODO_ERROR();
+		case OpTypeOpaque: TODO_ERROR();
+		case OpTypePointer: TODO_ERROR();
+		case OpTypeFunction: TODO_ERROR();
+		case OpTypeEvent: TODO_ERROR();
+		case OpTypeDeviceEvent: TODO_ERROR();
+		case OpTypeReserveId: TODO_ERROR();
+		case OpTypeQueue: TODO_ERROR();
+		case OpTypePipe: TODO_ERROR();
+		case OpTypeForwardPointer: TODO_ERROR();
+		case OpTypePipeStorage: TODO_ERROR();
+		case OpTypeNamedBarrier: TODO_ERROR();
+		case OpTypeAccelerationStructureNV: TODO_ERROR();
+		case OpTypeCooperativeMatrixNV: TODO_ERROR();
+		case OpTypeVmeImageINTEL: TODO_ERROR();
+		case OpTypeAvcImePayloadINTEL: TODO_ERROR();
+		case OpTypeAvcRefPayloadINTEL: TODO_ERROR();
+		case OpTypeAvcSicPayloadINTEL: TODO_ERROR();
+		case OpTypeAvcMcePayloadINTEL: TODO_ERROR();
+		case OpTypeAvcMceResultINTEL: TODO_ERROR();
+		case OpTypeAvcImeResultINTEL: TODO_ERROR();
+		case OpTypeAvcImeResultSingleReferenceStreamoutINTEL: TODO_ERROR();
+		case OpTypeAvcImeResultDualReferenceStreamoutINTEL: TODO_ERROR();
+		case OpTypeAvcImeSingleReferenceStreaminINTEL: TODO_ERROR();
+		case OpTypeAvcImeDualReferenceStreaminINTEL: TODO_ERROR();
+		case OpTypeAvcRefResultINTEL: TODO_ERROR();
+		case OpTypeAvcSicResultINTEL: TODO_ERROR();
 	
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 	
@@ -248,7 +248,7 @@ private:
 			break;
 
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (descriptor.Arrayed)
@@ -323,7 +323,7 @@ private:
 				break;
 			
 			default:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			
 			break;
@@ -436,7 +436,7 @@ private:
 						const auto offset = decorate->getLiteral(0);
 						if (offset < currentOffset)
 						{
-							FATAL_ERROR();
+							TODO_ERROR();
 						}
 						else
 						{
@@ -477,12 +477,12 @@ private:
 			{
 				if (spirvType->hasDecorate(DecorationMatrixStride))
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				if (spirvType->hasDecorate(DecorationRowMajor))
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 
 				auto name = std::string{"@Matrix.Col"};
@@ -507,7 +507,7 @@ private:
 				//                         transOCLPipeTypeName(PT, IsClassMember,
 				//                                              PT->getAccessQualifier()),
 				//                         getOCLOpaqueTypeAddrSpace(T->getOpCode())));
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			
 		case OpTypePipeStorage:
@@ -516,11 +516,11 @@ private:
 				//   return mapType(
 				//       T, getOrCreateOpaquePtrType(M, transOCLPipeStorageTypeName(PST),
 				//                                   getOCLOpaqueTypeAddrSpace(T->getOpCode())));
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 		
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		
 		typeMapping[spirvType->getId()] = llvmType;
@@ -539,7 +539,7 @@ private:
 			// 		return GlobalValue::CommonLinkage;
 			// }
 			// return GlobalValue::ExternalLinkage;
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case LinkageTypeImport:
 			// // Function declaration
@@ -554,13 +554,13 @@ private:
 			// }
 			// // Definition
 			// return GlobalValue::AvailableExternallyLinkage;
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case LinkageTypeInternal:
 			return LLVMExternalLinkage;
 	
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 	
@@ -569,7 +569,7 @@ private:
 		switch (spirvType->getOpCode())
 		{
 		case OpTypeVoid:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case OpTypeBool:
 		case OpTypeInt:
@@ -592,7 +592,7 @@ private:
 			{
 				if (IsOpaqueType(spirvType->getStructMemberType(i)))
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 			return false;
@@ -604,10 +604,10 @@ private:
 		case OpTypeFunction:
 		case OpTypePipe:
 		case OpTypePipeStorage:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 	
@@ -641,14 +641,14 @@ private:
 			{
 				if (entry.size != sizeof(T))
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 	
 				return *reinterpret_cast<const T*>(static_cast<const uint8_t*>(specializationInfo->pData) + entry.offset);
 			}
 		}
 	
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	LLVMValueRef HandleSpecConstantOperation(SPIRV::SPIRVSpecConstantOp* spirvValue)
@@ -688,10 +688,10 @@ private:
 					switch (LLVMGetTypeKind(LLVMTypeOf(composite)))
 					{
 					case LLVMStructTypeKind:
-						FATAL_ERROR();
+						TODO_ERROR();
 						
 					case LLVMArrayTypeKind:
-						FATAL_ERROR();
+						TODO_ERROR();
 						
 					case LLVMVectorTypeKind:
 						assert(i + 1 == opwords.size());
@@ -699,7 +699,7 @@ private:
 						break;
 
 					default:
-						FATAL_ERROR();
+						TODO_ERROR();
 					}
 				}
 				return composite;
@@ -715,10 +715,10 @@ private:
 					switch (LLVMGetTypeKind(LLVMTypeOf(composite)))
 					{
 					case LLVMStructTypeKind:
-						FATAL_ERROR();
+						TODO_ERROR();
 
 					case LLVMArrayTypeKind:
-						FATAL_ERROR();
+						TODO_ERROR();
 
 					case LLVMVectorTypeKind:
 						assert(i + 1 == opwords.size());
@@ -726,7 +726,7 @@ private:
 						break;
 
 					default:
-						FATAL_ERROR();
+						TODO_ERROR();
 					}
 				}
 				return composite;
@@ -742,16 +742,16 @@ private:
 			}
 
 		case OpAccessChain:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case OpInBoundsAccessChain:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case OpPtrAccessChain:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case OpInBoundsPtrAccessChain:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		default:
 			{
@@ -760,7 +760,7 @@ private:
 				const auto result = ConvertInstruction(instruction, nullptr);
 				if (!LLVMIsConstant(result))
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				return result;
 			}
@@ -795,7 +795,7 @@ private:
 						return LLVMConstInt(llvmType, GetSpecOverride<uint64_t>(spirvValue), static_cast<SPIRV::SPIRVTypeInt*>(spirvType)->isSigned());
 			
 					default:
-						FATAL_ERROR();
+						TODO_ERROR();
 					}
 			
 				case OpTypeFloat:
@@ -811,11 +811,11 @@ private:
 						return LLVMConstReal(llvmType, GetSpecOverride<double>(spirvValue));
 			
 					default:
-						FATAL_ERROR();
+						TODO_ERROR();
 					}
 			
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 	
@@ -834,7 +834,7 @@ private:
 						switch (spirvType->getFloatBitWidth())
 						{
 						case 16:
-							FATAL_ERROR();
+							TODO_ERROR();
 				
 						case 32:
 							return LLVMConstReal(llvmType, spirvConstant->getFloatValue());
@@ -843,12 +843,12 @@ private:
 							return LLVMConstReal(llvmType, spirvConstant->getDoubleValue());
 				
 						default:
-							FATAL_ERROR();
+							TODO_ERROR();
 						}
 					}
 				
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 	
@@ -880,7 +880,7 @@ private:
 		case OpSpecConstantComposite:
 			if (HasSpecOverride(spirvValue))
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpConstantComposite:
@@ -902,7 +902,7 @@ private:
 						if (arrayStrideMultiplier.find(arrayType) != arrayStrideMultiplier.end())
 						{
 							// TODO: Support stride
-							FATAL_ERROR();
+							TODO_ERROR();
 						}
 						return LLVMConstArray(arrayType, constants.data(), static_cast<uint32_t>(constants.size()));
 					}
@@ -912,7 +912,7 @@ private:
 					return LLVMConstNamedStruct(ConvertType(constantComposite->getType()), constants.data(), static_cast<uint32_t>(constants.size()));
 				
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 	
@@ -920,14 +920,14 @@ private:
 			{
 				//auto BCS = static_cast<SPIRVConstantSampler*>(BV);
 				//return mapValue(BV, oclTransConstantSampler(BCS, BB));
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpConstantPipeStorage:
 			{
 				//auto BCPS = static_cast<SPIRVConstantPipeStorage*>(BV);
 				//return mapValue(BV, oclTransConstantPipeStorage(BCPS));
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpSpecConstantOp:
@@ -989,14 +989,14 @@ private:
 	
 		case OpFunction:
 			// return mapValue(BV, transFunction(static_cast<SPIRVFunction*>(BV)));
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case OpLabel:
 			// return mapValue(BV, BasicBlock::Create(*Context, BV->getName(), F));
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 	
@@ -1030,7 +1030,7 @@ private:
 			}
 		}
 	
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	LLVMValueRef ConvertValue(SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction)
@@ -1070,7 +1070,7 @@ private:
 				{
 					return valueMapping[spirvValue->getId()] = builtinOutputVariable;
 				}
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 		}
 
@@ -1294,7 +1294,7 @@ private:
 	
 		if (imageSampleImplicitLod->getOpWords().size() > 2)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto function = GetInbuiltFunction("@Image.Sample.Implicit", imageSampleImplicitLod->getType(), {
@@ -1318,7 +1318,7 @@ private:
 		{
 			if (imageSampleExplicitLod->getOpWords().size() > 4)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			auto float32 = SPIRV::SPIRVTypeFloat(32);
@@ -1336,7 +1336,7 @@ private:
 			                           }, true);
 		}
 	
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	LLVMValueRef CallInbuiltFunction(SPIRV::SPIRVImageFetch* imageFetch, LLVMValueRef currentFunction)
@@ -1346,7 +1346,7 @@ private:
 	
 		if (imageFetch->getOpWords().size() > 2)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto function = GetInbuiltFunction("@Image.Fetch", imageFetch->getType(), {
@@ -1367,7 +1367,7 @@ private:
 	
 		if (imageRead->getOpWords().size() > 2)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto function = GetInbuiltFunction("@Image.Read", imageRead->getType(), {
@@ -1394,20 +1394,20 @@ private:
 			}
 		}
 	
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	std::vector<LLVMValueRef> MapBuiltin(const std::vector<LLVMValueRef>& indices, SPIRV::SPIRVType* type, const std::vector<std::pair<BuiltIn, uint32_t>>& builtinMapping)
 	{
 		if (indices.size() != 1)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto structType = type->getPointerElementType();
 		if (!structType->isTypeStruct())
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		auto decorates = static_cast<SPIRV::SPIRVTypeStruct*>(structType)->getMemberDecorates();
@@ -1424,7 +1424,7 @@ private:
 			}
 		}
 
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	// static llvm::Metadata* getMetadataFromName(State& state, const std::string& name)
@@ -1487,25 +1487,25 @@ private:
 		//// Placeholder for LoopControls added in SPIR-V 1.4 spec (see 3.23)
 		//if (loopControl & LoopControlMinIterationsMask)
 		//{
-		//	FATAL_ERROR();
+		//	TODO_ERROR();
 		//	// ++numParam;
 		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
 		//}
 		//if (loopControl & LoopControlMaxIterationsMask)
 		//{
-		//	FATAL_ERROR();
+		//	TODO_ERROR();
 		//	// ++numParam;
 		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
 		//}
 		//if (loopControl & LoopControlIterationMultipleMask)
 		//{
-		//	FATAL_ERROR();
+		//	TODO_ERROR();
 		//	// ++numParam;
 		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
 		//}
 		//if (loopControl & LoopControlPeelCountMask)
 		//{
-		//	FATAL_ERROR();
+		//	TODO_ERROR();
 		//	// ++numParam;
 		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
 		//}
@@ -1529,12 +1529,12 @@ private:
 		//// Set the first operand to refer itself
 		//node->replaceOperandWith(0, node);
 		//branchInstruction->setMetadata("llvm.loop", node);
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	LLVMValueRef ConvertOCLFromExtensionInstruction(const SPIRV::SPIRVExtInst* extensionInstruction, LLVMValueRef currentFunction)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 		// assert(BB && "Invalid BB");
 		// std::string MangledName;
 		// SPIRVWord EntryPoint = BC->getExtOp();
@@ -1617,7 +1617,7 @@ private:
 	
 	LLVMValueRef ConvertDebugFromExtensionInstruction(const SPIRV::SPIRVExtInst* extensionInstruction, LLVMValueRef currentFunction)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 		// auto GetLocalVar = [&](SPIRVId Id) -> std::pair<DILocalVariable *, DebugLoc> {
 		//   auto *LV = transDebugInst<DILocalVariable>(BM->get<SPIRVExtInst>(Id));
 		//   DebugLoc DL = DebugLoc::get(LV->getLine(), 0, LV->getScope());
@@ -1711,7 +1711,7 @@ private:
 		// 	return llvm::ConstantVector::getSplat(type->getVectorNumElements(), llvmValue);
 		// }
 		// return llvmValue;
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	LLVMValueRef ConvertInstruction(SPIRV::SPIRVInstruction* instruction, LLVMValueRef currentFunction)
@@ -1740,7 +1740,7 @@ private:
 					return ConvertDebugFromExtensionInstruction(extensionInstruction, currentFunction);
 				
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 	
@@ -1857,7 +1857,7 @@ private:
 								const auto structName = std::basic_string_view{LLVMGetStructName(currentType)};
 								if (structName.rfind("@Matrix", 0) != 0)
 								{
-									FATAL_ERROR();
+									TODO_ERROR();
 								}
 
 								std::vector<LLVMValueRef> range{};
@@ -1886,7 +1886,7 @@ private:
 						currentType = LLVMGetElementType(currentType);
 						break;
 						
-					default: FATAL_ERROR();
+					default: TODO_ERROR();
 					}
 				}
 				
@@ -2009,7 +2009,7 @@ private:
 						if (arrayStrideMultiplier.find(arrayType) != arrayStrideMultiplier.end())
 						{
 							// TODO: Support stride
-							FATAL_ERROR();
+							TODO_ERROR();
 						}
 				
 						llvmValue = CreateAlloca(arrayType);
@@ -2042,7 +2042,7 @@ private:
 					}
 				
 				default:
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				return llvmValue;
 			}
@@ -2079,7 +2079,7 @@ private:
 					// 	if (arrayStrideMultiplier.find(currentType) != arrayStrideMultiplier.end())
 					// 	{
 					// 		// TODO: Support stride
-					// 		FATAL_ERROR();
+					// 		TODO_ERROR();
 					// 	}
 					// 	currentType = currentType->getArrayElementType();
 					// }
@@ -2093,11 +2093,11 @@ private:
 					// }
 					// else
 					// {
-						FATAL_ERROR();
+						TODO_ERROR();
 					// }
 				}
 				
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpCompositeInsert:
@@ -2133,7 +2133,7 @@ private:
 					// 	if (arrayStrideMultiplier.find(currentType) != arrayStrideMultiplier.end())
 					// 	{
 					// 		// TODO: Support stride
-					// 		FATAL_ERROR();
+					// 		TODO_ERROR();
 					// 	}
 					// 	currentType = currentType->getArrayElementType();
 					// }
@@ -2148,11 +2148,11 @@ private:
 					// }
 					// else
 					// {
-						FATAL_ERROR();
+						TODO_ERROR();
 					// }
 				}
 				
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpCopyObject:
@@ -2564,17 +2564,17 @@ private:
 	
 		case OpIsInf:
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpIsFinite:
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpIsNormal:
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 			// case OpSignBitSet: break;
@@ -2889,10 +2889,10 @@ private:
 			}
 	
 		case OpBitFieldSExtract:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 		case OpBitFieldUExtract:
-			FATAL_ERROR();
+			TODO_ERROR();
 	
 	
 		case OpBitReverse:
@@ -2923,7 +2923,7 @@ private:
 	
 		case OpControlBarrier:
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 	
 		case OpMemoryBarrier:
@@ -3060,7 +3060,7 @@ private:
 						literal += static_cast<uint64_t>(literals.at(1)) << 32;
 					}
 					// llvmSwitch->addCase(llvm::ConstantInt::get(llvm::dyn_cast<llvm::IntegerType>(select->getType()), literal), ConvertBasicBlock(state, currentFunction, label));
-					FATAL_ERROR();
+					TODO_ERROR();
 				});
 				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				return llvmSwitch;
@@ -3285,7 +3285,7 @@ private:
 			// case OpSubgroupAvcSicGetPackedSkcLumaSumThresholdINTEL: break;
 			// case OpSubgroupAvcSicGetInterRawSadsINTEL: break;
 		}
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	LLVMBasicBlockRef ConvertBasicBlock(LLVMValueRef currentFunction, const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
@@ -3298,7 +3298,7 @@ private:
 	
 		for (const auto decorate : spirvBasicBlock->getDecorates())
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto llvmBasicBlock = LLVMAppendBasicBlockInContext(context, currentFunction, spirvBasicBlock->getName().c_str());
@@ -3312,28 +3312,28 @@ private:
 			{
 				if (decorate.first == DecorationSaturatedConversion)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				else if (decorate.first == DecorationFPRoundingMode)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				else if (decorate.first == DecorationFPFastMathMode)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				else if (decorate.first == DecorationNoContraction)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 					// flags.setAllowContract(false);
 				}
 				else if (decorate.first == DecorationNoSignedWrap)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 				else if (decorate.first == DecorationNoUnsignedWrap)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 			// TODO: state.builder.setFastMathFlags(flags);
@@ -3367,7 +3367,7 @@ private:
 	
 		for (const auto decorate : spirvFunction->getDecorates())
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto returnType = ConvertType(spirvFunction->getType());
@@ -3433,7 +3433,7 @@ private:
 			break;
 		
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		auto llvmType = StructType(inputMembers, "_BuiltinInput", true);
@@ -3464,7 +3464,7 @@ std::string MangleName(const SPIRV::SPIRVVariable* variable)
 			}
 			else
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			break;
 
@@ -3479,7 +3479,7 @@ std::string MangleName(const SPIRV::SPIRVVariable* variable)
 			}
 			else
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			break;
 			
@@ -3494,13 +3494,13 @@ std::string MangleName(const SPIRV::SPIRVVariable* variable)
 			return "_pc_";
 			
 		case StorageClassAtomicCounter:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case StorageClassImage:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -3522,7 +3522,7 @@ std::string MangleName(const SPIRV::SPIRVVariable* variable)
 
 	case StorageClassWorkgroup:
 	case StorageClassCrossWorkgroup:
-		FATAL_ERROR();
+		TODO_ERROR();
 		
 	case StorageClassPrivate:
 		return name;
@@ -3531,20 +3531,20 @@ std::string MangleName(const SPIRV::SPIRVVariable* variable)
 		return name;
 
 	case StorageClassGeneric:
-		FATAL_ERROR();
+		TODO_ERROR();
 		
 	case StorageClassPushConstant:
 		return "_pc_" + name;
 		
 	case StorageClassAtomicCounter:
 	case StorageClassImage:
-		FATAL_ERROR();
+		TODO_ERROR();
 		
 	case StorageClassStorageBuffer:
 		return "_buffer_" + name;
 
 	default:
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 }
 

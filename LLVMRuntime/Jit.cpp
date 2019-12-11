@@ -25,7 +25,7 @@ public:
 		LLVMTargetRef target;
 		if (LLVMGetTargetFromTriple(targetTriple, &target, nullptr) != 0)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		// TODO: CodeGenLevel?

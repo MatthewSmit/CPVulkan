@@ -22,13 +22,13 @@ public:
 	
 	VKAPI_ATTR VkResult VKAPI_PTR Present(const VkPresentInfoKHR* pPresentInfo);
 	
-	VKAPI_ATTR void VKAPI_PTR BeginDebugUtilsLabel(const VkDebugUtilsLabelEXT* pLabelInfo) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR EndDebugUtilsLabel() { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR InsertDebugUtilsLabel(const VkDebugUtilsLabelEXT* pLabelInfo) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR BeginDebugUtilsLabel(const VkDebugUtilsLabelEXT* pLabelInfo) { TODO_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR EndDebugUtilsLabel() { TODO_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR InsertDebugUtilsLabel(const VkDebugUtilsLabelEXT* pLabelInfo) { TODO_ERROR(); } 
 	
-	VKAPI_ATTR void VKAPI_PTR GetCheckpointData(uint32_t* pCheckpointDataCount, VkCheckpointDataNV* pCheckpointData) { FATAL_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR GetCheckpointData(uint32_t* pCheckpointDataCount, VkCheckpointDataNV* pCheckpointData) { TODO_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceConfiguration(VkPerformanceConfigurationINTEL configuration) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR SetPerformanceConfiguration(VkPerformanceConfigurationINTEL configuration) { TODO_ERROR(); }
 
 	static Queue* Create(const VkDeviceQueueCreateInfo* vkDeviceQueueCreateInfo, const VkAllocationCallbacks* pAllocator);
 

@@ -42,14 +42,14 @@ static VertexInputState Parse(const VkPipelineVertexInputStateCreateInfo* pVerte
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_DIVISOR_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
 
 	if (pVertexInputState->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	return VertexInputState
@@ -65,7 +65,7 @@ static InputAssemblyState Parse(const VkPipelineInputAssemblyStateCreateInfo* pI
 
 	if (pInputAssemblyState->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	return InputAssemblyState
@@ -91,14 +91,14 @@ static TessellationState Parse(const VkPipelineTessellationStateCreateInfo* pTes
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_TESSELLATION_DOMAIN_ORIGIN_STATE_CREATE_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pTessellationState->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	return TessellationState
@@ -123,19 +123,19 @@ static ViewportState Parse(const VkPipelineViewportStateCreateInfo* pViewportSta
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_COARSE_SAMPLE_ORDER_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_EXCLUSIVE_SCISSOR_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_SHADING_RATE_IMAGE_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_SWIZZLE_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_W_SCALING_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
@@ -170,10 +170,10 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_CONSERVATIVE_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_DEPTH_CLIP_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 #if defined(VK_EXT_line_rasterization)
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT:
@@ -188,10 +188,10 @@ static RasterizationState Parse(const VkPipelineRasterizationStateCreateInfo* pR
 #endif
 
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_RASTERIZATION_ORDER_AMD:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_STREAM_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
@@ -239,23 +239,23 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_MODULATION_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_REDUCTION_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_COVERAGE_TO_COLOR_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_SAMPLE_LOCATIONS_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pMultisampleState->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	auto sampleMask = 0xFFFFFFFFFFFFFFFF;
@@ -263,7 +263,7 @@ static MultisampleState Parse(const VkPipelineMultisampleStateCreateInfo* pMulti
 	{
 		if (pMultisampleState->rasterizationSamples == VK_SAMPLE_COUNT_64_BIT)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		else
 		{
@@ -293,7 +293,7 @@ static DepthStencilState Parse(const VkPipelineDepthStencilStateCreateInfo* pDep
 
 	if (pDepthStencilState->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	return DepthStencilState
@@ -326,14 +326,14 @@ static ColourBlendState Parse(const VkPipelineColorBlendStateCreateInfo* pColorB
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_ADVANCED_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pColorBlendState->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	return ColourBlendState
@@ -361,7 +361,7 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 
 	if (pDynamicState->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	DynamicState dynamicState{};
@@ -433,7 +433,8 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 			dynamicState.DynamicLineStipple = true;
 			break;
 			
-		default: FATAL_ERROR();
+		default:
+			FATAL_ERROR();
 		}
 	}
 
@@ -451,14 +452,14 @@ static std::tuple<int, ShaderFunction*> LoadShaderStage(CPJit* jit, const struct
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (stage.flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto stageIndex = GetStageIndex(stage.stage);
@@ -487,60 +488,60 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 
 	if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	if (stageIndex == ExecutionModelTessellationControl || stageIndex == ExecutionModelTessellationEvaluation)
 	{
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingEqual))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalEven))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalOdd))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCw))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCcw))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePointMode))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeQuads))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeIsolines))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
 		if (outputVertices)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -549,53 +550,53 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 		const auto invocations = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInvocations);
 		if (invocations)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputPoints))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLines))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLinesAdjacency))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputTrianglesAdjacency))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
 		if (outputVertices)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputPoints))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputLineStrip))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputTriangleStrip))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -603,7 +604,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 	{
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePixelCenterInteger))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginUpperLeft))
@@ -618,27 +619,27 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeEarlyFragmentTests))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthReplacing))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthGreater))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthLess))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -654,7 +655,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
 		if (localSizeId)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -663,58 +664,58 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 		const auto localSizeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHint);
 		if (localSizeHint)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto vecTypeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeContractionOff);
 		if (vecTypeHint)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInitializer))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeFinalizer))
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto subgroupSize = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupSize);
 		if (subgroupSize)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto subgroupsPerWorkgroup = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroup);
 		if (subgroupsPerWorkgroup)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto subgroupsPerWorkgroupId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroupId);
 		if (subgroupsPerWorkgroupId)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
 		if (localSizeId)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		const auto localSizeHintId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHintId);
 		if (localSizeHintId)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -794,17 +795,17 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_COMPILER_CONTROL_CREATE_INFO_AMD:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT:
 			feedback = true;
 			break;
 
 		case VK_STRUCTURE_TYPE_PIPELINE_DISCARD_RECTANGLE_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
@@ -818,27 +819,27 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISPATCH_BASE)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DEFER_COMPILE_BIT_NV)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	auto shaderTimes = std::vector<uint64_t>(feedback ? pCreateInfo->stageCount : 0);
@@ -924,16 +925,16 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_COMPILER_CONTROL_CREATE_INFO_AMD:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_DISCARD_RECTANGLE_STATE_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -945,27 +946,27 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISPATCH_BASE)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DEFER_COMPILE_BIT_NV)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_STATISTICS_BIT_KHR)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_CAPTURE_INTERNAL_REPRESENTATIONS_BIT_KHR)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	int stageIndex;
@@ -975,7 +976,7 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 
 	if (pCreateInfo->basePipelineHandle)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	WrapVulkan(pipeline, pPipeline);
@@ -1087,11 +1088,11 @@ VkResult Device::GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipel
 
 VkResult Device::GetPipelineExecutableStatistics(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pStatisticCount, VkPipelineExecutableStatisticKHR* pStatistics)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetPipelineExecutableInternalRepresentations(const VkPipelineExecutableInfoKHR* pExecutableInfo, uint32_t* pInternalRepresentationCount, VkPipelineExecutableInternalRepresentationKHR* pInternalRepresentations)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif

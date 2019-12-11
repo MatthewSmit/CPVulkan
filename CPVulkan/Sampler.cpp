@@ -27,7 +27,7 @@ VkResult Sampler::Create(const VkSamplerCreateInfo* pCreateInfo, const VkAllocat
 			}
 			
 		case VK_STRUCTURE_TYPE_SAMPLER_YCBCR_CONVERSION_CREATE_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
 			break;

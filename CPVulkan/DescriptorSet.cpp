@@ -13,17 +13,17 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 	{
 		if (targetBinding >= numberBindings)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		
 		if (targetArrayElement >= bindingValues[targetBinding].count)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		if (descriptorWrite.descriptorType != bindingTypes[targetBinding])
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		auto& value = bindingValues[targetBinding].values[targetArrayElement];
@@ -60,18 +60,24 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-			value.Buffer= *descriptorWrite.pBufferInfo;
+			value.Buffer = *descriptorWrite.pBufferInfo;
 			if (value.Buffer.range == VK_WHOLE_SIZE)
 			{
 				value.Buffer.range = UnwrapVulkan<Buffer>(value.Buffer.buffer)->getSize() - value.Buffer.offset;
 			}
 			break;
 			
-		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: FATAL_ERROR();
-		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT: FATAL_ERROR();
-		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
+			TODO_ERROR();
 			
-		default: FATAL_ERROR();
+		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
+			TODO_ERROR();
+			
+		case VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_NV:
+			TODO_ERROR();
+			
+		default:
+			FATAL_ERROR();
 		}
 
 		targetArrayElement += 1;
@@ -92,10 +98,10 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			default:
 				break;
@@ -108,7 +114,7 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 
 	for (auto i = 0u; i < descriptorCopyCount; i++)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 }
 
@@ -150,7 +156,7 @@ VkResult DescriptorSet::Create(DescriptorPool* descriptorPool, VkDescriptorSetLa
 
 		if (binding.pImmutableSamplers)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -169,7 +175,7 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
 			break;
@@ -182,7 +188,7 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 		const auto result = DescriptorSet::Create(UnwrapVulkan<DescriptorPool>(pAllocateInfo->descriptorPool), pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
 		if (result != VK_SUCCESS)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 

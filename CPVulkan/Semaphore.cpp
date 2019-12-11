@@ -81,7 +81,7 @@ VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAll
 					break;
 				}
 #endif
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 #if defined(VK_KHR_external_semaphore_win32)
@@ -126,7 +126,7 @@ VkResult Semaphore::ImportSemaphoreWin32(VkSemaphoreImportFlags flags, VkExterna
 		return VK_SUCCESS;
 	}
 	
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Semaphore::getSemaphoreWin32(VkExternalSemaphoreHandleTypeFlagBits handleType, HANDLE* pHandle) const
@@ -136,12 +136,12 @@ VkResult Semaphore::getSemaphoreWin32(VkExternalSemaphoreHandleTypeFlagBits hand
 		const auto result = DuplicateHandle(GetCurrentProcess(), handle, GetCurrentProcess(), pHandle, 0, false, DUPLICATE_SAME_ACCESS);
 		if (!result)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		return VK_SUCCESS;
 	}
 
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
 
@@ -163,12 +163,12 @@ void Device::DestroySemaphore(VkSemaphore semaphore, const VkAllocationCallbacks
 #if defined(VK_KHR_external_semaphore_fd)
 VkResult Device::ImportSemaphoreFd(const VkImportSemaphoreFdInfoKHR* pImportSemaphoreFdInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetSemaphoreFd(const VkSemaphoreGetFdInfoKHR* pGetFdInfo, int* pFd)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
 

@@ -28,17 +28,17 @@ public:
 	
 	VKAPI_ATTR void VKAPI_PTR DestroySurface(VkSurfaceKHR surface, const VkAllocationCallbacks* pAllocator);
 	
-	VKAPI_ATTR VkResult VKAPI_PTR CreateDisplayPlaneSurface(const VkDisplaySurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDisplayPlaneSurface(const VkDisplaySurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { TODO_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugReportCallback(const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyDebugReportCallback(VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DebugReportMessage(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugReportCallback(const VkDebugReportCallbackCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugReportCallbackEXT* pCallback) { TODO_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DestroyDebugReportCallback(VkDebugReportCallbackEXT callback, const VkAllocationCallbacks* pAllocator) { TODO_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DebugReportMessage(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objectType, uint64_t object, size_t location, int32_t messageCode, const char* pLayerPrefix, const char* pMessage) { TODO_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugUtilsMessenger(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR DestroyDebugUtilsMessenger(VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator) { FATAL_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR SubmitDebugUtilsMessage(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) { FATAL_ERROR(); } 
+	VKAPI_ATTR VkResult VKAPI_PTR CreateDebugUtilsMessenger(const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pMessenger) { TODO_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR DestroyDebugUtilsMessenger(VkDebugUtilsMessengerEXT messenger, const VkAllocationCallbacks* pAllocator) { TODO_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR SubmitDebugUtilsMessage(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageTypes, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData) { TODO_ERROR(); } 
 
-	VKAPI_ATTR VkResult VKAPI_PTR CreateHeadlessSurface(const VkHeadlessSurfaceCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { FATAL_ERROR(); }
+	VKAPI_ATTR VkResult VKAPI_PTR CreateHeadlessSurface(const VkHeadlessSurfaceCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface) { TODO_ERROR(); }
 
 #if defined(VK_USE_PLATFORM_WIN32_KHR)
 	VKAPI_ATTR VkResult VKAPI_PTR CreateWin32Surface(const VkWin32SurfaceCreateInfoKHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSurfaceKHR* pSurface);

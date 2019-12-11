@@ -22,20 +22,20 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_D3D12_FENCE_SUBMIT_INFO_KHR:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			case VK_STRUCTURE_TYPE_DEVICE_GROUP_SUBMIT_INFO:
 				// We can just ignore as all device indices must be 0
 				break;
 
 			case VK_STRUCTURE_TYPE_PROTECTED_SUBMIT_INFO:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			case VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_KHR:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			case VK_STRUCTURE_TYPE_WIN32_KEYED_MUTEX_ACQUIRE_RELEASE_INFO_NV:
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 			next = next->pNext;
 		}
@@ -45,7 +45,7 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 			const auto result = UnwrapVulkan<Semaphore>(submit.pWaitSemaphores[j])->Wait(std::numeric_limits<uint64_t>::max());
 			if (result != VK_SUCCESS)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 		}
 
@@ -54,7 +54,7 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 			const auto result = UnwrapVulkan<CommandBuffer>(submit.pCommandBuffers[j])->Submit();
 			if (result != VK_SUCCESS)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 		}
 
@@ -63,7 +63,7 @@ VkResult Queue::Submit(uint32_t submitCount, const VkSubmitInfo* pSubmits, VkFen
 			const auto result = UnwrapVulkan<Semaphore>(submit.pSignalSemaphores[j])->Signal();
 			if (result != VK_SUCCESS)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 		}
 	}
@@ -84,7 +84,7 @@ VkResult Queue::WaitIdle()
 
 VkResult Queue::BindSparse(uint32_t bindInfoCount, const VkBindSparseInfo* pBindInfo, VkFence fence)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
@@ -102,16 +102,16 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 			break;
 
 		case VK_STRUCTURE_TYPE_DISPLAY_PRESENT_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PRESENT_FRAME_TOKEN_GGP:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PRESENT_REGIONS_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_PRESENT_TIMES_INFO_GOOGLE:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
@@ -121,7 +121,7 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 		const auto result = UnwrapVulkan<Semaphore>(pPresentInfo->pWaitSemaphores[j])->Wait(std::numeric_limits<uint64_t>::max());
 		if (result != VK_SUCCESS)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -140,7 +140,7 @@ VkResult Queue::Present(const VkPresentInfoKHR* pPresentInfo)
 
 		if (result != VK_SUCCESS)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 
@@ -158,7 +158,7 @@ Queue* Queue::Create(const VkDeviceQueueCreateInfo* vkDeviceQueueCreateInfo, con
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEVICE_QUEUE_GLOBAL_PRIORITY_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}

@@ -21,20 +21,20 @@ VkResult RenderPass::Create(const VkRenderPassCreateInfo* pCreateInfo, const VkA
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_RENDER_PASS_FRAGMENT_DENSITY_MAP_CREATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_RENDER_PASS_INPUT_ATTACHMENT_ASPECT_CREATE_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_RENDER_PASS_MULTIVIEW_CREATE_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
 
 	if (pCreateInfo->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	renderPass->attachments = std::vector<VkAttachmentDescription>(pCreateInfo->attachmentCount);
@@ -104,6 +104,6 @@ void Device::DestroyRenderPass(VkRenderPass renderPass, const VkAllocationCallba
 #if defined(VK_KHR_create_renderpass2)
 VkResult Device::CreateRenderPass2(const VkRenderPassCreateInfo2KHR* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkRenderPass* pRenderPass)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif

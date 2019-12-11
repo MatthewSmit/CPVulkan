@@ -111,7 +111,7 @@ private:
 				const auto stride = *type->getDecorate(DecorationArrayStride).begin();
 				if (stride != size)
 				{
-					FATAL_ERROR();
+					TODO_ERROR();
 				}
 			}
 
@@ -129,7 +129,7 @@ private:
 					const auto offset = decorate->getLiteral(0);
 					if (offset < size)
 					{
-						FATAL_ERROR();
+						TODO_ERROR();
 					}
 					else
 					{

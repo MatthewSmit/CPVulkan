@@ -416,12 +416,12 @@ ResultType SampleImageOfLevel(DeviceState* deviceState, const FormatInformation&
 
 	if (compareEnable)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (unnormalisedCoordinates)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	switch (filter)
@@ -467,7 +467,7 @@ ResultType SampleImageOfLevel(DeviceState* deviceState, const FormatInformation&
 		{
 			if (format.Type == FormatType::Compressed)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			constexpr auto shift = 0.5f; // 0.5 for conventional, 0.0 for corner-sampled
@@ -503,14 +503,16 @@ ResultType SampleImageOfLevel(DeviceState* deviceState, const FormatInformation&
 					return GetPixelMinMax<ResultType, IntCoordinateType::length()>(deviceState, format.Format, data, range, newCoordinates0, newCoordinates1, borderColourConversion[borderColour], op);
 				}
 				
-			default: FATAL_ERROR();
+			default:
+				FATAL_ERROR();
 			}
 		}
 		
 	case VK_FILTER_CUBIC_IMG:
-		FATAL_ERROR();
+		TODO_ERROR();
 		
-	default: FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -532,17 +534,17 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 
 	if (anisotropyEnable)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (compareEnable)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	if (unnormalisedCoordinates)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	ResultType result;
@@ -635,7 +637,7 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 	// Cube images ignore wrap modes
 	if (sampler->getFlags() != 0)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	return SampleImage<ResultType>(deviceState, format, data, range, baseLevel, levels, coordinates, lod, sampler->getMagFilter(), sampler->getMinFilter(), sampler->getMipmapMode(),
@@ -691,7 +693,8 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 		SetPixel(deviceState, format, image, i, j, k, mipLevel, layer, value.int32);
 		break;
 		
-	default: FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
 }
 

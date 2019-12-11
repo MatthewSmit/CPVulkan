@@ -25,6 +25,66 @@ static VkResult GetImageFormatPropertiesImpl(const FormatInformation& informatio
 		return VK_ERROR_FORMAT_NOT_SUPPORTED;
 	}
 
+	if (information.Type == FormatType::Compressed)
+	{
+		if constexpr (!TEXTURE_COMPRESSION_ETC2)
+		{
+			if (information.Format == VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK ||
+				information.Format == VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK ||
+				information.Format == VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK)
+			{
+				return VK_ERROR_FORMAT_NOT_SUPPORTED;
+			}
+		}
+
+		if constexpr (!TEXTURE_COMPRESSION_ASTC_LDR)
+		{
+			if (information.Format == VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK_EXT ||
+				information.Format == VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT)
+			{
+				return VK_ERROR_FORMAT_NOT_SUPPORTED;
+			}
+		}
+
+		if constexpr (!TEXTURE_COMPRESSION_BC)
+		{
+			if (information.Format == VK_FORMAT_BC1_RGB_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC1_RGB_SRGB_BLOCK ||
+				information.Format == VK_FORMAT_BC1_RGBA_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC1_RGBA_SRGB_BLOCK ||
+				information.Format == VK_FORMAT_BC2_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC2_SRGB_BLOCK ||
+				information.Format == VK_FORMAT_BC3_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC3_SRGB_BLOCK ||
+				information.Format == VK_FORMAT_BC4_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC4_SNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC5_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC5_SNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC6H_UFLOAT_BLOCK ||
+				information.Format == VK_FORMAT_BC6H_SFLOAT_BLOCK ||
+				information.Format == VK_FORMAT_BC7_UNORM_BLOCK ||
+				information.Format == VK_FORMAT_BC7_SRGB_BLOCK)
+			{
+				return VK_ERROR_FORMAT_NOT_SUPPORTED;
+			}
+		}
+	}
+
 	switch (type)
 	{
 	case VK_IMAGE_TYPE_1D:
@@ -34,6 +94,7 @@ static VkResult GetImageFormatPropertiesImpl(const FormatInformation& informatio
 		pImageFormatProperties->maxArrayLayers = MAX_IMAGE_ARRAY_LAYERS;
 		pImageFormatProperties->maxMipLevels = CountMipLevels(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height, pImageFormatProperties->maxExtent.depth);
 		break;
+		
 	case VK_IMAGE_TYPE_2D:
 		if (flags & VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT)
 		{
@@ -49,6 +110,7 @@ static VkResult GetImageFormatPropertiesImpl(const FormatInformation& informatio
 		pImageFormatProperties->maxArrayLayers = MAX_IMAGE_ARRAY_LAYERS;
 		pImageFormatProperties->maxMipLevels = CountMipLevels(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height, pImageFormatProperties->maxExtent.depth);
 		break;
+		
 	case VK_IMAGE_TYPE_3D:
 		pImageFormatProperties->maxExtent.width = MAX_IMAGE_DIMENSION_3D;
 		pImageFormatProperties->maxExtent.height = MAX_IMAGE_DIMENSION_3D;
@@ -56,7 +118,9 @@ static VkResult GetImageFormatPropertiesImpl(const FormatInformation& informatio
 		pImageFormatProperties->maxArrayLayers = 1;
 		pImageFormatProperties->maxMipLevels = CountMipLevels(pImageFormatProperties->maxExtent.width, pImageFormatProperties->maxExtent.height, pImageFormatProperties->maxExtent.depth);
 		break;
-	default: FATAL_ERROR();
+		
+	default:
+		FATAL_ERROR();
 	}
 
 	if (tiling == VK_IMAGE_TILING_LINEAR ||
@@ -807,7 +871,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CONSERVATIVE_RASTERIZATION_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceConservativeRasterizationPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -831,14 +895,14 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceDescriptorIndexingPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DISCARD_RECTANGLE_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceDiscardRectanglePropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -858,7 +922,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTERNAL_MEMORY_HOST_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceExternalMemoryHostPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -888,7 +952,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_DENSITY_MAP_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceFragmentDensityMapPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -917,7 +981,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceLineRasterizationPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -932,14 +996,14 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_PROPERTIES_NV:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceMeshShaderPropertiesNV*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTIVIEW_PER_VIEW_ATTRIBUTES_PROPERTIES_NVX:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceMultiviewPerViewAttributesPropertiesNVX*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -954,7 +1018,7 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PCI_BUS_INFO_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDevicePCIBusInfoPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -982,14 +1046,14 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceRayTracingPropertiesNV*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SAMPLE_LOCATIONS_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceSampleLocationsPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -1004,28 +1068,28 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_2_AMD:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceShaderCoreProperties2AMD*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_CORE_PROPERTIES_AMD:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceShaderCorePropertiesAMD*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SM_BUILTINS_PROPERTIES_NV:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceShaderSMBuiltinsPropertiesNV*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADING_RATE_IMAGE_PROPERTIES_NV:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceShadingRateImagePropertiesNV*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -1043,28 +1107,28 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceSubgroupSizeControlPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceTransformFeedbackPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceVertexAttributeDivisorPropertiesEXT*>(next);
-				FATAL_ERROR();
+				TODO_ERROR();
 				break;
 			}
 
@@ -1088,7 +1152,7 @@ void PhysicalDevice::GetFormatProperties2(VkFormat format, VkFormatProperties2* 
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DRM_FORMAT_MODIFIER_PROPERTIES_LIST_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
 			break;
@@ -1117,7 +1181,7 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_IMAGE_FORMAT_LIST_CREATE_INFO_KHR:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			case VK_STRUCTURE_TYPE_IMAGE_STENCIL_USAGE_CREATE_INFO_EXT:
 				{
@@ -1163,10 +1227,10 @@ VkResult PhysicalDevice::GetImageFormatProperties2(const VkPhysicalDeviceImageFo
 #endif
 
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_DRM_FORMAT_MODIFIER_INFO_EXT:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_VIEW_IMAGE_FORMAT_INFO_EXT:
-				FATAL_ERROR();
+				TODO_ERROR();
 
 			default:
 				break;
@@ -1195,7 +1259,7 @@ void PhysicalDevice::GetQueueFamilyProperties2(uint32_t* pQueueFamilyPropertyCou
 				switch (type)
 				{
 				case VK_STRUCTURE_TYPE_QUEUE_FAMILY_CHECKPOINT_PROPERTIES_NV:
-					FATAL_ERROR();
+					TODO_ERROR();
 
 				default:
 					break;
@@ -1225,7 +1289,7 @@ void PhysicalDevice::GetMemoryProperties2(VkPhysicalDeviceMemoryProperties2* pMe
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_BUDGET_PROPERTIES_EXT:
 			{
 				auto memoryProperties = static_cast<VkPhysicalDeviceMemoryBudgetPropertiesEXT*>(next);
-				memoryProperties->heapBudget[0] = 0x100000000; // TODO: Real memory size?
+				memoryProperties->heapBudget[0] = Platform::GetMemorySize();
 				memoryProperties->heapUsage[0] = 0;
 				for (auto i = 1u; i < VK_MAX_MEMORY_HEAPS; i++)
 				{
@@ -1432,7 +1496,7 @@ VkResult PhysicalDevice::GetSurfacePresentModes(VkSurfaceKHR surface, uint32_t* 
 #if defined(VK_KHR_display)
 VkResult PhysicalDevice::GetDisplayProperties(uint32_t* pPropertyCount, VkDisplayPropertiesKHR* pProperties)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
 
@@ -1452,10 +1516,10 @@ VkResult PhysicalDevice::GetSurfaceCapabilities2KHR(const VkPhysicalDeviceSurfac
 		switch (next->sType)
 		{
 		case VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_SURFACE_FULL_SCREEN_EXCLUSIVE_WIN32_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		default:
 			break;

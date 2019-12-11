@@ -16,9 +16,11 @@ QueryPool::~QueryPool()
 		delete[] values.u64;
 		break;
 		
-	case VK_QUERY_TYPE_PIPELINE_STATISTICS: FATAL_ERROR();
+	case VK_QUERY_TYPE_PIPELINE_STATISTICS: 
+		TODO_ERROR();
 
-	default: FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -55,7 +57,7 @@ VkResult QueryPool::GetResults(uint32_t firstQuery, uint32_t queryCount, size_t 
 {
 	if (queryType == VK_QUERY_TYPE_PIPELINE_STATISTICS)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	auto result = VK_SUCCESS;
@@ -70,7 +72,7 @@ VkResult QueryPool::GetResults(uint32_t firstQuery, uint32_t queryCount, size_t 
 		{
 			if (flags & VK_QUERY_RESULT_WAIT_BIT)
 			{
-				FATAL_ERROR();
+				TODO_ERROR();
 			}
 
 			result = VK_NOT_READY;
@@ -144,7 +146,7 @@ VkResult QueryPool::Create(const VkQueryPoolCreateInfo* pCreateInfo, const VkAll
 
 	if (pCreateInfo->flags)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	queryPool->queryType = pCreateInfo->queryType;
@@ -161,9 +163,11 @@ VkResult QueryPool::Create(const VkQueryPoolCreateInfo* pCreateInfo, const VkAll
 		queryPool->values.u64 = new uint64_t[queryPool->queryCount];
 		break;
 
-	case VK_QUERY_TYPE_PIPELINE_STATISTICS: FATAL_ERROR();
+	case VK_QUERY_TYPE_PIPELINE_STATISTICS:
+		TODO_ERROR();
 
-	default: FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
 	
 	queryPool->avaliablity.resize(queryPool->queryCount);

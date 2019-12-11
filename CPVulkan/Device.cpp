@@ -89,37 +89,37 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DEDICATED_ALLOCATION_MEMORY_ALLOCATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO:
 			break;
 
 		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_ALLOCATE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_EXPORT_MEMORY_WIN32_HANDLE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMPORT_ANDROID_HARDWARE_BUFFER_INFO_ANDROID:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_FD_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_HOST_POINTER_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_IMPORT_MEMORY_WIN32_HANDLE_INFO_NV:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
 			{
@@ -129,14 +129,14 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 			}
 			
 		case VK_STRUCTURE_TYPE_MEMORY_PRIORITY_ALLOCATE_INFO_EXT:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
 
 	if (pAllocateInfo->memoryTypeIndex != 0)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto memory = AllocateSized(pAllocator, pAllocateInfo->allocationSize, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
@@ -679,7 +679,7 @@ void Device::GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQue
 	
 	if (pQueueInfo->queueFamilyIndex != 0)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto queue = queues.at(pQueueInfo->queueIndex).get();
@@ -695,37 +695,37 @@ void Device::GetDeviceQueue2(const VkDeviceQueueInfo2* pQueueInfo, VkQueue* pQue
 
 VkResult Device::CreateSamplerYcbcrConversion(const VkSamplerYcbcrConversionCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkSamplerYcbcrConversion* pYcbcrConversion)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::DestroySamplerYcbcrConversion(VkSamplerYcbcrConversion ycbcrConversion, const VkAllocationCallbacks* pAllocator)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CreateDescriptorUpdateTemplate(const VkDescriptorUpdateTemplateCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorUpdateTemplate* pDescriptorUpdateTemplate)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::DestroyDescriptorUpdateTemplate(VkDescriptorUpdateTemplate descriptorUpdateTemplate, const VkAllocationCallbacks* pAllocator)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::UpdateDescriptorSetWithTemplate(VkDescriptorSet descriptorSet, VkDescriptorUpdateTemplate descriptorUpdateTemplate, const void* pData)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::GetDescriptorSetLayoutSupport(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayoutSupport* pSupport)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::GetDeviceGroupPeerMemoryFeatures(uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex, VkPeerMemoryFeatureFlags* pPeerMemoryFeatures)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetDeviceGroupPresentCapabilities(VkDeviceGroupPresentCapabilitiesKHR* pDeviceGroupPresentCapabilities)
@@ -743,194 +743,194 @@ VkResult Device::GetDeviceGroupPresentCapabilities(VkDeviceGroupPresentCapabilit
 
 VkResult Device::GetDeviceGroupSurfacePresentModes(VkSurfaceKHR surface, VkDeviceGroupPresentModeFlagsKHR* pModes)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CreateSharedSwapchains(uint32_t swapchainCount, const VkSwapchainCreateInfoKHR* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkSwapchainKHR* pSwapchains)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetMemoryFd(const VkMemoryGetFdInfoKHR* pGetFdInfo, int* pFd)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetMemoryFdProperties(VkExternalMemoryHandleTypeFlagBits handleType, int fd, VkMemoryFdPropertiesKHR* pMemoryFdProperties)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetSwapchainStatus(VkSwapchainKHR swapchain)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::DebugMarkerSetObjectTag(const VkDebugMarkerObjectTagInfoEXT* pTagInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::DebugMarkerSetObjectName(const VkDebugMarkerObjectNameInfoEXT* pNameInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 uint32_t Device::GetImageViewHandleNVX(const VkImageViewHandleInfoNVX* pInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetShaderInfoAMD(VkPipeline pipeline, VkShaderStageFlagBits shaderStage, VkShaderInfoTypeAMD infoType, size_t* pInfoSize, void* pInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CreateIndirectCommandsLayoutNVX(const VkIndirectCommandsLayoutCreateInfoNVX* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkIndirectCommandsLayoutNVX* pIndirectCommandsLayout)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::DestroyIndirectCommandsLayoutNVX(VkIndirectCommandsLayoutNVX indirectCommandsLayout, const VkAllocationCallbacks* pAllocator)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CreateObjectTableNVX(const VkObjectTableCreateInfoNVX* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkObjectTableNVX* pObjectTable)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::DestroyObjectTableNVX(VkObjectTableNVX objectTable, const VkAllocationCallbacks* pAllocator)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::RegisterObjectsNVX(VkObjectTableNVX objectTable, uint32_t objectCount, const VkObjectTableEntryNVX* const* ppObjectTableEntries, const uint32_t* pObjectIndices)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::UnregisterObjectsNVX(VkObjectTableNVX objectTable, uint32_t objectCount, const VkObjectEntryTypeNVX* pObjectEntryTypes, const uint32_t* pObjectIndices)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::DisplayPowerControl(VkDisplayKHR display, const VkDisplayPowerInfoEXT* pDisplayPowerInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::RegisterDeviceEvent(const VkDeviceEventInfoEXT* pDeviceEventInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::RegisterDisplayEvent(VkDisplayKHR display, const VkDisplayEventInfoEXT* pDisplayEventInfo, const VkAllocationCallbacks* pAllocator, VkFence* pFence)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetSwapchainCounter(VkSwapchainKHR swapchain, VkSurfaceCounterFlagBitsEXT counter, uint64_t* pCounterValue)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetRefreshCycleDurationGOOGLE(VkSwapchainKHR swapchain, VkRefreshCycleDurationGOOGLE* pDisplayTimingProperties)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetPastPresentationTimingGOOGLE(VkSwapchainKHR swapchain, uint32_t* pPresentationTimingCount, VkPastPresentationTimingGOOGLE* pPresentationTimings)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 #if defined(VK_EXT_hdr_metadata)
 void Device::SetHdrMetadata(uint32_t swapchainCount, const VkSwapchainKHR* pSwapchains, const VkHdrMetadataEXT* pMetadata)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
 
 VkResult Device::SetDebugUtilsObjectName(const VkDebugUtilsObjectNameInfoEXT* pNameInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::SetDebugUtilsObjectTag(const VkDebugUtilsObjectTagInfoEXT* pTagInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetImageDrmFormatModifierProperties(VkImage image, VkImageDrmFormatModifierPropertiesEXT* pProperties)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CreateValidationCache(const VkValidationCacheCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkValidationCacheEXT* pValidationCache)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::DestroyValidationCache(VkValidationCacheEXT validationCache, const VkAllocationCallbacks* pAllocator)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::MergeValidationCaches(VkValidationCacheEXT dstCache, uint32_t srcCacheCount, const VkValidationCacheEXT* pSrcCaches)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetValidationCacheData(VkValidationCacheEXT validationCache, size_t* pDataSize, void* pData)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CreateAccelerationStructureNV(const VkAccelerationStructureCreateInfoNV* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkAccelerationStructureNV* pAccelerationStructure)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::DestroyAccelerationStructureNV(VkAccelerationStructureNV accelerationStructure, const VkAllocationCallbacks* pAllocator)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::GetAccelerationStructureMemoryRequirementsNV(const VkAccelerationStructureMemoryRequirementsInfoNV* pInfo, VkMemoryRequirements2KHR* pMemoryRequirements)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::BindAccelerationStructureMemoryNV(uint32_t bindInfoCount, const VkBindAccelerationStructureMemoryInfoNV* pBindInfos)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CreateRayTracingPipelinesNV(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkRayTracingPipelineCreateInfoNV* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetRayTracingShaderGroupHandlesNV(VkPipeline pipeline, uint32_t firstGroup, uint32_t groupCount, size_t dataSize, void* pData)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetAccelerationStructureHandleNV(VkAccelerationStructureNV accelerationStructure, size_t dataSize, void* pData)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::CompileDeferredNV(VkPipeline pipeline, uint32_t shader)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetMemoryHostPointerProperties(VkExternalMemoryHandleTypeFlagBits handleType, const void* pHostPointer, VkMemoryHostPointerPropertiesEXT* pMemoryHostPointerProperties)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetCalibratedTimestamps(uint32_t timestampCount, const VkCalibratedTimestampInfoEXT* pTimestampInfos, uint64_t* pTimestamps, uint64_t* pMaxDeviation)
@@ -946,83 +946,83 @@ VkResult Device::GetCalibratedTimestamps(uint32_t timestampCount, const VkCalibr
 
 VkResult Device::InitializePerformanceApiINTEL(const VkInitializePerformanceApiInfoINTEL* pInitializeInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::UninitializePerformanceApiINTEL()
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::AcquirePerformanceConfigurationINTEL(const VkPerformanceConfigurationAcquireInfoINTEL* pAcquireInfo, VkPerformanceConfigurationINTEL* pConfiguration)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::ReleasePerformanceConfigurationINTEL(VkPerformanceConfigurationINTEL configuration)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetPerformanceParameterINTEL(VkPerformanceParameterTypeINTEL parameter, VkPerformanceValueINTEL* pValue)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 void Device::SetLocalDimmingAMD(VkSwapchainKHR swapChain, VkBool32 localDimmingEnable)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 #if defined(VK_KHR_timeline_semaphore)
 VkResult Device::GetSemaphoreCounterValue(VkSemaphore semaphore, uint64_t* pValue)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::WaitSemaphores(const VkSemaphoreWaitInfoKHR* pWaitInfo, uint64_t timeout)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::SignalSemaphore(const VkSemaphoreSignalInfoKHR* pSignalInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
 
 #if defined(VK_KHR_external_memory_win32)
 VkResult Device::GetMemoryWin32Handle(const VkMemoryGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetMemoryWin32HandleProperties(VkExternalMemoryHandleTypeFlagBits handleType, HANDLE handle, VkMemoryWin32HandlePropertiesKHR* pMemoryWin32HandleProperties)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
 
 #if defined(VK_NV_external_memory_win32)
 VkResult Device::GetMemoryWin32HandleNV(VkDeviceMemory memory, VkExternalMemoryHandleTypeFlagsNV handleType, HANDLE* pHandle)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
 
 VkResult Device::AcquireFullScreenExclusiveMode(VkSwapchainKHR swapchain)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::ReleaseFullScreenExclusiveMode(VkSwapchainKHR swapchain)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetDeviceGroupSurfacePresentModes2(const VkPhysicalDeviceSurfaceInfo2KHR* pSurfaceInfo, VkDeviceGroupPresentModeFlagsKHR* pModes)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 ImageFunctions::ImageFunctions(CPJit* jit)

@@ -401,7 +401,7 @@ static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::spa
 	case ImageDescriptorType::Image:
 		if (imageView->getImage()->getSamples() != VK_SAMPLE_COUNT_1_BIT)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 
 		format = imageView->getFormat();
@@ -415,7 +415,8 @@ static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::spa
 		}
 		break;
 
-	default: FATAL_ERROR();
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -428,7 +429,7 @@ static void GetImageDataArray(ImageDescriptor* descriptor, VkFormat& format, Coo
 
 	if (imageView->getImage()->getSamples() != VK_SAMPLE_COUNT_1_BIT)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	format = imageView->getFormat();
@@ -451,7 +452,7 @@ void GetImageDataCube(ImageDescriptor* descriptor, VkFormat& format, glm::vec<3 
 
 	if (imageView->getImage()->getSamples() != VK_SAMPLE_COUNT_1_BIT)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 
 	const auto abs = glm::abs(coordinates);
@@ -547,7 +548,9 @@ static T Swizzle(glm::vec<4, T> vector, VkComponentSwizzle swizzle, int index)
 	case VK_COMPONENT_SWIZZLE_G: return vector.g;
 	case VK_COMPONENT_SWIZZLE_B: return vector.b;
 	case VK_COMPONENT_SWIZZLE_A: return vector.a;
-	default: FATAL_ERROR();
+		
+	default:
+		FATAL_ERROR();
 	}
 }
 
@@ -647,11 +650,11 @@ static void ImageFetch(DeviceState* deviceState, ReturnType* result, ImageDescri
 	}
 	if (levels != 1)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	if (baseLevel != 0)
 	{
-		FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	if constexpr (Array)

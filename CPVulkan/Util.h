@@ -59,7 +59,7 @@ static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T* outputValue
 	{
 		if (*count < inputValues.size())
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		else if (*count == inputValues.size())
 		{
@@ -70,7 +70,7 @@ static VkResult HandleEnumeration(gsl::not_null<uint32_t*> count, T* outputValue
 		}
 		else
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 

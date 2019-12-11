@@ -45,10 +45,10 @@ VkResult Fence::Create(const VkFenceCreateInfo* pCreateInfo, const VkAllocationC
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_EXPORT_FENCE_CREATE_INFO:
-			FATAL_ERROR();
+			TODO_ERROR();
 			
 		case VK_STRUCTURE_TYPE_EXPORT_FENCE_WIN32_HANDLE_INFO_KHR:
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 		next = static_cast<const VkBaseInStructure*>(next)->pNext;
 	}
@@ -83,7 +83,7 @@ VkResult Device::ResetFences(uint32_t fenceCount, const VkFence* pFences)
 	{
 		if (UnwrapVulkan<Fence>(pFences[i])->Reset() != VK_SUCCESS)
 		{
-			FATAL_ERROR();
+			TODO_ERROR();
 		}
 	}
 	return VK_SUCCESS;
@@ -106,22 +106,22 @@ VkResult Device::WaitForFences(uint32_t fenceCount, const VkFence* pFences, VkBo
 
 VkResult Device::ImportFenceFd(const VkImportFenceFdInfoKHR* pImportFenceFdInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetFenceFd(const VkFenceGetFdInfoKHR* pGetFdInfo, int* pFd)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 #if defined(VK_KHR_external_fence_win32)
 VkResult Device::ImportFenceWin32Handle(const VkImportFenceWin32HandleInfoKHR* pImportFenceWin32HandleInfo)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 
 VkResult Device::GetFenceWin32Handle(const VkFenceGetWin32HandleInfoKHR* pGetWin32HandleInfo, HANDLE* pHandle)
 {
-	FATAL_ERROR();
+	TODO_ERROR();
 }
 #endif
