@@ -25,7 +25,6 @@ public:
 private:
 	CPJit* jit;
 	LLVMContextRef context;
-	LLVMModuleRef module;
 	std::function<void*(const std::string&)> getFunction;
 	LLVMOrcModuleHandle orcModule;
 };

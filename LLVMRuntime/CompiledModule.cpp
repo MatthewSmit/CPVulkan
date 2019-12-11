@@ -45,27 +45,30 @@ static uint64_t SymbolResolverStub(const char* name, void* lookupContext)
 CompiledModule::CompiledModule(CPJit* jit, LLVMContextRef context, LLVMModuleRef module, std::function<void*(const std::string&)> getFunction) :
 	jit{jit},
 	context{context},
-	module{module},
-	getFunction{getFunction}
+	getFunction{std::move(getFunction)}
 {
-	const auto error = LLVMOrcAddEagerlyCompiledIR(jit->getOrc(), &orcModule, module, SymbolResolverStub, this);
-	if (error)
+	jit->RunOnCompileThread([&]()
 	{
-		const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
-		TODO_ERROR();
-	}
+		const auto error = LLVMOrcAddEagerlyCompiledIR(jit->getOrc(), &orcModule, module, SymbolResolverStub, this);
+		if (error)
+		{
+			const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
+			TODO_ERROR();
+		}
+	});
 }
 
 CompiledModule::~CompiledModule()
 {
-	const auto error = LLVMOrcRemoveModule(jit->getOrc(), orcModule);
-	if (error)
+	jit->RunOnCompileThread([&]()
 	{
-		const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
-		TODO_ERROR();
-	}
-
-	LLVMDisposeModule(module);
+		const auto error = LLVMOrcRemoveModule(jit->getOrc(), orcModule);
+		if (error)
+		{
+			const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
+			TODO_ERROR();
+		}
+	});
 	LLVMContextDispose(context);
 }
 
@@ -135,13 +138,17 @@ void* CompiledModule::getPointer(const std::string& name) const
 void* CompiledModule::getOptionalPointer(const std::string& name) const
 {
 	LLVMOrcTargetAddress symbolAddress;
-	const auto error = LLVMOrcGetSymbolAddressIn(jit->getOrc(), &symbolAddress, orcModule, name.c_str());
-
-	if (error)
+	
+	jit->RunOnCompileThread([&]()
 	{
-		const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
-		TODO_ERROR();
-	}
+		const auto error = LLVMOrcGetSymbolAddressIn(jit->getOrc(), &symbolAddress, orcModule, name.c_str());
+
+		if (error)
+		{
+			const auto errorMessage = LLVMOrcGetErrorMsg(jit->getOrc());
+			TODO_ERROR();
+		}
+	});
 
 	return reinterpret_cast<void*>(symbolAddress);
 }
@@ -162,28 +169,32 @@ CompiledModuleBuilder::~CompiledModuleBuilder() = default;
 
 CompiledModule* CompiledModuleBuilder::Compile()
 {
-	context = LLVMContextCreate();
-	module = LLVMModuleCreateWithNameInContext("", context);
-	builder = LLVMCreateBuilderInContext(context);
-
-	MainCompilation();
-
-	LLVMDisposeBuilder(builder);
-
-	// TODO: Optimisations
-
-	// TODO: Soft fail?
-	// LLVMVerifyModule(module, LLVMAbortProcessAction, nullpointer);
-
-	std::cout << DumpModule(module) << std::endl;
-
-	const auto compiledModule = new CompiledModule(jit, context, module, getFunction);
-
-	const auto userData = compiledModule->getOptionalPointer("@userData");
-	if (userData)
+	CompiledModule* compiledModule;
+	this->jit->RunOnCompileThread([&]()
 	{
-		*reinterpret_cast<void**>(userData) = jit->getUserData();
-	}
+		context = LLVMContextCreate();
+		module = LLVMModuleCreateWithNameInContext("", context);
+		builder = LLVMCreateBuilderInContext(context);
+
+		MainCompilation();
+
+		LLVMDisposeBuilder(builder);
+
+		// TODO: Optimisations
+
+		// TODO: Soft fail?
+		// LLVMVerifyModule(module, LLVMAbortProcessAction, nullpointer);
+
+		std::cout << DumpModule(module) << std::endl;
+
+		compiledModule = new CompiledModule(jit, context, module, getFunction);
+
+		const auto userData = compiledModule->getOptionalPointer("@userData");
+		if (userData)
+		{
+			*reinterpret_cast<void**>(userData) = jit->getUserData();
+		}
+	});
 
 	return compiledModule;
 }

@@ -120,7 +120,7 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 
 VkResult DescriptorSet::Create(DescriptorPool* descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet)
 {
-	auto descriptorSet = descriptorPool->createDescriptorPool();
+	auto descriptorSet = descriptorPool->CreateDescriptorSet();
 	if (!descriptorSet)
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -188,7 +188,20 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 		const auto result = DescriptorSet::Create(UnwrapVulkan<DescriptorPool>(pAllocateInfo->descriptorPool), pAllocateInfo->pSetLayouts[i], &pDescriptorSets[i]);
 		if (result != VK_SUCCESS)
 		{
-			TODO_ERROR();
+			for (auto j = 0u; j < i; j++)
+			{
+				if (pDescriptorSets[j])
+				{
+					UnwrapVulkan<DescriptorPool>(pAllocateInfo->descriptorPool)->FreeDescriptorSet(UnwrapVulkan<DescriptorSet>(pDescriptorSets[j]));
+				}
+			}
+
+			for (auto j = 0u; j < pAllocateInfo->descriptorSetCount; j++)
+			{
+				pDescriptorSets[j] = nullptr;
+			}
+			
+			return result;
 		}
 	}
 
@@ -201,7 +214,7 @@ VkResult Device::FreeDescriptorSets(VkDescriptorPool descriptorPool, uint32_t de
 	{
 		if (pDescriptorSets[i])
 		{
-			UnwrapVulkan<DescriptorPool>(descriptorPool)->freeDescriptorPool(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]));
+			UnwrapVulkan<DescriptorPool>(descriptorPool)->FreeDescriptorSet(UnwrapVulkan<DescriptorSet>(pDescriptorSets[i]));
 		}
 	}
 

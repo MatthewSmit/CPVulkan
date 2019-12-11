@@ -732,12 +732,12 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 
 ShaderFunction::~ShaderFunction()
 {
-	// TODO: delete llvmModule;
+	delete llvmModule;
 }
 
 Pipeline::~Pipeline()
 {
-	// TODO: delete vertexModule;
+	delete vertexModule;
 }
 
 void Pipeline::CompilePipeline()

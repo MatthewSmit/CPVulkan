@@ -464,10 +464,19 @@ private:
 						}
 						currentOffset = offset;
 					}
+					
 					const auto llvmMemberType = ConvertType(strct->getMemberType(i), true);
 					indexMapping.push_back(static_cast<uint32_t>(types.size()));
 					types.push_back(llvmMemberType);
-					currentOffset += LLVMSizeOfTypeInBits(layout, llvmMemberType) / 8;
+
+					if (strct->getMemberType(i)->getOpCode() == OpTypeRuntimeArray)
+					{
+						assert(i + 1 == strct->getMemberCount());
+					}
+					else
+					{
+						currentOffset += LLVMSizeOfTypeInBits(layout, llvmMemberType) / 8;
+					}
 				}
 				LLVMStructSetBody(llvmType, types.data(), static_cast<uint32_t>(types.size()), strct->isPacked());
 				break;

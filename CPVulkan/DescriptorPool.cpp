@@ -20,15 +20,18 @@ VkResult DescriptorPool::Reset()
 	return VK_SUCCESS;
 }
 
-DescriptorSet* DescriptorPool::createDescriptorPool()
+DescriptorSet* DescriptorPool::CreateDescriptorSet()
 {
 	// TODO: Lock?
 	const auto descriptorSet = Allocate<DescriptorSet>(allocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
-	usedSets.push_back(descriptorSet);
+	if (descriptorSet)
+	{
+		usedSets.push_back(descriptorSet);
+	}
 	return descriptorSet;
 }
 
-void DescriptorPool::freeDescriptorPool(DescriptorSet* descriptorSet)
+void DescriptorPool::FreeDescriptorSet(DescriptorSet* descriptorSet)
 {
 	// TODO: Lock?
 	const auto element = std::find(usedSets.begin(), usedSets.end(), descriptorSet);

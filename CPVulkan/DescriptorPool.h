@@ -18,8 +18,8 @@ public:
 	
 	VkResult Reset();
 	
-	DescriptorSet* createDescriptorPool();
-	void freeDescriptorPool(DescriptorSet* descriptorSet);
+	DescriptorSet* CreateDescriptorSet();
+	void FreeDescriptorSet(DescriptorSet* descriptorSet);
 
 	static VkResult Create(const VkDescriptorPoolCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorPool* pDescriptorPool);
 

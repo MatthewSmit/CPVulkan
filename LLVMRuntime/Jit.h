@@ -16,6 +16,7 @@ public:
 	~CPJit();
 
 	void AddFunction(const std::string& name, FunctionPointer pointer);
+	void RunOnCompileThread(const std::function<void()>& action);
 
 	[[nodiscard]] FunctionPointer getFunction(const std::string& name);
 	[[nodiscard]] void* getUserData() const;
