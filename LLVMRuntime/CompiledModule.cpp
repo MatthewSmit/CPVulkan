@@ -323,6 +323,31 @@ LLVMTypeRef CompiledModuleBuilder::GetType<uint64_t>()
 	return LLVMInt64TypeInContext(context);
 }
 
+LLVMTypeRef CompiledModuleBuilder::ScalarType(LLVMTypeRef type)
+{
+	switch (LLVMGetTypeKind(type))
+	{
+	case LLVMVoidTypeKind:
+	case LLVMHalfTypeKind:
+	case LLVMFloatTypeKind:
+	case LLVMDoubleTypeKind:
+	case LLVMX86_FP80TypeKind:
+	case LLVMFP128TypeKind:
+	case LLVMPPC_FP128TypeKind:
+	case LLVMIntegerTypeKind:
+	case LLVMX86_MMXTypeKind:
+		return type;
+		
+	case LLVMArrayTypeKind:
+	case LLVMPointerTypeKind:
+	case LLVMVectorTypeKind:
+		return LLVMGetElementType(type);
+		
+	default: FATAL_ERROR();
+	}
+}
+
+
 LLVMTypeRef CompiledModuleBuilder::StructType(std::vector<LLVMTypeRef>& members, const std::string& name, bool isPacked)
 {
 	const auto type = LLVMStructCreateNamed(context, name.c_str());
@@ -604,14 +629,18 @@ LLVMValueRef CompiledModuleBuilder::CreateMemSet(LLVMValueRef pointer, LLVMValue
 	return LLVMBuildMemSet(builder, pointer, value, length, alignment);
 }
 
-LLVMValueRef CompiledModuleBuilder::CreateMemCpy(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size)
+LLVMValueRef CompiledModuleBuilder::CreateMemCpy(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size, bool isVolatile)
 {
-	return LLVMBuildMemCpy(builder, destination, destinationAlignment, source, sourceAlignment, size);
+	const auto value = LLVMBuildMemCpy(builder, destination, destinationAlignment, source, sourceAlignment, size);
+	LLVMSetVolatile(value, isVolatile);
+	return value;
 }
 
-LLVMValueRef CompiledModuleBuilder::CreateMemMove(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size)
+LLVMValueRef CompiledModuleBuilder::CreateMemMove(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size, bool isVolatile)
 {
-	return LLVMBuildMemMove(builder, destination, destinationAlignment, source, sourceAlignment, size);
+	const auto value = LLVMBuildMemMove(builder, destination, destinationAlignment, source, sourceAlignment, size);
+	LLVMSetVolatile(value, isVolatile);
+	return value;
 }
 
 LLVMValueRef CompiledModuleBuilder::CreateAlloca(LLVMTypeRef type, const std::string& name)
@@ -619,7 +648,7 @@ LLVMValueRef CompiledModuleBuilder::CreateAlloca(LLVMTypeRef type, const std::st
 	return LLVMBuildAlloca(builder, type, name.c_str());
 }
 
-LLVMValueRef CompiledModuleBuilder::CreateArrayAlloca(LLVMTypeRef type, LLVMValueRef value, const std::string& name)
+LLVMValueRef CompiledModuleBuilder::CreateAlloca(LLVMTypeRef type, LLVMValueRef value, const std::string& name)
 {
 	return LLVMBuildArrayAlloca(builder, type, value, name.c_str());
 }
@@ -677,6 +706,27 @@ LLVMValueRef CompiledModuleBuilder::CreateGEP(LLVMValueRef pointer, std::vector<
 	return LLVMBuildGEP(builder, pointer, indices.data(), static_cast<uint32_t>(indices.size()), "");
 }
 
+LLVMValueRef CompiledModuleBuilder::CreateInBoundsGEP(LLVMValueRef pointer, uint32_t index0)
+{
+	const auto value = CreateGEP(pointer, index0);
+	LLVMSetIsInBounds(value, true);
+	return value;
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateInBoundsGEP(LLVMValueRef pointer, uint32_t index0, uint32_t index1)
+{
+	const auto value = CreateGEP(pointer, index0, index1);
+	LLVMSetIsInBounds(value, true);
+	return value;
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateInBoundsGEP(LLVMValueRef pointer, std::vector<LLVMValueRef> indices)
+{
+	const auto value = CreateGEP(pointer, std::move(indices));
+	LLVMSetIsInBounds(value, true);
+	return value;
+}
+
 LLVMValueRef CompiledModuleBuilder::CreateGlobalString(const std::string& str, const std::string& name)
 {
 	return LLVMBuildGlobalString(builder, str.c_str(), name.c_str());
@@ -732,6 +782,24 @@ LLVMValueRef CompiledModuleBuilder::CreateFPExt(LLVMValueRef value, LLVMTypeRef 
 	return LLVMBuildFPExt(builder, value, destinationType, name.c_str());
 }
 
+LLVMValueRef CompiledModuleBuilder::CreateFPExtOrTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	const auto inputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), LLVMTypeOf(value));
+	const auto outputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), destinationType);
+
+	if (inputBits < outputBits)
+	{
+		return CreateFPExt(value, destinationType, name);
+	}
+
+	if (inputBits > outputBits)
+	{
+		return CreateFPTrunc(value, destinationType, name);
+	}
+
+	return value;
+}
+
 LLVMValueRef CompiledModuleBuilder::CreatePtrToInt(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
 {
 	return LLVMBuildPtrToInt(builder, value, destinationType, name.c_str());
@@ -752,9 +820,45 @@ LLVMValueRef CompiledModuleBuilder::CreateAddrSpaceCast(LLVMValueRef value, LLVM
 	return LLVMBuildAddrSpaceCast(builder, value, destinationType, name.c_str());
 }
 
+LLVMValueRef CompiledModuleBuilder::CreateZExtOrTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	const auto inputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), LLVMTypeOf(value));
+	const auto outputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), destinationType);
+
+	if (inputBits < outputBits)
+	{
+		return CreateZExt(value, destinationType, name);
+	}
+
+	if (inputBits > outputBits)
+	{
+		return CreateTrunc(value, destinationType, name);
+	}
+
+	return value;
+}
+
 LLVMValueRef CompiledModuleBuilder::CreateZExtOrBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
 {
 	return LLVMBuildZExtOrBitCast(builder, value, destinationType, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateSExtOrTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
+{
+	const auto inputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), LLVMTypeOf(value));
+	const auto outputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), destinationType);
+
+	if (inputBits < outputBits)
+	{
+		return CreateSExt(value, destinationType, name);
+	}
+
+	if (inputBits > outputBits)
+	{
+		return CreateTrunc(value, destinationType, name);
+	}
+
+	return value;
 }
 
 LLVMValueRef CompiledModuleBuilder::CreateSExtOrBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name)
@@ -805,6 +909,11 @@ LLVMValueRef CompiledModuleBuilder::CreatePhi(LLVMTypeRef type, const std::strin
 LLVMValueRef CompiledModuleBuilder::CreateCall(LLVMValueRef function, LLVMValueRef* arguments, uint32_t numberArguments, const std::string& name)
 {
 	return LLVMBuildCall(builder, function, arguments, numberArguments, name.c_str());
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateCall(LLVMValueRef function, std::vector<LLVMValueRef> arguments, const std::string& name)
+{
+	return LLVMBuildCall(builder, function, arguments.data(), static_cast<uint32_t>(arguments.size()), name.c_str());
 }
 
 LLVMValueRef CompiledModuleBuilder::CreateSelect(LLVMValueRef conditional, LLVMValueRef thenValue, LLVMValueRef elseValue, const std::string& name)
@@ -870,4 +979,19 @@ LLVMValueRef CompiledModuleBuilder::CreateAtomicRMW(LLVMAtomicRMWBinOp opcode, L
 LLVMValueRef CompiledModuleBuilder::CreateAtomicCmpXchg(LLVMValueRef pointer, LLVMValueRef cmp, LLVMValueRef New, LLVMAtomicOrdering successOrdering, LLVMAtomicOrdering failureOrdering, bool singleThread)
 {
 	return LLVMBuildAtomicCmpXchg(builder, pointer, cmp, New, successOrdering, failureOrdering, singleThread);
+}
+
+LLVMValueRef CompiledModuleBuilder::CreateVectorSplat(uint32_t vectorSize, LLVMValueRef value, const std::string& name)
+{
+	const auto undefVector = LLVMGetUndef(LLVMVectorType(LLVMTypeOf(value), vectorSize));
+	const auto tmpVector = CreateInsertElement(undefVector, value, ConstI32(0), name.empty() ? "" : name + ".splatinsert");
+	LLVMValueRef zeroValues[]
+	{
+		ConstI32(0),
+		ConstI32(0),
+		ConstI32(0),
+		ConstI32(0),
+	};
+	const auto zeros = LLVMConstVector(zeroValues, 4);
+	return CreateShuffleVector(tmpVector, undefVector, zeros, name.empty() ? "" : name + ".splat");
 }

@@ -1098,8 +1098,8 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@NClamp.F64[3].F64[3].F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f64vec3>));
 	jit->AddFunction("@NClamp.F64[4].F64[4].F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f64vec4>));
 	
-	// jit->AddFunction("@ImageCombine", reinterpret_cast<FunctionPointer>(ImageCombine));
-	// jit->AddFunction("@ImageGetRaw", reinterpret_cast<FunctionPointer>(ImageGetRaw));
+	jit->AddFunction("@ImageCombine", reinterpret_cast<FunctionPointer>(ImageCombine));
+	jit->AddFunction("@ImageGetRaw", reinterpret_cast<FunctionPointer>(ImageGetRaw));
 	
 	// jit->AddFunction("@Image.Sample.Implicit.F32[4].F32", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::fvec4, glm::fvec1>));
 	// jit->AddFunction("@Image.Sample.Implicit.F32[4].F32[2]", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::fvec4, glm::fvec2>));

@@ -63,6 +63,8 @@ protected:
 	// Type Helpers
 	template<typename T>
 	LLVMTypeRef GetType();
+
+	LLVMTypeRef ScalarType(LLVMTypeRef type);
 	
 	LLVMTypeRef StructType(std::vector<LLVMTypeRef>& members, const std::string& name, bool isPacked = false);
 
@@ -187,13 +189,13 @@ protected:
 
 	LLVMValueRef CreateMemSet(LLVMValueRef pointer, LLVMValueRef value, LLVMValueRef length, uint32_t alignment);
 
-	LLVMValueRef CreateMemCpy(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size);
+	LLVMValueRef CreateMemCpy(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size, bool isVolatile = false);
 
-	LLVMValueRef CreateMemMove(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size);
+	LLVMValueRef CreateMemMove(LLVMValueRef destination, uint32_t destinationAlignment, LLVMValueRef source, uint32_t sourceAlignment, LLVMValueRef size, bool isVolatile = false);
 
 	LLVMValueRef CreateAlloca(LLVMTypeRef type, const std::string& name = "");
 	
-	LLVMValueRef CreateArrayAlloca(LLVMTypeRef type, LLVMValueRef value, const std::string& name = "");
+	LLVMValueRef CreateAlloca(LLVMTypeRef type, LLVMValueRef value, const std::string& name = "");
 	
 	LLVMValueRef CreateFree(LLVMValueRef pointer);
 
@@ -208,6 +210,12 @@ protected:
 	LLVMValueRef CreateGEP(LLVMValueRef pointer, uint32_t index0, uint32_t index1);
 
 	LLVMValueRef CreateGEP(LLVMValueRef pointer, std::vector<LLVMValueRef> indices);
+
+	LLVMValueRef CreateInBoundsGEP(LLVMValueRef pointer, uint32_t index0);
+
+	LLVMValueRef CreateInBoundsGEP(LLVMValueRef pointer, uint32_t index0, uint32_t index1);
+
+	LLVMValueRef CreateInBoundsGEP(LLVMValueRef pointer, std::vector<LLVMValueRef> indices);
 
 	LLVMValueRef CreateGlobalString(const std::string& str, const std::string& name = "");
 	
@@ -231,6 +239,8 @@ protected:
 
 	LLVMValueRef CreateFPExt(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
 
+	LLVMValueRef CreateFPExtOrTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
+
 	LLVMValueRef CreatePtrToInt(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
 
 	LLVMValueRef CreateIntToPtr(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
@@ -239,7 +249,11 @@ protected:
 
 	LLVMValueRef CreateAddrSpaceCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
 
+	LLVMValueRef CreateZExtOrTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
+	
 	LLVMValueRef CreateZExtOrBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
+
+	LLVMValueRef CreateSExtOrTrunc(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
 
 	LLVMValueRef CreateSExtOrBitCast(LLVMValueRef value, LLVMTypeRef destinationType, const std::string& name = "");
 
@@ -381,6 +395,8 @@ protected:
 	
 	LLVMValueRef CreateCall(LLVMValueRef function, LLVMValueRef* arguments, uint32_t numberArguments, const std::string& name = "");
 	
+	LLVMValueRef CreateCall(LLVMValueRef function, std::vector<LLVMValueRef> arguments, const std::string& name = "");
+	
 	LLVMValueRef CreateSelect(LLVMValueRef conditional, LLVMValueRef thenValue, LLVMValueRef elseValue, const std::string& name = "");
 	
 	LLVMValueRef CreateVAArg(LLVMValueRef list, LLVMTypeRef type, const std::string& name = "");
@@ -403,7 +419,9 @@ protected:
 	
 	LLVMValueRef CreateFence(LLVMAtomicOrdering ordering, bool singleThread, const std::string& name = "");
 	
-	LLVMValueRef CreateAtomicRMW(LLVMAtomicRMWBinOp opcode, LLVMValueRef pointer, LLVMValueRef value, LLVMAtomicOrdering ordering, bool singleThread);
+	LLVMValueRef CreateAtomicRMW(LLVMAtomicRMWBinOp opcode, LLVMValueRef pointer, LLVMValueRef value, LLVMAtomicOrdering ordering, bool singleThread = false);
 
-	LLVMValueRef CreateAtomicCmpXchg(LLVMValueRef pointer, LLVMValueRef cmp, LLVMValueRef New, LLVMAtomicOrdering successOrdering, LLVMAtomicOrdering failureOrdering, bool singleThread);
+	LLVMValueRef CreateAtomicCmpXchg(LLVMValueRef pointer, LLVMValueRef cmp, LLVMValueRef New, LLVMAtomicOrdering successOrdering, LLVMAtomicOrdering failureOrdering, bool singleThread = false);
+
+	LLVMValueRef CreateVectorSplat(uint32_t vectorSize, LLVMValueRef value, const std::string& name = "");
 };
