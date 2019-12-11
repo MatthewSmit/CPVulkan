@@ -8,81 +8,101 @@
 #include <algorithm>
 #include <cassert>
 
+static bool IsFormatSupported(const FormatInformation& information)
+{
+	if constexpr (!TEXTURE_COMPRESSION_ETC2)
+	{
+		if (information.Format == VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK)
+		{
+			return false;
+		}
+	}
+
+	if constexpr (!TEXTURE_COMPRESSION_ASTC_LDR)
+	{
+		if (information.Format == VK_FORMAT_ASTC_4x4_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_4x4_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_5x4_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_5x4_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_5x5_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_5x5_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_6x5_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_6x5_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_6x6_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_6x6_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_8x5_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_8x5_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_8x6_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_8x6_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_8x8_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_8x8_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_10x5_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x5_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_10x6_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x6_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_10x8_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x8_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_10x10_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x10_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_12x10_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_12x10_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK_EXT ||
+			information.Format == VK_FORMAT_ASTC_12x12_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_12x12_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT)
+		{
+			return false;
+		}
+	}
+
+	if constexpr (!TEXTURE_COMPRESSION_BC)
+	{
+		if (information.Format == VK_FORMAT_BC1_RGB_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC1_RGB_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_BC1_RGBA_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC1_RGBA_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_BC2_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC2_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_BC3_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC3_SRGB_BLOCK ||
+			information.Format == VK_FORMAT_BC4_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC4_SNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC5_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC5_SNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC6H_UFLOAT_BLOCK ||
+			information.Format == VK_FORMAT_BC6H_SFLOAT_BLOCK ||
+			information.Format == VK_FORMAT_BC7_UNORM_BLOCK ||
+			information.Format == VK_FORMAT_BC7_SRGB_BLOCK)
+		{
+			return false;
+		}
+	}
+
+	return !(information.Base == BaseType::UScaled || information.Base == BaseType::SScaled);
+}
+
 static VkResult GetImageFormatPropertiesImpl(const FormatInformation& information, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties)
 {
-	if ((usage & VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT) && information.Type != FormatType::DepthStencil)
+	if (!IsFormatSupported(information))
 	{
 		return VK_ERROR_FORMAT_NOT_SUPPORTED;
-	}
-
-	if ((usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT) && information.Type == FormatType::DepthStencil)
-	{
-		return VK_ERROR_FORMAT_NOT_SUPPORTED;
-	}
-
-	if ((usage & (VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT)) && (information.Base == BaseType::UScaled || information.Base == BaseType::SScaled))
-	{
-		return VK_ERROR_FORMAT_NOT_SUPPORTED;
-	}
-
-	if (information.Type == FormatType::Compressed)
-	{
-		if constexpr (!TEXTURE_COMPRESSION_ETC2)
-		{
-			if (information.Format == VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK ||
-				information.Format == VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK ||
-				information.Format == VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK)
-			{
-				return VK_ERROR_FORMAT_NOT_SUPPORTED;
-			}
-		}
-
-		if constexpr (!TEXTURE_COMPRESSION_ASTC_LDR)
-		{
-			if (information.Format == VK_FORMAT_ASTC_4x4_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_5x4_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_5x5_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_6x5_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_6x6_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_8x5_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_8x6_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_8x8_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_10x5_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_10x6_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_10x8_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_10x10_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_12x10_SFLOAT_BLOCK_EXT ||
-				information.Format == VK_FORMAT_ASTC_12x12_SFLOAT_BLOCK_EXT)
-			{
-				return VK_ERROR_FORMAT_NOT_SUPPORTED;
-			}
-		}
-
-		if constexpr (!TEXTURE_COMPRESSION_BC)
-		{
-			if (information.Format == VK_FORMAT_BC1_RGB_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC1_RGB_SRGB_BLOCK ||
-				information.Format == VK_FORMAT_BC1_RGBA_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC1_RGBA_SRGB_BLOCK ||
-				information.Format == VK_FORMAT_BC2_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC2_SRGB_BLOCK ||
-				information.Format == VK_FORMAT_BC3_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC3_SRGB_BLOCK ||
-				information.Format == VK_FORMAT_BC4_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC4_SNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC5_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC5_SNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC6H_UFLOAT_BLOCK ||
-				information.Format == VK_FORMAT_BC6H_SFLOAT_BLOCK ||
-				information.Format == VK_FORMAT_BC7_UNORM_BLOCK ||
-				information.Format == VK_FORMAT_BC7_SRGB_BLOCK)
-			{
-				return VK_ERROR_FORMAT_NOT_SUPPORTED;
-			}
-		}
 	}
 
 	switch (type)
@@ -236,10 +256,19 @@ void PhysicalDevice::GetFeatures(VkPhysicalDeviceFeatures* pFeatures)
 
 void PhysicalDevice::GetFormatProperties(VkFormat format, VkFormatProperties* pFormatProperties)
 {
-	const auto& info = GetFormatInformation(format);
-	pFormatProperties->linearTilingFeatures = info.LinearTilingFeatures;
-	pFormatProperties->optimalTilingFeatures = info.OptimalTilingFeatures;
-	pFormatProperties->bufferFeatures = info.BufferFeatures;
+	const auto& information = GetFormatInformation(format);
+	if (IsFormatSupported(information))
+	{
+		pFormatProperties->linearTilingFeatures = information.LinearTilingFeatures;
+		pFormatProperties->optimalTilingFeatures = information.OptimalTilingFeatures;
+		pFormatProperties->bufferFeatures = information.BufferFeatures;
+	}
+	else
+	{
+		pFormatProperties->linearTilingFeatures = 0;
+		pFormatProperties->optimalTilingFeatures = 0;
+		pFormatProperties->bufferFeatures = 0;
+	}
 }
 
 VkResult PhysicalDevice::GetImageFormatProperties(VkFormat format, VkImageType type, VkImageTiling tiling, VkImageUsageFlags usage, VkImageCreateFlags flags, VkImageFormatProperties* pImageFormatProperties)
