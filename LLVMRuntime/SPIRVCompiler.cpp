@@ -2976,7 +2976,7 @@ private:
 				auto comparator = ConvertValue(op->getOpValue(5), currentFunction);
 				
 				auto llvmValue = CreateAtomicCmpXchg(pointer, comparator, value, ConvertSemantics(equalSemantics), ConvertSemantics(unequalSemantics), false);
-				LLVMSetVolatile(llvmValue, (equalSemantics & 0x8000) || (unequalSemantics & 0x8000));
+				// TODO: When LLVM-C supports this for atomic instructions: LLVMSetVolatile(llvmValue, (equalSemantics & 0x8000) || (unequalSemantics & 0x8000));
 				return CreateExtractValue(llvmValue, {0});
 			}
 	
@@ -2989,7 +2989,7 @@ private:
 				
 				auto llvmValue = CreateAtomicRMW(op->getOpCode() == OpAtomicIIncrement ? LLVMAtomicRMWBinOpAdd : LLVMAtomicRMWBinOpSub, 
 				                                 pointer, ConstI32(1), ConvertSemantics(semantics), false);
-				LLVMSetVolatile(llvmValue, semantics & 0x8000);
+				// TODO: When LLVM-C supports this for atomic instructions: LLVMSetVolatile(llvmValue, semantics & 0x8000);
 				return llvmValue;
 			}
 	
@@ -3010,7 +3010,7 @@ private:
 				auto value = ConvertValue(op->getOpValue(3), currentFunction);
 				
 				auto llvmValue = CreateAtomicRMW(instructionLookupAtomic[op->getOpCode()], pointer, value, ConvertSemantics(semantics), false);
-				LLVMSetVolatile(llvmValue, semantics & 0x8000);
+				// TODO: When LLVM-C supports this for atomic instructions: LLVMSetVolatile(llvmValue, semantics & 0x8000);
 				return llvmValue;
 			}
 	

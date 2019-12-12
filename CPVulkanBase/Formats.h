@@ -45,25 +45,42 @@ struct FormatInformation
 		{
 			struct
 			{
-				uint32_t Red;
-				uint32_t Green;
-				uint32_t Blue;
-				uint32_t Alpha;
-			} Offset;
+				uint32_t RedOffset;
+				uint32_t GreenOffset;
+				uint32_t BlueOffset;
+				uint32_t AlphaOffset;
+			};
 			
 			uint32_t OffsetValues[4];
 		} Normal;
 
 		struct
 		{
-			uint32_t RedOffset;
-			uint32_t GreenOffset;
-			uint32_t BlueOffset;
-			uint32_t AlphaOffset;
-			uint32_t RedBits;
-			uint32_t GreenBits;
-			uint32_t BlueBits;
-			uint32_t AlphaBits;
+			union
+			{
+				struct
+				{
+					uint32_t RedOffset;
+					uint32_t GreenOffset;
+					uint32_t BlueOffset;
+					uint32_t AlphaOffset;
+				};
+
+				uint32_t OffsetValues[4];
+			};
+			
+			union
+			{
+				struct
+				{
+					uint32_t RedBits;
+					uint32_t GreenBits;
+					uint32_t BlueBits;
+					uint32_t AlphaBits;
+				};
+
+				uint32_t BitValues[4];
+			};
 		} Packed;
 
 		struct
