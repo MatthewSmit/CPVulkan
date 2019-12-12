@@ -718,11 +718,6 @@ void Device::UpdateDescriptorSetWithTemplate(VkDescriptorSet descriptorSet, VkDe
 	TODO_ERROR();
 }
 
-void Device::GetDescriptorSetLayoutSupport(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayoutSupport* pSupport)
-{
-	TODO_ERROR();
-}
-
 void Device::GetDeviceGroupPeerMemoryFeatures(uint32_t heapIndex, uint32_t localDeviceIndex, uint32_t remoteDeviceIndex, VkPeerMemoryFeatureFlags* pPeerMemoryFeatures)
 {
 	TODO_ERROR();

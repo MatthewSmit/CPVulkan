@@ -7,7 +7,7 @@
 
 void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 {
-	auto targetBinding = descriptorWrite.dstBinding;
+	const auto targetBinding = descriptorWrite.dstBinding;
 	auto targetArrayElement = descriptorWrite.dstArrayElement;
 	for (auto i = 0u; i < descriptorWrite.descriptorCount; i++)
 	{
@@ -198,7 +198,7 @@ VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllo
 
 			for (auto j = 0u; j < pAllocateInfo->descriptorSetCount; j++)
 			{
-				pDescriptorSets[j] = nullptr;
+				pDescriptorSets[j] = VK_NULL_HANDLE;
 			}
 			
 			return result;

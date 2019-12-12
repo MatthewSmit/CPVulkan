@@ -27,11 +27,6 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 		next = next->pNext;
 	}
 
-	if (pCreateInfo->flags)
-	{
-		TODO_ERROR();
-	}
-
 	descriptorSetLayout->bindings = ArrayToVector(pCreateInfo->bindingCount, pCreateInfo->pBindings);
 
 	WrapVulkan(descriptorSetLayout, pSetLayout);
@@ -49,4 +44,23 @@ void Device::DestroyDescriptorSetLayout(VkDescriptorSetLayout descriptorSetLayou
 	{
 		Free(UnwrapVulkan<DescriptorSetLayout>(descriptorSetLayout), pAllocator);
 	}
+}
+
+void Device::GetDescriptorSetLayoutSupport(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, VkDescriptorSetLayoutSupport* pSupport)
+{
+	// TODO
+
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
+	while (next)
+	{
+		const auto type = next->sType;
+		switch (type)
+		{
+		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT:
+			TODO_ERROR();
+		}
+		next = next->pNext;
+	}
+	
+	pSupport->supported = true;
 }

@@ -94,6 +94,11 @@ struct FormatInformation
 			uint32_t BlockWidth;
 			uint32_t BlockHeight;
 		} Compressed;
+
+		struct
+		{
+			uint32_t BlockWidth;
+		} Planar;
 	};
 };
 

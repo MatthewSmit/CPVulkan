@@ -1366,8 +1366,8 @@ static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, Image* i
 }
 
 static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage, bool front, float depth,
-                      std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                      std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
+                      std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                      std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
                       uint32_t x, uint32_t y)
 {
 	builtinInput->fragCoord.z = depth;
@@ -1646,8 +1646,8 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 }
 
 static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                             std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                             std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                             std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                             std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                              const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 1)
@@ -1705,8 +1705,8 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 }
 
 static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                            std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                            std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                            std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                            std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                             const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 2)
@@ -1822,8 +1822,8 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 }
 
 static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                             std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                             std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                             std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                             std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                              const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 2)
@@ -1939,8 +1939,8 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 }
 
 static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                                std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                                std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
+                                std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                                std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
                                 const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 3)
@@ -2008,8 +2008,8 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 }
 
 static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                                 std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                                 std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                                 std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                                 std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                                  const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 3)
@@ -2077,8 +2077,8 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 }
 
 static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                               std::pair<VkAttachmentDescription, Image*> depthImage, std::pair<VkAttachmentDescription, Image*> stencilImage,
-                               std::vector<std::pair<VkAttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                               std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                               std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
                                const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 3)
@@ -2172,13 +2172,13 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	
 	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
 	
-	std::vector<std::pair<VkAttachmentDescription, Image*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
-	std::pair<VkAttachmentDescription, Image*> depthImage{};
-	std::pair<VkAttachmentDescription, Image*> stencilImage{};
+	std::vector<std::pair<AttachmentDescription, Image*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
+	std::pair<AttachmentDescription, Image*> depthImage{};
+	std::pair<AttachmentDescription, Image*> stencilImage{};
 	
-	for (auto i = 0u; i < deviceState->currentSubpass->ColourAttachments.size(); i++)
+	for (auto i = 0u; i < deviceState->currentSubpass->colourAttachments.size(); i++)
 	{
-		const auto attachmentIndex = deviceState->currentSubpass->ColourAttachments[i].attachment;
+		const auto attachmentIndex = deviceState->currentSubpass->colourAttachments[i].attachment;
 		if (attachmentIndex != VK_ATTACHMENT_UNUSED)
 		{
 			const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
@@ -2186,9 +2186,9 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		}
 	}
 	
-	if (deviceState->currentSubpass->DepthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
+	if (deviceState->currentSubpass->depthStencilAttachment.layout != VK_IMAGE_LAYOUT_UNDEFINED)
 	{
-		const auto attachmentIndex = deviceState->currentSubpass->DepthStencilAttachment.attachment;
+		const auto attachmentIndex = deviceState->currentSubpass->depthStencilAttachment.attachment;
 		if (attachmentIndex != VK_ATTACHMENT_UNUSED)
 		{
 			const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
@@ -2741,7 +2741,7 @@ public:
 			else
 			{
 				assert(attachment.aspectMask & (VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT));
-				const auto attachmentReference = deviceState->currentSubpass->DepthStencilAttachment.attachment;
+				const auto attachmentReference = deviceState->currentSubpass->depthStencilAttachment.attachment;
 				format = deviceState->currentRenderPass->getAttachments()[attachmentReference].format;
 				imageView = deviceState->currentFramebuffer->getAttachments()[attachmentReference];
 			}

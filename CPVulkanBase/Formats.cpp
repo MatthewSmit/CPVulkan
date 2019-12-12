@@ -166,6 +166,40 @@ static FormatInformation MakePackedFormatInformation(VkFormat format, int32_t ch
 	return information;
 }
 
+static FormatInformation MakePlanarFormatInformation(VkFormat format, int32_t channels, uint32_t totalSize, uint32_t blockWidth)
+{
+	const auto features = GetFeatures(FormatType::Planar);
+	FormatInformation information
+	{
+		format,
+		FormatType::Planar,
+		features,
+		features,
+		0,
+		static_cast<VkColorComponentFlagBits>(channels),
+		totalSize,
+	};
+	information.Planar.BlockWidth = blockWidth;
+	return information;
+}
+
+static FormatInformation MakePlanarSamplableFormatInformation(VkFormat format, int32_t channels, uint32_t totalSize, uint32_t blockWidth)
+{
+	const auto features = GetFeatures(FormatType::PlanarSamplable);
+	FormatInformation information
+	{
+		format,
+		FormatType::PlanarSamplable,
+		features,
+		features,
+		0,
+		static_cast<VkColorComponentFlagBits>(channels),
+		totalSize,
+	};
+	information.Planar.BlockWidth = blockWidth;
+	return information;
+}
+
 static constexpr auto COLOUR_NONE = 0;
 static constexpr auto COLOUR_R = VK_COLOR_COMPONENT_R_BIT;
 static constexpr auto COLOUR_RG = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT;
@@ -174,7 +208,7 @@ static constexpr auto COLOUR_RGBA = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONEN
 
 static const FormatInformation formatInformation[]
 {
-	MakeFormatInformation(VK_FORMAT_UNDEFINED, FormatType::Normal, COLOUR_NONE, 0),
+	MakeFormatInformation(VK_FORMAT_UNDEFINED, FormatType::Normal, COLOUR_NONE, 1),
 	MakePackedFormatInformation(VK_FORMAT_R4G4_UNORM_PACK8, COLOUR_RG, 1, BaseType::UNorm, 4, 0, 0, 0, 4, 4, 0, 0),
 	MakePackedFormatInformation(VK_FORMAT_R4G4B4A4_UNORM_PACK16, COLOUR_RGBA, 2, BaseType::UNorm, 12, 8, 4, 0, 4, 4, 4, 4),
 	MakePackedFormatInformation(VK_FORMAT_B4G4R4A4_UNORM_PACK16, COLOUR_RGBA, 2, BaseType::UNorm, 4, 8, 12, 0, 4, 4, 4, 4),
@@ -363,40 +397,40 @@ static const FormatInformation formatInformation[]
 
 static std::unordered_map<VkFormat, FormatInformation> extraFormatInformation
 {
-	{VK_FORMAT_G8B8G8R8_422_UNORM, MakeFormatInformation(VK_FORMAT_G8B8G8R8_422_UNORM, FormatType::Planar, COLOUR_RGBA, 4)},
-	{VK_FORMAT_B8G8R8G8_422_UNORM, MakeFormatInformation(VK_FORMAT_B8G8R8G8_422_UNORM, FormatType::Planar, COLOUR_RGBA, 4)},
-	{VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM, MakeFormatInformation(VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM, FormatType::PlanarSamplable, COLOUR_RGB, 2)},
-	{VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, MakeFormatInformation(VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, FormatType::PlanarSamplable, COLOUR_RGB, 4)},
-	{VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM, MakeFormatInformation(VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM, FormatType::PlanarSamplable, COLOUR_RGB, 2)},
-	{VK_FORMAT_G8_B8R8_2PLANE_422_UNORM, MakeFormatInformation(VK_FORMAT_G8_B8R8_2PLANE_422_UNORM, FormatType::PlanarSamplable, COLOUR_RGB, 4)},
-	{VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM, MakeFormatInformation(VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM, FormatType::Planar, COLOUR_RGB, 4)},
-	{VK_FORMAT_R10X6_UNORM_PACK16, MakeFormatInformation(VK_FORMAT_R10X6_UNORM_PACK16, FormatType::Planar, COLOUR_R, 2)},
-	{VK_FORMAT_R10X6G10X6_UNORM_2PACK16, MakeFormatInformation(VK_FORMAT_R10X6G10X6_UNORM_2PACK16, FormatType::Planar, COLOUR_RG, 4)},
-	{VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16, MakeFormatInformation(VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16, FormatType::Planar, COLOUR_RGBA, 8)},
-	{VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16, MakeFormatInformation(VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16, FormatType::Planar, COLOUR_RGBA, 8)},
-	{VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16, MakeFormatInformation(VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16, FormatType::Planar, COLOUR_RGBA, 8)},
-	{VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_R12X4_UNORM_PACK16, MakeFormatInformation(VK_FORMAT_R12X4_UNORM_PACK16, FormatType::Planar, COLOUR_R, 2)},
-	{VK_FORMAT_R12X4G12X4_UNORM_2PACK16, MakeFormatInformation(VK_FORMAT_R12X4G12X4_UNORM_2PACK16, FormatType::Planar, COLOUR_RG, 4)},
-	{VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16, MakeFormatInformation(VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16, FormatType::Planar, COLOUR_RGBA, 8)},
-	{VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16, MakeFormatInformation(VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16, FormatType::Planar, COLOUR_RGBA, 8)},
-	{VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16, MakeFormatInformation(VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16, FormatType::Planar, COLOUR_RGBA, 8)},
-	{VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16, MakeFormatInformation(VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16, FormatType::Planar, COLOUR_RGB, 6)},
-	{VK_FORMAT_G16B16G16R16_422_UNORM, MakeFormatInformation(VK_FORMAT_G16B16G16R16_422_UNORM, FormatType::Planar, COLOUR_RGB, 8)},
-	{VK_FORMAT_B16G16R16G16_422_UNORM, MakeFormatInformation(VK_FORMAT_B16G16R16G16_422_UNORM, FormatType::Planar, COLOUR_RGB, 8)},
-	{VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM, MakeFormatInformation(VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM, FormatType::Planar, COLOUR_RGB, 8)},
-	{VK_FORMAT_G16_B16R16_2PLANE_420_UNORM, MakeFormatInformation(VK_FORMAT_G16_B16R16_2PLANE_420_UNORM, FormatType::Planar, COLOUR_RGB, 8)},
-	{VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM, MakeFormatInformation(VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM, FormatType::Planar, COLOUR_RGB, 8)},
-	{VK_FORMAT_G16_B16R16_2PLANE_422_UNORM, MakeFormatInformation(VK_FORMAT_G16_B16R16_2PLANE_422_UNORM, FormatType::Planar, COLOUR_RGB, 8)},
-	{VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM, MakeFormatInformation(VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM, FormatType::Planar, COLOUR_RGB, 8)},
+	{VK_FORMAT_G8B8G8R8_422_UNORM, MakePlanarFormatInformation(VK_FORMAT_G8B8G8R8_422_UNORM, COLOUR_RGBA, 4, 2)},
+	{VK_FORMAT_B8G8R8G8_422_UNORM, MakePlanarFormatInformation(VK_FORMAT_B8G8R8G8_422_UNORM, COLOUR_RGBA, 4, 2)},
+	{VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM, MakePlanarSamplableFormatInformation(VK_FORMAT_G8_B8_R8_3PLANE_420_UNORM, COLOUR_RGB, 2, 2)},
+	{VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, MakePlanarSamplableFormatInformation(VK_FORMAT_G8_B8R8_2PLANE_420_UNORM, COLOUR_RGB, 4, 2)},
+	{VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM, MakePlanarSamplableFormatInformation(VK_FORMAT_G8_B8_R8_3PLANE_422_UNORM, COLOUR_RGB, 2, 2)},
+	{VK_FORMAT_G8_B8R8_2PLANE_422_UNORM, MakePlanarSamplableFormatInformation(VK_FORMAT_G8_B8R8_2PLANE_422_UNORM, COLOUR_RGB, 4, 2)},
+	{VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM, MakePlanarFormatInformation(VK_FORMAT_G8_B8_R8_3PLANE_444_UNORM, COLOUR_RGB, 4, 2)},
+	{VK_FORMAT_R10X6_UNORM_PACK16, MakePlanarFormatInformation(VK_FORMAT_R10X6_UNORM_PACK16, COLOUR_R, 2, 2)},
+	{VK_FORMAT_R10X6G10X6_UNORM_2PACK16, MakePlanarFormatInformation(VK_FORMAT_R10X6G10X6_UNORM_2PACK16, COLOUR_RG, 4, 1)},
+	{VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16, MakePlanarFormatInformation(VK_FORMAT_R10X6G10X6B10X6A10X6_UNORM_4PACK16, COLOUR_RGBA, 8, 2)},
+	{VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16, MakePlanarFormatInformation(VK_FORMAT_G10X6B10X6G10X6R10X6_422_UNORM_4PACK16, COLOUR_RGBA, 8, 2)},
+	{VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16, MakePlanarFormatInformation(VK_FORMAT_B10X6G10X6R10X6G10X6_422_UNORM_4PACK16, COLOUR_RGBA, 8, 2)},
+	{VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_420_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G10X6_B10X6R10X6_2PLANE_420_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_422_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G10X6_B10X6R10X6_2PLANE_422_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G10X6_B10X6_R10X6_3PLANE_444_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_R12X4_UNORM_PACK16, MakePlanarFormatInformation(VK_FORMAT_R12X4_UNORM_PACK16, COLOUR_R, 2, 2)},
+	{VK_FORMAT_R12X4G12X4_UNORM_2PACK16, MakePlanarFormatInformation(VK_FORMAT_R12X4G12X4_UNORM_2PACK16, COLOUR_RG, 4, 2)},
+	{VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16, MakePlanarFormatInformation(VK_FORMAT_R12X4G12X4B12X4A12X4_UNORM_4PACK16, COLOUR_RGBA, 8, 2)},
+	{VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16, MakePlanarFormatInformation(VK_FORMAT_G12X4B12X4G12X4R12X4_422_UNORM_4PACK16, COLOUR_RGBA, 8, 2)},
+	{VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16, MakePlanarFormatInformation(VK_FORMAT_B12X4G12X4R12X4G12X4_422_UNORM_4PACK16, COLOUR_RGBA, 8, 2)},
+	{VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_420_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G12X4_B12X4R12X4_2PLANE_420_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_422_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G12X4_B12X4R12X4_2PLANE_422_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16, MakePlanarFormatInformation(VK_FORMAT_G12X4_B12X4_R12X4_3PLANE_444_UNORM_3PACK16, COLOUR_RGB, 6, 2)},
+	{VK_FORMAT_G16B16G16R16_422_UNORM, MakePlanarFormatInformation(VK_FORMAT_G16B16G16R16_422_UNORM, COLOUR_RGB, 8, 2)},
+	{VK_FORMAT_B16G16R16G16_422_UNORM, MakePlanarFormatInformation(VK_FORMAT_B16G16R16G16_422_UNORM, COLOUR_RGB, 8, 2)},
+	{VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM, MakePlanarFormatInformation(VK_FORMAT_G16_B16_R16_3PLANE_420_UNORM, COLOUR_RGB, 8, 2)},
+	{VK_FORMAT_G16_B16R16_2PLANE_420_UNORM, MakePlanarFormatInformation(VK_FORMAT_G16_B16R16_2PLANE_420_UNORM, COLOUR_RGB, 8, 2)},
+	{VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM, MakePlanarFormatInformation(VK_FORMAT_G16_B16_R16_3PLANE_422_UNORM, COLOUR_RGB, 8, 2)},
+	{VK_FORMAT_G16_B16R16_2PLANE_422_UNORM, MakePlanarFormatInformation(VK_FORMAT_G16_B16R16_2PLANE_422_UNORM, COLOUR_RGB, 8, 2)},
+	{VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM, MakePlanarFormatInformation(VK_FORMAT_G16_B16_R16_3PLANE_444_UNORM, COLOUR_RGB, 8, 2)},
 	{VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG, MakeCompressedFormatInformation(VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG, COLOUR_RGBA, 8, BaseType::UNorm, 8, 4)},
 	{VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG, MakeCompressedFormatInformation(VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG, COLOUR_RGBA, 8, BaseType::UNorm, 4, 4)},
 	{VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG, MakeCompressedFormatInformation(VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG, COLOUR_RGBA, 8, BaseType::UNorm, 8, 4)},
@@ -484,6 +518,40 @@ static ImageSize GetCompressedImageSize(const FormatInformation& format, uint32_
 	return imageSize;
 }
 
+static ImageSize GetPlanarImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
+{
+	const auto maxMip = CountMipLevels(width, height, depth);
+	assert(maxMip >= mipLevels);
+
+	const auto blockWidth = format.Planar.BlockWidth;
+
+	ImageSize imageSize{};
+	imageSize.PixelSize = format.TotalSize;
+	imageSize.NumberLayers = arrayLayers;
+	imageSize.NumberMipLevels = mipLevels;
+	
+	for (auto i = 0u; i < mipLevels; i++)
+	{
+		auto& level = gsl::at(imageSize.Level, i);
+		level.Offset = imageSize.LayerSize;
+		level.Width = (width + blockWidth - 1) / blockWidth;
+		level.Height = height;
+		level.Depth = depth;
+		level.Stride = format.TotalSize * level.Width;
+		level.Stride = ((level.Stride + 3) / 4) * 4;
+		level.PlaneSize = level.Stride * level.Height;
+		level.LevelSize = level.PlaneSize * level.Depth;
+		imageSize.LayerSize += level.LevelSize;
+
+		width = std::max(width / 2, 1u);
+		height = std::max(height / 2, 1u);
+		depth = std::max(depth / 2, 1u);
+	}
+
+	imageSize.TotalSize = imageSize.LayerSize * arrayLayers;
+	return imageSize;
+}
+
 ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t height, uint32_t depth, uint32_t arrayLayers, uint32_t mipLevels)
 {
 	assert(width > 0);
@@ -503,10 +571,8 @@ ImageSize GetImageSize(const FormatInformation& format, uint32_t width, uint32_t
 		return GetCompressedImageSize(format, width, height, depth, arrayLayers, mipLevels);
 		
 	case FormatType::Planar:
-		TODO_ERROR();
-		
 	case FormatType::PlanarSamplable:
-		TODO_ERROR();
+		return GetPlanarImageSize(format, width, height, depth, arrayLayers, mipLevels);
 		
 	default:
 		assert(false);

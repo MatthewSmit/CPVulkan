@@ -8,6 +8,7 @@ class CompiledModule;
 using FunctionPointer = void (*)();
 using LLVMOrcJITStackRef = struct LLVMOrcOpaqueJITStack*;
 using LLVMTargetDataRef = struct LLVMOpaqueTargetData*;
+using LLVMPassManagerRef = struct LLVMOpaquePassManager*;
 
 class CP_DLL_EXPORT CPJit
 {
@@ -22,6 +23,7 @@ public:
 	[[nodiscard]] void* getUserData() const;
 	[[nodiscard]] LLVMTargetDataRef getDataLayout() const;
 	[[nodiscard]] LLVMOrcJITStackRef getOrc() const;
+	[[nodiscard]] LLVMPassManagerRef getPassManager() const;
 
 	void setUserData(void* userData);
 

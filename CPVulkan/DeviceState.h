@@ -9,7 +9,7 @@ class Framebuffer;
 class Pipeline;
 class RenderPass;
 
-struct Subpass;
+struct SubpassDescription;
 
 class ImageFunctions
 {
@@ -53,7 +53,7 @@ public:
 	uint32_t indexBindingStride;
 	uint8_t pushConstants[MAX_PUSH_CONSTANTS_SIZE];
 
-	const Subpass* currentSubpass;
+	const SubpassDescription* currentSubpass;
 	uint32_t currentSubpassIndex;
 	RenderPass* currentRenderPass;
 	Framebuffer* currentFramebuffer;

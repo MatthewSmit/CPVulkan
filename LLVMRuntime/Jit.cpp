@@ -3,6 +3,7 @@
 #include "SPIRVCompiler.h"
 #include "SpirvFunctions.h"
 
+#include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/OrcBindings.h>
 #include <llvm-c/Support.h>
@@ -61,6 +62,13 @@ public:
 				orcInstance = LLVMOrcCreateInstance(targetMachine);
 
 				LLVMLoadLibraryPermanently(nullptr);
+
+				passManager = LLVMCreatePassManager();
+				const auto passBuilder = LLVMPassManagerBuilderCreate();
+				LLVMPassManagerBuilderSetOptLevel(passBuilder, 3);
+				LLVMPassManagerBuilderSetSizeLevel(passBuilder, 1);
+				LLVMPassManagerBuilderPopulateModulePassManager(passBuilder, passManager);
+				LLVMPassManagerBuilderDispose(passBuilder);
 				
 				this->ThreadUpdate();
 			}
@@ -73,6 +81,7 @@ public:
 		{
 			shouldExit = true;
 
+			LLVMDisposePassManager(passManager);
 			LLVMDisposeTargetData(dataLayout);
 			LLVMOrcDisposeInstance(orcInstance);
 		});
@@ -166,6 +175,11 @@ public:
 		return orcInstance;
 	}
 
+	[[nodiscard]] LLVMPassManagerRef getPassManager() const
+	{
+		return passManager;
+	}
+
 	void setUserData(void* userData)
 	{
 		this->userData = userData;
@@ -175,6 +189,7 @@ private:
 	LLVMTargetMachineRef targetMachine;
 	LLVMTargetDataRef dataLayout;
 	LLVMOrcJITStackRef orcInstance;
+	LLVMPassManagerRef passManager;
 
 	std::unordered_map<std::string, FunctionPointer> functions{};
 	void* userData{};
@@ -224,6 +239,11 @@ LLVMTargetDataRef CPJit::getDataLayout() const
 LLVMOrcJITStackRef CPJit::getOrc() const
 {
 	return impl->getOrc();
+}
+
+LLVMPassManagerRef CPJit::getPassManager() const
+{
+	return impl->getPassManager();
 }
 
 void CPJit::setUserData(void* userData)

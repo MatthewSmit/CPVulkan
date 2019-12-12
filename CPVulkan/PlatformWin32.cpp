@@ -80,7 +80,19 @@ void* Platform::CreateMutex(bool initialState, bool manualReset)
 void* Platform::CreateSemaphoreExport(bool initialState, bool manualReset, const void* exportSemaphore)
 {
 	// TODO: dwAccess?
-	const auto createInfo = reinterpret_cast<const VkExportSemaphoreWin32HandleInfoKHR*>(exportSemaphore);
+	const auto createInfo = static_cast<const VkExportSemaphoreWin32HandleInfoKHR*>(exportSemaphore);
+	const auto event = CreateEventW(const_cast<LPSECURITY_ATTRIBUTES>(createInfo->pAttributes), manualReset, initialState, createInfo->name);
+	if (event == nullptr)
+	{
+		TODO_ERROR();
+	}
+	return event;
+}
+
+void* Platform::CreateFenceExport(bool initialState, bool manualReset, const void* exportFence)
+{
+	// TODO: dwAccess?
+	const auto createInfo = static_cast<const VkExportFenceWin32HandleInfoKHR*>(exportFence);
 	const auto event = CreateEventW(const_cast<LPSECURITY_ATTRIBUTES>(createInfo->pAttributes), manualReset, initialState, createInfo->name);
 	if (event == nullptr)
 	{
@@ -117,13 +129,15 @@ bool Platform::Wait(void* mutex, uint64_t timeout)
 		return false;
 	}
 
+	const auto error = GetLastError();
+
 	FATAL_ERROR();
 }
 
 bool Platform::WaitMultiple(const std::vector<void*>& mutexes, bool waitAll, uint64_t timeout)
 {
 	const auto milliseconds = static_cast<DWORD>(timeout == UINT64_MAX ? INFINITE : std::min(timeout / 1000000, static_cast<uint64_t>(INFINITE)));
-	const auto result = WaitForMultipleObjects(mutexes.size(), mutexes.data(), waitAll, milliseconds);
+	const auto result = WaitForMultipleObjects(static_cast<DWORD>(mutexes.size()), mutexes.data(), waitAll, milliseconds);
 	if (result == WAIT_OBJECT_0)
 	{
 		return true;

@@ -20,15 +20,9 @@ public:
 	}
 
 protected:
-	LLVMValueRef CreateLoadX(LLVMValueRef pointer, bool isVolatile = false, const std::string& name = "")
-	{
-		const auto value = LLVMBuildLoad(builder, pointer, name.c_str());
-		LLVMSetVolatile(value, isVolatile);
-		return value;
-	}
-	
 	void MainCompilation() override
 	{
+		// TODO: Prefer globals over inttoptr of a constant address - this gives you dereferencability information. In MCJIT, use getSymbolAddress to provide actual address.
 		std::vector<LLVMTypeRef> assemblerOutputMembers
 		{
 			LLVMInt32TypeInContext(context),
@@ -72,8 +66,8 @@ protected:
 
 		const auto stride = CalculateOutputStride(vertexShader);
 
-		const auto rawId = CreateLoadX(CreateGEP(LLVMGetParam(function, 0), 0, 0));
-		const auto vertexId = CreateLoadX(CreateGEP(LLVMGetParam(function, 0), 0, 1));
+		const auto rawId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), 0, 0));
+		const auto vertexId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), 0, 1));
 		const auto instanceId = LLVMGetParam(function, 1);
 		
 		// Get shader variables

@@ -18,6 +18,7 @@ namespace Platform
 
 	void* CreateMutex(bool initialState, bool manualReset);
 	void* CreateSemaphoreExport(bool initialState, bool manualReset, const void* exportSemaphore);
+	void* CreateFenceExport(bool initialState, bool manualReset, const void* exportFence);
 	void CloseMutex(void* mutex);
 	void SignalMutex(void* mutex);
 	void ResetMutex(void* mutex);

@@ -12,7 +12,7 @@
 #undef VK_EXT_pci_bus_info // We are not on a PCI bus
 #undef VK_NV_glsl_shader // Deprecated
 
-// External memory would not work as we are in-process
+// External memory would not make sense as we are in-process rather than out of process
 #undef VK_KHR_external_memory_fd
 #undef VK_EXT_external_memory_dma_buf
 #undef VK_EXT_external_memory_host
@@ -24,6 +24,8 @@
 #undef VK_NV_external_memory_capabilities
 
 #undef VK_EXT_hdr_metadata // Win32 does not support HDR
+
+#undef VK_KHR_external_fence_win32 // Currently buggy
 
 #define CV_DEBUG_NONE 0
 #define CV_DEBUG_LOG 1

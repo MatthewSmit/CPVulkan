@@ -66,12 +66,13 @@ VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAll
 
 	const void* exportSemaphore = nullptr;
 
-	auto next = pCreateInfo->pNext;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
+#if defined(VK_KHR_external_semaphore)
 		case VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_CREATE_INFO:
 			{
 				const auto createInfo = reinterpret_cast<const VkExportSemaphoreCreateInfo*>(next);
@@ -83,16 +84,18 @@ VkResult Semaphore::Create(const VkSemaphoreCreateInfo* pCreateInfo, const VkAll
 #endif
 				TODO_ERROR();
 			}
+#endif
 
 #if defined(VK_KHR_external_semaphore_win32)
 		case VK_STRUCTURE_TYPE_EXPORT_SEMAPHORE_WIN32_HANDLE_INFO_KHR:
-			{
-				exportSemaphore = next;
-				break;
-			}
+			exportSemaphore = next;
+			break;
 #endif
+
+		default:
+			break;
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (exportSemaphore)
@@ -119,8 +122,12 @@ VkResult Semaphore::ImportSemaphoreWin32(VkSemaphoreImportFlags flags, VkExterna
 		}
 		else
 		{
-			Platform::CloseMutex(handle);
-			this->handle = handle;
+			Platform::CloseMutex(this->handle);
+			const auto result = DuplicateHandle(GetCurrentProcess(), handle, GetCurrentProcess(), &this->handle, 0, false, DUPLICATE_SAME_ACCESS);
+			if (!result)
+			{
+				TODO_ERROR();
+			}
 		}
 
 		return VK_SUCCESS;

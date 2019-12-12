@@ -596,7 +596,7 @@ public:
 		deviceState->currentFramebuffer = framebuffer;
 		deviceState->currentRenderArea = renderArea;
 
-		for (auto attachmentReference : deviceState->currentSubpass->ColourAttachments)
+		for (auto attachmentReference : deviceState->currentSubpass->colourAttachments)
 		{
 			if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 			{
@@ -611,7 +611,7 @@ public:
 			}
 		}
 
-		const auto attachmentReference = deviceState->currentSubpass->DepthStencilAttachment;
+		const auto attachmentReference = deviceState->currentSubpass->depthStencilAttachment;
 		if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 		{
 			const auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
