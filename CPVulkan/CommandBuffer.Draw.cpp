@@ -1402,7 +1402,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		                       : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().Back;
 
 	uint8_t stencilReference = stencilOpState.reference;
-	uint8_t stencil = 0;
+	uint8_t currentStencil = 0;
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilReference)
 	{
 		TODO_ERROR();
@@ -1416,8 +1416,8 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			TODO_ERROR();
 		}
 
-		stencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0);
-		stencilResult = CompareTest(stencilReference & compareMask, stencil & compareMask, stencilOpState.compareOp);
+		currentStencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0);
+		stencilResult = CompareTest(stencilReference & compareMask, currentStencil & compareMask, stencilOpState.compareOp);
 	}
 
 	// 27.13. Depth Test
@@ -1433,7 +1433,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 				TODO_ERROR();
 			}
 
-			depthResult = CompareTest(currentDepth, depth, deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthCompareOp);
+			depthResult = CompareTest(depth, currentDepth, deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthCompareOp);
 		}
 	}
 	auto depthWrite = depthResult && deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthWriteEnable && depthImage.second;
@@ -1446,7 +1446,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		switch (stencilOperation)
 		{
 		case VK_STENCIL_OP_KEEP:
-			writeValue = stencil;
+			writeValue = currentStencil;
 			break;
 
 		case VK_STENCIL_OP_ZERO:
@@ -1458,23 +1458,23 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			break;
 
 		case VK_STENCIL_OP_INCREMENT_AND_CLAMP:
-			writeValue = stencil < 0xFF ? stencil + 1 : 0xFF;
+			writeValue = currentStencil < 0xFF ? currentStencil + 1 : 0xFF;
 			break;
 
 		case VK_STENCIL_OP_DECREMENT_AND_CLAMP:
-			writeValue = stencil > 0 ? stencil - 1 : 0;
+			writeValue = currentStencil > 0 ? currentStencil - 1 : 0;
 			break;
 
 		case VK_STENCIL_OP_INVERT:
-			writeValue = ~stencil;
+			writeValue = ~currentStencil;
 			break;
 
 		case VK_STENCIL_OP_INCREMENT_AND_WRAP:
-			writeValue = stencil + 1;
+			writeValue = currentStencil + 1;
 			break;
 
 		case VK_STENCIL_OP_DECREMENT_AND_WRAP:
-			writeValue = stencil - 1;
+			writeValue = currentStencil - 1;
 			break;
 
 		default:
@@ -1487,7 +1487,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			TODO_ERROR();
 		}
 
-		writeValue = (writeValue & writeMask) | (stencil & ~writeMask);
+		writeValue = (writeValue & writeMask) | (currentStencil & ~writeMask);
 
 		if (depthWrite)
 		{
