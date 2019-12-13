@@ -83,15 +83,31 @@ SPIRVWord SPIRVDecorateGeneric::getLiteral(size_t I) const {
   return Literals[I];
 }
 
+std::vector<SPIRVWord> SPIRVDecorateGeneric::getVecLiteral() const {
+    return Literals;
+}
+
 size_t SPIRVDecorateGeneric::getLiteralCount() const { return Literals.size(); }
 
 void SPIRVDecorate::encode(spv_ostream &O) const {
   SPIRVEncoder Encoder = getEncoder(O);
   Encoder << Target << Dec;
-  if (Dec == DecorationLinkageAttributes)
-    SPIRVDecorateLinkageAttr::encodeLiterals(Encoder, Literals);
-  else
-    Encoder << Literals;
+  switch (Dec) {
+  case DecorationLinkageAttributes:
+      SPIRVDecorateLinkageAttr::encodeLiterals(Encoder, Literals);
+      break;
+  case DecorationMemoryINTEL:
+      SPIRVDecorateMemoryINTELAttr::encodeLiterals(Encoder, Literals);
+      break;
+  case DecorationMergeINTEL:
+      SPIRVDecorateMergeINTELAttr::encodeLiterals(Encoder, Literals);
+      break;
+  case DecorationUserSemantic:
+      SPIRVDecorateUserSemanticAttr::encodeLiterals(Encoder, Literals);
+      break;
+  default:
+      Encoder << Literals;
+  }
 }
 
 void SPIRVDecorate::setWordCount(SPIRVWord Count) {
@@ -102,15 +118,41 @@ void SPIRVDecorate::setWordCount(SPIRVWord Count) {
 void SPIRVDecorate::decode(std::istream &I) {
   SPIRVDecoder Decoder = getDecoder(I);
   Decoder >> Target >> Dec;
-  if (Dec == DecorationLinkageAttributes)
-    SPIRVDecorateLinkageAttr::decodeLiterals(Decoder, Literals);
-  else
-    Decoder >> Literals;
+  switch (Dec) {
+  case DecorationLinkageAttributes:
+      SPIRVDecorateLinkageAttr::decodeLiterals(Decoder, Literals);
+      break;
+  case DecorationMemoryINTEL:
+      SPIRVDecorateMemoryINTELAttr::decodeLiterals(Decoder, Literals);
+      break;
+  case DecorationMergeINTEL:
+      SPIRVDecorateMergeINTELAttr::decodeLiterals(Decoder, Literals);
+      break;
+  case DecorationUserSemantic:
+      SPIRVDecorateUserSemanticAttr::decodeLiterals(Decoder, Literals);
+      break;
+  default:
+      Decoder >> Literals;
+  }
   getOrCreateTarget()->addDecorate(this);
 }
 
 void SPIRVMemberDecorate::encode(spv_ostream &O) const {
-  getEncoder(O) << Target << MemberNumber << Dec << Literals;
+    SPIRVEncoder Encoder = getEncoder(O);
+    Encoder << Target << MemberNumber << Dec;
+    switch (Dec) {
+    case DecorationMemoryINTEL:
+        SPIRVDecorateMemoryINTELAttr::encodeLiterals(Encoder, Literals);
+        break;
+    case DecorationMergeINTEL:
+        SPIRVDecorateMergeINTELAttr::encodeLiterals(Encoder, Literals);
+        break;
+    case DecorationUserSemantic:
+        SPIRVDecorateUserSemanticAttr::encodeLiterals(Encoder, Literals);
+        break;
+    default:
+        Encoder << Literals;
+    }
 }
 
 void SPIRVMemberDecorate::setWordCount(SPIRVWord Count) {
@@ -119,8 +161,22 @@ void SPIRVMemberDecorate::setWordCount(SPIRVWord Count) {
 }
 
 void SPIRVMemberDecorate::decode(std::istream &I) {
-  getDecoder(I) >> Target >> MemberNumber >> Dec >> Literals;
-  getOrCreateTarget()->addMemberDecorate(this);
+    SPIRVDecoder Decoder = getDecoder(I);
+    Decoder >> Target >> MemberNumber >> Dec;
+    switch (Dec) {
+    case DecorationMemoryINTEL:
+        SPIRVDecorateMemoryINTELAttr::decodeLiterals(Decoder, Literals);
+        break;
+    case DecorationMergeINTEL:
+        SPIRVDecorateMergeINTELAttr::decodeLiterals(Decoder, Literals);
+        break;
+    case DecorationUserSemantic:
+        SPIRVDecorateUserSemanticAttr::decodeLiterals(Decoder, Literals);
+        break;
+    default:
+        Decoder >> Literals;
+    }
+    getOrCreateTarget()->addMemberDecorate(this);
 }
 
 void SPIRVDecorationGroup::encode(spv_ostream &O) const { getEncoder(O) << Id; }
@@ -206,6 +262,12 @@ bool operator==(const SPIRVDecorateGeneric &A, const SPIRVDecorateGeneric &B) {
     return false;
   if (A.getOpCode() != B.getOpCode())
     return false;
+  if (B.isMemberDecorate()) {
+      auto& MDA = static_cast<SPIRVMemberDecorate const&>(A);
+      auto& MDB = static_cast<SPIRVMemberDecorate const&>(B);
+      if (MDA.getMemberNumber() != MDB.getMemberNumber())
+          return false;
+  }
   if (A.getDecorateKind() != B.getDecorateKind())
     return false;
   if (A.getLiteralCount() != B.getLiteralCount())

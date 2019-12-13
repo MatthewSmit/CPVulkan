@@ -95,6 +95,13 @@ namespace SPIRV
 		SPIRVErrorCode getError(std::string &ErrMsg) override {
 			return ErrLog.getError(ErrMsg);
 		}
+		bool checkExtension(ExtensionID Ext, SPIRVErrorCode ErrCode,
+			const std::string& Msg) override {
+			if (ErrLog.checkError(isAllowedToUseExtension(Ext), ErrCode, Msg))
+				return true;
+			setInvalid();
+			return false;
+		}
 
 		// Module query functions
 		SPIRVAddressingModelKind getAddressingModel() const override { return AddrModel; }
@@ -200,7 +207,7 @@ namespace SPIRV
 		void setCurrentLine(const std::shared_ptr<const SPIRVLine> &Line) override;
 		void addCapability(SPIRVCapabilityKind) override;
 		void addCapabilityInternal(SPIRVCapabilityKind) override;
-		void addExtension(SPIRVExtensionKind) override;
+		void addExtension(ExtensionID) override;
 		const SPIRVDecorateGeneric *addDecorate(SPIRVDecorateGeneric *) override;
 		SPIRVDecorationGroup *addDecorationGroup() override;
 		SPIRVDecorationGroup *
@@ -546,9 +553,10 @@ namespace SPIRV
 			this, TheType, getId(), PacketSize, PacketAlign, Capacity));
 	}
 
-	void SPIRVModuleImpl::addExtension(SPIRVExtensionKind Ext) {
+	void SPIRVModuleImpl::addExtension(ExtensionID Ext) {
 		std::string ExtName;
-		SPIRVMap<SPIRVExtensionKind, std::string>::find(Ext, &ExtName);
+		SPIRVMap<ExtensionID, std::string>::find(Ext, &ExtName);
+		assert(isAllowedToUseExtension(Ext));
 		SPIRVExt.insert(ExtName);
 	}
 
@@ -1738,7 +1746,13 @@ namespace SPIRV
 	                  bool FromText, bool ToText) {
 		auto SaveOpt = GetSPIRVUseTextFormat();
 		SetSPIRVUseTextFormat(FromText);
+		// Conversion from/to SPIR-V text representation is a side feature of the
+		// translator which is mostly intended for debug usage. So, this step cannot
+		// be customized to enable/disable particular extensions or restrict/allow
+		// particular SPIR-V versions: all known SPIR-V versions are allowed, all
+		// known SPIR-V extensions are enabled during this conversion
 		SPIRV::TranslatorOptions DefaultOpts;
+		DefaultOpts.EnableAllExtensions();
 		SPIRVModuleImpl M(DefaultOpts);
 		IS >> M;
 		if (M.getError(ErrMsg) != SPIRVEC_Success) {

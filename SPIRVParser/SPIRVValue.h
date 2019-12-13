@@ -122,7 +122,9 @@ namespace SPIRV
 			SPIRVExtSet EV;
 			if (!hasType())
 				return EV;
-			return Type->getRequiredExtensions();
+			EV = Type->getRequiredExtensions();
+			assert(!Module || Module->isAllowedToUseExtensions(EV));
+			return EV;
 		}
 
 	protected:

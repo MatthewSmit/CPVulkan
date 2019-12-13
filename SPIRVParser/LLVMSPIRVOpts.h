@@ -33,11 +33,10 @@
 //===----------------------------------------------------------------------===//
 /// \file LLVMSPIRVOpts.h
 ///
-/// This files declares helper classes to handle SPIR-V versions.
+/// This files declares helper classes to handle SPIR-V versions and extensions.
 ///
 //===----------------------------------------------------------------------===//
-#ifndef SPIRV_LLVMSPIRVOPTS_H
-#define SPIRV_LLVMSPIRVOPTS_H
+#pragma once
 
 #if defined(OS_WINDOWS)
 #if defined(SPIRV_INTERNAL)
@@ -49,9 +48,10 @@
 #define DLL_EXPORT
 #endif
 
-#include <cstdint>
-
 #include "spirv.hpp"
+
+#include <cstdint>
+#include <map>
 
 namespace SPIRV
 {
@@ -63,32 +63,64 @@ namespace SPIRV
 		SPIRV_1_2 = 0x00010200,
 		SPIRV_1_3 = 0x00010300,
 		SPIRV_1_4 = 0x00010400,
+		SPIRV_1_5 = 0x00010500,
 		MinimumVersion = SPIRV_1_0,
-		MaximumVersion = SPIRV_1_4
+		MaximumVersion = SPIRV_1_5
+	};
+
+	enum class ExtensionID : uint32_t
+	{
+		First,
+#define EXT(X) X,
+#include "LLVMSPIRVExtensions.inc"
+#undef EXT
+		Last,
 	};
 
 	/// \brief Helper class to manage SPIR-V translation
 	class DLL_EXPORT TranslatorOptions
 	{
 	public:
+		using ExtensionsStatusMap = std::map<ExtensionID, bool>;
+
 		TranslatorOptions() = default;
 
-		TranslatorOptions(VersionNumber Max, spv::ExecutionModel executionModel) : MaxVersion(Max), executionModel{executionModel}
+		TranslatorOptions(VersionNumber maxVersion, spv::ExecutionModel executionModel, const ExtensionsStatusMap& extensionMap = {}) :
+			maxVersion(maxVersion),
+			executionModel(executionModel),
+			extentionStatusMap(extensionMap)
 		{
 		}
 
-		bool isAllowedToUseVersion(VersionNumber RequestedVersion) const
+		void EnableAllExtensions()
 		{
-			return RequestedVersion <= MaxVersion;
+#define EXT(X) extentionStatusMap[ExtensionID::X] = true;
+#include "LLVMSPIRVExtensions.inc"
+#undef EXT
 		}
 
-		VersionNumber getMaxVersion() const { return MaxVersion; }
-		spv::ExecutionModel getExecutionModel() const { return executionModel; }
+		[[nodiscard]] bool isAllowedToUseVersion(VersionNumber requestedVersion) const
+		{
+			return requestedVersion <= maxVersion;
+		}
+
+		[[nodiscard]] bool isAllowedToUseExtension(ExtensionID extension) const
+		{
+			const auto iterator = extentionStatusMap.find(extension);
+			if (extentionStatusMap.end() == iterator)
+			{
+				return false;
+			}
+
+			return iterator->second;
+		}
+
+		[[nodiscard]] VersionNumber getMaxVersion() const { return maxVersion; }
+		[[nodiscard]] spv::ExecutionModel getExecutionModel() const { return executionModel; }
 
 	private:
-		VersionNumber MaxVersion = VersionNumber::MaximumVersion;
+		VersionNumber maxVersion = VersionNumber::MaximumVersion;
 		spv::ExecutionModel executionModel;
+		ExtensionsStatusMap extentionStatusMap;
 	};
 }
-
-#endif

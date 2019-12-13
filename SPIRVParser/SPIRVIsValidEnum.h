@@ -397,6 +397,15 @@ inline bool isValid(spv::Decoration V) {
   case DecorationInputAttachmentIndex:
   case DecorationAlignment:
   case DecorationMaxByteOffset:
+  case DecorationUserSemantic:
+  case DecorationRegisterINTEL:
+  case DecorationMemoryINTEL:
+  case DecorationNumbanksINTEL:
+  case DecorationBankwidthINTEL:
+  case DecorationMaxPrivateCopiesINTEL:
+  case DecorationSinglepumpINTEL:
+  case DecorationDoublepumpINTEL:
+  case DecorationReferencedIndirectlyINTEL:
     return true;
   default:
     return false;
@@ -548,6 +557,10 @@ inline bool isValid(spv::Capability V) {
   case CapabilitySubgroupDispatch:
   case CapabilityNamedBarrier:
   case CapabilityPipeStorage:
+  case CapabilityFPGAMemoryAttributesINTEL:
+  case CapabilityFPGALoopControlsINTEL:
+  case CapabilityBlockingPipesINTEL:
+  case CapabilityUnstructuredLoopControlsINTEL:
     return true;
   default:
     return false;
@@ -807,6 +820,8 @@ inline bool isValid(spv::Op V) {
   case OpGroupSMax:
   case OpReadPipe:
   case OpWritePipe:
+  case OpReadPipeBlockingINTEL:
+  case OpWritePipeBlockingINTEL:
   case OpReservedReadPipe:
   case OpReservedWritePipe:
   case OpReserveReadPipePackets:
@@ -989,6 +1004,8 @@ inline bool isValid(spv::Op V) {
   case OpSubgroupAvcSicGetPackedSkcLumaCountThresholdINTEL:
   case OpSubgroupAvcSicGetPackedSkcLumaSumThresholdINTEL:
   case OpSubgroupAvcSicGetInterRawSadsINTEL:
+  case OpFPGARegINTEL:
+  case OpLoopControlINTEL:
     return true;
   default:
     return false;
@@ -1035,6 +1052,7 @@ inline bool isValidLoopControlMask(SPIRVWord Mask) {
   ValidMask |= LoopControlPartialCountMask;
   ValidMask |= LoopControlDependencyInfiniteMask;
   ValidMask |= LoopControlDependencyLengthMask;
+  ValidMask |= LoopControlExtendedControlsMask;
 
   return (Mask & ~ValidMask) == 0;
 }

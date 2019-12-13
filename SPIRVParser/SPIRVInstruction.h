@@ -934,6 +934,30 @@ namespace SPIRV
 		std::vector<SPIRVId> Pairs;
 	};
 
+	class SPIRVFPGARegINTELInstBase : public SPIRVInstTemplateBase
+	{
+	public:
+		SPIRVCapVec getRequiredCapability() const override {
+			return getVec(CapabilityFPGARegINTEL);
+		}
+
+		SPIRVExtSet getRequiredExtensions() const override {
+			return getSet(ExtensionID::SPV_INTEL_fpga_reg);
+		}
+
+	protected:
+		void validate() const override {
+			SPIRVInstruction::validate();
+
+			assert(OpCode == OpFPGARegINTEL &&
+				"Invalid op code for FPGARegINTEL instruction");
+			assert(getType() == getValueType(Ops[0]) && "Inconsistent type");
+		}
+	};
+
+	typedef SPIRVInstTemplate<SPIRVFPGARegINTELInstBase, OpFPGARegINTEL, true, 4>
+	SPIRVFPGARegINTEL;
+
 	class SPIRVCompare : public SPIRVInstTemplateBase {
 	protected:
 		void validate() const override {
@@ -1095,8 +1119,8 @@ namespace SPIRV
 
 		SPIRVId getMergeBlock() { return MergeBlock; }
 		SPIRVId getContinueTarget() { return ContinueTarget; }
-		SPIRVWord getLoopControl() { return LoopControl; }
-		std::vector<SPIRVWord> getLoopControlParameters() {
+		SPIRVWord getLoopControl() const { return LoopControl; }
+		std::vector<SPIRVWord> getLoopControlParameters() const{
 			return LoopControlParameters;
 		}
 
@@ -1143,7 +1167,7 @@ namespace SPIRV
 			setHasNoId();
 			setHasNoType();
 		}
-		std::vector<SPIRVValue *> getPairs() { return getValues(Pairs); }
+		std::vector<SPIRVValue *> getPairs() const { return getValues(Pairs); }
 		SPIRVValue *getSelect() const { return getValue(Select); }
 		SPIRVBasicBlock *getDefault() const {
 			return static_cast<SPIRVBasicBlock *>(getValue(Default));
@@ -1302,14 +1326,14 @@ namespace SPIRV
 				return;
 
 			assert(getValueType(Matrix)->isTypeMatrix() &&
-				getValueType(Matrix)->getMatrixComponentType()->isTypeFloat() &&
+				getValueType(Matrix)->getScalarType()->isTypeFloat() &&
 				"First operand must be a matrix of floating-point type");
 			assert(getValueType(getId())->isTypeMatrix() &&
-				getValueType(getId())->getMatrixComponentType()->isTypeFloat() &&
+				getValueType(getId())->getScalarType()->isTypeFloat() &&
 				"Result type must be a matrix of floating-point type");
 			assert(
-				getValueType(Matrix)->getMatrixComponentType() ==
-				getValueType(getId())->getVectorComponentType() &&
+				getValueType(Matrix)->getScalarType() ==
+				getValueType(getId())->getScalarType() &&
 				"Scalar must have the same type as the Component Type in Result Type");
 			SPIRVInstruction::validate();
 		}
@@ -1369,11 +1393,11 @@ namespace SPIRV
 			
 			// TODO: Verify dimensions
 
-			assert(getValueType(Vector)->isTypeVector() && getValueType(Vector)->getVectorComponentType()->isTypeFloat() && "First operand must be a vector of floating-point type");
-			assert(getValueType(Matrix)->isTypeMatrix() && getValueType(Matrix)->getMatrixComponentType()->isTypeFloat() && "Second operand must be a matrix of floating-point type");
-			assert(getValueType(getId())->isTypeVector() && getValueType(getId())->getVectorComponentType()->isTypeFloat() && "Result type must be a vector of floating-point type");
-			assert(getValueType(Matrix)->getMatrixComponentType() == getValueType(getId())->getVectorComponentType() && "Matrix must have the same type as the Component Type in Result Type");
-			assert(getValueType(Vector)->getVectorComponentType() == getValueType(getId())->getVectorComponentType() && "Vector must have the same type as the Component Type in Result Type");
+			assert(getValueType(Vector)->isTypeVector() && getValueType(Vector)->getScalarType()->isTypeFloat() && "First operand must be a vector of floating-point type");
+			assert(getValueType(Matrix)->isTypeMatrix() && getValueType(Matrix)->getScalarType()->isTypeFloat() && "Second operand must be a matrix of floating-point type");
+			assert(getValueType(getId())->isTypeVector() && getValueType(getId())->getScalarType()->isTypeFloat() && "Result type must be a vector of floating-point type");
+			assert(getValueType(Matrix)->getScalarType() == getValueType(getId())->getScalarType() && "Matrix must have the same type as the Component Type in Result Type");
+			assert(getValueType(Vector)->getScalarType() == getValueType(getId())->getScalarType() && "Vector must have the same type as the Component Type in Result Type");
 			SPIRVInstruction::validate();
 		}
 
@@ -1432,11 +1456,11 @@ namespace SPIRV
 
 			// TODO: Verify dimensions
 
-			assert(getValueType(Matrix)->isTypeMatrix() && getValueType(Matrix)->getMatrixComponentType()->isTypeFloat() && "First operand must be a matrix of floating-point type");
-			assert(getValueType(Vector)->isTypeVector() && getValueType(Vector)->getVectorComponentType()->isTypeFloat() && "Second operand must be a vector of floating-point type");
-			assert(getValueType(getId())->isTypeVector() && getValueType(getId())->getVectorComponentType()->isTypeFloat() && "Result type must be a vector of floating-point type");
-			assert(getValueType(Matrix)->getMatrixComponentType() == getValueType(getId())->getVectorComponentType() && "Matrix must have the same type as the Component Type in Result Type");
-			assert(getValueType(Vector)->getVectorComponentType() == getValueType(getId())->getVectorComponentType() && "Vector must have the same type as the Component Type in Result Type");
+			assert(getValueType(Matrix)->isTypeMatrix() && getValueType(Matrix)->getScalarType()->isTypeFloat() && "First operand must be a matrix of floating-point type");
+			assert(getValueType(Vector)->isTypeVector() && getValueType(Vector)->getScalarType()->isTypeFloat() && "Second operand must be a vector of floating-point type");
+			assert(getValueType(getId())->isTypeVector() && getValueType(getId())->getScalarType()->isTypeFloat() && "Result type must be a vector of floating-point type");
+			assert(getValueType(Matrix)->getScalarType() == getValueType(getId())->getScalarType() && "Matrix must have the same type as the Component Type in Result Type");
+			assert(getValueType(Vector)->getScalarType() == getValueType(getId())->getScalarType() && "Vector must have the same type as the Component Type in Result Type");
 			SPIRVInstruction::validate();
 		}
 
@@ -1495,11 +1519,11 @@ namespace SPIRV
 
 			// TODO: Verify dimensions
 
-			assert(getValueType(MatrixLeft)->isTypeMatrix() && getValueType(MatrixLeft)->getMatrixComponentType()->isTypeFloat() && "First operand must be a matrix of floating-point type");
-			assert(getValueType(MatrixRight)->isTypeMatrix() && getValueType(MatrixRight)->getMatrixComponentType()->isTypeFloat() && "Second operand must be a matrix of floating-point type");
-			assert(getValueType(getId())->isTypeMatrix() && getValueType(getId())->getMatrixComponentType()->isTypeFloat() && "Result type must be a matrix of floating-point type");
-			assert(getValueType(MatrixLeft)->getMatrixComponentType() == getValueType(getId())->getMatrixComponentType() && "First operand must have the same type as the Component Type in Result Type");
-			assert(getValueType(MatrixRight)->getMatrixComponentType() == getValueType(getId())->getMatrixComponentType() && "Second operand must have the same type as the Component Type in Result Type");
+			assert(getValueType(MatrixLeft)->isTypeMatrix() && getValueType(MatrixLeft)->getScalarType()->isTypeFloat() && "First operand must be a matrix of floating-point type");
+			assert(getValueType(MatrixRight)->isTypeMatrix() && getValueType(MatrixRight)->getScalarType()->isTypeFloat() && "Second operand must be a matrix of floating-point type");
+			assert(getValueType(getId())->isTypeMatrix() && getValueType(getId())->getScalarType()->isTypeFloat() && "Result type must be a matrix of floating-point type");
+			assert(getValueType(MatrixLeft)->getScalarType() == getValueType(getId())->getScalarType() && "First operand must have the same type as the Component Type in Result Type");
+			assert(getValueType(MatrixRight)->getScalarType() == getValueType(getId())->getScalarType() && "Second operand must have the same type as the Component Type in Result Type");
 			SPIRVInstruction::validate();
 		}
 
@@ -1601,6 +1625,52 @@ namespace SPIRV
 	typedef SPIRVAccessChainGeneric<OpInBoundsPtrAccessChain, 5>
 	SPIRVInBoundsPtrAccessChain;
 
+	class SPIRVLoopControlINTEL : public SPIRVInstruction {
+	public:
+		static const Op OC = OpLoopControlINTEL;
+		static const SPIRVWord FixedWordCount = 2;
+
+		SPIRVLoopControlINTEL(SPIRVWord TheLoopControl,
+			std::vector<SPIRVWord> TheLoopControlParameters,
+			SPIRVBasicBlock* BB)
+			: SPIRVInstruction(FixedWordCount + TheLoopControlParameters.size(), OC,
+				BB),
+			LoopControl(TheLoopControl),
+			LoopControlParameters(TheLoopControlParameters) {
+			validate();
+			assert(BB && "Invalid BB");
+		}
+
+		SPIRVLoopControlINTEL() : SPIRVInstruction(OC), LoopControl(SPIRVWORD_MAX) {
+			setHasNoId();
+			setHasNoType();
+		}
+
+		SPIRVWord getLoopControl() const { return LoopControl; }
+
+		std::vector<SPIRVWord> getLoopControlParameters() const {
+			return LoopControlParameters;
+		}
+
+		SPIRVCapVec getRequiredCapability() const override {
+			return getVec(CapabilityUnstructuredLoopControlsINTEL);
+		}
+
+		SPIRVExtSet getRequiredExtensions() const override {
+			return getSet(ExtensionID::SPV_INTEL_unstructured_loop_controls);
+		}
+
+		void setWordCount(SPIRVWord TheWordCount) override {
+			SPIRVEntry::setWordCount(TheWordCount);
+			LoopControlParameters.resize(TheWordCount - FixedWordCount);
+		}
+		_SPIRV_DEF_ENCDEC2(LoopControl, LoopControlParameters)
+
+	protected:
+		SPIRVWord LoopControl;
+		std::vector<SPIRVWord> LoopControlParameters;
+	};
+
 	template <Op OC, SPIRVWord FixedWordCount>
 	class SPIRVFunctionCallGeneric : public SPIRVInstruction {
 	public:
@@ -1665,6 +1735,53 @@ namespace SPIRV
 
 	protected:
 		SPIRVId FunctionId;
+	};
+
+	class SPIRVFunctionPointerCallINTEL
+		: public SPIRVFunctionCallGeneric<OpFunctionPointerCallINTEL, 4> {
+	public:
+		SPIRVFunctionPointerCallINTEL(SPIRVId TheId, SPIRVValue* TheCalledValue,
+			SPIRVType* TheReturnType,
+			const std::vector<SPIRVWord>& TheArgs,
+			SPIRVBasicBlock* BB);
+		SPIRVFunctionPointerCallINTEL() : CalledValueId(SPIRVID_INVALID) {}
+		SPIRVValue* getCalledValue() const { return get<SPIRVValue>(CalledValueId); }
+		_SPIRV_DEF_ENCDEC4(Type, Id, CalledValueId, Args)
+			void validate() const override;
+		bool isOperandLiteral(unsigned Index) const override { return false; }
+		SPIRVExtSet getRequiredExtensions() const override {
+			return getSet(ExtensionID::SPV_INTEL_function_pointers);
+		}
+		SPIRVCapVec getRequiredCapability() const override {
+			return getVec(CapabilityFunctionPointersINTEL);
+		}
+
+	protected:
+		SPIRVId CalledValueId;
+	};
+
+	class SPIRVFunctionPointerINTEL : public SPIRVInstruction {
+		const static Op OC = OpFunctionPointerINTEL;
+		const static SPIRVWord FixedWordCount = 4;
+
+	public:
+		SPIRVFunctionPointerINTEL(SPIRVId TheId, SPIRVType* TheType,
+			SPIRVFunction* TheFunction, SPIRVBasicBlock* BB);
+		SPIRVFunctionPointerINTEL()
+			: SPIRVInstruction(OC), TheFunction(SPIRVID_INVALID) {}
+		SPIRVFunction* getFunction() const { return get<SPIRVFunction>(TheFunction); }
+		_SPIRV_DEF_ENCDEC3(Type, Id, TheFunction)
+			void validate() const override;
+		bool isOperandLiteral(unsigned Index) const override { return false; }
+		SPIRVExtSet getRequiredExtensions() const override {
+			return getSet(ExtensionID::SPV_INTEL_function_pointers);
+		}
+		SPIRVCapVec getRequiredCapability() const override {
+			return getVec(CapabilityFunctionPointersINTEL);
+		}
+
+	protected:
+		SPIRVId TheFunction;
 	};
 
 	class SPIRVExtInst : public SPIRVFunctionCallGeneric<OpExtInst, 5> {
@@ -2457,6 +2574,24 @@ namespace SPIRV
 	_SPIRV_OP(GroupCommitWritePipe, false, 6)
 #undef _SPIRV_OP
 
+		class SPIRVBlockingPipesIntelInst : public SPIRVInstTemplateBase {
+		protected:
+			SPIRVCapVec getRequiredCapability() const override {
+				return getVec(CapabilityBlockingPipesINTEL);
+			}
+
+			SPIRVExtSet getRequiredExtensions() const override {
+				return getSet(ExtensionID::SPV_INTEL_blocking_pipes);
+			}
+	};
+
+#define _SPIRV_OP(x, ...)                                                      \
+  typedef SPIRVInstTemplate<SPIRVBlockingPipesIntelInst, Op##x, __VA_ARGS__>   \
+      SPIRV##x;
+	_SPIRV_OP(ReadPipeBlockingINTEL, false, 5)
+		_SPIRV_OP(WritePipeBlockingINTEL, false, 5)
+#undef _SPIRV_OP
+
 	class SPIRVAtomicInstBase : public SPIRVInstTemplateBase {
 	public:
 		SPIRVCapVec getRequiredCapability() const override {
@@ -2549,6 +2684,10 @@ namespace SPIRV
 		SPIRVCapVec getRequiredCapability() const override {
 			return getVec(CapabilitySubgroupShuffleINTEL);
 		}
+
+		SPIRVExtSet getRequiredExtensions() const override {
+			return getSet(ExtensionID::SPV_INTEL_subgroups);
+		}
 	};
 
 #define _SPIRV_OP(x, ...)                                                      \
@@ -2567,6 +2706,10 @@ namespace SPIRV
 		SPIRVCapVec getRequiredCapability() const override {
 			return getVec(CapabilitySubgroupBufferBlockIOINTEL);
 		}
+
+		SPIRVExtSet getRequiredExtensions() const override {
+			return getSet(ExtensionID::SPV_INTEL_subgroups);
+		}
 	};
 
 #define _SPIRV_OP(x, ...)                                                      \
@@ -2582,6 +2725,10 @@ namespace SPIRV
 	protected:
 		SPIRVCapVec getRequiredCapability() const override {
 			return getVec(CapabilitySubgroupImageBlockIOINTEL);
+		}
+
+		SPIRVExtSet getRequiredExtensions() const override {
+			return getSet(ExtensionID::SPV_INTEL_subgroups);
 		}
 	};
 
@@ -2618,7 +2765,7 @@ namespace SPIRV
 		}
 
 		SPIRVExtSet getRequiredExtensions() const override {
-			return getSet(SPV_INTEL_device_side_avc_motion_estimation);
+			return getSet(ExtensionID::SPV_INTEL_device_side_avc_motion_estimation);
 		}
 	};
 

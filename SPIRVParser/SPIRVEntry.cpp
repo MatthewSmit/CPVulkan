@@ -330,16 +330,36 @@ namespace SPIRV
 		return true;
 	}
 
-	bool SPIRVEntry::hasMemberDecorate(Decoration Kind) const
-	{
-		for (const auto decorate : MemberDecorates)
-		{
-			if (decorate.first.second == Kind)
-			{
-				return true;
-			}
-		}
-		return false;
+	// Check if an entry member has Kind of decoration and get the literal of the
+	// first decoration of such kind at Index.
+	bool SPIRVEntry::hasMemberDecorate(Decoration Kind, size_t Index,
+		SPIRVWord MemberNumber,
+		SPIRVWord* Result) const {
+		auto Loc = MemberDecorates.find({ MemberNumber, Kind });
+		if (Loc == MemberDecorates.end())
+			return false;
+		if (Result)
+			*Result = Loc->second->getLiteral(Index);
+		return true;
+	}
+
+	std::vector<std::string>
+		SPIRVEntry::getDecorationStringLiteral(Decoration Kind) const {
+		auto Loc = Decorates.find(Kind);
+		if (Loc == Decorates.end())
+			return {};
+
+		return getVecString(Loc->second->getVecLiteral());
+	}
+
+	std::vector<std::string>
+		SPIRVEntry::getMemberDecorationStringLiteral(Decoration Kind,
+			SPIRVWord MemberNumber) const {
+		auto Loc = MemberDecorates.find({ MemberNumber, Kind });
+		if (Loc == MemberDecorates.end())
+			return {};
+
+		return getVecString(Loc->second->getVecLiteral());
 	}
 
 	// Get literals of all decorations of Kind at Index.

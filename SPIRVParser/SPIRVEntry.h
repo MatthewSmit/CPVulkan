@@ -300,7 +300,9 @@ namespace SPIRV
 		virtual SPIRVExtSet getRequiredExtensions() const { return SPIRVExtSet(); }
 		const std::string& getName() const { return Name; }
 		bool hasDecorate(Decoration Kind, size_t Index = 0, SPIRVWord* Result = 0) const;
-		bool hasMemberDecorate(Decoration Kind) const;
+		bool hasMemberDecorate(Decoration Kind, size_t Index = 0, SPIRVWord MemberNumber = 0, SPIRVWord *Result = 0) const;
+		std::vector<std::string> getDecorationStringLiteral(Decoration Kind) const;
+		std::vector<std::string> getMemberDecorationStringLiteral(Decoration Kind, SPIRVWord MemberNumber) const;
 		std::set<SPIRVWord> getDecorate(Decoration Kind, size_t Index = 0) const;
 		bool hasId() const { return !(Attrib & SPIRVEA_NOID); }
 		bool hasLine() const { return Line != nullptr; }
@@ -767,6 +769,9 @@ namespace SPIRV
 	public:
 		SPIRVExtension(SPIRVModule *M, const std::string &SS);
 		SPIRVExtension() {}
+
+		std::string getExtensionName() const { return S; }
+		
 		_SPIRV_DCL_ENCDEC
 	private:
 		std::string S;

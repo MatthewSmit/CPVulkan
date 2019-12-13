@@ -42,58 +42,82 @@
 
 #include "SPIRVValue.h"
 #include "SPIRVEnum.h"
-namespace SPIRV {
-void SPIRVValue::setAlignment(SPIRVWord A) {
-  if (A == 0) {
-    eraseDecorate(DecorationAlignment);
-    return;
-  }
-  addDecorate(new SPIRVDecorate(DecorationAlignment, this, A));
-  SPIRVDBG(spvdbgs() << "Set alignment " << A << " for obj " << Id << "\n");
-}
 
-bool SPIRVValue::hasAlignment(SPIRVWord *Result) const {
-  return hasDecorate(DecorationAlignment, 0, Result);
-}
+namespace SPIRV
+{
+	void SPIRVValue::setAlignment(SPIRVWord A)
+	{
+		if (A == 0)
+		{
+			eraseDecorate(DecorationAlignment);
+			return;
+		}
+		addDecorate(new SPIRVDecorate(DecorationAlignment, this, A));
+		SPIRVDBG(spvdbgs() << "Set alignment " << A << " for obj " << Id << "\n");
+	}
 
-bool SPIRVValue::isVolatile() const { return hasDecorate(DecorationVolatile); }
+	bool SPIRVValue::hasAlignment(SPIRVWord* Result) const
+	{
+		return hasDecorate(DecorationAlignment, 0, Result);
+	}
 
-void SPIRVValue::setVolatile(bool IsVolatile) {
-  if (!IsVolatile) {
-    eraseDecorate(DecorationVolatile);
-    return;
-  }
-  addDecorate(new SPIRVDecorate(DecorationVolatile, this));
-  SPIRVDBG(spvdbgs() << "Set volatile "
-                     << " for obj " << Id << "\n");
-}
+	bool SPIRVValue::isVolatile() const { return hasDecorate(DecorationVolatile); }
 
-bool SPIRVValue::hasNoSignedWrap() const {
-  return hasDecorate(DecorationNoSignedWrap);
-}
+	void SPIRVValue::setVolatile(bool IsVolatile) {
+		if (!IsVolatile) {
+			eraseDecorate(DecorationVolatile);
+			return;
+		}
+		addDecorate(new SPIRVDecorate(DecorationVolatile, this));
+		SPIRVDBG(spvdbgs() << "Set volatile "
+			<< " for obj " << Id << "\n");
+	}
 
-void SPIRVValue::setNoSignedWrap(bool HasNoSignedWrap) {
-  if (!HasNoSignedWrap) {
-    eraseDecorate(DecorationNoSignedWrap);
-    return;
-  }
-  addDecorate(new SPIRVDecorate(DecorationNoSignedWrap, this));
-  SPIRVDBG(spvdbgs() << "Set nsw "
-                     << " for obj " << Id << "\n");
-}
+	bool SPIRVValue::hasNoSignedWrap() const {
+		return hasDecorate(DecorationNoSignedWrap);
+	}
 
-bool SPIRVValue::hasNoUnsignedWrap() const {
-  return hasDecorate(DecorationNoUnsignedWrap);
-}
+	void SPIRVValue::setNoSignedWrap(bool HasNoSignedWrap)
+	{
+		if (!HasNoSignedWrap) 
+		{
+			eraseDecorate(DecorationNoSignedWrap);
+		}
+	
+		if (Module->isAllowedToUseVersion(VersionNumber::SPIRV_1_4) || Module->isAllowedToUseExtension(ExtensionID::SPV_KHR_no_integer_wrap_decoration))
+		{
+			// NoSignedWrap decoration is available only if it is allowed to use SPIR-V
+			// 1.4 or if SPV_KHR_no_integer_wrap_decoration extension is allowed
+			addDecorate(new SPIRVDecorate(DecorationNoSignedWrap, this));
+			SPIRVDBG(spvdbgs() << "Set nsw for obj " << Id << "\n");
+		}
+		else
+		{
+			SPIRVDBG(spvdbgs() << "Skip setting nsw for obj " << Id << "\n");
+		}
+	}
 
-void SPIRVValue::setNoUnsignedWrap(bool HasNoUnsignedWrap) {
-  if (!HasNoUnsignedWrap) {
-    eraseDecorate(DecorationNoUnsignedWrap);
-    return;
-  }
-  addDecorate(new SPIRVDecorate(DecorationNoUnsignedWrap, this));
-  SPIRVDBG(spvdbgs() << "Set nuw "
-                     << " for obj " << Id << "\n");
-}
+	bool SPIRVValue::hasNoUnsignedWrap() const {
+		return hasDecorate(DecorationNoUnsignedWrap);
+	}
 
+	void SPIRVValue::setNoUnsignedWrap(bool HasNoUnsignedWrap) {
+		if (!HasNoUnsignedWrap)
+		{
+			eraseDecorate(DecorationNoUnsignedWrap);
+			return;
+		}
+
+		if (Module->isAllowedToUseVersion(VersionNumber::SPIRV_1_4) || Module->isAllowedToUseExtension(ExtensionID::SPV_KHR_no_integer_wrap_decoration))
+		{
+			// NoUnsignedWrap decoration is available only if it is allowed to use
+			// SPIR-V 1.4 or if SPV_KHR_no_integer_wrap_decoration extension is allowed
+			addDecorate(new SPIRVDecorate(DecorationNoUnsignedWrap, this));
+			SPIRVDBG(spvdbgs() << "Set nuw for obj " << Id << "\n");
+		}
+		else
+		{
+			SPIRVDBG(spvdbgs() << "Skip setting nuw for obj " << Id << "\n");
+		}
+	}
 } // namespace SPIRV

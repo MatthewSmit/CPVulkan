@@ -138,7 +138,7 @@ private:
 		if (type->isTypeMatrix())
 		{
 			// TODO: Matrix stride & so on
-			return GetVariableSize(type->getMatrixComponentType()) * type->getMatrixColumnCount() * type->getMatrixRowCount();
+			return GetVariableSize(type->getScalarType()) * type->getMatrixColumnCount() * type->getMatrixColumnType()->getVectorComponentCount();
 		}
 
 		if (type->isTypeVector())

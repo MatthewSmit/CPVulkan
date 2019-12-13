@@ -3,12 +3,12 @@
 #include "SPIRVCompiler.h"
 #include "SpirvFunctions.h"
 
-#include <llvm-c/Transforms/PassManagerBuilder.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/OrcBindings.h>
 #include <llvm-c/Support.h>
 #include <llvm-c/Target.h>
 #include <llvm-c/TargetMachine.h>
+#include <llvm-c/Transforms/PassManagerBuilder.h>
 
 #include <atomic>
 #include <mutex>
@@ -51,7 +51,7 @@ public:
 					TODO_ERROR();
 				}
 
-				targetMachine = LLVMCreateTargetMachine(target, targetTriple, hostCpu, hostCpuFeatures, LLVMCodeGenLevelAggressive, LLVMRelocDefault, LLVMCodeModelDefault);
+				targetMachine = LLVMCreateTargetMachine(target, targetTriple, hostCpu, hostCpuFeatures, LLVMCodeGenLevelAggressive, LLVMRelocDefault, LLVMCodeModelJITDefault);
 
 				dataLayout = LLVMCreateTargetDataLayout(targetMachine);
 

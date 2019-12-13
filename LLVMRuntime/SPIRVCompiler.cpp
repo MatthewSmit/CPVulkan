@@ -155,6 +155,7 @@ private:
 			return GetTypeName(type->getVectorComponentType()) + "[" + std::to_string(type->getVectorComponentCount()) + "]";
 
 		case OpTypeMatrix:
+			// TODO: Use array instead?
 			if (type->hasDecorate(DecorationMatrixStride))
 			{
 				TODO_ERROR();
@@ -165,7 +166,7 @@ private:
 				TODO_ERROR();
 			}
 
-			return GetTypeName(type->getMatrixComponentType()) + "[" + std::to_string(type->getMatrixColumnCount()) + "," + std::to_string(type->getMatrixRowCount()) + ",col]";
+			return GetTypeName(type->getScalarType()) + "[" + std::to_string(type->getMatrixColumnCount()) + "," + std::to_string(type->getMatrixColumnType()->getVectorComponentCount()) + ",col]";
 			
 		case OpTypeImage:
 			return GetImageTypeName(static_cast<const SPIRV::SPIRVTypeImage*>(type));
@@ -497,12 +498,12 @@ private:
 				auto name = std::string{"@Matrix.Col"};
 				name += std::to_string(spirvType->getMatrixColumnCount());
 				name += 'x';
-				name += std::to_string(spirvType->getMatrixRowCount());
+				name += std::to_string(spirvType->getMatrixColumnType()->getVectorComponentCount());
 
 				std::vector<LLVMTypeRef> types{};
 				for (auto i = 0u; i < spirvType->getMatrixColumnCount(); i++)
 				{
-					types.push_back(ConvertType(spirvType->getMatrixVectorType(), true));
+					types.push_back(ConvertType(spirvType->getMatrixColumnType(), true));
 				}
 				llvmType = StructType(types, name);
 				break;
@@ -1449,98 +1450,120 @@ private:
 	// 		llvm::ConstantAsMetadata::get(llvm::ConstantInt::get(llvm::Type::getInt32Ty(state.context), parameter))
 	// 	};
 	// }
-	
-	void SetLLVMLoopMetadata(SPIRV::SPIRVLoopMerge* loopMerge, LLVMValueRef branchInstruction)
+
+	template <typename LoopInstructionType>
+	void SetLLVMLoopMetadata(const LoopInstructionType* loopMerge, LLVMValueRef branchInstruction)
 	{
 		if (!loopMerge)
 		{
 			return;
 		}
-	
-		//const auto temp = llvm::MDNode::getTemporary(state.context, llvm::None);
-		//auto self = llvm::MDNode::get(state.context, temp.get());
-		//self->replaceOperandWith(0, self);
-		//
-		//const auto loopControl = loopMerge->getLoopControl();
-		//if (loopControl == LoopControlMaskNone)
-		//{
-		//	branchInstruction->setMetadata("llvm.loop", self);
-		//	return;
-		//}
-		//
-		//unsigned numParam = 0;
-		//std::vector<llvm::Metadata*> metadata;
-		//auto loopControlParameters = loopMerge->getLoopControlParameters();
-		//metadata.push_back(llvm::MDNode::get(state.context, self));
-		//
-		//// To correctly decode loop control parameters, order of checks for loop
-		//// control masks must match with the order given in the spec (see 3.23),
-		//// i.e. check smaller-numbered bits first.
-		//// Unroll and UnrollCount loop controls can't be applied simultaneously with
-		//// DontUnroll loop control.
-		//if (loopControl & LoopControlUnrollMask)
-		//	metadata.push_back(getMetadataFromName(state, "llvm.loop.unroll.enable"));
-		//else if (loopControl & LoopControlDontUnrollMask)
-		//	metadata.push_back(getMetadataFromName(state, "llvm.loop.unroll.disable"));
-		//if (loopControl & LoopControlDependencyInfiniteMask)
-		//	metadata.push_back(getMetadataFromName(state, "llvm.loop.ivdep.enable"));
-		//if (loopControl & LoopControlDependencyLengthMask)
-		//{
-		//	if (!loopControlParameters.empty())
-		//	{
-		//		metadata.push_back(llvm::MDNode::get(state.context, getMetadataFromNameAndParameter(state, "llvm.loop.ivdep.safelen", loopControlParameters[numParam])));
-		//		++numParam;
-		//		assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
-		//	}
-		//}
-		//// Placeholder for LoopControls added in SPIR-V 1.4 spec (see 3.23)
-		//if (loopControl & LoopControlMinIterationsMask)
-		//{
-		//	TODO_ERROR();
-		//	// ++numParam;
-		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
-		//}
-		//if (loopControl & LoopControlMaxIterationsMask)
-		//{
-		//	TODO_ERROR();
-		//	// ++numParam;
-		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
-		//}
-		//if (loopControl & LoopControlIterationMultipleMask)
-		//{
-		//	TODO_ERROR();
-		//	// ++numParam;
-		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
-		//}
-		//if (loopControl & LoopControlPeelCountMask)
-		//{
-		//	TODO_ERROR();
-		//	// ++numParam;
-		//	// assert(numParam <= loopControlParameters.size() && "Missing loop control parameter!");
-		//}
-		//if (loopControl & LoopControlPartialCountMask && !(loopControl & LoopControlDontUnrollMask))
-		//{
-		//	// If unroll factor is set as '1' - disable loop unrolling
-		//	if (loopControlParameters[numParam] == 1)
-		//	{
-		//		metadata.push_back(getMetadataFromName(state, "llvm.loop.unroll.disable"));
-		//	}
-		//	else
-		//	{
-		//		metadata.push_back(llvm::MDNode::get(state.context, getMetadataFromNameAndParameter(state, "llvm.loop.unroll.count", loopControlParameters[numParam])));
-		//	}
-		//	++numParam;
-		//	assert(numParam <= loopControlParameters.size() &&
-		//		"Missing loop control parameter!");
-		//}
-		//llvm::MDNode* node = llvm::MDNode::get(state.context, metadata);
-		//
-		//// Set the first operand to refer itself
-		//node->replaceOperandWith(0, node);
-		//branchInstruction->setMetadata("llvm.loop", node);
-		TODO_ERROR();
-	}
 
+		// assert(BI && isa<BranchInst>(BI));
+		//
+		// auto Temp = MDNode::getTemporary(*Context, None);
+		// auto Self = MDNode::get(*Context, Temp.get());
+		// Self->replaceOperandWith(0, Self);
+		// SPIRVWord LC = LM->getLoopControl();
+		// if (LC == LoopControlMaskNone) {
+		// 	BI->setMetadata("llvm.loop", Self);
+		// 	return;
+		// }
+		//
+		// unsigned NumParam = 0;
+		// std::vector<llvm::Metadata *> Metadata;
+		// std::vector<SPIRVWord> LoopControlParameters = LM->getLoopControlParameters();
+		// Metadata.push_back(llvm::MDNode::get(*Context, Self));
+		//
+		// // To correctly decode loop control parameters, order of checks for loop
+		// // control masks must match with the order given in the spec (see 3.23),
+		// // i.e. check smaller-numbered bits first.
+		// // Unroll and UnrollCount loop controls can't be applied simultaneously with
+		// // DontUnroll loop control.
+		// if (LC & LoopControlUnrollMask)
+		// 	Metadata.push_back(getMetadataFromName("llvm.loop.unroll.enable"));
+		// else if (LC & LoopControlDontUnrollMask)
+		// 	Metadata.push_back(getMetadataFromName("llvm.loop.unroll.disable"));
+		// if (LC & LoopControlDependencyInfiniteMask)
+		// 	Metadata.push_back(getMetadataFromName("llvm.loop.ivdep.enable"));
+		// if (LC & LoopControlDependencyLengthMask) {
+		// 	if (!LoopControlParameters.empty()) {
+		// 		Metadata.push_back(llvm::MDNode::get(
+		// 			*Context,
+		// 			getMetadataFromNameAndParameter("llvm.loop.ivdep.safelen",
+		// 			                                LoopControlParameters[NumParam])));
+		// 		++NumParam;
+		// 		assert(NumParam <= LoopControlParameters.size() &&
+		// 			"Missing loop control parameter!");
+		// 	}
+		// }
+		// // Placeholder for LoopControls added in SPIR-V 1.4 spec (see 3.23)
+		// if (LC & LoopControlMinIterationsMask) {
+		// 	++NumParam;
+		// 	assert(NumParam <= LoopControlParameters.size() &&
+		// 		"Missing loop control parameter!");
+		// }
+		// if (LC & LoopControlMaxIterationsMask) {
+		// 	++NumParam;
+		// 	assert(NumParam <= LoopControlParameters.size() &&
+		// 		"Missing loop control parameter!");
+		// }
+		// if (LC & LoopControlIterationMultipleMask) {
+		// 	++NumParam;
+		// 	assert(NumParam <= LoopControlParameters.size() &&
+		// 		"Missing loop control parameter!");
+		// }
+		// if (LC & LoopControlPeelCountMask) {
+		// 	++NumParam;
+		// 	assert(NumParam <= LoopControlParameters.size() &&
+		// 		"Missing loop control parameter!");
+		// }
+		// if (LC & LoopControlPartialCountMask && !(LC & LoopControlDontUnrollMask)) {
+		// 	// If unroll factor is set as '1' - disable loop unrolling
+		// 	if (1 == LoopControlParameters[NumParam])
+		// 		Metadata.push_back(getMetadataFromName("llvm.loop.unroll.disable"));
+		// 	else
+		// 		Metadata.push_back(llvm::MDNode::get(
+		// 			*Context,
+		// 			getMetadataFromNameAndParameter("llvm.loop.unroll.count",
+		// 			                                LoopControlParameters[NumParam])));
+		// 	++NumParam;
+		// 	assert(NumParam <= LoopControlParameters.size() &&
+		// 		"Missing loop control parameter!");
+		// }
+		// if (LC & LoopControlExtendedControlsMask) {
+		// 	while (NumParam < LoopControlParameters.size()) {
+		// 		switch (LoopControlParameters[NumParam]) {
+		// 		case InitiationIntervalINTEL: {
+		// 			// To generate a correct integer part of metadata we skip a parameter
+		// 			// that encodes name of the metadata and take the next one
+		// 			Metadata.push_back(llvm::MDNode::get(
+		// 				*Context,
+		// 				getMetadataFromNameAndParameter(
+		// 					"llvm.loop.ii.count", LoopControlParameters[++NumParam])));
+		// 			break;
+		// 		}
+		// 		case MaxConcurrencyINTEL: {
+		// 			Metadata.push_back(llvm::MDNode::get(
+		// 				*Context, getMetadataFromNameAndParameter(
+		// 					"llvm.loop.max_concurrency.count",
+		// 					LoopControlParameters[++NumParam])));
+		// 			break;
+		// 		}
+		// 		default:
+		// 			break;
+		// 		}
+		// 		++NumParam;
+		// 	}
+		// }
+		// llvm::MDNode *Node = llvm::MDNode::get(*Context, Metadata);
+		//
+		// // Set the first operand to refer itself
+		// Node->replaceOperandWith(0, Node);
+		// BI->setMetadata("llvm.loop", Node);
+FATAL_ERROR();
+	}
+	
 	LLVMValueRef ConvertOCLFromExtensionInstruction(const SPIRV::SPIRVExtInst* extensionInstruction, LLVMValueRef currentFunction)
 	{
 		TODO_ERROR();

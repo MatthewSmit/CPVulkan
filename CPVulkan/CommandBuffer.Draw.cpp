@@ -338,12 +338,12 @@ static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 	if (type->isTypeMatrix())
 	{
 		// TODO: Matrix stride & so on
-		return GetVariableSize(type->getMatrixComponentType()) * type->getMatrixColumnCount() * type->getMatrixRowCount();
+		return GetVariableSize(type->getScalarType()) * type->getMatrixColumnCount() * type->getMatrixColumnType()->getVectorComponentCount();
 	}
 
 	if (type->isTypeVector())
 	{
-		return GetVariableSize(type->getVectorComponentType()) * type->getVectorComponentCount();
+		return GetVariableSize(type->getScalarType()) * type->getVectorComponentCount();
 	}
 
 	if (type->isTypeFloat() || type->isTypeInt())
@@ -445,8 +445,8 @@ static void LoadVertexInput(DeviceState* deviceState, uint32_t vertex, uint32_t 
 		if (input.format == VK_FORMAT_UNDEFINED)
 		{
 			assert(input.type->isTypeMatrix());
-			const auto format = GetVariableFormat(input.type->getMatrixVectorType());
-			const auto vectorStride = GetVariableSize(input.type->getMatrixVectorType());
+			const auto format = GetVariableFormat(input.type->getMatrixColumnType());
+			const auto vectorStride = GetVariableSize(input.type->getMatrixColumnType());
 			for (auto i = 0u; i < input.type->getMatrixColumnCount(); i++)
 			{
 				const auto& attribute = FindAttribute(input.location + i, vertexInputState);

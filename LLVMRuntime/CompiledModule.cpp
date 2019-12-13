@@ -994,6 +994,8 @@ LLVMValueRef CompiledModuleBuilder::CreateAtomicCmpXchg(LLVMValueRef pointer, LL
 
 LLVMValueRef CompiledModuleBuilder::CreateVectorSplat(uint32_t vectorSize, LLVMValueRef value, const std::string& name)
 {
+	assert(vectorSize <= 4);
+	
 	const auto undefVector = LLVMGetUndef(LLVMVectorType(LLVMTypeOf(value), vectorSize));
 	const auto tmpVector = CreateInsertElement(undefVector, value, ConstI32(0), name.empty() ? "" : name + ".splatinsert");
 	LLVMValueRef zeroValues[]
@@ -1003,6 +1005,6 @@ LLVMValueRef CompiledModuleBuilder::CreateVectorSplat(uint32_t vectorSize, LLVMV
 		ConstI32(0),
 		ConstI32(0),
 	};
-	const auto zeros = LLVMConstVector(zeroValues, 4);
+	const auto zeros = LLVMConstVector(zeroValues, vectorSize);
 	return CreateShuffleVector(tmpVector, undefVector, zeros, name.empty() ? "" : name + ".splat");
 }

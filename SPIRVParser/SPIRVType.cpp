@@ -67,10 +67,8 @@ namespace SPIRV
 
 	SPIRVWord SPIRVType::getBitWidth() const
 	{
-		if (isTypeMatrix())
-			return getMatrixComponentType()->getBitWidth();
-		if (isTypeVector())
-			return getVectorComponentType()->getBitWidth();
+		if (isTypeMatrix() || isTypeVector())
+			return getScalarType()->getBitWidth();
 		if (isTypeBool())
 			return 1;
 		return isTypeInt() ? getIntegerBitWidth() : getFloatBitWidth();
@@ -139,22 +137,32 @@ namespace SPIRV
 		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnCount();
 	}
 
-	SPIRVWord SPIRVType::getMatrixRowCount() const
-	{
-		assert(OpCode == OpTypeMatrix && "Not matrix type");
-		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType()->getVectorComponentCount();
-	}
-
-	SPIRVType* SPIRVType::getMatrixVectorType() const
+	SPIRVType* SPIRVType::getMatrixColumnType() const
 	{
 		assert(OpCode == OpTypeMatrix && "Not matrix type");
 		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType();
 	}
 
-	SPIRVType* SPIRVType::getMatrixComponentType() const
+	SPIRVType* SPIRVType::getScalarType() const
 	{
-		assert(OpCode == OpTypeMatrix && "Not matrix type");
-		return static_cast<const SPIRVTypeMatrix*>(this)->getColumnType()->getVectorComponentType();
+		switch (OpCode)
+		{
+		case OpTypePointer:
+			return getPointerElementType()->getScalarType();
+		case OpTypeArray:
+			return getArrayElementType();
+		case OpTypeVector:
+			return getVectorComponentType();
+		case OpTypeMatrix:
+			return getMatrixColumnType()->getVectorComponentType();
+		case OpTypeInt:
+		case OpTypeFloat:
+		case OpTypeBool:
+			return const_cast<SPIRVType*>(this);
+		default:
+			break;
+		}
+		return nullptr;
 	}
 
 	bool SPIRVType::isTypeVoid() const { return OpCode == OpTypeVoid; }

@@ -40,9 +40,12 @@
 #ifndef SPIRV_LIBSPIRV_SPIRVENUM_H
 #define SPIRV_LIBSPIRV_SPIRVENUM_H
 
+#include "LLVMSPIRVOpts.h"
 #include "SPIRVOpCode.h"
 #include "spirv.hpp"
+
 #include <cstdint>
+
 using namespace spv;
 
 namespace SPIRV
@@ -110,27 +113,33 @@ namespace SPIRV
 	typedef spv::Dim SPIRVImageDimKind;
 	typedef std::vector<SPIRVCapabilityKind> SPIRVCapVec;
 
-	enum SPIRVExtensionKind {
-		SPV_INTEL_device_side_avc_motion_estimation,
-		SPV_KHR_no_integer_wrap_decoration
-	};
+	typedef std::set<ExtensionID> SPIRVExtSet;
 
-	typedef std::set<SPIRVExtensionKind> SPIRVExtSet;
+	template<>
+	inline void SPIRVMap<ExtensionID, std::string>::init()
+	{
+#define _STRINGIFY(X) #X
+#define STRINGIFY(X) _STRINGIFY(X)
+#define EXT(X) add(ExtensionID::X, STRINGIFY(X));
+#include "LLVMSPIRVExtensions.inc"
+#undef EXT
+#undef STRINGIFY
+#undef _STRINGIFY
+	}
 
-	template <> inline void SPIRVMap<SPIRVExtensionKind, std::string>::init() {
-		add(SPV_INTEL_device_side_avc_motion_estimation,
-		    "SPV_INTEL_device_side_avc_motion_estimation");
-		add(SPV_KHR_no_integer_wrap_decoration, "SPV_KHR_no_integer_wrap_decoration");
-	};
-
-	template <> inline void SPIRVMap<SPIRVExtInstSetKind, std::string>::init() {
+	template<>
+	inline void SPIRVMap<SPIRVExtInstSetKind, std::string>::init()
+	{
 		add(SPIRVEIS_OpenCL, "OpenCL.std");
 		add(SPIRVEIS_OpenGL, "GLSL.std.450");
 		add(SPIRVEIS_Debug, "SPIRV.debug");
 	}
+
 	typedef SPIRVMap<SPIRVExtInstSetKind, std::string> SPIRVBuiltinSetNameMap;
 
-	template <typename K> SPIRVCapVec getCapability(K Key) {
+	template<typename K>
+	SPIRVCapVec getCapability(K Key)
+	{
 		SPIRVCapVec V;
 		SPIRVMap<K, SPIRVCapVec>::find(Key, &V);
 		return V;
@@ -154,6 +163,7 @@ namespace SPIRV
 		ADD_VEC_INIT(CapabilityImageReadWrite, {CapabilityImageBasic});
 		ADD_VEC_INIT(CapabilityImageMipmap, {CapabilityImageBasic});
 		ADD_VEC_INIT(CapabilityPipes, {CapabilityKernel});
+		ADD_VEC_INIT(CapabilityBlockingPipesINTEL, {CapabilityKernel});
 		ADD_VEC_INIT(CapabilityDeviceEnqueue, {CapabilityKernel});
 		ADD_VEC_INIT(CapabilityLiteralSampler, {CapabilityKernel});
 		ADD_VEC_INIT(CapabilityAtomicStorage, {CapabilityShader});
@@ -349,9 +359,28 @@ namespace SPIRV
 		ADD_VEC_INIT(DecorationNoContraction, {CapabilityShader});
 		ADD_VEC_INIT(DecorationInputAttachmentIndex, {CapabilityInputAttachment});
 		ADD_VEC_INIT(DecorationAlignment, {CapabilityKernel});
+		ADD_VEC_INIT(DecorationRegisterINTEL, {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationMemoryINTEL, {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationNumbanksINTEL, {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationBankwidthINTEL, {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationMaxPrivateCopiesINTEL,
+		             {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationSinglepumpINTEL,
+		             {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationDoublepumpINTEL,
+		             {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationMaxReplicatesINTEL,
+		             {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationSimpleDualPortINTEL,
+		             {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationMergeINTEL, {CapabilityFPGAMemoryAttributesINTEL});
+		ADD_VEC_INIT(DecorationReferencedIndirectlyINTEL,
+		             {CapabilityIndirectReferencesINTEL});
 	}
 
-	template <> inline void SPIRVMap<BuiltIn, SPIRVCapVec>::init() {
+	template<>
+	inline void SPIRVMap<BuiltIn, SPIRVCapVec>::init()
+	{
 		ADD_VEC_INIT(BuiltInPosition, {CapabilityShader});
 		ADD_VEC_INIT(BuiltInPointSize, {CapabilityShader});
 		ADD_VEC_INIT(BuiltInClipDistance, {CapabilityClipDistance});
@@ -391,7 +420,9 @@ namespace SPIRV
 		ADD_VEC_INIT(BuiltInInstanceIndex, {CapabilityShader});
 	}
 
-	template <> inline void SPIRVMap<MemorySemanticsMask, SPIRVCapVec>::init() {
+	template<>
+	inline void SPIRVMap<MemorySemanticsMask, SPIRVCapVec>::init()
+	{
 		ADD_VEC_INIT(MemorySemanticsUniformMemoryMask, {CapabilityShader});
 		ADD_VEC_INIT(MemorySemanticsAtomicCounterMemoryMask,
 		             {CapabilityAtomicStorage});
@@ -399,8 +430,10 @@ namespace SPIRV
 
 #undef ADD_VEC_INIT
 
-	inline unsigned getImageDimension(SPIRVImageDimKind K) {
-		switch (K) {
+	inline unsigned getImageDimension(SPIRVImageDimKind K)
+	{
+		switch (K)
+		{
 		case Dim1D:
 			return 1;
 		case Dim2D:
@@ -419,10 +452,9 @@ namespace SPIRV
 	}
 
 	/// Extract memory order part of SPIR-V memory semantics.
-	inline unsigned extractSPIRVMemOrderSemantic(unsigned Sema) {
+	inline unsigned extractSPIRVMemOrderSemantic(unsigned Sema)
+	{
 		return Sema & KSpirvMemOrderSemanticMask;
 	}
-
-} // namespace SPIRV
-
+}
 #endif // SPIRV_LIBSPIRV_SPIRVENUM_H

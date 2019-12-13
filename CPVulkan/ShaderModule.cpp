@@ -62,6 +62,7 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 	imemstream stream{reinterpret_cast<const char*>(pCreateInfo->pCode), pCreateInfo->codeSize};
 
 	SPIRV::TranslatorOptions options{};
+	options.EnableAllExtensions();
 	shaderModule->module = SPIRV::SPIRVModule::createSPIRVModule(options);
 	stream >> *shaderModule->module;
 	if (!shaderModule->module->isModuleValid())

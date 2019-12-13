@@ -331,6 +331,18 @@ template <> inline void SPIRVMap<Decoration, std::string>::init() {
   add(DecorationMaxByteOffset, "MaxByteOffset");
   add(DecorationNoSignedWrap, "NoSignedWrap");
   add(DecorationNoUnsignedWrap, "NoUnsignedWrap");
+  add(DecorationUserSemantic, "UserSemantic");
+  add(DecorationRegisterINTEL, "RegisterINTEL");
+  add(DecorationMemoryINTEL, "MemoryINTEL");
+  add(DecorationNumbanksINTEL, "NumbanksINTEL");
+  add(DecorationBankwidthINTEL, "BankwidthINTEL");
+  add(DecorationMaxPrivateCopiesINTEL, "MaxPrivateCopiesINTEL");
+  add(DecorationSinglepumpINTEL, "SinglepumpINTEL");
+  add(DecorationDoublepumpINTEL, "DoublepumpINTEL");
+  add(DecorationMaxReplicatesINTEL, "MaxReplicatesINTEL");
+  add(DecorationSimpleDualPortINTEL, "SimpleDualPortINTEL");
+  add(DecorationMergeINTEL, "MergeINTEL");
+  add(DecorationReferencedIndirectlyINTEL, "ReferencedIndirectlyINTEL");
 }
 SPIRV_DEF_NAMEMAP(Decoration, SPIRVDecorationNameMap)
 
@@ -476,6 +488,13 @@ template <> inline void SPIRVMap<Capability, std::string>::init() {
       "SubgroupAvcMotionEstimationIntraINTEL");
   add(CapabilitySubgroupAvcMotionEstimationChromaINTEL,
       "SubgroupAvcMotionEstimationChromaINTEL");
+  add(CapabilityFPGAMemoryAttributesINTEL, "FPGAMemoryAttributesINTEL");
+  add(CapabilityFPGALoopControlsINTEL, "FPGALoopControlsINTEL");
+  add(CapabilityFPGARegINTEL, "FPGARegINTEL");
+  add(CapabilityBlockingPipesINTEL, "BlockingPipesINTEL");
+  add(CapabilityUnstructuredLoopControlsINTEL, "UnstructuredLoopControlsINTEL");
+  add(CapabilityFunctionPointersINTEL, "FunctionPointersINTEL");
+  add(CapabilityIndirectReferencesINTEL, "IndirectReferencesINTEL");
 }
 SPIRV_DEF_NAMEMAP(Capability, SPIRVCapabilityNameMap)
 
