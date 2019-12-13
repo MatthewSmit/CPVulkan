@@ -1006,17 +1006,17 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, co
 }
 
 template<typename T>
-bool CompareTest(T reference, T value, VkCompareOp compare)
+bool CompareTest(const T reference, const T value, const VkCompareOp compare)
 {
 	switch (compare)
 	{
 	case VK_COMPARE_OP_NEVER: return false;
-	case VK_COMPARE_OP_LESS: return value < reference;
-	case VK_COMPARE_OP_EQUAL: return value = reference;
-	case VK_COMPARE_OP_LESS_OR_EQUAL: return value <= reference;
-	case VK_COMPARE_OP_GREATER: return value > reference;
-	case VK_COMPARE_OP_NOT_EQUAL: return value != reference;
-	case VK_COMPARE_OP_GREATER_OR_EQUAL: return value >= reference;
+	case VK_COMPARE_OP_LESS: return reference < value;
+	case VK_COMPARE_OP_EQUAL: return reference == value;
+	case VK_COMPARE_OP_LESS_OR_EQUAL: return reference <= value;
+	case VK_COMPARE_OP_GREATER: return reference > value;
+	case VK_COMPARE_OP_NOT_EQUAL: return reference != value;
+	case VK_COMPARE_OP_GREATER_OR_EQUAL: return reference >= value;
 	case VK_COMPARE_OP_ALWAYS: return true;
 		
 	default:
