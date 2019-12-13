@@ -1384,7 +1384,11 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	// TODO: 27.14. Representative Fragment Test
 	// TODO: 27.15. Sample Counting
 
-	shaderStage->getEntryPoint()();
+	const auto discard = reinterpret_cast<bool(*)()>(shaderStage->getEntryPoint())();
+	if (discard)
+	{
+		return;
+	}
 
 	// TODO: 27.8. Mixed attachment samples
 	// TODO: 27.9. Multisample Coverage
@@ -1678,12 +1682,18 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
 		};
 		const auto pointSize = builtinData0.pointSize;
+		const auto intPointSize = static_cast<int32_t>(std::ceil(pointSize / 2));
+
+		const auto startX = std::max(0, pointScreen.x - intPointSize);
+		const auto startY = std::max(0, pointScreen.y - intPointSize);
+		const auto endX = std::min(static_cast<int32_t>(viewport.width), pointScreen.x + intPointSize + 1);
+		const auto endY = std::min(static_cast<int32_t>(viewport.height), pointScreen.y + intPointSize + 1);
 		
-		for (auto y = 0u; y < viewport.height; y++)
+		for (auto y = startY; y < endY; y++)
 		{
 			builtinInput->fragCoord.y = y;
 		
-			for (auto x = 0u; x < viewport.width; x++)
+			for (auto x = startX; x < endX; x++)
 			{
 				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
 

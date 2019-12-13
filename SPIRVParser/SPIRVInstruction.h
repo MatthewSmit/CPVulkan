@@ -328,7 +328,7 @@ namespace SPIRV
 
 		/// Get operand as value.
 		/// If the operand is a literal, return it as a uint32 constant.
-		SPIRVValue *getOpValue(int I) {
+		SPIRVValue *getOpValue(int I) const {
 			return isOperandLiteral(I) ? Module->getLiteralAsConstant(Ops[I])
 				       : getValue(Ops[I]);
 		}
@@ -756,6 +756,7 @@ namespace SPIRV
 	};
 
 	typedef SPIRVInstNoOperand<OpReturn> SPIRVReturn;
+	typedef SPIRVInstNoOperand<OpKill> SPIRVKill;
 	typedef SPIRVInstNoOperand<OpUnreachable> SPIRVUnreachable;
 
 	class SPIRVReturnValue : public SPIRVInstruction {

@@ -388,7 +388,7 @@ static void GetImageData(ImageDescriptor* descriptor, VkFormat& format, gsl::spa
 		{
 			format = bufferView->getFormat();
 			data[0] = bufferView->getBuffer()->getData(bufferView->getOffset(), bufferView->getRange());
-			range[0] = glm::uvec1{static_cast<uint32_t>(bufferView->getRange())};
+			range[0] = glm::uvec1{static_cast<uint32_t>(bufferView->getRange()) / GetFormatInformation(format).TotalSize};
 			baseLevel = 0;
 			levels = 1;
 		}
@@ -757,6 +757,17 @@ static void ImageGetRaw(ImageDescriptor* sampledImage, ImageDescriptor* result)
 	result->Type = sampledImage->Type;
 	result->Data = sampledImage->Data;
 	result->ImageSampler = nullptr;
+}
+
+static int32_t ImageQuerySize1D(ImageDescriptor* image)
+{
+	VkFormat format;
+	gsl::span<uint8_t> data[MAX_MIP_LEVELS];
+	glm::vec<1, uint32_t> range[MAX_MIP_LEVELS];
+	uint32_t baseLevel;
+	uint32_t levels;
+	GetImageData(image, format, data, range, baseLevel, levels);
+	return range[0].x;
 }
 
 void AddGlslFunctions(DeviceState* deviceState)
@@ -1142,8 +1153,12 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@NClamp.F64[3].F64[3].F64[3].F64[3]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f64vec3>));
 	jit->AddFunction("@NClamp.F64[4].F64[4].F64[4].F64[4]", reinterpret_cast<FunctionPointer>(VNClamp<glm::f64vec4>));
 	
-	jit->AddFunction("@ImageCombine", reinterpret_cast<FunctionPointer>(ImageCombine));
-	jit->AddFunction("@ImageGetRaw", reinterpret_cast<FunctionPointer>(ImageGetRaw));
+	jit->AddFunction("@Image.Combine", reinterpret_cast<FunctionPointer>(ImageCombine));
+	jit->AddFunction("@Image.GetRaw", reinterpret_cast<FunctionPointer>(ImageGetRaw));
+	
+	jit->AddFunction("@Image.Query.Size.I32.Image[F32,buffer]", reinterpret_cast<FunctionPointer>(ImageQuerySize1D));
+	jit->AddFunction("@Image.Query.Size.I32.Image[I32,buffer]", reinterpret_cast<FunctionPointer>(ImageQuerySize1D));
+	jit->AddFunction("@Image.Query.Size.I32.Image[U32,buffer]", reinterpret_cast<FunctionPointer>(ImageQuerySize1D));
 	
 	// jit->AddFunction("@Image.Sample.Implicit.F32[4].F32", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::fvec4, glm::fvec1>));
 	// jit->AddFunction("@Image.Sample.Implicit.F32[4].F32[2]", reinterpret_cast<FunctionPointer>(ImageSampleImplicitLod<glm::fvec4, glm::fvec2>));
@@ -1221,19 +1236,19 @@ void AddGlslFunctions(DeviceState* deviceState)
 	// jit->AddFunction("@Image.Fetch.I32[4].U32[2]", reinterpret_cast<FunctionPointer>(ImageFetch<glm::ivec4, glm::ivec2>));
 	// jit->AddFunction("@Image.Fetch.U32[4].U32[2]", reinterpret_cast<FunctionPointer>(ImageFetch<glm::uvec4, glm::ivec2>));
 	
-	// jit->AddFunction("@Image.Read.F32[4].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec1>));
-	// jit->AddFunction("@Image.Read.I32[4].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec1>));
-	// jit->AddFunction("@Image.Read.U32[4].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec1>));
-	
-	// jit->AddFunction("@Image.Read.F32[4].U32", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec1>));
-	// jit->AddFunction("@Image.Read.I32[4].U32", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec1>));
-	// jit->AddFunction("@Image.Read.U32[4].U32", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec1>));
-	
-	// jit->AddFunction("@Image.Read.F32[4].U32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec2>));
-	// jit->AddFunction("@Image.Read.I32[4].U32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec2>));
-	// jit->AddFunction("@Image.Read.U32[4].U32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec2>));
-	
-	// jit->AddFunction("@Image.Read.F32[4].I32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec2>));
-	// jit->AddFunction("@Image.Read.I32[4].I32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec2>));
-	// jit->AddFunction("@Image.Read.U32[4].I32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec2>));
+	jit->AddFunction("@Image.Read.U32[4].Image[F32,buffer].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, int32_t>));
+	jit->AddFunction("@Image.Read.U32[4].Image[I32,buffer].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, int32_t>));
+	jit->AddFunction("@Image.Read.U32[4].Image[U32,buffer].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, int32_t>));
+
+	jit->AddFunction("@Image.Read.U32[4].Image[F32,1D].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, int32_t>));
+	jit->AddFunction("@Image.Read.U32[4].Image[I32,1D].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, int32_t>));
+	jit->AddFunction("@Image.Read.U32[4].Image[U32,1D].I32", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, int32_t>));
+
+	jit->AddFunction("@Image.Read.U32[4].Image[F32,2D].I32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec2>));
+	jit->AddFunction("@Image.Read.U32[4].Image[I32,2D].I32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec2>));
+	jit->AddFunction("@Image.Read.U32[4].Image[U32,2D].I32[2]", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec2>));
+
+	jit->AddFunction("@Image.Read.U32[4].Image[F32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec3>));
+	jit->AddFunction("@Image.Read.U32[4].Image[I32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec3>));
+	jit->AddFunction("@Image.Read.U32[4].Image[U32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec3>));
 }

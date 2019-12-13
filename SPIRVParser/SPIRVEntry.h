@@ -848,7 +848,6 @@ namespace SPIRV
 	_SPIRV_OP(EndPrimitive)
 	_SPIRV_OP(EmitStreamVertex)
 	_SPIRV_OP(EndStreamPrimitive)
-	_SPIRV_OP(Kill)
 	_SPIRV_OP(ImageSparseSampleImplicitLod)
 	_SPIRV_OP(ImageSparseSampleExplicitLod)
 	_SPIRV_OP(ImageSparseSampleDrefImplicitLod)

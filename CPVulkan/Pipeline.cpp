@@ -470,7 +470,7 @@ static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SP
 {
 	for (auto i = 0u; i < module->getNumEntryPoints(stage); i++)
 	{
-		const auto entryName = module->getEntryPointName(stage, i);
+		const auto& entryName = module->getEntryPointName(stage, i);
 		if (entryName == name)
 		{
 			return module->getEntryPoint(stage, i);
@@ -719,7 +719,7 @@ ShaderFunction::ShaderFunction(CPJit* jit, ShaderModule* module, uint32_t stageI
 		}
 	}
 
-	this->llvmModule = CompileSPIRVModule(jit, this->spirvModule, static_cast<spv::ExecutionModel>(stageIndex), specializationInfo);
+	this->llvmModule = CompileSPIRVModule(jit, this->spirvModule, static_cast<spv::ExecutionModel>(stageIndex), entryPoint, specializationInfo);
 	this->entryPoint = this->llvmModule->getFunctionPointer(MangleName(entryPoint));
 	
 	const auto workgroupSizePtr = this->llvmModule->getOptionalPointer("@WorkgroupSize");

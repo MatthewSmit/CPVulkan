@@ -28,10 +28,11 @@ static std::unordered_map<Op, LLVMAtomicRMWBinOp> instructionLookupAtomic
 class SPIRVCompiledModuleBuilder final : public CompiledModuleBuilder
 {
 public:
-	SPIRVCompiledModuleBuilder(CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo) :
+	SPIRVCompiledModuleBuilder(CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo) :
 		CompiledModuleBuilder{jit},
 		spirvModule{spirvModule},
 		executionModel{executionModel},
+		entryPoint{entryPoint},
 		specializationInfo{specializationInfo}
 	{
 		if (spirvModule->getAddressingModel() != AddressingModelLogical && spirvModule->getAddressingModel() != AddressingModelPhysicalStorageBuffer64)
@@ -49,11 +50,13 @@ protected:
 
 		userData = GlobalVariable(LLVMPointerType(LLVMInt8TypeInContext(context), 0), LLVMExternalLinkage, "@userData");
 
+		// TODO: Only compile variables linked to entry point
 		for (auto i = 0u; i < spirvModule->getNumVariables(); i++)
 		{
 			ConvertValue(spirvModule->getVariable(i), nullptr);
 		}
-		
+
+		// TODO: Only compile functions linked to entry point
 		for (auto i = 0u; i < spirvModule->getNumFunctions(); i++)
 		{
 			const auto function = ConvertFunction(spirvModule->getFunction(i));
@@ -126,6 +129,7 @@ private:
 
 	const SPIRV::SPIRVModule* spirvModule;
 	spv::ExecutionModel executionModel;
+	const SPIRV::SPIRVFunction* entryPoint;
 	const VkSpecializationInfo* specializationInfo;
 	
 	static std::string GetTypeName(const char* baseName, const std::string& postfixes)
@@ -1459,22 +1463,22 @@ private:
 			return;
 		}
 
-		// assert(BI && isa<BranchInst>(BI));
-		//
-		// auto Temp = MDNode::getTemporary(*Context, None);
-		// auto Self = MDNode::get(*Context, Temp.get());
-		// Self->replaceOperandWith(0, Self);
-		// SPIRVWord LC = LM->getLoopControl();
-		// if (LC == LoopControlMaskNone) {
-		// 	BI->setMetadata("llvm.loop", Self);
-		// 	return;
-		// }
-		//
+		assert(branchInstruction && LLVMIsABranchInst(branchInstruction));
+
+		auto self = LLVMMDNodeInContext2(context, nullptr, 0);
+		// LLVMSetOperand(self, 0, self);
+		const auto loopControl = static_cast<LoopControlMask>(loopMerge->getLoopControl());
+		if (loopControl == LoopControlMaskNone)
+		{
+			LLVMSetMetadata(branchInstruction, LLVMGetMDKindIDInContext(context, "llvm.loop", sizeof("llvm.loop") - 1), LLVMMetadataAsValue(context, self));
+			return;
+		}
+		
 		// unsigned NumParam = 0;
 		// std::vector<llvm::Metadata *> Metadata;
 		// std::vector<SPIRVWord> LoopControlParameters = LM->getLoopControlParameters();
 		// Metadata.push_back(llvm::MDNode::get(*Context, Self));
-		//
+		
 		// // To correctly decode loop control parameters, order of checks for loop
 		// // control masks must match with the order given in the spec (see 3.23),
 		// // i.e. check smaller-numbered bits first.
@@ -1557,11 +1561,11 @@ private:
 		// 	}
 		// }
 		// llvm::MDNode *Node = llvm::MDNode::get(*Context, Metadata);
-		//
+		
 		// // Set the first operand to refer itself
 		// Node->replaceOperandWith(0, Node);
 		// BI->setMetadata("llvm.loop", Node);
-FATAL_ERROR();
+		TODO_ERROR();
 	}
 	
 	LLVMValueRef ConvertOCLFromExtensionInstruction(const SPIRV::SPIRVExtInst* extensionInstruction, LLVMValueRef currentFunction)
@@ -1730,7 +1734,7 @@ FATAL_ERROR();
 	{
 		auto metadata = LLVMValueAsMetadata(ConstI32(1));
 		const auto node = LLVMMDNodeInContext2(context, &metadata, 1);
-		const auto metadataId = LLVMGetMDKindIDInContext(context, "nontemporal", sizeof("nontemporal"));
+		const auto metadataId = LLVMGetMDKindIDInContext(context, "nontemporal", sizeof("nontemporal") - 1);
 		LLVMSetMetadata(instruction, metadataId, LLVMMetadataAsValue(context, node));
 		return true;
 	}
@@ -2209,7 +2213,7 @@ FATAL_ERROR();
 				auto image = ConvertValue(sampledImage->getOpValue(0), currentFunction);
 				auto sampler = ConvertValue(sampledImage->getOpValue(1), currentFunction);
 				
-				const auto functionName = "@ImageCombine";
+				const auto functionName = "@Image.Combine";
 				const auto cachedFunction = functionCache.find(functionName);
 				LLVMValueRef function;
 				if (cachedFunction != functionCache.end())
@@ -2287,7 +2291,7 @@ FATAL_ERROR();
 				
 				auto sampledImage = ConvertValue(image->getOpValue(0), currentFunction);
 				
-				const auto functionName = "@ImageGetRaw";
+				const auto functionName = "@Image.GetRaw";
 				const auto cachedFunction = functionCache.find(functionName);
 				LLVMValueRef function;
 				if (cachedFunction != functionCache.end())
@@ -2319,7 +2323,21 @@ FATAL_ERROR();
 			// case OpImageQueryFormat: break;
 			// case OpImageQueryOrder: break;
 			// case OpImageQuerySizeLod: break;
-			// case OpImageQuerySize: break;
+			 
+		case OpImageQuerySize:
+			{
+				const auto query = reinterpret_cast<const SPIRV::SPIRVImageInstBase*>(instruction);
+				const auto spirvImageType = query->getOpValue(0)->getType();
+				
+				const auto function = GetInbuiltFunction("@Image.Query.Size", query->getType(), {
+					                                         {nullptr, spirvImageType},
+				                                         });
+
+				return CallInbuiltFunction(function, query->getType(), {
+					                           {spirvImageType, ConvertValue(query->getOpValue(0), currentFunction)},
+				                           });
+			}
+			
 			// case OpImageQueryLod: break;
 			// case OpImageQueryLevels: break;
 			// case OpImageQuerySamples: break;
@@ -3098,7 +3116,9 @@ FATAL_ERROR();
 				return llvmSwitch;
 			}
 	
-			// case OpKill: break;
+		case OpKill:
+			// TODO: Handle case when OpKill not in entry function
+			return CreateRet(LLVMConstInt(LLVMInt1TypeInContext(context), 1, false));
 	
 		case OpReturn:
 			return LLVMBuildRetVoid(builder);
@@ -3402,14 +3422,32 @@ FATAL_ERROR();
 			TODO_ERROR();
 		}
 
-		const auto returnType = ConvertType(spirvFunction->getType());
+		auto returnType = ConvertType(spirvFunction->getType());
+
+		if (spirvFunction == entryPoint && executionModel == ExecutionModelFragment)
+		{
+			assert(LLVMVoidTypeInContext(context) == returnType);
+			returnType = LLVMInt1TypeInContext(context);
+		}
+		
 		const auto functionType = LLVMFunctionType(returnType, nullptr, 0, false);
 		const auto llvmFunction = LLVMAddFunction(module, MangleName(spirvFunction).c_str(), functionType);
 		LLVMSetLinkage(llvmFunction, LLVMExternalLinkage);
 	
 		for (auto i = 0u; i < spirvFunction->getNumBasicBlock(); i++)
 		{
-			ConvertBasicBlock(llvmFunction, spirvFunction->getBasicBlock(i));
+			const auto basicBlock = ConvertBasicBlock(llvmFunction, spirvFunction->getBasicBlock(i));
+			if (spirvFunction == entryPoint && executionModel == ExecutionModelFragment)
+			{
+				// Turn all void terminations into return false
+				if (spirvFunction->getBasicBlock(i)->getTerminateInstr()->getOpCode() == OpReturn)
+				{
+					const auto instruction = LLVMGetLastInstruction(basicBlock);
+					LLVMInstructionEraseFromParent(instruction);
+					LLVMPositionBuilderAtEnd(builder, basicBlock);
+					CreateRet(LLVMConstInt(LLVMInt1TypeInContext(context), 0, false));
+				}
+			}
 		}
 	
 		functionMapping[spirvFunction->getId()] = llvmFunction;
@@ -3476,9 +3514,9 @@ FATAL_ERROR();
 	}
 };
 
-CompiledModule* CompileSPIRVModule(CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const VkSpecializationInfo* specializationInfo)
+CompiledModule* CompileSPIRVModule(CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
 {
-	return SPIRVCompiledModuleBuilder(jit, spirvModule, executionModel, specializationInfo).Compile();
+	return SPIRVCompiledModuleBuilder(jit, spirvModule, executionModel, entryPoint, specializationInfo).Compile();
 }
 
 std::string MangleName(const SPIRV::SPIRVVariable* variable)
