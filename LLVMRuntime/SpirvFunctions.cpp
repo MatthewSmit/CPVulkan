@@ -3,9 +3,9 @@
 #include <glm/glm.hpp>
 
 template<typename Vector>
-static void Dot(typename Vector::value_type* result, const Vector* x, const Vector* y)
+static typename Vector::value_type Dot(const Vector* x, const Vector* y)
 {
-	*result = glm::dot(*x, *y);
+	return glm::dot(*x, *y);
 }
 
 template<typename Matrix, bool MatrixColumn, typename Scalar>
@@ -64,9 +64,9 @@ std::unordered_map<std::string, FunctionPointer>& getSpirvFunctions()
 {
 	static std::unordered_map<std::string, FunctionPointer> functions
 	{
-		{"@Vector.Dot.F32.F32[2]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec2>)},
-		{"@Vector.Dot.F32.F32[3]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec3>)},
-		{"@Vector.Dot.F32.F32[4]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec4>)},
+		{"@Vector.Dot.F32.F32[2].F32[2]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec2>)},
+		{"@Vector.Dot.F32.F32[3].F32[3]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec3>)},
+		{"@Vector.Dot.F32.F32[4].F32[4]", reinterpret_cast<FunctionPointer>(Dot<glm::fvec4>)},
 		
 		{"@Matrix.Mult.F32[2,2,col].F32[2,2,col].F32", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat2x2, true, float>)},
 		{"@Matrix.Mult.F32[3,3,col].F32[3,3,col].F32", reinterpret_cast<FunctionPointer>(MultiplicationMS<glm::mat3x3, true, float>)},

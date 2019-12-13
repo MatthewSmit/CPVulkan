@@ -748,7 +748,7 @@ void Pipeline::CompilePipeline()
 		layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
 	}
 	
-	vertexModule = CompileVertexPipeline(jit, shaderStages[0]->getSPIRVModule(), layoutBindings, [&](const std::string& symbolName)
+	vertexModule = CompileVertexPipeline(jit, shaderStages[0]->getSPIRVModule(), shaderStages[0]->getLLVMModule(), layoutBindings, [&](const std::string& symbolName)
 	{
 		if (symbolName == "!VertexShader")
 		{

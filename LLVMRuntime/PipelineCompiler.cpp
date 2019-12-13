@@ -1,20 +1,27 @@
 #include "PipelineCompiler.h"
 
+#include "CompiledModule.h"
 #include "CompiledModuleBuilder.h"
+#include "SPIRVBaseCompiler.h"
+#include "SPIRVCompiler.h"
 
 #include <PipelineData.h>
 
 #include <SPIRVDecorate.h>
 #include <SPIRVInstruction.h>
 #include <SPIRVType.h>
+
+#include <llvm-c/Target.h>
+
 #include <utility>
 
-class PipelineVertexCompiledModuleBuilder final : public CompiledModuleBuilder
+class PipelineVertexCompiledModuleBuilder final : public SPIRVBaseCompiledModuleBuilder
 {
 public:
-	PipelineVertexCompiledModuleBuilder(CPJit* jit, const SPIRV::SPIRVModule* vertexShader, const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings, std::function<void*(const std::string&)> getFunction) :
-		CompiledModuleBuilder{jit, std::move(getFunction)},
-		vertexShader{vertexShader},
+	PipelineVertexCompiledModuleBuilder(CPJit* jit, const SPIRV::SPIRVModule* spirvVertexShader, CompiledModule* llvmVertexShader, const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings, std::function<void*(const std::string&)> getFunction) :
+		SPIRVBaseCompiledModuleBuilder{jit, std::move(getFunction)},
+		spirvVertexShader{spirvVertexShader},
+		llvmVertexShader{llvmVertexShader},
 		layoutBindings{layoutBindings}
 	{
 	}
@@ -23,6 +30,7 @@ protected:
 	void MainCompilation() override
 	{
 		// TODO: Prefer globals over inttoptr of a constant address - this gives you dereferencability information. In MCJIT, use getSymbolAddress to provide actual address.
+		
 		std::vector<LLVMTypeRef> assemblerOutputMembers
 		{
 			LLVMInt32TypeInContext(context),
@@ -49,6 +57,9 @@ protected:
 		{
 			builtinOutputType,
 		};
+
+		AddOutputData(outputMembers);
+		
 		const auto outputType = LLVMPointerType(StructType(outputMembers, "_Output", true), 0);
 		const auto outputVariable = GlobalVariable(LLVMPointerType(LLVMInt8TypeInContext(context), 0), LLVMExternalLinkage, "@outputStorage");
 
@@ -64,103 +75,36 @@ protected:
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
 
-		const auto stride = CalculateOutputStride(vertexShader);
+		const auto stride = LLVMSizeOfTypeInBits(jit->getDataLayout(), LLVMGetElementType(outputType)) / 8;
 
 		const auto rawId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), 0, 0));
 		const auto vertexId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), 0, 1));
 		const auto instanceId = LLVMGetParam(function, 1);
 		
 		// Get shader variables
-		const auto shaderBuiltinInput = LLVMBuildIntToPtr(builder, ConstU64(reinterpret_cast<uint64_t>(getFunction("!VertexBuiltinInput"))), LLVMPointerType(builtinInputType, 0), "");
-		const auto shaderBuiltinOutput = LLVMBuildIntToPtr(builder, ConstU64(reinterpret_cast<uint64_t>(getFunction("!VertexBuiltinOutput"))), LLVMPointerType(builtinOutputType, 0), "");
+		const auto shaderBuiltinInputAddress = CreateIntToPtr(ConstU64(reinterpret_cast<uint64_t>(getFunction("!VertexBuiltinInput"))), LLVMPointerType(builtinInputType, 0));
+		const auto shaderBuiltinOutputAddress = CreateIntToPtr(ConstU64(reinterpret_cast<uint64_t>(getFunction("!VertexBuiltinOutput"))), LLVMPointerType(builtinOutputType, 0));
 		
 		// Set vertex shader builtin
-		CreateStore(vertexId, CreateGEP(shaderBuiltinInput, 0, 0), false);
-		CreateStore(instanceId, CreateGEP(shaderBuiltinInput, 0, 1), false);
+		CreateStore(vertexId, CreateGEP(shaderBuiltinInputAddress, 0, 0), false);
+		CreateStore(instanceId, CreateGEP(shaderBuiltinInputAddress, 0, 1), false);
 		
 		// Call the vertex shader
 		const auto vertexShaderEntry = LLVMAddFunction(module, "!VertexShader", LLVMFunctionType(LLVMVoidType(), nullptr, 0, false));
 		LLVMSetLinkage(vertexShaderEntry, LLVMExternalLinkage);
 		LLVMBuildCall(builder, vertexShaderEntry, nullptr, 0, "");
+
+		// TODO: Modify vertex shader to use pointer directly
 		
 		// Copy vertex builtin output to storage
-		const auto builtinOutputPointer = CreateLoad(shaderBuiltinOutput);
-		const auto outputStorage = LLVMBuildBitCast(builder, CreateGEP(CreateLoad(outputVariable), {LLVMBuildMul(builder, rawId, ConstU32(stride), "")}), outputType, "");
-		CreateStore(builtinOutputPointer, CreateGEP(outputStorage, 0, 0));
+		const auto shaderBuiltinOutput = CreateLoad(shaderBuiltinOutputAddress);
+		const auto outputStorage = CreateBitCast(CreateGEP(CreateLoad(outputVariable), {LLVMBuildMul(builder, rawId, ConstU32(stride), "")}), outputType);
+		CreateStore(shaderBuiltinOutput, CreateGEP(outputStorage, 0, 0));
 
-		LLVMBuildRetVoid(builder);
-	}
-	
-private:
-	const SPIRV::SPIRVModule* vertexShader;
-	const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings;
-	
-	static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
-	{
-		if (type->isTypeArray())
+		// Copy custom output to storage
+		for (auto i = 0u; i < spirvVertexShader->getNumVariables(); i++)
 		{
-			const auto size = GetVariableSize(type->getArrayElementType());
-			if (type->hasDecorate(DecorationArrayStride))
-			{
-				const auto stride = *type->getDecorate(DecorationArrayStride).begin();
-				if (stride != size)
-				{
-					TODO_ERROR();
-				}
-			}
-
-			return size * type->getArrayLength();
-		}
-
-		if (type->isTypeStruct())
-		{
-			auto size = 0u;
-			for (auto i = 0u; i < type->getStructMemberCount(); i++)
-			{
-				const auto decorate = type->getMemberDecorate(i, DecorationOffset);
-				if (decorate && decorate->getLiteral(0) != size)
-				{
-					const auto offset = decorate->getLiteral(0);
-					if (offset < size)
-					{
-						TODO_ERROR();
-					}
-					else
-					{
-						size = offset;
-					}
-				}
-				size += GetVariableSize(type->getStructMemberType(i));
-			}
-			return size;
-		}
-
-		if (type->isTypeMatrix())
-		{
-			// TODO: Matrix stride & so on
-			return GetVariableSize(type->getScalarType()) * type->getMatrixColumnCount() * type->getMatrixColumnType()->getVectorComponentCount();
-		}
-
-		if (type->isTypeVector())
-		{
-			return GetVariableSize(type->getVectorComponentType()) * type->getVectorComponentCount();
-		}
-
-		if (type->isTypeFloat() || type->isTypeInt())
-		{
-			return type->getBitWidth() / 8;
-		}
-
-		FATAL_ERROR();
-	}
-
-	static uint32_t CalculateOutputStride(const SPIRV::SPIRVModule* spirvModule)
-	{
-		uint32_t stride = sizeof(VertexBuiltinOutput);
-
-		for (auto i = 0u; i < spirvModule->getNumVariables(); i++)
-		{
-			const auto variable = spirvModule->getVariable(i);
+			const auto variable = spirvVertexShader->getVariable(i);
 			if (variable->getStorageClass() == StorageClassOutput)
 			{
 				auto locations = variable->getDecorate(DecorationLocation);
@@ -169,29 +113,40 @@ private:
 					continue;
 				}
 
-				if (variable->getType()->getPointerElementType()->isTypeArray())
-				{
-					const auto size = variable->getType()->getPointerElementType()->getArrayLength();
-					const auto type = variable->getType()->getPointerElementType()->getArrayElementType();
-					const auto variableSize = GetVariableSize(type);
-					for (auto j = 0U; j < size; j++)
-					{
-						stride += variableSize;
-					}
-				}
-				else
-				{
-					const auto type = variable->getType()->getPointerElementType();
-					stride += GetVariableSize(type);
-				}
+				const auto shaderAddress = CreateIntToPtr(ConstU64(reinterpret_cast<uint64_t>(llvmVertexShader->getPointer(MangleName(variable)))), ConvertType(variable->getType()));
+				const auto shaderValue = CreateLoad(shaderAddress);
+				CreateStore(shaderValue, CreateGEP(outputStorage, 0, i + 1));
 			}
 		}
 
-		return stride;
+		LLVMBuildRetVoid(builder);
+	}
+	
+private:
+	const SPIRV::SPIRVModule* spirvVertexShader;
+	CompiledModule* llvmVertexShader;
+	const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings;
+
+	void AddOutputData(std::vector<LLVMTypeRef>& outputMembers)
+	{
+		for (auto i = 0u; i < spirvVertexShader->getNumVariables(); i++)
+		{
+			const auto variable = spirvVertexShader->getVariable(i);
+			if (variable->getStorageClass() == StorageClassOutput)
+			{
+				auto locations = variable->getDecorate(DecorationLocation);
+				if (locations.empty())
+				{
+					continue;
+				}
+
+				outputMembers.push_back(ConvertType(variable->getType()->getPointerElementType()));
+			}
+		}
 	}
 };
 
-CompiledModule* CompileVertexPipeline(CPJit* jit, const SPIRV::SPIRVModule* vertexShader, const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings, std::function<void*(const std::string&)> getFunction)
+CompiledModule* CompileVertexPipeline(CPJit* jit, const SPIRV::SPIRVModule* spirvVertexShader, CompiledModule* llvmVertexShader, const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings, std::function<void*(const std::string&)> getFunction)
 {
-	return PipelineVertexCompiledModuleBuilder(jit, vertexShader, layoutBindings, std::move(getFunction)).Compile();
+	return PipelineVertexCompiledModuleBuilder(jit, spirvVertexShader, llvmVertexShader, layoutBindings, std::move(getFunction)).Compile();
 }

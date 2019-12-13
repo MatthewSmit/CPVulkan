@@ -365,7 +365,7 @@ namespace SPIRV
 			: SPIRVDecorate(D, TheTarget) {
 			for (auto &I : getVec(Str))
 				Literals.push_back(I);
-			WordCount += Literals.size();
+			WordCount += static_cast<uint32_t>(Literals.size());
 		}
 		// Incomplete constructor
 		SPIRVDecorateStrAttrBase() : SPIRVDecorate() {}
@@ -421,7 +421,7 @@ namespace SPIRV
 				Literals.push_back(I);
 			for (auto &I : getVec(Direction))
 				Literals.push_back(I);
-			WordCount += Literals.size();
+			WordCount += static_cast<uint32_t>(Literals.size());
 		}
 
 		static void encodeLiterals(SPIRVEncoder &Encoder,
@@ -463,7 +463,7 @@ namespace SPIRV
 			: SPIRVMemberDecorate(D, MemberNumber, TheTarget) {
 			for (auto &I : getVec(Str))
 				Literals.push_back(I);
-			WordCount += Literals.size();
+			WordCount += static_cast<uint32_t>(Literals.size());
 		}
 		// Incomplete constructor
 		SPIRVMemberDecorateStrAttrBase() : SPIRVMemberDecorate() {}
@@ -502,7 +502,7 @@ namespace SPIRV
 				Literals.push_back(I);
 			for (auto &I : getVec(Direction))
 				Literals.push_back(I);
-			WordCount += Literals.size();
+			WordCount += static_cast<uint32_t>(Literals.size());
 		}
 	};
 

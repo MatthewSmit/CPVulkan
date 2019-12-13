@@ -16,6 +16,9 @@ add_library(LLVMRuntime SHARED
 
 	"LLVMHelper.cpp"
 
+	"SPIRVBaseCompiler.cpp"
+	"SPIRVBaseCompiler.h"
+
 	"PipelineCompiler.cpp"
 	"PipelineCompiler.h"
 	

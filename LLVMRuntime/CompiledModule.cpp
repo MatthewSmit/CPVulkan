@@ -178,8 +178,10 @@ CompiledModule* CompiledModuleBuilder::Compile()
 		MainCompilation();
 
 		LLVMDisposeBuilder(builder);
-		
+
+#ifdef NDEBUG
 		LLVMRunPassManager(this->jit->getPassManager(), module);
+#endif
 
 		// TODO: Soft fail?
 		// LLVMVerifyModule(module, LLVMAbortProcessAction, nullpointer);

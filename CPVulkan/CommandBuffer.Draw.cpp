@@ -556,11 +556,10 @@ static float EdgeFunction(const glm::vec4& a, const glm::vec4& b, const glm::vec
 	return (c.x - a.x) * (b.y - a.y) - (c.y - a.y) * (b.x - a.x);
 }
 
-static void GetVariablePointers(const SPIRV::SPIRVModule* module, 
-                                const CompiledModule* llvmModule, 
-                                CPJit* jit, 
+static void GetVariablePointers(const SPIRV::SPIRVModule* module,
+                                const CompiledModule* llvmModule,
                                 std::vector<VariableInOutData>& inputData,
-                                std::vector<VariableUniformData>& uniformData, 
+                                std::vector<VariableUniformData>& uniformData,
                                 std::vector<VariableInOutData>& outputData,
                                 std::pair<void*, uint32_t>& pushConstant,
                                 uint32_t& inputSize,
@@ -791,13 +790,13 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(spirvModule, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
+	GetVariablePointers(spirvModule, llvmModule, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
 
 	EnsureVertexMemoryStorage(deviceState, assemblerOutput.size(), vertexStorageStride);
 	const auto outputStorage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule()->getPointer("@outputStorage");
 	*static_cast<void**>(outputStorage) = deviceState->vertexOutputStorage.data();
-	
-	VertexOutput output
+
+	const VertexOutput output
 	{
 		sizeof(VertexBuiltinOutput),
 		vertexStorageStride,
@@ -816,11 +815,6 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		LoadVertexInput(deviceState, vertex.vertexId, instance, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
 
 		reinterpret_cast<void(*)(AssemblerOutput*, uint32_t)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(&vertex, instance);
-
-		for (const auto& data : outputData)
-		{
-			memcpy(deviceState->vertexOutputStorage.data() + vertex.rawId * output.outputStride + data.offset, data.pointer, data.size);
-		}
 	}
 	
 	return output;
@@ -2178,7 +2172,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(spirvModule, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
+	GetVariablePointers(spirvModule, llvmModule, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
 	
 	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
 	
@@ -2290,7 +2284,7 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 	std::vector<VariableUniformData> uniformData{};
 	std::vector<VariableInOutData> outputData{};
 	std::pair<void*, uint32_t> pushConstant{};
-	GetVariablePointers(spirvModule, llvmModule, deviceState->jit, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
+	GetVariablePointers(spirvModule, llvmModule, inputData, uniformData, outputData, pushConstant, inputSize, outputSize);
 	
 	assert(inputData.empty() && outputData.empty());
 	
