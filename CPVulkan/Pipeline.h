@@ -5,6 +5,7 @@
 
 #include <array>
 #include <vector>
+#include "DeviceState.h"
 
 namespace SPIRV
 {
@@ -152,9 +153,9 @@ public:
 	void OnDelete(const VkAllocationCallbacks*)
 	{
 	}
-
-	void CompilePipeline();
-
+	
+	void CompilePipeline(DeviceState* deviceState);
+	
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 

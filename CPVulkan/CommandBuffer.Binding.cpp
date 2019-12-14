@@ -1,5 +1,6 @@
 #include "CommandBuffer.h"
 
+#include "Buffer.h"
 #include "DebugHelper.h"
 #include "DeviceState.h"
 
@@ -224,7 +225,7 @@ public:
 		for (auto i = 0u; i < buffers.size(); i++)
 		{
 			deviceState->vertexBinding[i + firstBinding] = buffers[i];
-			deviceState->vertexBindingOffset[i + firstBinding] = bufferOffsets[i];
+			deviceState->graphicsPipelineState.vertexBinding[i + firstBinding] = buffers[i]->getDataPtr(bufferOffsets[i], 0);
 		}
 	}
 

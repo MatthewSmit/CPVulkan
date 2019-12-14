@@ -740,7 +740,7 @@ Pipeline::~Pipeline()
 	delete vertexModule;
 }
 
-void Pipeline::CompilePipeline()
+void Pipeline::CompilePipeline(DeviceState* deviceState)
 {
 	auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(layout->getDescriptorSetLayouts().size());
 	for (auto i = 0u; i < layoutBindings.size(); i++)
@@ -748,26 +748,21 @@ void Pipeline::CompilePipeline()
 		layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
 	}
 	
-	vertexModule = CompileVertexPipeline(jit, shaderStages[0]->getSPIRVModule(), shaderStages[0]->getLLVMModule(), layoutBindings, [&](const std::string& symbolName)
-	{
-		if (symbolName == "!VertexShader")
-		{
-			return static_cast<void*>(this->shaderStages[0]->getEntryPoint());
-		}
+	vertexModule = CompileVertexPipeline(jit, shaderStages[0]->getSPIRVModule(), shaderStages[0]->getLLVMModule(),
+	                                     layoutBindings,
+	                                     vertexInputState.VertexBindingDescriptions,
+	                                     vertexInputState.VertexAttributeDescriptions,
+	                                     [&](const std::string& symbolName)
+	                                     {
+		                                     if (symbolName == "!VertexShader")
+		                                     {
+			                                     return static_cast<void*>(this->shaderStages[0]->getEntryPoint());
+		                                     }
 
-		if (symbolName == "!VertexBuiltinInput")
-		{
-			return this->shaderStages[0]->getLLVMModule()->getPointer("_builtinInput");
-		}
-		
-		if (symbolName == "!VertexBuiltinOutput")
-		{
-			return this->shaderStages[0]->getLLVMModule()->getPointer("_builtinOutput");
-		}
-
-		return static_cast<void*>(nullptr);
-	});
+		                                     return static_cast<void*>(nullptr);
+	                                     });
 	vertexEntryPoint = vertexModule->getFunctionPointer("@VertexProcessing");
+	*static_cast<GraphicsPipelineState**>(vertexModule->getPointer("@pipelineState")) = &deviceState->graphicsPipelineState;
 }
 
 VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
@@ -897,7 +892,7 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		}
 	}
 
-	pipeline->CompilePipeline();
+	pipeline->CompilePipeline(device->getState());
 
 	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;

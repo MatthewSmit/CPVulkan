@@ -16,7 +16,6 @@
 
 #include <CompiledModule.h>
 #include <ImageCompiler.h>
-#include <Jit.h>
 #include <PipelineData.h>
 #include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
@@ -123,30 +122,6 @@ static void ClearImage(DeviceState* deviceState, Image* image, uint32_t layer, u
 			}
 		}
 	}
-}
-
-static const VkVertexInputAttributeDescription& FindAttribute(uint32_t location, const VertexInputState& vertexInputState)
-{
-	for (const auto& attribute : vertexInputState.VertexAttributeDescriptions)
-	{
-		if (attribute.location == location)
-		{
-			return attribute;
-		}
-	}
-	FATAL_ERROR();
-}
-
-static const VkVertexInputBindingDescription& FindBinding(uint32_t binding, const VertexInputState& vertexInputState)
-{
-	for (const auto& bindingDescription : vertexInputState.VertexBindingDescriptions)
-	{
-		if (bindingDescription.binding == binding)
-		{
-			return bindingDescription;
-		}
-	}
-	FATAL_ERROR();
 }
 
 static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
@@ -435,66 +410,6 @@ static void CopyFormatConversion(DeviceState* deviceState, void* destination, co
 		
 	default:
 		FATAL_ERROR();
-	}
-}
-
-static void LoadVertexInput(DeviceState* deviceState, uint32_t vertex, uint32_t instance, const VertexInputState& vertexInputState, const Buffer* const vertexBinding[16], const uint64_t vertexBindingOffset[16], const std::vector<VariableInOutData>& vertexInputs)
-{
-	for (const auto& input : vertexInputs)
-	{
-		if (input.format == VK_FORMAT_UNDEFINED)
-		{
-			assert(input.type->isTypeMatrix());
-			const auto format = GetVariableFormat(input.type->getMatrixColumnType());
-			const auto vectorStride = GetVariableSize(input.type->getMatrixColumnType());
-			for (auto i = 0u; i < input.type->getMatrixColumnCount(); i++)
-			{
-				const auto& attribute = FindAttribute(input.location + i, vertexInputState);
-				const auto& binding = FindBinding(attribute.binding, vertexInputState);
-				uint64_t offset;
-				if (binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX)
-				{
-					offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * vertex + attribute.offset;
-				}
-				else
-				{
-					offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * instance + attribute.offset;
-				}
-				const auto size = GetFormatInformation(attribute.format).TotalSize;
-				const auto pointer = static_cast<uint8_t*>(input.pointer) + i * vectorStride;
-				if (format != attribute.format)
-				{
-					CopyFormatConversion(deviceState, pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), format, attribute.format);
-				}
-				else
-				{
-					memcpy(pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), size);
-				}
-			}
-		}
-		else
-		{
-			const auto& attribute = FindAttribute(input.location, vertexInputState);
-			const auto& binding = FindBinding(attribute.binding, vertexInputState);
-			uint64_t offset;
-			if (binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX)
-			{
-				offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * vertex + attribute.offset;
-			}
-			else
-			{
-				offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride) * instance + attribute.offset;
-			}
-			const auto size = GetFormatInformation(attribute.format).TotalSize;
-			if (input.format != attribute.format)
-			{
-				CopyFormatConversion(deviceState, input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), input.format, attribute.format);
-			}
-			else
-			{
-				memcpy(input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), size);
-			}
-		}
 	}
 }
 
@@ -812,8 +727,6 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 
 	for (auto vertex : assemblerOutput)
 	{
-		LoadVertexInput(deviceState, vertex.vertexId, instance, vertexInput, deviceState->vertexBinding, deviceState->vertexBindingOffset, inputData);
-
 		reinterpret_cast<void(*)(AssemblerOutput*, uint32_t)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(&vertex, instance);
 	}
 	

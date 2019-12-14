@@ -34,6 +34,11 @@ private:
 	CPJit* jit;
 };
 
+struct GraphicsPipelineState
+{
+	uint8_t* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
+};
+
 struct DeviceState
 {
 public:
@@ -43,11 +48,11 @@ public:
 		DescriptorSet* descriptorSets[MAX_BOUND_DESCRIPTOR_SETS];
 		uint32_t descriptorSetDynamicOffset[MAX_BOUND_DESCRIPTOR_SETS][MAX_DESCRIPTOR_SET_UNIFORM_BUFFERS_DYNAMIC + MAX_DESCRIPTOR_SET_STORAGE_BUFFERS_DYNAMIC];
 	} pipelineState[MAX_PIPELINES];
-	
+
+	GraphicsPipelineState graphicsPipelineState;
 	VkViewport viewports[MAX_VIEWPORTS];
 	VkRect2D scissors[MAX_VIEWPORTS];
 	Buffer* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
-	uint64_t vertexBindingOffset[MAX_VERTEX_INPUT_BINDINGS];
 	Buffer* indexBinding;
 	uint64_t indexBindingOffset;
 	uint32_t indexBindingStride;

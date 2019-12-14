@@ -209,6 +209,8 @@ protected:
 
 	LLVMValueRef CreateGEP(LLVMValueRef pointer, uint32_t index0, uint32_t index1);
 
+	LLVMValueRef CreateGEP(LLVMValueRef pointer, const std::vector<uint32_t>& indices);
+	
 	LLVMValueRef CreateGEP(LLVMValueRef pointer, std::vector<LLVMValueRef> indices);
 
 	LLVMValueRef CreateInBoundsGEP(LLVMValueRef pointer, uint32_t index0);

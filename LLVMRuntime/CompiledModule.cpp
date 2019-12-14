@@ -714,6 +714,16 @@ LLVMValueRef CompiledModuleBuilder::CreateGEP(LLVMValueRef pointer, uint32_t ind
 	return LLVMBuildGEP(builder, pointer, indices.data(), static_cast<uint32_t>(indices.size()), "");
 }
 
+LLVMValueRef CompiledModuleBuilder::CreateGEP(LLVMValueRef pointer, const std::vector<uint32_t>& indices)
+{
+	std::vector<LLVMValueRef> llvmIndices{indices.size()};
+	for (auto i = 0u; i < indices.size(); i++)
+	{
+		llvmIndices[i] = LLVMConstInt(LLVMInt32TypeInContext(context), indices[i], false);
+	}
+	return LLVMBuildGEP(builder, pointer, llvmIndices.data(), static_cast<uint32_t>(llvmIndices.size()), "");
+}
+
 LLVMValueRef CompiledModuleBuilder::CreateGEP(LLVMValueRef pointer, std::vector<LLVMValueRef> indices)
 {
 	return LLVMBuildGEP(builder, pointer, indices.data(), static_cast<uint32_t>(indices.size()), "");
