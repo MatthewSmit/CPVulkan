@@ -468,7 +468,7 @@ private:
 		CreateStore(shaderBuiltinOutput, CreateGEP(outputStorage, 0, 0));
 
 		// Copy custom output to storage
-		for (auto i = 0u; i < spirvVertexShader->getNumVariables(); i++)
+		for (auto i = 0u, j = 0u; i < spirvVertexShader->getNumVariables(); i++)
 		{
 			const auto variable = spirvVertexShader->getVariable(i);
 			if (variable->getStorageClass() == StorageClassOutput)
@@ -481,7 +481,8 @@ private:
 
 				const auto shaderAddress = CreateIntToPtr(ConstU64(reinterpret_cast<uint64_t>(llvmVertexShader->getPointer(MangleName(variable)))), ConvertType(variable->getType()));
 				const auto shaderValue = CreateLoad(shaderAddress);
-				CreateStore(shaderValue, CreateGEP(outputStorage, 0, i + 1));
+				CreateStore(shaderValue, CreateGEP(outputStorage, 0, j + 1));
+				j++;
 			}
 		}
 	}
