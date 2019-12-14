@@ -287,6 +287,7 @@ protected:
 		{
 			LLVMPointerType(assemblerOutputType, 0),
 			LLVMInt32TypeInContext(context),
+			LLVMInt32TypeInContext(context),
 		};
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "@VertexProcessing", functionType);
@@ -295,17 +296,21 @@ protected:
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
 
-		const auto rawId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), 0, 0));
-		const auto vertexId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), 0, 1));
-		const auto instanceId = LLVMGetParam(function, 1);
+		const auto numberVertices = LLVMGetParam(function, 1);
+		const auto instanceId = LLVMGetParam(function, 2);
 		
 		// Get shader variables
 		const auto shaderBuiltinInputAddress = CreateIntToPtr(ConstU64(reinterpret_cast<uint64_t>(llvmVertexShader->getPointer("_builtinInput"))), LLVMPointerType(builtinInputType, 0));
 		const auto shaderBuiltinOutputAddress = CreateIntToPtr(ConstU64(reinterpret_cast<uint64_t>(llvmVertexShader->getPointer("_builtinOutput"))), LLVMPointerType(builtinOutputType, 0));
 
-		CompileProcessVertex(rawId, vertexId, instanceId,
-		                     shaderBuiltinInputAddress, shaderBuiltinOutputAddress,
-		                     outputVariable, outputType);
+		CreateFor(function, ConstU32(0), numberVertices, ConstU32(1), [&](LLVMValueRef i, LLVMBasicBlockRef, LLVMBasicBlockRef)
+		{
+			const auto rawId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), std::vector<LLVMValueRef>{i, ConstU32(0)}));
+			const auto vertexId = CreateLoad(CreateGEP(LLVMGetParam(function, 0), std::vector<LLVMValueRef>{i, ConstU32(1)}));
+			CompileProcessVertex(rawId, vertexId, instanceId,
+			                     shaderBuiltinInputAddress, shaderBuiltinOutputAddress,
+			                     outputVariable, outputType);
+		});
 
 		LLVMBuildRetVoid(builder);
 	}
@@ -479,6 +484,37 @@ private:
 				CreateStore(shaderValue, CreateGEP(outputStorage, 0, i + 1));
 			}
 		}
+	}
+
+	void CreateFor(LLVMValueRef currentFunction, LLVMValueRef initialiser, LLVMValueRef comparison, LLVMValueRef increment, 
+	               std::function<void(LLVMValueRef i, LLVMBasicBlockRef continueBlock, LLVMBasicBlockRef breakBlock)> forFunction)
+	{
+		const auto comparisonBlock = LLVMAppendBasicBlock(currentFunction, "for-comparison");
+		const auto bodyBlock = LLVMAppendBasicBlock(currentFunction, "for-body");
+		const auto incrementBlock = LLVMAppendBasicBlock(currentFunction, "for-increment");
+		const auto endBlock = LLVMAppendBasicBlock(currentFunction, "for-end");
+
+		// auto i = initialiser
+		const auto index = CreateAlloca(LLVMTypeOf(initialiser), "for-index");
+		CreateStore(initialiser, index);
+		CreateBr(comparisonBlock);
+
+		// break if i >= comparison
+		LLVMPositionBuilderAtEnd(builder, comparisonBlock);
+		const auto reachedEnd = CreateICmpUGE(CreateLoad(index), comparison);
+		CreateCondBr(reachedEnd, endBlock, bodyBlock);
+
+		// main body
+		LLVMPositionBuilderAtEnd(builder, bodyBlock);
+		forFunction(CreateLoad(index), incrementBlock, endBlock);
+		CreateBr(incrementBlock);
+
+		// index += increment
+		LLVMPositionBuilderAtEnd(builder, incrementBlock);
+		CreateStore(CreateAdd(CreateLoad(index), increment), index);
+		CreateBr(comparisonBlock);
+
+		LLVMPositionBuilderAtEnd(builder, endBlock);
 	}
 };
 

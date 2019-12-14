@@ -725,10 +725,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
 	}
 
-	for (auto vertex : assemblerOutput)
-	{
-		reinterpret_cast<void(*)(AssemblerOutput*, uint32_t)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(&vertex, instance);
-	}
+	reinterpret_cast<void(*)(const AssemblerOutput*, uint32_t, uint32_t)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(assemblerOutput.data(), static_cast<uint32_t>(assemblerOutput.size()), instance);
 	
 	return output;
 }
