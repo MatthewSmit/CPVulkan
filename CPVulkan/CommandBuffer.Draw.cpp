@@ -1297,7 +1297,22 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	// TODO: 27.8. Mixed attachment samples
 	// TODO: 27.9. Multisample Coverage
 	// TODO: 27.10. Depth and Stencil Operations
-	// TODO: 27.11. Depth Bounds Test
+	 
+	// 27.11. Depth Bounds Test
+	const auto currentDepth = depthImage.second ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0) : 0;
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthBoundsTestEnable)
+	{
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicDepthBounds)
+		{
+			TODO_ERROR();
+		}
+
+		if (currentDepth < deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().MinDepthBounds ||
+			currentDepth > deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().MaxDepthBounds)
+		{
+			return;
+		}
+	}
 
 	// 27.12. Stencil Test
 	auto stencilResult = true;
@@ -1327,7 +1342,6 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	// 27.13. Depth Test
 	auto depthResult = true;
 	// TODO: Optimise so depth checking uses native type
-	const auto currentDepth = depthImage.second ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0) : 0;
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthTestEnable)
 	{
 		if (depthImage.second)
@@ -1340,7 +1354,10 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			depthResult = CompareTest(depth, currentDepth, deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthCompareOp);
 		}
 	}
-	auto depthWrite = depthResult && deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthWriteEnable && depthImage.second;
+	auto depthWrite = depthResult && 
+		deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthTestEnable &&
+		deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthWriteEnable &&
+		depthImage.second;
 
 	// Stencil & Depth Write
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().StencilTestEnable && stencilImage.second)
