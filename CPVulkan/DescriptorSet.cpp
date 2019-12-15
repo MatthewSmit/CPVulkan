@@ -63,6 +63,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			value.Buffer = *descriptorWrite.pBufferInfo;
 			if (value.Buffer.range == VK_WHOLE_SIZE)
 			{
+				// TODO: might be buggy with dynamic offsets
 				value.Buffer.range = UnwrapVulkan<Buffer>(value.Buffer.buffer)->getSize() - value.Buffer.offset;
 			}
 			break;

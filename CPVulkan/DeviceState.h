@@ -46,7 +46,7 @@ public:
 	{
 		Pipeline* pipeline;
 		DescriptorSet* descriptorSets[MAX_BOUND_DESCRIPTOR_SETS];
-		uint32_t descriptorSetDynamicOffset[MAX_BOUND_DESCRIPTOR_SETS][MAX_DESCRIPTOR_SET_UNIFORM_BUFFERS_DYNAMIC + MAX_DESCRIPTOR_SET_STORAGE_BUFFERS_DYNAMIC];
+		uint32_t descriptorSetDynamicOffset[MAX_BOUND_DESCRIPTOR_SETS][MAX_PER_STAGE_RESOURCES * 5];
 	} pipelineState[MAX_PIPELINES];
 
 	GraphicsPipelineState graphicsPipelineState;

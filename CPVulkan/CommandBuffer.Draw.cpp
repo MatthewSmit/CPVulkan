@@ -437,12 +437,20 @@ static void LoadUniforms(DeviceState* deviceState, const std::vector<VariableUni
 			
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
-		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
-		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
 			for (auto j = 0u; j < value->count; j++)
 			{
 				const auto& bufferInfo = value->values[j].Buffer;
 				static_cast<const void**>(data.pointer)[j] = UnwrapVulkan<Buffer>(bufferInfo.buffer)->getDataPtr(bufferInfo.offset, bufferInfo.range);
+			}
+			break;
+
+		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
+		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
+			for (auto j = 0u; j < value->count; j++)
+			{
+				const auto dynamicOffset = deviceState->pipelineState[pipelineIndex].descriptorSetDynamicOffset[data.set][data.binding];
+				const auto& bufferInfo = value->values[j].Buffer;
+				static_cast<const void**>(data.pointer)[j] = UnwrapVulkan<Buffer>(bufferInfo.buffer)->getDataPtr(bufferInfo.offset + dynamicOffset, bufferInfo.range);
 			}
 			break;
 			

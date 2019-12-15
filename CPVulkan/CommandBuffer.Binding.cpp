@@ -2,6 +2,7 @@
 
 #include "Buffer.h"
 #include "DebugHelper.h"
+#include "DescriptorSet.h"
 #include "DeviceState.h"
 
 #include <fstream>
@@ -126,14 +127,22 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		for (auto i = 0u; i < descriptorSets.size(); i++)
+		auto& pipelineState = deviceState->pipelineState[bindPoint];
+		for (auto i = 0u, dynamic = 0u; i < descriptorSets.size(); i++)
 		{
-			deviceState->pipelineState[bindPoint].descriptorSets[i + firstSet] = descriptorSets[i];
-		}
-
-		if (!dynamicOffsets.empty())
-		{
-			TODO_ERROR();
+			const auto& descriptorSet = pipelineState.descriptorSets[i + firstSet] = descriptorSets[i];
+			for (auto j = 0u; j < descriptorSet->getNumberBindings(); j++)
+			{
+				VkDescriptorType descriptorType;
+				Descriptor* value;
+				descriptorSet->getBinding(j, descriptorType, value);
+				if (descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC || descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
+				{
+					assert(dynamic < dynamicOffsets.size());
+					pipelineState.descriptorSetDynamicOffset[i + firstSet][j] = dynamicOffsets[dynamic];
+					dynamic++;
+				}
+			}
 		}
 	}
 
