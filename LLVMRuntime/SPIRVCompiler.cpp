@@ -1820,7 +1820,7 @@ private:
 					{
 						LLVMPointerType(LLVMInt8TypeInContext(context), 0),
 						LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-						LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+						LLVMPointerType(LLVMPointerType(LLVMInt8TypeInContext(context), 0), 0),
 					};
 
 					const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameterTypes, 3, false);
@@ -1897,7 +1897,7 @@ private:
 					LLVMTypeRef parameterTypes[]
 					{
 						LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-						LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+						LLVMPointerType(LLVMPointerType(LLVMInt8TypeInContext(context), 0), 0),
 					};
 
 					const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameterTypes, 2, false);
