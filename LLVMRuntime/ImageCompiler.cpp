@@ -297,52 +297,8 @@ protected:
 			break;
 		
 		case FormatType::DepthStencil:
-			// TODO
-			// {
-			// 	llvm::Value* value;
-			// 	switch (information->Format)
-			// 	{
-			// 	case VK_FORMAT_D16_UNORM:
-			// 	case VK_FORMAT_D16_UNORM_S8_UINT:
-			// 		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getInt16Ty(), 0));
-			// 		value = builder.CreateLoad(sourcePtr);
-			// 		value = EmitConvert<uint16_t, float>(builder, value);
-			// 		break;
-			//
-			// 	case VK_FORMAT_D24_UNORM_S8_UINT:
-			// 	case VK_FORMAT_X8_D24_UNORM_PACK32:
-			// 		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getInt32Ty(), 0));
-			// 		value = builder.CreateLoad(sourcePtr);
-			// 		value = builder.CreateAnd(value, builder.getInt32(0x00FFFFFF));
-			// 		value = builder.CreateUIToFP(value, builder.getFloatTy());
-			// 		value = builder.CreateFDiv(value, llvm::ConstantFP::get(builder.getFloatTy(), 0x00FFFFFF));
-			// 		break;
-			//
-			// 	case VK_FORMAT_D32_SFLOAT:
-			// 	case VK_FORMAT_D32_SFLOAT_S8_UINT:
-			// 		sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(builder.getFloatTy(), 0));
-			// 		value = builder.CreateLoad(sourcePtr);
-			// 		break;
-			//
-			// 	default:
-			// 		TODO_ERROR();
-			// 	}
-			// 	
-			// 	auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
-			// 	builder.CreateStore(value, dst);
-			//
-			// 	dst = builder.CreateConstGEP1_32(destinationPtr, 1);
-			// 	builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
-			//
-			// 	dst = builder.CreateConstGEP1_32(destinationPtr, 2);
-			// 	builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 0), dst);
-			//
-			// 	dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-			// 	builder.CreateStore(llvm::ConstantFP::get(builder.getFloatTy(), 1), dst);
-			// 	
-			// 	break;
-			// }
-			TODO_ERROR();
+			CompileGetDepthStencil(sourcePtr, destinationPtr);
+			break;
 			
 		case FormatType::Compressed:
 			// TODO
@@ -641,6 +597,50 @@ private:
 		}
 	}
 
+	void CompileGetDepthStencil(LLVMValueRef sourcePtr, LLVMValueRef destinationPtr)
+	{
+		LLVMValueRef value;
+		switch (information->Format)
+		{
+		case VK_FORMAT_D16_UNORM:
+		case VK_FORMAT_D16_UNORM_S8_UINT:
+			sourcePtr = CreateBitCast(sourcePtr, LLVMPointerType(LLVMInt16TypeInContext(context), 0));
+			value = CreateLoad(sourcePtr);
+			value = EmitConvert<uint16_t, float>(value);
+			break;
+			
+		case VK_FORMAT_D24_UNORM_S8_UINT:
+		case VK_FORMAT_X8_D24_UNORM_PACK32:
+			sourcePtr = CreateBitCast(sourcePtr, LLVMPointerType(LLVMInt32TypeInContext(context), 0));
+			value = CreateLoad(sourcePtr);
+			value = CreateAnd(value, ConstU32(0x00FFFFFF));
+			value = CreateUIToFP(value, LLVMFloatTypeInContext(context));
+			value = CreateFDiv(value, ConstF32(0x00FFFFFF));
+			break;
+			
+		case VK_FORMAT_D32_SFLOAT:
+		case VK_FORMAT_D32_SFLOAT_S8_UINT:
+			sourcePtr = CreateBitCast(sourcePtr, LLVMPointerType(LLVMFloatTypeInContext(context), 0));
+			value = CreateLoad(sourcePtr);
+			break;
+			
+		default:
+			TODO_ERROR();
+		}
+			
+		auto dst = CreateGEP(destinationPtr, 0);
+		CreateStore(value, dst);
+		
+		dst = CreateGEP(destinationPtr, 1);
+		CreateStore(ConstF32(0), dst);
+		
+		dst = CreateGEP(destinationPtr, 2);
+		CreateStore(ConstF32(0), dst);
+		
+		dst = CreateGEP(destinationPtr, 3);
+		CreateStore(ConstF32(1), dst);
+	}
+	
 	LLVMValueRef CompileGetNormalChannel(LLVMValueRef function, LLVMValueRef sourcePtr, int channel)
 	{
 		auto value = CreateGEP(sourcePtr, gsl::at(information->Normal.OffsetValues, channel) / information->ElementSize);

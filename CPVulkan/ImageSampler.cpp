@@ -571,7 +571,7 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 			const auto mipLevel2 = mipLevel1 + 1;
 
 			const auto pixel1 = SampleImageOfLevel<ResultType, RangeType, CoordinateType>(deviceState, information, data[mipLevel1], range[mipLevel1], coordinates, minFilter, addressMode,
-			                                                                              compareEnable, compareOperation, borderColour, unnormalisedCoordinates, reductionMode);;
+			                                                                              compareEnable, compareOperation, borderColour, unnormalisedCoordinates, reductionMode);
 
 			if (delta == 0)
 			{
@@ -580,7 +580,7 @@ ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint
 			else
 			{
 				const auto pixel2 = SampleImageOfLevel<ResultType, RangeType, CoordinateType>(deviceState, information, data[mipLevel2], range[mipLevel2], coordinates, minFilter, addressMode,
-				                                                                              compareEnable, compareOperation, borderColour, unnormalisedCoordinates, reductionMode);;
+				                                                                              compareEnable, compareOperation, borderColour, unnormalisedCoordinates, reductionMode);
 
 				result = lerp(pixel1, pixel2, delta);
 			}
