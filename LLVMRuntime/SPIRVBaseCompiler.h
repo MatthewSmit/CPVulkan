@@ -1,17 +1,20 @@
 #pragma once
 #include "CompiledModuleBuilder.h"
 
+#include <utility>
+
 namespace SPIRV
 {
 	class SPIRVType;
 	class SPIRVTypeImage;
+	class SPIRVValue;
 }
 
 class SPIRVBaseCompiledModuleBuilder : public CompiledModuleBuilder
 {
 public:
 	explicit SPIRVBaseCompiledModuleBuilder(CPJit* jit, std::function<void*(const std::string&)> getFunction = nullptr) :
-		CompiledModuleBuilder{jit, getFunction}
+		CompiledModuleBuilder{jit, std::move(getFunction)}
 	{
 	}
 	
@@ -21,8 +24,13 @@ protected:
 	std::unordered_map<uint32_t, LLVMTypeRef> typeMapping{};
 	std::unordered_map<LLVMTypeRef, uint32_t> arrayStrideMultiplier{};
 	std::unordered_map<LLVMTypeRef, std::vector<uint32_t>> structIndexMapping{};
+
+	template<typename T>
+	T GetConstant(LLVMValueRef value);
 	
 	LLVMTypeRef ConvertType(const SPIRV::SPIRVType* spirvType, bool isClassMember = false);
+
+	virtual LLVMValueRef ConvertValue(const SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction) = 0;
 
 	LLVMTypeRef CreateOpaqueImageType(const std::string& name);
 	

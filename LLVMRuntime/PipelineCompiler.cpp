@@ -237,6 +237,11 @@ public:
 		vertexAttributeDescriptions{vertexAttributeDescriptions}
 	{
 	}
+	
+	LLVMValueRef ConvertValue(const SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction) override
+	{
+		TODO_ERROR();
+	}
 
 protected:
 	void MainCompilation() override

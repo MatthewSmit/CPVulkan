@@ -2,8 +2,20 @@
 
 #include <SPIRVDecorate.h>
 #include <SPIRVType.h>
+#include <SPIRVValue.h>
 
 #include <llvm-c/OrcBindings.h>
+
+template<>
+int32_t SPIRVBaseCompiledModuleBuilder::GetConstant(LLVMValueRef value)
+{
+	if (!LLVMIsAConstantInt(value))
+	{
+		TODO_ERROR();
+	}
+
+	return static_cast<int32_t>(LLVMConstIntGetSExtValue(value));
+}
 
 LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spirvType, bool isClassMember)
 {
@@ -64,7 +76,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 					assert((stride % originalStride) == 0);
 				}
 			}
-			llvmType = LLVMArrayType(elementType, spirvType->getArrayLength() * multiplier);
+			llvmType = LLVMArrayType(elementType, GetConstant<int32_t>(ConvertValue(static_cast<const SPIRV::SPIRVTypeArray*>(spirvType)->getLength(), nullptr)) * multiplier);
 			if (multiplier > 1)
 			{
 				arrayStrideMultiplier[llvmType] = multiplier;
@@ -112,7 +124,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 			const auto functionType = static_cast<const SPIRV::SPIRVTypeFunction*>(spirvType);
 			const auto returnType = ConvertType(functionType->getReturnType());
 			std::vector<LLVMTypeRef> parameters;
-			for (size_t i = 0; i != functionType->getNumParameters(); ++i)
+			for (auto i = 0u; i != functionType->getNumParameters(); ++i)
 			{
 				parameters.push_back(ConvertType(functionType->getParameterType(i)));
 			}

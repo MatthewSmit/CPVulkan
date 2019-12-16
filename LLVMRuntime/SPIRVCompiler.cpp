@@ -130,7 +130,7 @@ private:
 	const SPIRV::SPIRVFunction* entryPoint;
 	const VkSpecializationInfo* specializationInfo;
 		
-	static LLVMLinkage ConvertLinkage(SPIRV::SPIRVValue* value)
+	static LLVMLinkage ConvertLinkage(const SPIRV::SPIRVValue* value)
 	{
 		switch (value->getLinkageType())
 		{
@@ -213,7 +213,7 @@ private:
 		}
 	}
 	
-	bool HasSpecOverride(SPIRV::SPIRVValue* spirvValue)
+	bool HasSpecOverride(const SPIRV::SPIRVValue* spirvValue)
 	{
 		if (specializationInfo == nullptr || !spirvValue->hasDecorate(DecorationSpecId))
 		{
@@ -233,7 +233,7 @@ private:
 	}
 	
 	template<typename T>
-	T GetSpecOverride(SPIRV::SPIRVValue* spirvValue)
+	T GetSpecOverride(const SPIRV::SPIRVValue* spirvValue)
 	{
 		const auto id = *spirvValue->getDecorate(DecorationSpecId).begin();
 		for (auto i = 0u; i < specializationInfo->mapEntryCount; i++)
@@ -253,7 +253,7 @@ private:
 		TODO_ERROR();
 	}
 	
-	LLVMValueRef HandleSpecConstantOperation(SPIRV::SPIRVSpecConstantOp* spirvValue)
+	LLVMValueRef HandleSpecConstantOperation(const SPIRV::SPIRVSpecConstantOp* spirvValue)
 	{
 		auto opwords = spirvValue->getOpWords();
 		const auto operation = static_cast<Op>(opwords[0]);
@@ -369,14 +369,14 @@ private:
 		}
 	}
 	
-	LLVMValueRef ConvertValueNoDecoration(SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction)
+	LLVMValueRef ConvertValueNoDecoration(const SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction)
 	{
 		switch (spirvValue->getOpCode())
 		{
 		case OpSpecConstant:
 			if (HasSpecOverride(spirvValue))
 			{
-				const auto spirvConstant = static_cast<SPIRV::SPIRVConstant*>(spirvValue);
+				const auto spirvConstant = static_cast<const SPIRV::SPIRVConstant*>(spirvValue);
 				const auto spirvType = spirvConstant->getType();
 				const auto llvmType = ConvertType(spirvType);
 				switch (spirvType->getOpCode())
@@ -423,7 +423,7 @@ private:
 	
 		case OpConstant:
 			{
-				const auto spirvConstant = static_cast<SPIRV::SPIRVConstant*>(spirvValue);
+				const auto spirvConstant = static_cast<const SPIRV::SPIRVConstant*>(spirvValue);
 				const auto spirvType = spirvConstant->getType();
 				const auto llvmType = ConvertType(spirvType);
 				switch (spirvType->getOpCode())
@@ -487,7 +487,7 @@ private:
 	
 		case OpConstantComposite:
 			{
-				const auto constantComposite = static_cast<SPIRV::SPIRVConstantComposite*>(spirvValue);
+				const auto constantComposite = static_cast<const SPIRV::SPIRVConstantComposite*>(spirvValue);
 				std::vector<LLVMValueRef> constants;
 				for (auto& element : constantComposite->getElements())
 				{
@@ -533,14 +533,14 @@ private:
 			}
 	
 		case OpSpecConstantOp:
-			return HandleSpecConstantOperation(static_cast<SPIRV::SPIRVSpecConstantOp*>(spirvValue));
+			return HandleSpecConstantOperation(static_cast<const SPIRV::SPIRVSpecConstantOp*>(spirvValue));
 	
 		case OpUndef:
 			return LLVMGetUndef(ConvertType(spirvValue->getType()));
 	
 		case OpVariable:
 			{
-				const auto variable = static_cast<SPIRV::SPIRVVariable*>(spirvValue);
+				const auto variable = static_cast<const SPIRV::SPIRVVariable*>(spirvValue);
 				const auto isPointer = (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant || variable->getStorageClass() == StorageClassStorageBuffer) &&
 					!IsOpaqueType(variable->getType()->getPointerElementType());
 				const auto llvmType = isPointer
@@ -584,7 +584,7 @@ private:
 	
 		case OpFunctionParameter:
 			{
-				const auto functionParameter = static_cast<SPIRV::SPIRVFunctionParameter*>(spirvValue);
+				const auto functionParameter = static_cast<const SPIRV::SPIRVFunctionParameter*>(spirvValue);
 				assert(currentFunction);
 				return LLVMGetParam(currentFunction, functionParameter->getArgNo());
 			}
@@ -602,7 +602,7 @@ private:
 		}
 	}
 	
-	void ConvertDecoration(LLVMValueRef llvmValue, SPIRV::SPIRVValue* spirvValue)
+	void ConvertDecoration(LLVMValueRef llvmValue, const SPIRV::SPIRVValue* spirvValue)
 	{
 		if (LLVMIsAAllocaInst(llvmValue) || LLVMIsAGlobalVariable(llvmValue))
 		{
@@ -635,7 +635,7 @@ private:
 		TODO_ERROR();
 	}
 
-	LLVMValueRef ConvertValue(SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction)
+	LLVMValueRef ConvertValue(const SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction) override
 	{
 		const auto cachedType = valueMapping.find(spirvValue->getId());
 		if (cachedType != valueMapping.end())
@@ -664,11 +664,11 @@ private:
 
 			if (spirvValue->getType()->getPointerElementType()->hasMemberDecorate(DecorationBuiltIn))
 			{
-				if (static_cast<SPIRV::SPIRVVariable*>(spirvValue)->getStorageClass() == StorageClassInput)
+				if (static_cast<const SPIRV::SPIRVVariable*>(spirvValue)->getStorageClass() == StorageClassInput)
 				{
 					return valueMapping[spirvValue->getId()] = builtinInputVariable;
 				}
-				if (static_cast<SPIRV::SPIRVVariable*>(spirvValue)->getStorageClass() == StorageClassOutput)
+				if (static_cast<const SPIRV::SPIRVVariable*>(spirvValue)->getStorageClass() == StorageClassOutput)
 				{
 					return valueMapping[spirvValue->getId()] = builtinOutputVariable;
 				}

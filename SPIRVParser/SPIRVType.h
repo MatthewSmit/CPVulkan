@@ -386,7 +386,7 @@ namespace SPIRV
 	};
 
 class SPIRVConstant;
-class SPIRVTypeArray : public SPIRVType {
+class DLL_EXPORT SPIRVTypeArray : public SPIRVType {
 public:
   // Complete constructor
   SPIRVTypeArray(SPIRVModule *M, SPIRVId TheId, SPIRVType *TheElemType,
