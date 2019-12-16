@@ -1001,11 +1001,6 @@ private:
 
 	std::vector<LLVMValueRef> MapBuiltin(const std::vector<LLVMValueRef>& indices, SPIRV::SPIRVType* type, const std::vector<std::pair<BuiltIn, uint32_t>>& builtinMapping)
 	{
-		if (indices.size() != 1)
-		{
-			TODO_ERROR();
-		}
-
 		const auto structType = type->getPointerElementType();
 		if (!structType->isTypeStruct())
 		{
@@ -1021,7 +1016,12 @@ private:
 			{
 				if (decorate.first.first == index && decorate.first.second == DecorationBuiltIn)
 				{
-					return MapBuiltin(static_cast<BuiltIn>(decorate.second->getLiteral(0)), builtinMapping);
+					auto newIndices = MapBuiltin(static_cast<BuiltIn>(decorate.second->getLiteral(0)), builtinMapping);
+					for (auto i = 1u; i < indices.size(); i++)
+					{
+						newIndices.push_back(indices[i]);
+					}
+					return newIndices;
 				}
 			}
 		}
@@ -2703,8 +2703,7 @@ private:
 					{
 						literal += static_cast<uint64_t>(literals.at(1)) << 32;
 					}
-					// llvmSwitch->addCase(llvm::ConstantInt::get(llvm::dyn_cast<llvm::IntegerType>(select->getType()), literal), ConvertBasicBlock(state, currentFunction, label));
-					TODO_ERROR();
+					LLVMAddCase(llvmSwitch, ConstU32(literal), ConvertBasicBlock(currentFunction, label));
 				});
 				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				return llvmSwitch;

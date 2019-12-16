@@ -150,6 +150,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 			auto& indexMapping = structIndexMapping[llvmType];
 			std::vector<LLVMTypeRef> types{};
 			uint64_t currentOffset = 0;
+			// TODO: If no offset decoration and struct is not packed, insert own packing
 			for (auto i = 0u; i < strct->getMemberCount(); ++i)
 			{
 				const auto decorate = strct->getMemberDecorate(i, DecorationOffset);
@@ -162,6 +163,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 					}
 					else
 					{
+						// TODO: Use array of uint8 instead?
 						auto difference = offset - currentOffset;
 						while (difference >= 8)
 						{
@@ -200,7 +202,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 					currentOffset += LLVMSizeOfTypeInBits(layout, llvmMemberType) / 8;
 				}
 			}
-			LLVMStructSetBody(llvmType, types.data(), static_cast<uint32_t>(types.size()), strct->isPacked());
+			LLVMStructSetBody(llvmType, types.data(), static_cast<uint32_t>(types.size()), true);
 			break;
 		}
 			
