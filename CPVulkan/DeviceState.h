@@ -44,10 +44,11 @@ struct DeviceState
 public:
 	struct
 	{
-		Pipeline* pipeline;
-		DescriptorSet* descriptorSets[MAX_BOUND_DESCRIPTOR_SETS];
-		uint32_t descriptorSetDynamicOffset[MAX_BOUND_DESCRIPTOR_SETS][MAX_PER_STAGE_RESOURCES * 5];
-	} pipelineState[MAX_PIPELINES];
+		Pipeline* pipeline{};
+		DescriptorSet* descriptorSets[MAX_BOUND_DESCRIPTOR_SETS]{};
+		DescriptorSet* pushDescriptorSets[MAX_BOUND_DESCRIPTOR_SETS]{};
+		uint32_t descriptorSetDynamicOffset[MAX_BOUND_DESCRIPTOR_SETS][MAX_PER_STAGE_RESOURCES * 5]{};
+	} pipelineState[MAX_PIPELINES]{};
 
 	GraphicsPipelineState graphicsPipelineState;
 	VkViewport viewports[MAX_VIEWPORTS];

@@ -26,6 +26,7 @@
 #undef VK_EXT_hdr_metadata // Win32 does not support HDR
 
 #undef VK_KHR_external_fence_win32 // Currently buggy
+#undef VK_KHR_push_descriptor // Currently buggy
 
 #define CV_DEBUG_NONE 0
 #define CV_DEBUG_LOG 1

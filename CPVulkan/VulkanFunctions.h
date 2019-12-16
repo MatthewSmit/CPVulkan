@@ -194,8 +194,11 @@ VULKAN_FUNCTION(ImportSemaphoreFd, VkResult, Device, void*, const VkImportSemaph
 VULKAN_FUNCTION(GetSemaphoreFd, VkResult, Device, void*, const VkSemaphoreGetFdInfoKHR*, int*)
 #endif
 
+#if defined(VK_KHR_push_descriptor)
 VULKAN_FUNCTION(PushDescriptorSet, void, CommandBuffer, void*, VkPipelineBindPoint, VkPipelineLayout, uint32_t, uint32_t, const VkWriteDescriptorSet*)
 VULKAN_FUNCTION(PushDescriptorSetWithTemplate, void, CommandBuffer, void*, VkDescriptorUpdateTemplate, VkPipelineLayout, uint32_t, const void*)
+#endif
+
 VULKAN_FUNCTION(CreateRenderPass2, VkResult, Device, void*, const VkRenderPassCreateInfo2KHR*, const VkAllocationCallbacks*, VkRenderPass*)
 VULKAN_FUNCTION(BeginRenderPass2, void, CommandBuffer, void*, const VkRenderPassBeginInfo*, const VkSubpassBeginInfoKHR*)
 VULKAN_FUNCTION(NextSubpass2, void, CommandBuffer, void*, const VkSubpassBeginInfoKHR*, const VkSubpassEndInfoKHR*)

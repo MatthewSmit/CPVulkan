@@ -419,7 +419,7 @@ static void LoadUniforms(DeviceState* deviceState, const std::vector<VariableUni
 	{
 		const auto descriptorSet = deviceState->pipelineState[pipelineIndex].descriptorSets[data.set];
 		VkDescriptorType descriptorType;
-		Descriptor* value;
+		const Descriptor* value;
 		descriptorSet->getBinding(data.binding, descriptorType, value);
 		switch (descriptorType)
 		{

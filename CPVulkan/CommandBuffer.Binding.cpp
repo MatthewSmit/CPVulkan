@@ -1,9 +1,11 @@
 #include "CommandBuffer.h"
+#include "CommandBuffer.Internal.h"
 
 #include "Buffer.h"
 #include "DebugHelper.h"
 #include "DescriptorSet.h"
 #include "DeviceState.h"
+#include "PipelineLayout.h"
 
 #include <fstream>
 
@@ -134,7 +136,7 @@ public:
 			for (auto j = 0u; j < descriptorSet->getNumberBindings(); j++)
 			{
 				VkDescriptorType descriptorType;
-				Descriptor* value;
+				const Descriptor* value;
 				descriptorSet->getBinding(j, descriptorType, value);
 				if (descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC || descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
 				{
@@ -301,4 +303,51 @@ void CommandBuffer::BindVertexBuffers(uint32_t firstBinding, uint32_t bindingCou
 	
 	commands.push_back(std::make_unique<BindVertexBuffersCommand>(firstBinding, buffers, bufferOffsets));
 }
+
+#if defined(VK_KHR_push_descriptor)
+void CommandBuffer::PushDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites)
+{
+	assert(state == State::Recording);
+
+	// TODO: Need to do deep copy
+	std::vector<VkWriteDescriptorSet> descriptorWrites(descriptorWriteCount);
+	memcpy(descriptorWrites.data(), pDescriptorWrites, sizeof(VkWriteDescriptorSet) * descriptorWriteCount);
 	
+	commands.push_back(std::make_unique<FunctionCommand>([pipelineBindPoint, layout, set, descriptorWrites](DeviceState* deviceState)
+	{
+		auto& currentSet = deviceState->pipelineState[pipelineBindPoint].pushDescriptorSets[set];
+		if (!currentSet)
+		{
+			currentSet = new DescriptorSet();
+		}
+		
+		currentSet->Initialise(UnwrapVulkan<PipelineLayout>(layout)->getDescriptorSetLayouts()[0]);
+		
+		for (const auto& descriptorWrite : descriptorWrites)
+		{
+			assert(descriptorWrite.sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET);
+
+			auto next = static_cast<const VkBaseInStructure*>(descriptorWrite.pNext);
+			while (next)
+			{
+				const auto type = next->sType;
+				switch (type)
+				{
+				case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV:
+					TODO_ERROR();
+
+				case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_INLINE_UNIFORM_BLOCK_EXT:
+					TODO_ERROR();
+
+				default:
+					break;
+				}
+				next = next->pNext;
+			}
+
+			currentSet->Update(descriptorWrite);
+		}
+		deviceState->pipelineState[pipelineBindPoint].descriptorSets[set] = currentSet;
+	}));
+}
+#endif

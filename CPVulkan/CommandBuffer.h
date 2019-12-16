@@ -6,18 +6,7 @@
 
 struct DeviceState;
 
-class Command
-{
-public:
-	virtual ~Command() = default;
-
-#if CV_DEBUG_LEVEL > 0
-	virtual void DebugOutput(DeviceState* deviceState) = 0;
-#endif
-	
-	virtual void Process(DeviceState* deviceState) = 0;
-};
-
+class Command;
 class ExecuteCommandsCommand;
 
 enum class State
@@ -90,8 +79,10 @@ public:
 	VKAPI_ATTR void VKAPI_PTR SetDeviceMask(uint32_t deviceMask) { TODO_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR DispatchBase(uint32_t baseGroupX, uint32_t baseGroupY, uint32_t baseGroupZ, uint32_t groupCountX, uint32_t groupCountY, uint32_t groupCountZ) { TODO_ERROR(); } 
 
-	VKAPI_ATTR void VKAPI_PTR PushDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites) { TODO_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR PushDescriptorSetWithTemplate(VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set, const void* pData) { TODO_ERROR(); } 
+#if defined(VK_KHR_push_descriptor)
+	VKAPI_ATTR void VKAPI_PTR PushDescriptorSet(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites);
+	VKAPI_ATTR void VKAPI_PTR PushDescriptorSetWithTemplate(VkDescriptorUpdateTemplate descriptorUpdateTemplate, VkPipelineLayout layout, uint32_t set, const void* pData) { TODO_ERROR(); }
+#endif
 
 #if defined(VK_KHR_create_renderpass2)
 	VKAPI_ATTR void VKAPI_PTR BeginRenderPass2(const VkRenderPassBeginInfo* pRenderPassBegin, const VkSubpassBeginInfoKHR* pSubpassBeginInfo) { TODO_ERROR(); } 

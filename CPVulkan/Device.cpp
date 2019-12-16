@@ -1,5 +1,6 @@
 #include "Device.h"
 
+#include "DescriptorSet.h"
 #include "DeviceState.h"
 #include "Extensions.h"
 #include "GlslFunctions.h"
@@ -44,6 +45,14 @@ Device::~Device()
 
 void Device::OnDelete(const VkAllocationCallbacks* pAllocator)
 {
+	for (auto& pipelineState : state->pipelineState)
+	{
+		for (auto& pushDescriptorSet : pipelineState.pushDescriptorSets)
+		{
+			delete pushDescriptorSet;
+		}
+	}
+	
 	for (auto& queue : queues)
 	{
 		const auto queuePtr = queue.release();

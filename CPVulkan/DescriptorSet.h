@@ -49,16 +49,18 @@ public:
 	void OnDelete(const VkAllocationCallbacks*)
 	{
 	}
+
+	VkResult Initialise(DescriptorSetLayout* descriptorSetLayout);
 	
 	void Update(const VkWriteDescriptorSet& descriptorWrite);
-
+	
 	static VkResult Create(DescriptorPool* descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet);
 
-	[[nodiscard]] uint32_t getNumberBindings() const { return numberBindings; }
+	[[nodiscard]] uint32_t getNumberBindings() const { return static_cast<uint32_t>(bindingTypes.size()); }
 	
-	void getBinding(uint32_t binding, VkDescriptorType& descriptorType, Descriptor*& value) const
+	void getBinding(uint32_t binding, VkDescriptorType& descriptorType, const Descriptor*& value) const
 	{
-		assert(binding < numberBindings);
+		assert(binding < bindingTypes.size());
 		descriptorType = bindingTypes[binding];
 		value = &bindingValues[binding];
 	}
@@ -66,7 +68,6 @@ public:
 private:
 	DescriptorSetLayout* layout{};
 
-	uint32_t numberBindings{};
-	std::unique_ptr<VkDescriptorType[]> bindingTypes{};
-	std::unique_ptr<Descriptor[]> bindingValues{};
+	std::vector<VkDescriptorType> bindingTypes{};
+	std::vector<Descriptor> bindingValues{};
 };

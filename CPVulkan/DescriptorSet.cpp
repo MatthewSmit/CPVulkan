@@ -5,13 +5,52 @@
 #include "DescriptorSetLayout.h"
 #include "Device.h"
 
+VkResult DescriptorSet::Initialise(DescriptorSetLayout* descriptorSetLayout)
+{
+	layout = descriptorSetLayout;
+
+	auto numberBindings = 0u;
+	for (const auto& binding : descriptorSetLayout->getBindings())
+	{
+		numberBindings = std::max(numberBindings, binding.binding + 1);
+	}
+
+	bindingTypes = std::vector<VkDescriptorType>(numberBindings);
+	bindingValues = std::vector<Descriptor>(numberBindings);
+	for (auto i = 0u; i < numberBindings; i++)
+	{
+		bindingValues[i].count = 0;
+	}
+
+	for (const auto& binding : descriptorSetLayout->getBindings())
+	{
+		assert(bindingValues[binding.binding].count == 0);
+		bindingTypes[binding.binding] = binding.descriptorType;
+		bindingValues[binding.binding].count = binding.descriptorCount;
+		bindingValues[binding.binding].values = std::unique_ptr<DescriptorValue[]>(new DescriptorValue[binding.descriptorCount]);
+		for (auto i = 0u; i < binding.descriptorCount; i++)
+		{
+			bindingValues[binding.binding].values[i] = {};
+		}
+
+		// TODO: Stage flags
+
+		if (binding.pImmutableSamplers)
+		{
+			TODO_ERROR();
+		}
+	}
+
+	return VK_SUCCESS;
+}
+
 void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 {
 	const auto targetBinding = descriptorWrite.dstBinding;
 	auto targetArrayElement = descriptorWrite.dstArrayElement;
 	for (auto i = 0u; i < descriptorWrite.descriptorCount; i++)
 	{
-		if (targetBinding >= numberBindings)
+		if (targetBinding >= getNumberBindings())
 		{
 			TODO_ERROR();
 		}
@@ -92,10 +131,10 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 		const auto& descriptorWrite = pDescriptorWrites[i];
 		assert(descriptorWrite.sType == VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET);
 
-		auto next = descriptorWrite.pNext;
+		auto next = static_cast<const VkBaseInStructure*>(descriptorWrite.pNext);
 		while (next)
 		{
-			const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+			const auto type = next->sType;
 			switch (type)
 			{
 			case VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET_ACCELERATION_STRUCTURE_NV:
@@ -107,7 +146,7 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 			default:
 				break;
 			}
-			next = static_cast<const VkBaseInStructure*>(next)->pNext;
+			next = next->pNext;
 		}
 
 		UnwrapVulkan<DescriptorSet>(descriptorWrite.dstSet)->Update(descriptorWrite);
@@ -127,42 +166,9 @@ VkResult DescriptorSet::Create(DescriptorPool* descriptorPool, VkDescriptorSetLa
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	const auto descriptorSetLayout = UnwrapVulkan<DescriptorSetLayout>(pSetLayout);
-	descriptorSet->layout = descriptorSetLayout;
-
-	for (const auto& binding : descriptorSetLayout->getBindings())
-	{
-		descriptorSet->numberBindings = std::max(descriptorSet->numberBindings, binding.binding + 1);
-	}
-
-	descriptorSet->bindingTypes = std::unique_ptr<VkDescriptorType[]>(new VkDescriptorType[descriptorSet->numberBindings]);
-	descriptorSet->bindingValues = std::unique_ptr<Descriptor[]>(new Descriptor[descriptorSet->numberBindings]);
-	for (auto i = 0u; i < descriptorSet->numberBindings; i++)
-	{
-		descriptorSet->bindingValues[i].count = 0;
-	}
-
-	for (const auto& binding : descriptorSetLayout->getBindings())
-	{
-		assert(descriptorSet->bindingValues[binding.binding].count == 0);
-		descriptorSet->bindingTypes[binding.binding] = binding.descriptorType;
-		descriptorSet->bindingValues[binding.binding].count = binding.descriptorCount;
-		descriptorSet->bindingValues[binding.binding].values = std::unique_ptr<DescriptorValue[]>(new DescriptorValue[binding.descriptorCount]);
-		for (auto i = 0u; i < binding.descriptorCount; i++)
-		{
-			descriptorSet->bindingValues[binding.binding].values[i] = {};
-		}
-
-		// TODO: Stage flags
-
-		if (binding.pImmutableSamplers)
-		{
-			TODO_ERROR();
-		}
-	}
-
+	const auto result = descriptorSet->Initialise(UnwrapVulkan<DescriptorSetLayout>(pSetLayout));
 	WrapVulkan(descriptorSet, pDescriptorSet);
-	return VK_SUCCESS;
+	return result;
 }
 
 VkResult Device::AllocateDescriptorSets(const VkDescriptorSetAllocateInfo* pAllocateInfo, VkDescriptorSet* pDescriptorSets)
