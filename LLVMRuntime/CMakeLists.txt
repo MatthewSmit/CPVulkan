@@ -7,6 +7,8 @@ add_library(LLVMRuntime SHARED
 	"CompiledModule.cpp"
 	"CompiledModule.h"
 	"CompiledModuleBuilder.h"
+	
+	"Compilers.h"
 
 	"ImageCompiler.cpp"
 	"ImageCompiler.h"

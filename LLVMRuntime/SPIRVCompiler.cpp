@@ -1,6 +1,7 @@
 #include "SPIRVCompiler.h"
 
 #include "CompiledModuleBuilder.h"
+#include "Compilers.h"
 #include "Jit.h"
 #include "SPIRVBaseCompiler.h"
 
@@ -3024,6 +3025,7 @@ private:
 		const auto functionType = LLVMFunctionType(returnType, parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto llvmFunction = LLVMAddFunction(module, MangleName(spirvFunction).c_str(), functionType);
 		LLVMSetLinkage(llvmFunction, LLVMExternalLinkage);
+		this->currentFunction = llvmFunction;
 	
 		for (auto i = 0u; i < spirvFunction->getNumBasicBlock(); i++)
 		{

@@ -2,9 +2,12 @@
 
 #include "CompiledModule.h"
 #include "CompiledModuleBuilder.h"
+#include "Compilers.h"
+#include "ImageCompiler.h"
 #include "SPIRVBaseCompiler.h"
 #include "SPIRVCompiler.h"
 
+#include <Formats.h>
 #include <PipelineData.h>
 
 #include <SPIRVDecorate.h>
@@ -297,6 +300,7 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "@VertexProcessing", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
+		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -371,6 +375,200 @@ private:
 		FATAL_ERROR();
 	}
 
+	LLVMTypeRef GetTypeFromFormat(VkFormat format)
+	{
+		switch (format)
+		{
+		case VK_FORMAT_R8_UINT:
+		case VK_FORMAT_R8_SINT:
+			return LLVMInt8TypeInContext(context);
+		case VK_FORMAT_R8G8_UINT:
+		case VK_FORMAT_R8G8_SINT:
+			return LLVMVectorType(LLVMInt8TypeInContext(context), 2);
+		case VK_FORMAT_R8G8B8_UINT:
+		case VK_FORMAT_R8G8B8_SINT:
+			return LLVMVectorType(LLVMInt8TypeInContext(context), 3);
+		case VK_FORMAT_R8G8B8A8_UINT:
+		case VK_FORMAT_R8G8B8A8_SINT:
+			return LLVMVectorType(LLVMInt8TypeInContext(context), 4);
+
+		case VK_FORMAT_R16_UINT:
+		case VK_FORMAT_R16_SINT:
+			return LLVMInt16TypeInContext(context);
+		case VK_FORMAT_R16_SFLOAT:
+			return LLVMHalfTypeInContext(context);
+		case VK_FORMAT_R16G16_UINT:
+		case VK_FORMAT_R16G16_SINT:
+			return LLVMVectorType(LLVMInt16TypeInContext(context), 2);
+		case VK_FORMAT_R16G16_SFLOAT:
+			return LLVMVectorType(LLVMHalfTypeInContext(context), 2);
+		case VK_FORMAT_R16G16B16_UINT:
+		case VK_FORMAT_R16G16B16_SINT:
+			return LLVMVectorType(LLVMInt16TypeInContext(context), 3);
+		case VK_FORMAT_R16G16B16_SFLOAT:
+			return LLVMVectorType(LLVMHalfTypeInContext(context), 3);
+		case VK_FORMAT_R16G16B16A16_UINT:
+		case VK_FORMAT_R16G16B16A16_SINT:
+			return LLVMVectorType(LLVMInt16TypeInContext(context), 4);
+		case VK_FORMAT_R16G16B16A16_SFLOAT:
+			return LLVMVectorType(LLVMHalfTypeInContext(context), 4);
+			
+		case VK_FORMAT_R32_UINT:
+		case VK_FORMAT_R32_SINT:
+			return LLVMInt32TypeInContext(context);
+		case VK_FORMAT_R32_SFLOAT:
+			return LLVMFloatTypeInContext(context);
+		case VK_FORMAT_R32G32_UINT:
+		case VK_FORMAT_R32G32_SINT:
+			return LLVMVectorType(LLVMInt32TypeInContext(context), 2);
+		case VK_FORMAT_R32G32_SFLOAT:
+			return LLVMVectorType(LLVMFloatTypeInContext(context), 2);
+		case VK_FORMAT_R32G32B32_UINT:
+		case VK_FORMAT_R32G32B32_SINT:
+			return LLVMVectorType(LLVMInt32TypeInContext(context), 3);
+		case VK_FORMAT_R32G32B32_SFLOAT:
+			return LLVMVectorType(LLVMFloatTypeInContext(context), 3);
+		case VK_FORMAT_R32G32B32A32_UINT:
+		case VK_FORMAT_R32G32B32A32_SINT:
+			return LLVMVectorType(LLVMInt32TypeInContext(context), 4);
+		case VK_FORMAT_R32G32B32A32_SFLOAT:
+			return LLVMVectorType(LLVMFloatTypeInContext(context), 4);
+			
+		case VK_FORMAT_R64_UINT:
+		case VK_FORMAT_R64_SINT:
+			return LLVMInt64TypeInContext(context);
+		case VK_FORMAT_R64_SFLOAT:
+			return LLVMDoubleTypeInContext(context);
+		case VK_FORMAT_R64G64_UINT:
+		case VK_FORMAT_R64G64_SINT:
+			return LLVMVectorType(LLVMInt64TypeInContext(context), 2);
+		case VK_FORMAT_R64G64_SFLOAT:
+			return LLVMVectorType(LLVMDoubleTypeInContext(context), 2);
+		case VK_FORMAT_R64G64B64_UINT:
+		case VK_FORMAT_R64G64B64_SINT:
+			return LLVMVectorType(LLVMInt64TypeInContext(context), 3);
+		case VK_FORMAT_R64G64B64_SFLOAT:
+			return LLVMVectorType(LLVMDoubleTypeInContext(context), 3);
+		case VK_FORMAT_R64G64B64A64_UINT:
+		case VK_FORMAT_R64G64B64A64_SINT:
+			return LLVMVectorType(LLVMInt64TypeInContext(context), 4);
+		case VK_FORMAT_R64G64B64A64_SFLOAT:
+			return LLVMVectorType(LLVMDoubleTypeInContext(context), 4);
+			 
+		default:
+			return nullptr;
+		}
+	}
+
+	LLVMValueRef EmitVectorConversion(LLVMValueRef value, LLVMTypeRef inputType, LLVMTypeRef targetType, bool isTargetSigned)
+	{
+		if (LLVMGetTypeKind(targetType) != LLVMVectorTypeKind)
+		{
+			FATAL_ERROR();
+		}
+
+		if (LLVMGetVectorSize(targetType) != LLVMGetVectorSize(inputType))
+		{
+			FATAL_ERROR();
+		}
+
+		switch (LLVMGetTypeKind(LLVMGetElementType(inputType)))
+		{
+		case LLVMHalfTypeKind:
+		case LLVMFloatTypeKind:
+		case LLVMDoubleTypeKind:
+			switch (LLVMGetTypeKind(LLVMGetElementType(targetType)))
+			{
+			case LLVMHalfTypeKind:
+			case LLVMFloatTypeKind:
+			case LLVMDoubleTypeKind:
+				return CreateFPExtOrTrunc(value, targetType);
+
+			case LLVMIntegerTypeKind:
+				TODO_ERROR();
+
+			default:
+				FATAL_ERROR();
+			}
+
+		case LLVMIntegerTypeKind:
+			switch (LLVMGetTypeKind(LLVMGetElementType(targetType)))
+			{
+			case LLVMHalfTypeKind:
+			case LLVMFloatTypeKind:
+			case LLVMDoubleTypeKind:
+				TODO_ERROR();
+
+			case LLVMIntegerTypeKind:
+				if (isTargetSigned)
+				{
+					return CreateSExtOrTrunc(value, targetType);
+				}
+				return CreateZExtOrTrunc(value, targetType);
+
+			default:
+				FATAL_ERROR();
+			}
+
+		default:
+			FATAL_ERROR();
+		}
+	}
+
+	LLVMValueRef EmitConversion(LLVMValueRef value, LLVMTypeRef inputType, LLVMTypeRef targetType, bool isTargetSigned)
+	{
+		switch (LLVMGetTypeKind(inputType))
+		{
+		case LLVMHalfTypeKind:
+		case LLVMFloatTypeKind:
+		case LLVMDoubleTypeKind:
+			switch (LLVMGetTypeKind(targetType))
+			{
+			case LLVMHalfTypeKind:
+			case LLVMFloatTypeKind:
+			case LLVMDoubleTypeKind:
+				return CreateFPExtOrTrunc(value, targetType);
+
+			case LLVMIntegerTypeKind:
+				TODO_ERROR();
+
+			case LLVMVectorTypeKind:
+				TODO_ERROR();
+
+			default:
+				FATAL_ERROR();
+			}
+			
+		case LLVMIntegerTypeKind:
+			switch (LLVMGetTypeKind(targetType))
+			{
+			case LLVMHalfTypeKind:
+			case LLVMFloatTypeKind:
+			case LLVMDoubleTypeKind:
+				TODO_ERROR();
+
+			case LLVMIntegerTypeKind:
+				if (isTargetSigned)
+				{
+					return CreateSExtOrTrunc(value, targetType);
+				}
+				return CreateZExtOrTrunc(value, targetType);
+
+			case LLVMVectorTypeKind:
+				TODO_ERROR();
+
+			default:
+				FATAL_ERROR();
+			}
+			
+		case LLVMVectorTypeKind:
+			return EmitVectorConversion(value, inputType, targetType, isTargetSigned);
+			
+		default:
+			FATAL_ERROR();
+		}
+	}
+
 	void CompileProcessVertex(LLVMValueRef rawId, LLVMValueRef vertexId, LLVMValueRef instanceId,
 	                          LLVMValueRef shaderBuiltinInputAddress, LLVMValueRef shaderBuiltinOutputAddress, 
 	                          LLVMValueRef outputVariable, LLVMTypeRef outputType)
@@ -441,21 +639,34 @@ private:
 					offset = CreateAdd(offset, ConstU64(attribute.offset));
 
 					// const auto size = LLVMSizeOfTypeInBits(jit->getDataLayout(), llvmType) / 8;
-					const auto inputFormat = GetVariableFormat(spirvType);
+					const auto shaderFormat = GetVariableFormat(spirvType);
 
 					auto bufferData = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 0, binding.binding}));
-					bufferData = CreateBitCast(CreateGEP(bufferData, {offset}), LLVMPointerType(llvmType, 0));
-					bufferData = CreateLoad(bufferData);
+					bufferData = CreateGEP(bufferData, {offset});
 					
-					if (inputFormat != attribute.format)
+					if (shaderFormat == attribute.format)
 					{
-						// CopyFormatConversion(deviceState, input.pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), input.format, attribute.format);
-						TODO_ERROR();
+						// Handle straight copy when formats are identical
+						bufferData = CreateBitCast(bufferData, LLVMPointerType(llvmType, 0));
+						bufferData = CreateLoad(bufferData);
 					}
 					else
 					{
-						CreateStore(bufferData, shaderAddress);
+						const auto attributeType = GetTypeFromFormat(attribute.format);
+						if (attributeType != nullptr)
+						{
+							// Handle simple conversion when formats map to llvm type
+							bufferData = CreateBitCast(bufferData, LLVMPointerType(attributeType, 0));
+							bufferData = CreateLoad(bufferData);
+							bufferData = EmitConversion(bufferData, attributeType, llvmType, GetFormatInformation(shaderFormat).Base == BaseType::SInt);
+						}
+						else
+						{
+							// Handle complicated loading, such as packed formats
+							bufferData = EmitGetPixel(this, bufferData, LLVMVectorType(LLVMGetElementType(LLVMGetElementType(LLVMTypeOf(shaderAddress))), 4), &GetFormatInformation(attribute.format));
+						}
 					}
+					CreateStore(bufferData, shaderAddress);
 				}
 			}
 		}

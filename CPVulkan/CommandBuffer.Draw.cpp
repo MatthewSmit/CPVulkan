@@ -15,7 +15,7 @@
 #include "Util.h"
 
 #include <CompiledModule.h>
-#include <ImageCompiler.h>
+#include <Compilers.h>
 #include <PipelineData.h>
 #include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>

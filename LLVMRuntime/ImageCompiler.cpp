@@ -2,6 +2,7 @@
 
 #include "CompiledModule.h"
 #include "CompiledModuleBuilder.h"
+#include "Compilers.h"
 
 #include <Formats.h>
 #include <Half.h>
@@ -9,6 +10,463 @@
 #include <llvm-c/Target.h>
 
 #include <type_traits>
+
+// Conversion functions
+static LLVMValueRef EmitConvertFloat(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue, LLVMTypeRef outputType)
+{
+	return moduleBuilder->CreateFPExtOrTrunc(inputValue, outputType);
+}
+
+static LLVMValueRef EmitConvertFloatInt(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue, int64_t maxValue, LLVMTypeRef outputType)
+{
+	auto value = moduleBuilder->CreateFMul(inputValue, LLVMConstReal(LLVMTypeOf(inputValue), static_cast<double>(maxValue)));
+	value = moduleBuilder->CreateIntrinsic<1>(Intrinsics::round, {value});
+	return moduleBuilder->CreateFPToSI(value, outputType);
+}
+
+static LLVMValueRef EmitConvertFloatUInt(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue, uint64_t maxValue, LLVMTypeRef outputType)
+{
+	auto value = moduleBuilder->CreateFMul(inputValue, LLVMConstReal(LLVMTypeOf(inputValue), static_cast<double>(maxValue)));
+	value = moduleBuilder->CreateIntrinsic<1>(Intrinsics::round, {value});
+	return moduleBuilder->CreateFPToUI(value, outputType);
+}
+
+static LLVMValueRef EmitConvertInt(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue, LLVMTypeRef outputType, bool inputSigned)
+{
+	if (inputSigned)
+	{
+		return moduleBuilder->CreateSExtOrTrunc(inputValue, outputType);
+	}
+	return moduleBuilder->CreateZExtOrTrunc(inputValue, outputType);
+}
+
+static LLVMValueRef EmitConvertIntFloat(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue, uint64_t maxValue, LLVMTypeRef outputType)
+{
+	const auto value = moduleBuilder->CreateSIToFP(inputValue, outputType);
+	return moduleBuilder->CreateFDiv(value, LLVMConstReal(outputType, static_cast<double>(maxValue)));
+}
+
+static LLVMValueRef EmitConvertUIntFloat(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue, uint64_t maxValue, LLVMTypeRef outputType)
+{
+	const auto value = moduleBuilder->CreateUIToFP(inputValue, outputType);
+	return moduleBuilder->CreateFDiv(value, LLVMConstReal(outputType, static_cast<double>(maxValue)));
+}
+
+template<typename InputType, typename OutputType>
+static LLVMValueRef EmitConvert(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue)
+{
+	if constexpr (std::numeric_limits<InputType>::is_iec559)
+	{
+		if constexpr (std::numeric_limits<OutputType>::is_integer && !std::numeric_limits<OutputType>::is_signed)
+		{
+			return EmitConvertFloatUInt(moduleBuilder, inputValue, std::numeric_limits<OutputType>::max(), moduleBuilder->GetType<OutputType>());
+		}
+		else if constexpr (std::numeric_limits<OutputType>::is_integer)
+		{
+			return EmitConvertFloatInt(moduleBuilder, inputValue, std::numeric_limits<OutputType>::max(), moduleBuilder->GetType<OutputType>());
+		}
+		else
+		{
+			static_assert(std::numeric_limits<OutputType>::is_iec559);
+			return EmitConvertFloat(moduleBuilder, inputValue, moduleBuilder->GetType<OutputType>());
+		}
+	}
+	else if (std::is_unsigned<InputType>::value)
+	{
+		static_assert(std::numeric_limits<InputType>::is_integer);
+		if constexpr (std::numeric_limits<OutputType>::is_integer)
+		{
+			return EmitConvertInt(moduleBuilder, inputValue, moduleBuilder->GetType<OutputType>(), false);
+		}
+		else
+		{
+			static_assert(std::numeric_limits<OutputType>::is_iec559);
+			return EmitConvertUIntFloat(moduleBuilder, inputValue, std::numeric_limits<InputType>::max(), moduleBuilder->GetType<OutputType>());
+		}
+	}
+	else
+	{
+		static_assert(std::numeric_limits<InputType>::is_integer);
+		if constexpr (std::numeric_limits<OutputType>::is_integer)
+		{
+			return EmitConvertInt(moduleBuilder, inputValue, moduleBuilder->GetType<OutputType>(), true);
+		}
+		else
+		{
+			static_assert(std::numeric_limits<OutputType>::is_iec559);
+			return EmitConvertIntFloat(moduleBuilder, inputValue, std::numeric_limits<InputType>::max(), moduleBuilder->GetType<OutputType>());
+		}
+	}
+}
+
+// Getting pixel functions
+LLVMValueRef EmitSRGBToLinear(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue)
+{
+	const auto trueBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, moduleBuilder->currentFunction, "");
+	const auto falseBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, moduleBuilder->currentFunction, "");
+	const auto nextBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, moduleBuilder->currentFunction, "");
+
+	const auto comparison = moduleBuilder->CreateFCmpUGT(inputValue, moduleBuilder->ConstF32(0.04045f));
+	moduleBuilder->CreateCondBr(comparison, trueBlock, falseBlock);
+
+	LLVMPositionBuilderAtEnd(moduleBuilder->builder, falseBlock);
+	const auto falseValue = moduleBuilder->CreateFDiv(inputValue, moduleBuilder->ConstF32(12.92f));
+	moduleBuilder->CreateBr(nextBlock);
+
+	LLVMPositionBuilderAtEnd(moduleBuilder->builder, trueBlock);
+	auto trueValue = moduleBuilder->CreateFAdd(inputValue, moduleBuilder->ConstF32(0.055f));
+	trueValue = moduleBuilder->CreateFDiv(trueValue, moduleBuilder->ConstF32(1.055f));
+	trueValue = moduleBuilder->CreateIntrinsic<2>(Intrinsics::pow, {trueValue, moduleBuilder->ConstF32(2.4f)});
+	moduleBuilder->CreateBr(nextBlock);
+
+	LLVMPositionBuilderAtEnd(moduleBuilder->builder, nextBlock);
+	const auto value = moduleBuilder->CreatePhi(LLVMFloatTypeInContext(moduleBuilder->context));
+	std::array<LLVMValueRef, 2> incoming
+	{
+		trueValue,
+		falseValue,
+	};
+	std::array<LLVMBasicBlockRef, 2> incomingBlocks
+	{
+		trueBlock,
+		falseBlock,
+	};
+	LLVMAddIncoming(value, incoming.data(), incomingBlocks.data(), 2);
+	return value;
+}
+
+template<typename ReturnType>
+static LLVMValueRef EmitGetNormalChannel(CompiledModuleBuilder* moduleBuilder, const FormatInformation* information, LLVMValueRef sourcePtr, int channel)
+{
+	auto value = moduleBuilder->CreateGEP(sourcePtr, gsl::at(information->Normal.OffsetValues, channel) / information->ElementSize);
+	value = moduleBuilder->CreateLoad(value);
+
+	switch (information->Base)
+	{
+	case BaseType::UNorm:
+	case BaseType::UScaled:
+	case BaseType::UInt:
+		switch (information->ElementSize)
+		{
+		case 1:
+			return EmitConvert<uint8_t, ReturnType>(moduleBuilder, value);
+		case 2:
+			return EmitConvert<uint16_t, ReturnType>(moduleBuilder, value);
+		case 4:
+			return EmitConvert<uint32_t, ReturnType>(moduleBuilder, value);
+		default:
+			TODO_ERROR();
+		}
+
+	case BaseType::SNorm:
+	case BaseType::SScaled:
+	case BaseType::SInt:
+		switch (information->ElementSize)
+		{
+		case 1:
+			return EmitConvert<int8_t, ReturnType>(moduleBuilder, value);
+		case 2:
+			return EmitConvert<int16_t, ReturnType>(moduleBuilder, value);
+		case 4:
+			return EmitConvert<int32_t, ReturnType>(moduleBuilder, value);
+		default:
+			TODO_ERROR();
+		}
+
+	case BaseType::UFloat:
+		TODO_ERROR();
+
+	case BaseType::SFloat:
+		assert((std::is_same<ReturnType, float>::value));
+		switch (information->ElementSize)
+		{
+		case 2:
+			return EmitConvert<half, ReturnType>(moduleBuilder, value);
+		case 4:
+			return EmitConvert<float, ReturnType>(moduleBuilder, value);
+		default:
+			TODO_ERROR();
+		}
+
+	case BaseType::SRGB:
+		assert((std::is_same<ReturnType, float>::value));
+		switch (information->ElementSize)
+		{
+		case 1:
+			return channel == 3 ? EmitConvert<uint8_t, ReturnType>(moduleBuilder, value) : EmitSRGBToLinear(moduleBuilder, EmitConvert<uint8_t, ReturnType>(moduleBuilder, value));
+		case 2:
+			return channel == 3 ? EmitConvert<uint16_t, ReturnType>(moduleBuilder, value) : EmitSRGBToLinear(moduleBuilder, EmitConvert<uint16_t, ReturnType>(moduleBuilder, value));
+		case 4:
+			return channel == 3 ? EmitConvert<uint32_t, ReturnType>(moduleBuilder, value) : EmitSRGBToLinear(moduleBuilder, EmitConvert<uint32_t, ReturnType>(moduleBuilder, value));
+		default:
+			TODO_ERROR();
+		}
+
+	default:
+		TODO_ERROR();
+	}
+}
+
+static LLVMValueRef EmitGetPackedChannel(CompiledModuleBuilder* moduleBuilder, const FormatInformation* information, LLVMValueRef source, LLVMTypeRef destinationPtrType, int channel)
+{
+	const auto bits = gsl::at(information->Packed.BitValues, channel);
+	const auto mask = (1ULL << bits) - 1;
+	const auto offset = gsl::at(information->Packed.OffsetValues, channel);
+
+	// Shift and mask value
+	auto value = moduleBuilder->CreateLShr(source, LLVMConstInt(LLVMTypeOf(source), offset, false));
+	value = moduleBuilder->CreateAnd(value, LLVMConstInt(LLVMTypeOf(source), mask, false));
+
+	switch (information->Base)
+	{
+	case BaseType::UNorm:
+		value = moduleBuilder->CreateUIToFP(value, LLVMFloatTypeInContext(moduleBuilder->context));
+		value = moduleBuilder->CreateFDiv(value, LLVMConstReal(LLVMFloatTypeInContext(moduleBuilder->context), mask));
+		return value;
+
+	case BaseType::SNorm:
+		value = moduleBuilder->CreateSIToFP(value, LLVMFloatTypeInContext(moduleBuilder->context));
+		value = moduleBuilder->CreateFDiv(value, LLVMConstReal(LLVMFloatTypeInContext(moduleBuilder->context), mask >> 1));
+		return value;
+
+	case BaseType::UScaled:
+	case BaseType::SScaled:
+		TODO_ERROR();
+
+	case BaseType::UInt:
+		return value;
+
+	case BaseType::SInt:
+		value = moduleBuilder->CreateSExt(value, destinationPtrType);
+		return value;
+
+	case BaseType::UFloat:
+	case BaseType::SFloat:
+		TODO_ERROR();
+
+	case BaseType::SRGB:
+		value = moduleBuilder->CreateUIToFP(value, LLVMFloatTypeInContext(moduleBuilder->context));
+		value = moduleBuilder->CreateFDiv(value, LLVMConstReal(LLVMFloatTypeInContext(moduleBuilder->context), mask));
+		if (channel != 3)
+		{
+			value = EmitSRGBToLinear(moduleBuilder, value);
+		}
+		return value;
+
+	default:
+		FATAL_ERROR();
+	}
+}
+
+static LLVMValueRef EmitGetNormalPixel(CompiledModuleBuilder* moduleBuilder, const FormatInformation* information, LLVMValueRef sourcePointer, LLVMTypeRef resultType)
+{
+	LLVMTypeRef sourceType{};
+	switch (information->Base)
+	{
+	case BaseType::UFloat:
+		TODO_ERROR();
+
+	case BaseType::SFloat:
+		switch (information->ElementSize)
+		{
+		case 2:
+			sourceType = LLVMHalfTypeInContext(moduleBuilder->context);
+			break;
+
+		case 4:
+			sourceType = LLVMFloatTypeInContext(moduleBuilder->context);
+			break;
+
+		case 8:
+			sourceType = LLVMDoubleTypeInContext(moduleBuilder->context);
+			break;
+
+		default:
+			TODO_ERROR();
+		}
+		break;
+
+	default:
+		sourceType = LLVMIntTypeInContext(moduleBuilder->context, information->ElementSize * 8);
+		break;
+	}
+
+	sourcePointer = LLVMBuildBitCast(moduleBuilder->builder, sourcePointer, LLVMPointerType(sourceType, 0), "");
+
+	if (LLVMGetTypeKind(LLVMGetElementType(resultType)) == LLVMFloatTypeKind)
+	{
+		LLVMValueRef values[4];
+		values[0] = moduleBuilder->ConstF32(0);
+		values[1] = moduleBuilder->ConstF32(0);
+		values[2] = moduleBuilder->ConstF32(0);
+		values[3] = moduleBuilder->ConstF32(1);
+
+		auto vector = LLVMConstVector(values, 4);
+		for (auto i = 0u; i < 4; i++)
+		{
+			if (gsl::at(information->Normal.OffsetValues, i) != INVALID_OFFSET)
+			{
+				const auto value = EmitGetNormalChannel<float>(moduleBuilder, information, sourcePointer, i);
+				vector = moduleBuilder->CreateInsertElement(vector, value, moduleBuilder->ConstI32(i));
+			}
+		}
+
+		return vector;
+	}
+	else
+	{
+		LLVMValueRef values[4];
+		values[0] = moduleBuilder->ConstI32(0);
+		values[1] = moduleBuilder->ConstI32(0);
+		values[2] = moduleBuilder->ConstI32(0);
+		values[3] = moduleBuilder->ConstI32(1);
+
+		const auto isSigned = information->Base == BaseType::SInt;
+
+		auto vector = LLVMConstVector(values, 4);
+		for (auto i = 0u; i < 4; i++)
+		{
+			if (gsl::at(information->Normal.OffsetValues, i) != INVALID_OFFSET)
+			{
+				const auto value = isSigned
+					                   ? EmitGetNormalChannel<int32_t>(moduleBuilder, information, sourcePointer, i)
+					                   : EmitGetNormalChannel<uint32_t>(moduleBuilder, information, sourcePointer, i);
+				vector = moduleBuilder->CreateInsertElement(vector, value, moduleBuilder->ConstI32(i));
+			}
+		}
+
+		return vector;
+	}
+}
+
+static LLVMValueRef EmitGetPackedPixel(CompiledModuleBuilder* moduleBuilder, const FormatInformation* information, LLVMValueRef sourcePointer, LLVMTypeRef resultType)
+{
+	const auto sourceType = LLVMIntTypeInContext(moduleBuilder->context, information->TotalSize * 8);
+	sourcePointer = moduleBuilder->CreateBitCast(sourcePointer, LLVMPointerType(sourceType, 0));
+	const auto source = moduleBuilder->CreateLoad(sourcePointer);
+
+	switch (information->Format)
+	{
+	case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
+		{
+			const auto destinationPtr = moduleBuilder->CreateAlloca(resultType);
+			LLVMTypeRef argumentTypes[]
+			{
+				LLVMTypeOf(source),
+				LLVMTypeOf(destinationPtr),
+			};
+			const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(moduleBuilder->context), argumentTypes, 2, false);
+			const auto conversionFunction = LLVMAddFunction(moduleBuilder->module, "B10G11R11ToFloat", functionType);
+			LLVMSetLinkage(conversionFunction, LLVMExternalLinkage);
+			moduleBuilder->CreateCall(conversionFunction, {source, destinationPtr});
+			return moduleBuilder->CreateLoad(destinationPtr);
+		}
+
+	case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
+		{
+			const auto destinationPtr = moduleBuilder->CreateAlloca(resultType);
+			LLVMTypeRef argumentTypes[]
+			{
+				LLVMTypeOf(source),
+				LLVMTypeOf(destinationPtr),
+			};
+			const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(moduleBuilder->context), argumentTypes, 2, false);
+			const auto conversionFunction = LLVMAddFunction(moduleBuilder->module, "E5B9G9R9ToFloat", functionType);
+			LLVMSetLinkage(conversionFunction, LLVMExternalLinkage);
+			moduleBuilder->CreateCall(conversionFunction, {source, destinationPtr});
+			return moduleBuilder->CreateLoad(destinationPtr);
+		}
+	}
+
+	LLVMValueRef values[4];
+	if (LLVMGetTypeKind(LLVMGetElementType(resultType)) == LLVMFloatTypeKind)
+	{
+		values[0] = moduleBuilder->ConstF32(0);
+		values[1] = moduleBuilder->ConstF32(0);
+		values[2] = moduleBuilder->ConstF32(0);
+		values[3] = moduleBuilder->ConstF32(1);
+	}
+	else
+	{
+		values[0] = moduleBuilder->ConstI32(0);
+		values[1] = moduleBuilder->ConstI32(0);
+		values[2] = moduleBuilder->ConstI32(0);
+		values[3] = moduleBuilder->ConstI32(1);
+	}
+	
+	auto vector = LLVMConstVector(values, 4);
+	for (auto i = 0u; i < 4; i++)
+	{
+		if (gsl::at(information->Packed.BitValues, i) != INVALID_OFFSET)
+		{
+			const auto value = EmitGetPackedChannel(moduleBuilder, information, source, LLVMGetElementType(resultType), i);
+			vector = moduleBuilder->CreateInsertElement(vector, value, moduleBuilder->ConstI32(i));
+		}
+	}
+
+	return vector;
+}
+
+static LLVMValueRef EmitGetDepthStencilPixel(CompiledModuleBuilder* moduleBuilder, const FormatInformation* information, LLVMValueRef sourcePointer, LLVMTypeRef resultType)
+{
+	LLVMValueRef value;
+	switch (information->Format)
+	{
+	case VK_FORMAT_D16_UNORM:
+	case VK_FORMAT_D16_UNORM_S8_UINT:
+		sourcePointer = moduleBuilder->CreateBitCast(sourcePointer, LLVMPointerType(LLVMInt16TypeInContext(moduleBuilder->context), 0));
+		value = moduleBuilder->CreateLoad(sourcePointer);
+		value = EmitConvert<uint16_t, float>(moduleBuilder, value);
+		break;
+
+	case VK_FORMAT_D24_UNORM_S8_UINT:
+	case VK_FORMAT_X8_D24_UNORM_PACK32:
+		sourcePointer = moduleBuilder->CreateBitCast(sourcePointer, LLVMPointerType(LLVMInt32TypeInContext(moduleBuilder->context), 0));
+		value = moduleBuilder->CreateLoad(sourcePointer);
+		value = moduleBuilder->CreateAnd(value, moduleBuilder->ConstU32(0x00FFFFFF));
+		value = moduleBuilder->CreateUIToFP(value, LLVMFloatTypeInContext(moduleBuilder->context));
+		value = moduleBuilder->CreateFDiv(value, moduleBuilder->ConstF32(0x00FFFFFF));
+		break;
+
+	case VK_FORMAT_D32_SFLOAT:
+	case VK_FORMAT_D32_SFLOAT_S8_UINT:
+		sourcePointer = moduleBuilder->CreateBitCast(sourcePointer, LLVMPointerType(LLVMFloatTypeInContext(moduleBuilder->context), 0));
+		value = moduleBuilder->CreateLoad(sourcePointer);
+		break;
+
+	default:
+		TODO_ERROR();
+	}
+
+	LLVMValueRef values[]
+	{
+		moduleBuilder->ConstF32(0),
+		moduleBuilder->ConstF32(0),
+		moduleBuilder->ConstF32(0),
+		moduleBuilder->ConstF32(1),
+	};
+	auto vector = LLVMConstVector(values, 4);
+	vector = moduleBuilder->CreateInsertElement(vector, value, moduleBuilder->ConstI32(0));
+	return vector;
+}
+
+LLVMValueRef EmitGetPixel(CompiledModuleBuilder* moduleBuilder, LLVMValueRef sourcePointer, LLVMTypeRef resultType, const FormatInformation* information)
+{
+	switch (information->Type)
+	{
+	case FormatType::Normal:
+		return EmitGetNormalPixel(moduleBuilder, information, sourcePointer, resultType);
+		
+	case FormatType::Packed:
+		return EmitGetPackedPixel(moduleBuilder, information, sourcePointer, resultType);
+		
+	case FormatType::DepthStencil:
+		return EmitGetDepthStencilPixel(moduleBuilder, information, sourcePointer, resultType);
+			
+	default:
+		FATAL_ERROR();
+	}
+}
 
 class PixelCompiledModuleBuilder : public CompiledModuleBuilder
 {
@@ -21,120 +479,6 @@ public:
 
 protected:
 	const FormatInformation* information;
-
-	LLVMValueRef EmitConvertFloat(LLVMValueRef inputValue, LLVMTypeRef outputType)
-	{
-		const auto inputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), LLVMTypeOf(inputValue));
-		const auto outputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), outputType);
-
-		if (inputBits < outputBits)
-		{
-			return LLVMBuildFPExt(builder, inputValue, outputType, "");
-		}
-
-		if (inputBits > outputBits)
-		{
-			return LLVMBuildFPTrunc(builder, inputValue, outputType, "");
-		}
-
-		return inputValue;
-	}
-
-	LLVMValueRef EmitConvertFloatInt(LLVMValueRef inputValue, int64_t maxValue, LLVMTypeRef outputType)
-	{
-		auto value = LLVMBuildFMul(builder, inputValue, LLVMConstReal(LLVMTypeOf(inputValue), static_cast<double>(maxValue)), "");
-		value = CreateIntrinsic<1>(Intrinsics::round, {value});
-		return LLVMBuildFPToSI(builder, value, outputType, "");
-	}
-
-	LLVMValueRef EmitConvertFloatUInt(LLVMValueRef inputValue, uint64_t maxValue, LLVMTypeRef outputType)
-	{
-		auto value = LLVMBuildFMul(builder, inputValue, LLVMConstReal(LLVMTypeOf(inputValue), static_cast<double>(maxValue)), "");
-		value = CreateIntrinsic<1>(Intrinsics::round, {value});
-		return LLVMBuildFPToUI(builder, value, outputType, "");
-	}
-
-	LLVMValueRef EmitConvertInt(LLVMValueRef inputValue, LLVMTypeRef outputType, bool inputSigned)
-	{
-		const auto inputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), LLVMTypeOf(inputValue));
-		const auto outputBits = LLVMSizeOfTypeInBits(jit->getDataLayout(), outputType);
-
-		if (inputBits < outputBits)
-		{
-			if (inputSigned)
-			{
-				return LLVMBuildSExt(builder, inputValue, outputType, "");
-			}
-
-			return LLVMBuildZExt(builder, inputValue, outputType, "");
-		}
-
-		if (inputBits > outputBits)
-		{
-			return LLVMBuildTrunc(builder, inputValue, outputType, "");
-		}
-
-		return inputValue;
-	}
-
-	LLVMValueRef EmitConvertIntFloat(LLVMValueRef inputValue, uint64_t maxValue, LLVMTypeRef outputType)
-	{
-		const auto value = LLVMBuildSIToFP(builder, inputValue, outputType, "");
-		return LLVMBuildFDiv(builder, value, LLVMConstReal(outputType, static_cast<double>(maxValue)), "");
-	}
-
-	LLVMValueRef EmitConvertUIntFloat(LLVMValueRef inputValue, uint64_t maxValue, LLVMTypeRef outputType)
-	{
-		const auto value = LLVMBuildUIToFP(builder, inputValue, outputType, "");
-		return LLVMBuildFDiv(builder, value, LLVMConstReal(outputType, static_cast<double>(maxValue)), "");
-	}
-
-	template<typename InputType, typename OutputType>
-	LLVMValueRef EmitConvert(LLVMValueRef inputValue)
-	{
-		if constexpr (std::numeric_limits<InputType>::is_iec559)
-		{
-			if constexpr (std::numeric_limits<OutputType>::is_integer && !std::numeric_limits<OutputType>::is_signed)
-			{
-				return EmitConvertFloatUInt(inputValue, std::numeric_limits<OutputType>::max(), GetType<OutputType>());
-			}
-			else if constexpr (std::numeric_limits<OutputType>::is_integer)
-			{
-				return EmitConvertFloatInt(inputValue, std::numeric_limits<OutputType>::max(), GetType<OutputType>());
-			}
-			else
-			{
-				static_assert(std::numeric_limits<OutputType>::is_iec559);
-				return EmitConvertFloat(inputValue, GetType<OutputType>());
-			}
-		}
-		else if (std::is_unsigned<InputType>::value)
-		{
-			static_assert(std::numeric_limits<InputType>::is_integer);
-			if constexpr (std::numeric_limits<OutputType>::is_integer)
-			{
-				return EmitConvertInt(inputValue, GetType<OutputType>(), false);
-			}
-			else
-			{
-				static_assert(std::numeric_limits<OutputType>::is_iec559);
-				return EmitConvertUIntFloat(inputValue, std::numeric_limits<InputType>::max(), GetType<OutputType>());
-			}
-		}
-		else
-		{
-			static_assert(std::numeric_limits<InputType>::is_integer);
-			if constexpr (std::numeric_limits<OutputType>::is_integer)
-			{
-				return EmitConvertInt(inputValue, GetType<OutputType>(), true);
-			}
-			else
-			{
-				static_assert(std::numeric_limits<OutputType>::is_iec559);
-				return EmitConvertIntFloat(inputValue, std::numeric_limits<InputType>::max(), GetType<OutputType>());
-			}
-		}
-	}
 
 	LLVMValueRef CreateMaxNum(LLVMValueRef lhs, LLVMValueRef rhs)
 	{
@@ -173,6 +517,7 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMFloatTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
+		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -186,7 +531,7 @@ protected:
 		case VK_FORMAT_D16_UNORM_S8_UINT:
 			sourcePtr = LLVMBuildBitCast(builder, sourcePtr, LLVMPointerType(LLVMInt16TypeInContext(context), 0), "");
 			value = CreateLoad(sourcePtr);
-			value = EmitConvert<uint16_t, float>(value);
+			value = EmitConvert<uint16_t, float>(this, value);
 			break;
 			
 		case VK_FORMAT_D24_UNORM_S8_UINT:
@@ -237,6 +582,7 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMInt8TypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
+		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -279,523 +625,180 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
+		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
 
 		const auto sourcePtr = LLVMGetParam(function, 0);
 		const auto destinationPtr = LLVMGetParam(function, 1);
+
+		// case FormatType::Compressed:
+		// 	// TODO
+		// 	// {
+		// 	// 	const auto subX = &*(function->arg_begin() + 2);
+		// 	// 	const auto subY = &*(function->arg_begin() + 3);
+		// 	//
+		// 	// 	// The type of the block
+		// 	// 	llvm::Type* sourceType;
+		// 	// 	switch (information->TotalSize)
+		// 	// 	{
+		// 	// 	case 4:
+		// 	// 		sourceType = builder.getInt32Ty();
+		// 	// 		break;
+		// 	//
+		// 	// 	case 8:
+		// 	// 		sourceType = builder.getInt64Ty();
+		// 	// 		break;
+		// 	//
+		// 	// 	case 16:
+		// 	// 		sourceType = builder.getInt128Ty();
+		// 	// 		break;
+		// 	//
+		// 	// 	default:
+		// 	// 		TODO_ERROR();
+		// 	// 	}
+		// 	//
+		// 	// 	sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
+		// 	// 	const auto source = builder.CreateLoad(sourcePtr);
+		// 	// 	const auto pixels = builder.CreateAlloca(builder.getFloatTy(), builder.getInt32(4 * information->Compressed.BlockWidth * information->Compressed.BlockHeight));
+		// 	//
+		// 	// 	// Get function that handles decompression
+		// 	// 	llvm::Function* decompress;
+		// 	// 	switch (information->Format)
+		// 	// 	{
+		// 	// 	case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_BC2_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC2_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_BC3_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC3_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_BC4_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC4_SNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC5_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC5_SNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC6H_UFLOAT_BLOCK:
+		// 	// 	case VK_FORMAT_BC6H_SFLOAT_BLOCK:
+		// 	// 	case VK_FORMAT_BC7_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_BC7_SRGB_BLOCK:
+		// 	// 		TODO_ERROR();
+		// 	// 		
+		// 	// 	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
+		// 	// 		decompress = llvm::Function::Create(
+		// 	// 			llvm::FunctionType::get(builder.getVoidTy(), {source->getType(), pixels->getType()}, false), 
+		// 	// 			llvm::GlobalValue::ExternalLinkage, "DecompressETC2R8G8B8", module.get());
+		// 	// 		break;
+		// 	// 		
+		// 	// 	case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
+		// 	// 		TODO_ERROR();
+		// 	// 		
+		// 	// 	case VK_FORMAT_EAC_R11_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_EAC_R11_SNORM_BLOCK:
+		// 	// 	case VK_FORMAT_EAC_R11G11_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_EAC_R11G11_SNORM_BLOCK:
+		// 	// 		TODO_ERROR();
+		// 	// 		
+		// 	// 	case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
+		// 	// 	case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
+		// 	// 		TODO_ERROR();
+		// 	// 		
+		// 	// 	case VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG:
+		// 	// 	case VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG:
+		// 	// 	case VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG:
+		// 	// 	case VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG:
+		// 	// 	case VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG:
+		// 	// 	case VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG:
+		// 	// 	case VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG:
+		// 	// 	case VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG:
+		// 	// 		TODO_ERROR();
+		// 	// 		
+		// 	// 	default:
+		// 	// 		TODO_ERROR();
+		// 	// 	}
+		// 	//
+		// 	// 	builder.CreateCall(decompress, {source, pixels});
+		// 	//
+		// 	// 	// Get the offset to the pixels we need
+		// 	// 	auto offset = builder.CreateMul(subY, builder.getInt32(information->Compressed.BlockWidth));
+		// 	// 	offset = builder.CreateAdd(offset, subX);
+		// 	// 	offset = builder.CreateMul(offset, builder.getInt32(4));
+		// 	//
+		// 	// 	// Set R channel
+		// 	// 	auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
+		// 	// 	llvm::Value* value = builder.CreateLoad(builder.CreateGEP(pixels, offset));
+		// 	// 	if (information->Base == BaseType::SRGB)
+		// 	// 	{
+		// 	// 		value = EmitSRGBToLinear(function, builder, value);
+		// 	// 	}
+		// 	// 	builder.CreateStore(value, dst);
+		// 	//
+		// 	// 	// Set G channel
+		// 	// 	dst = builder.CreateConstGEP1_32(destinationPtr, 1);
+		// 	// 	value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(1))));
+		// 	// 	if (information->Base == BaseType::SRGB)
+		// 	// 	{
+		// 	// 		value = EmitSRGBToLinear(function, builder, value);
+		// 	// 	}
+		// 	// 	builder.CreateStore(value, dst);
+		// 	//
+		// 	// 	// Set B channel
+		// 	// 	dst = builder.CreateConstGEP1_32(destinationPtr, 2);
+		// 	// 	value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(2))));
+		// 	// 	if (information->Base == BaseType::SRGB)
+		// 	// 	{
+		// 	// 		value = EmitSRGBToLinear(function, builder, value);
+		// 	// 	}
+		// 	// 	builder.CreateStore(value, dst);
+		// 	//
+		// 	// 	// Set A channel
+		// 	// 	dst = builder.CreateConstGEP1_32(destinationPtr, 3);
+		// 	// 	value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(3))));
+		// 	// 	builder.CreateStore(value, dst);
+		// 	// 	
+		// 	// 	break;
+		// 	// }
+		// 	TODO_ERROR();
+		const auto result = EmitGetPixel(this, sourcePtr, LLVMVectorType(GetType<ReturnType>(), 4), information);
 		
-		switch (information->Type)
+		for (auto i = 0u; i < 4; i++)
 		{
-		case FormatType::Normal:
-			CompileGetNormal(function, sourcePtr, destinationPtr);
-			break;
-		
-		case FormatType::Packed:
-			CompileGetPacked(function, sourcePtr, destinationPtr);
-			break;
-		
-		case FormatType::DepthStencil:
-			CompileGetDepthStencil(sourcePtr, destinationPtr);
-			break;
-			
-		case FormatType::Compressed:
-			// TODO
-			// {
-			// 	const auto subX = &*(function->arg_begin() + 2);
-			// 	const auto subY = &*(function->arg_begin() + 3);
-			//
-			// 	// The type of the block
-			// 	llvm::Type* sourceType;
-			// 	switch (information->TotalSize)
-			// 	{
-			// 	case 4:
-			// 		sourceType = builder.getInt32Ty();
-			// 		break;
-			//
-			// 	case 8:
-			// 		sourceType = builder.getInt64Ty();
-			// 		break;
-			//
-			// 	case 16:
-			// 		sourceType = builder.getInt128Ty();
-			// 		break;
-			//
-			// 	default:
-			// 		TODO_ERROR();
-			// 	}
-			//
-			// 	sourcePtr = builder.CreateBitCast(sourcePtr, llvm::PointerType::get(sourceType, 0));
-			// 	const auto source = builder.CreateLoad(sourcePtr);
-			// 	const auto pixels = builder.CreateAlloca(builder.getFloatTy(), builder.getInt32(4 * information->Compressed.BlockWidth * information->Compressed.BlockHeight));
-			//
-			// 	// Get function that handles decompression
-			// 	llvm::Function* decompress;
-			// 	switch (information->Format)
-			// 	{
-			// 	case VK_FORMAT_BC1_RGB_UNORM_BLOCK:
-			// 	case VK_FORMAT_BC1_RGB_SRGB_BLOCK:
-			// 	case VK_FORMAT_BC1_RGBA_UNORM_BLOCK:
-			// 	case VK_FORMAT_BC1_RGBA_SRGB_BLOCK:
-			// 	case VK_FORMAT_BC2_UNORM_BLOCK:
-			// 	case VK_FORMAT_BC2_SRGB_BLOCK:
-			// 	case VK_FORMAT_BC3_UNORM_BLOCK:
-			// 	case VK_FORMAT_BC3_SRGB_BLOCK:
-			// 	case VK_FORMAT_BC4_UNORM_BLOCK:
-			// 	case VK_FORMAT_BC4_SNORM_BLOCK:
-			// 	case VK_FORMAT_BC5_UNORM_BLOCK:
-			// 	case VK_FORMAT_BC5_SNORM_BLOCK:
-			// 	case VK_FORMAT_BC6H_UFLOAT_BLOCK:
-			// 	case VK_FORMAT_BC6H_SFLOAT_BLOCK:
-			// 	case VK_FORMAT_BC7_UNORM_BLOCK:
-			// 	case VK_FORMAT_BC7_SRGB_BLOCK:
-			// 		TODO_ERROR();
-			// 		
-			// 	case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
-			// 	case VK_FORMAT_ETC2_R8G8B8_SRGB_BLOCK:
-			// 		decompress = llvm::Function::Create(
-			// 			llvm::FunctionType::get(builder.getVoidTy(), {source->getType(), pixels->getType()}, false), 
-			// 			llvm::GlobalValue::ExternalLinkage, "DecompressETC2R8G8B8", module.get());
-			// 		break;
-			// 		
-			// 	case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
-			// 	case VK_FORMAT_ETC2_R8G8B8A1_SRGB_BLOCK:
-			// 	case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
-			// 	case VK_FORMAT_ETC2_R8G8B8A8_SRGB_BLOCK:
-			// 		TODO_ERROR();
-			// 		
-			// 	case VK_FORMAT_EAC_R11_UNORM_BLOCK:
-			// 	case VK_FORMAT_EAC_R11_SNORM_BLOCK:
-			// 	case VK_FORMAT_EAC_R11G11_UNORM_BLOCK:
-			// 	case VK_FORMAT_EAC_R11G11_SNORM_BLOCK:
-			// 		TODO_ERROR();
-			// 		
-			// 	case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
-			// 	case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
-			// 	case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
-			// 		TODO_ERROR();
-			// 		
-			// 	case VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG:
-			// 	case VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG:
-			// 	case VK_FORMAT_PVRTC2_2BPP_UNORM_BLOCK_IMG:
-			// 	case VK_FORMAT_PVRTC2_4BPP_UNORM_BLOCK_IMG:
-			// 	case VK_FORMAT_PVRTC1_2BPP_SRGB_BLOCK_IMG:
-			// 	case VK_FORMAT_PVRTC1_4BPP_SRGB_BLOCK_IMG:
-			// 	case VK_FORMAT_PVRTC2_2BPP_SRGB_BLOCK_IMG:
-			// 	case VK_FORMAT_PVRTC2_4BPP_SRGB_BLOCK_IMG:
-			// 		TODO_ERROR();
-			// 		
-			// 	default:
-			// 		TODO_ERROR();
-			// 	}
-			//
-			// 	builder.CreateCall(decompress, {source, pixels});
-			//
-			// 	// Get the offset to the pixels we need
-			// 	auto offset = builder.CreateMul(subY, builder.getInt32(information->Compressed.BlockWidth));
-			// 	offset = builder.CreateAdd(offset, subX);
-			// 	offset = builder.CreateMul(offset, builder.getInt32(4));
-			//
-			// 	// Set R channel
-			// 	auto dst = builder.CreateConstGEP1_32(destinationPtr, 0);
-			// 	llvm::Value* value = builder.CreateLoad(builder.CreateGEP(pixels, offset));
-			// 	if (information->Base == BaseType::SRGB)
-			// 	{
-			// 		value = EmitSRGBToLinear(function, builder, value);
-			// 	}
-			// 	builder.CreateStore(value, dst);
-			//
-			// 	// Set G channel
-			// 	dst = builder.CreateConstGEP1_32(destinationPtr, 1);
-			// 	value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(1))));
-			// 	if (information->Base == BaseType::SRGB)
-			// 	{
-			// 		value = EmitSRGBToLinear(function, builder, value);
-			// 	}
-			// 	builder.CreateStore(value, dst);
-			//
-			// 	// Set B channel
-			// 	dst = builder.CreateConstGEP1_32(destinationPtr, 2);
-			// 	value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(2))));
-			// 	if (information->Base == BaseType::SRGB)
-			// 	{
-			// 		value = EmitSRGBToLinear(function, builder, value);
-			// 	}
-			// 	builder.CreateStore(value, dst);
-			//
-			// 	// Set A channel
-			// 	dst = builder.CreateConstGEP1_32(destinationPtr, 3);
-			// 	value = builder.CreateLoad(builder.CreateGEP(pixels, builder.CreateAdd(offset, builder.getInt32(3))));
-			// 	builder.CreateStore(value, dst);
-			// 	
-			// 	break;
-			// }
-			TODO_ERROR();
-			
-		case FormatType::Planar:
-			TODO_ERROR();
-			
-		case FormatType::PlanarSamplable:
-			TODO_ERROR();
-			
-		default:
-			FATAL_ERROR();
+			const auto destination = CreateGEP(destinationPtr, i);
+			CreateStore(CreateExtractElement(result, ConstI32(i)), destination);
 		}
 
 		LLVMBuildRetVoid(builder);
-	}
-
-private:
-	LLVMValueRef Const(ReturnType value)
-	{
-		if constexpr (std::is_same<ReturnType, float>::value)
-		{
-			return ConstF32(value);
-		}
-		else if constexpr (std::is_same<ReturnType, int32_t>::value)
-		{
-			return ConstI32(value);
-		}
-		else if constexpr (std::is_same<ReturnType, uint32_t>::value)
-		{
-			return ConstU32(value);
-		}
-		else
-		{
-			static_assert(false);
-			return nullptr;
-		}
-	}
-
-	void CompileGetNormal(LLVMValueRef function, LLVMValueRef sourcePtr, LLVMValueRef destinationPtr)
-	{
-		LLVMTypeRef sourceType{};
-		switch (information->Base)
-		{
-		case BaseType::UFloat:
-			TODO_ERROR();
-			
-		case BaseType::SFloat:
-			switch (information->ElementSize)
-			{
-			case 2:
-				sourceType = LLVMHalfTypeInContext(context);
-				break;
-
-			case 4:
-				sourceType = LLVMFloatTypeInContext(context);
-				break;
-
-			case 8:
-				sourceType = LLVMDoubleTypeInContext(context);
-				break;
-
-			default:
-				TODO_ERROR();
-			}
-			break;
-
-		default:
-			sourceType = LLVMIntTypeInContext(context, information->ElementSize * 8);
-			break;
-		}
-
-		sourcePtr = LLVMBuildBitCast(builder, sourcePtr, LLVMPointerType(sourceType, 0), "");
-
-		for (auto i = 0u; i < 4; i++)
-		{
-			const auto dst = CreateGEP(destinationPtr, i);
-			if (gsl::at(information->Normal.OffsetValues, i) != INVALID_OFFSET)
-			{
-				const auto value = CompileGetNormalChannel(function, sourcePtr, i);
-				CreateStore(value, dst);
-			}
-			else
-			{
-				// Set empty channel to 0 (1 for alpha channel)
-				CreateStore(Const(static_cast<ReturnType>(i == 3 ? 1 : 0)), dst);
-			}
-		}
-	}
-
-	void CompileGetPacked(LLVMValueRef function, LLVMValueRef sourcePtr, LLVMValueRef destinationPtr)
-	{
-		const auto sourceType = LLVMIntTypeInContext(context, information->TotalSize * 8);
-		sourcePtr = CreateBitCast(sourcePtr, LLVMPointerType(sourceType, 0));
-		const auto source = CreateLoad(sourcePtr);
-		
-		switch (information->Format)
-		{
-		case VK_FORMAT_B10G11R11_UFLOAT_PACK32:
-			{
-				LLVMTypeRef argumentTypes[]
-				{
-					LLVMTypeOf(source),
-					LLVMTypeOf(destinationPtr),
-				};
-				const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), argumentTypes, 2, false);
-				const auto conversionFunction = LLVMAddFunction(module, "B10G11R11ToFloat", functionType);
-				LLVMSetLinkage(conversionFunction, LLVMExternalLinkage);
-				CreateCall(conversionFunction, {source, destinationPtr});
-				return;
-			}
-			
-		case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32:
-			{
-				LLVMTypeRef argumentTypes[]
-				{
-					LLVMTypeOf(source),
-					LLVMTypeOf(destinationPtr),
-				};
-				const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), argumentTypes, 2, false);
-				const auto conversionFunction = LLVMAddFunction(module, "E5B9G9R9ToFloat", functionType);
-				LLVMSetLinkage(conversionFunction, LLVMExternalLinkage);
-				CreateCall(conversionFunction, {source, destinationPtr});
-				return;
-			}
-		}
-
-		for (auto i = 0u; i < 4; i++)
-		{
-			const auto dst = CreateGEP(destinationPtr, i);
-			if (gsl::at(information->Packed.BitValues, i) != INVALID_OFFSET)
-			{
-				const auto value = CompileGetPackedChannel(function, source, LLVMTypeOf(destinationPtr), i);
-				CreateStore(value, dst);
-			}
-			else
-			{
-				// Set empty channel to 0 (1 for alpha channel)
-				CreateStore(Const(static_cast<ReturnType>(i == 3 ? 1 : 0)), dst);
-			}
-		}
-	}
-
-	void CompileGetDepthStencil(LLVMValueRef sourcePtr, LLVMValueRef destinationPtr)
-	{
-		LLVMValueRef value;
-		switch (information->Format)
-		{
-		case VK_FORMAT_D16_UNORM:
-		case VK_FORMAT_D16_UNORM_S8_UINT:
-			sourcePtr = CreateBitCast(sourcePtr, LLVMPointerType(LLVMInt16TypeInContext(context), 0));
-			value = CreateLoad(sourcePtr);
-			value = EmitConvert<uint16_t, float>(value);
-			break;
-			
-		case VK_FORMAT_D24_UNORM_S8_UINT:
-		case VK_FORMAT_X8_D24_UNORM_PACK32:
-			sourcePtr = CreateBitCast(sourcePtr, LLVMPointerType(LLVMInt32TypeInContext(context), 0));
-			value = CreateLoad(sourcePtr);
-			value = CreateAnd(value, ConstU32(0x00FFFFFF));
-			value = CreateUIToFP(value, LLVMFloatTypeInContext(context));
-			value = CreateFDiv(value, ConstF32(0x00FFFFFF));
-			break;
-			
-		case VK_FORMAT_D32_SFLOAT:
-		case VK_FORMAT_D32_SFLOAT_S8_UINT:
-			sourcePtr = CreateBitCast(sourcePtr, LLVMPointerType(LLVMFloatTypeInContext(context), 0));
-			value = CreateLoad(sourcePtr);
-			break;
-			
-		default:
-			TODO_ERROR();
-		}
-			
-		auto dst = CreateGEP(destinationPtr, 0);
-		CreateStore(value, dst);
-		
-		dst = CreateGEP(destinationPtr, 1);
-		CreateStore(ConstF32(0), dst);
-		
-		dst = CreateGEP(destinationPtr, 2);
-		CreateStore(ConstF32(0), dst);
-		
-		dst = CreateGEP(destinationPtr, 3);
-		CreateStore(ConstF32(1), dst);
-	}
-	
-	LLVMValueRef CompileGetNormalChannel(LLVMValueRef function, LLVMValueRef sourcePtr, int channel)
-	{
-		auto value = CreateGEP(sourcePtr, gsl::at(information->Normal.OffsetValues, channel) / information->ElementSize);
-		value = CreateLoad(value);
-		
-		switch (information->Base)
-		{
-		case BaseType::UNorm:
-		case BaseType::UScaled:
-		case BaseType::UInt:
-			switch (information->ElementSize)
-			{
-			case 1:
-				return EmitConvert<uint8_t, ReturnType>(value);
-			case 2:
-				return EmitConvert<uint16_t, ReturnType>(value);
-			case 4:
-				return EmitConvert<uint32_t, ReturnType>(value);
-			default:
-				TODO_ERROR();
-			}
-
-		case BaseType::SNorm:
-		case BaseType::SScaled:
-		case BaseType::SInt:
-			switch (information->ElementSize)
-			{
-			case 1:
-				return EmitConvert<int8_t, ReturnType>(value);
-			case 2:
-				return EmitConvert<int16_t, ReturnType>(value);
-			case 4:
-				return EmitConvert<int32_t, ReturnType>(value);
-			default:
-				TODO_ERROR();
-			}
-
-		case BaseType::UFloat:
-			TODO_ERROR();
-
-		case BaseType::SFloat:
-			assert((std::is_same<ReturnType, float>::value));
-			switch (information->ElementSize)
-			{
-			case 2:
-				return EmitConvert<half, ReturnType>(value);
-			case 4:
-				return EmitConvert<float, ReturnType>(value);
-			default:
-				TODO_ERROR();
-			}
-
-		case BaseType::SRGB:
-			assert((std::is_same<ReturnType, float>::value));
-			switch (information->ElementSize)
-			{
-			case 1:
-				return channel == 3 ? EmitConvert<uint8_t, ReturnType>(value) : EmitSRGBToLinear(function, EmitConvert<uint8_t, ReturnType>(value));
-			case 2:
-				return channel == 3 ? EmitConvert<uint16_t, ReturnType>(value) : EmitSRGBToLinear(function, EmitConvert<uint16_t, ReturnType>(value));
-			case 4:
-				return channel == 3 ? EmitConvert<uint32_t, ReturnType>(value) : EmitSRGBToLinear(function, EmitConvert<uint32_t, ReturnType>(value));
-			default:
-				TODO_ERROR();
-			}
-
-		default:
-			TODO_ERROR();
-		}
-	}
-
-	LLVMValueRef CompileGetPackedChannel(LLVMValueRef function, LLVMValueRef source, LLVMTypeRef destinationPtrType, int channel)
-	{
-		const auto bits = gsl::at(information->Packed.BitValues, channel);
-		const auto mask = (1ULL << bits) - 1;
-		const auto offset = gsl::at(information->Packed.OffsetValues, channel);
-
-		// Shift and mask value
-		auto value = CreateLShr(source, LLVMConstInt(LLVMTypeOf(source), offset, false));
-		value = CreateAnd(value, LLVMConstInt(LLVMTypeOf(source), mask, false));
-		
-		switch (information->Base)
-		{
-		case BaseType::UNorm:
-			value = CreateUIToFP(value, LLVMFloatTypeInContext(context));
-			value = CreateFDiv(value, LLVMConstReal(LLVMFloatTypeInContext(context), mask));
-			return value;
-								
-		case BaseType::SNorm:
-			value = CreateSIToFP(value, LLVMFloatTypeInContext(context));
-			value = CreateFDiv(value, LLVMConstReal(LLVMFloatTypeInContext(context), mask >> 1));
-			return value;
-
-		case BaseType::UScaled:
-		case BaseType::SScaled:
-			TODO_ERROR();
-
-		case BaseType::UInt:
-			return value;
-
-		case BaseType::SInt:
-			value = CreateSExt(value, LLVMGetElementType(destinationPtrType));
-			return value;
-
-		case BaseType::UFloat:
-		case BaseType::SFloat:
-			TODO_ERROR();
-
-		case BaseType::SRGB:
-			value = CreateUIToFP(value, LLVMFloatTypeInContext(context));
-			value = CreateFDiv(value, LLVMConstReal(LLVMFloatTypeInContext(context), mask));
-			if (channel != 3)
-			{
-				value = EmitSRGBToLinear(function, value);
-			}
-			return value;
-
-		default:
-			FATAL_ERROR();
-		}
-	}
-	
-	LLVMValueRef EmitSRGBToLinear(LLVMValueRef function, LLVMValueRef inputValue)
-	{
-		const auto trueBlock = LLVMAppendBasicBlockInContext(context, function, "");
-		const auto falseBlock = LLVMAppendBasicBlockInContext(context, function, "");
-		const auto nextBlock = LLVMAppendBasicBlockInContext(context, function, "");
-
-		const auto comparison = CreateFCmpUGT(inputValue, ConstF32(0.04045f));
-		CreateCondBr(comparison, trueBlock, falseBlock);
-
-		LLVMPositionBuilderAtEnd(builder, falseBlock);
-		const auto falseValue = CreateFDiv(inputValue, ConstF32(12.92f));
-		CreateBr(nextBlock);
-
-		LLVMPositionBuilderAtEnd(builder, trueBlock);
-		auto trueValue = CreateFAdd(inputValue, ConstF32(0.055f));
-		trueValue = CreateFDiv(trueValue, ConstF32(1.055f));
-		trueValue = CreateIntrinsic<2>(Intrinsics::pow, {trueValue, ConstF32(2.4f)});
-		CreateBr(nextBlock);
-
-		LLVMPositionBuilderAtEnd(builder, nextBlock);
-		const auto value = CreatePhi(LLVMFloatTypeInContext(context));
-		std::array<LLVMValueRef, 2> incoming
-		{
-			trueValue,
-			falseValue,
-		};
-		std::array<LLVMBasicBlockRef, 2> incomingBlocks
-		{
-			trueBlock,
-			falseBlock,
-		};
-		LLVMAddIncoming(value, incoming.data(), incomingBlocks.data(), 2);
-		return value;
 	}
 };
 
@@ -835,6 +838,7 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
+		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -851,7 +855,7 @@ protected:
 			{
 			case VK_FORMAT_D16_UNORM:
 			case VK_FORMAT_D16_UNORM_S8_UINT:
-				value = EmitConvert<float, uint16_t>(value);
+				value = EmitConvert<float, uint16_t>(this, value);
 				dst = LLVMBuildBitCast(builder, dst, LLVMPointerType(LLVMInt16TypeInContext(context), 0), "");
 				break;
 		
@@ -915,6 +919,7 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
+		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -1026,11 +1031,11 @@ private:
 				switch (information->ElementSize)
 				{
 				case 1:
-					return EmitConvert<SourceType, uint8_t>(value);
+					return EmitConvert<SourceType, uint8_t>(this, value);
 				case 2:
-					return EmitConvert<SourceType, uint16_t>(value);
+					return EmitConvert<SourceType, uint16_t>(this, value);
 				case 4:
-					return EmitConvert<SourceType, uint32_t>(value);
+					return EmitConvert<SourceType, uint32_t>(this, value);
 				default:
 					TODO_ERROR();
 				}
@@ -1043,11 +1048,11 @@ private:
 				switch (information->ElementSize)
 				{
 				case 1:
-					return EmitConvert<SourceType, int8_t>(value);
+					return EmitConvert<SourceType, int8_t>(this, value);
 				case 2:
-					return EmitConvert<SourceType, int16_t>(value);
+					return EmitConvert<SourceType, int16_t>(this, value);
 				case 4:
-					return EmitConvert<SourceType, int32_t>(value);
+					return EmitConvert<SourceType, int32_t>(this, value);
 				default:
 					TODO_ERROR();
 				}
@@ -1067,18 +1072,18 @@ private:
 				{
 					const auto tmp = CreateICmpULT(inputValue, ConstU32(std::numeric_limits<uint8_t>::max()));
 					inputValue = CreateSelect(tmp, inputValue, ConstU32(std::numeric_limits<uint8_t>::max()));
-					return EmitConvert<SourceType, uint8_t>(inputValue);
+					return EmitConvert<SourceType, uint8_t>(this, inputValue);
 				}
 			
 			case 2:
 				{
 					const auto tmp = CreateICmpULT(inputValue, ConstU32(std::numeric_limits<uint16_t>::max()));
 					inputValue = CreateSelect(tmp, inputValue, ConstU32(std::numeric_limits<uint16_t>::max()));
-					return EmitConvert<SourceType, uint16_t>(inputValue);
+					return EmitConvert<SourceType, uint16_t>(this, inputValue);
 				}
 			
 			case 4:
-				return EmitConvert<SourceType, uint32_t>(inputValue);
+				return EmitConvert<SourceType, uint32_t>(this, inputValue);
 			
 			default:
 				TODO_ERROR();
@@ -1096,7 +1101,7 @@ private:
 					tmp = CreateICmpSLT(inputValue, ConstI32(std::numeric_limits<int8_t>::max()));
 					inputValue = CreateSelect(tmp, inputValue, ConstI32(std::numeric_limits<int8_t>::max()));
 					
-					return EmitConvert<SourceType, int8_t>(inputValue);
+					return EmitConvert<SourceType, int8_t>(this, inputValue);
 				}
 			
 			case 2:
@@ -1107,11 +1112,11 @@ private:
 					tmp = CreateICmpSLT(inputValue, ConstI32(std::numeric_limits<int16_t>::max()));
 					inputValue = CreateSelect(tmp, inputValue, ConstI32(std::numeric_limits<int16_t>::max()));
 					
-					return EmitConvert<SourceType, int16_t>(inputValue);
+					return EmitConvert<SourceType, int16_t>(this, inputValue);
 				}
 			
 			case 4:
-				return EmitConvert<SourceType, int32_t>(inputValue);
+				return EmitConvert<SourceType, int32_t>(this, inputValue);
 			
 			default:
 				TODO_ERROR();
@@ -1125,13 +1130,13 @@ private:
 			switch (information->ElementSize)
 			{
 			case 2:
-				return EmitConvert<SourceType, half>(inputValue);
+				return EmitConvert<SourceType, half>(this, inputValue);
 			
 			case 4:
-				return EmitConvert<SourceType, float>(inputValue);
+				return EmitConvert<SourceType, float>(this, inputValue);
 			
 			case 8:
-				return EmitConvert<SourceType, double>(inputValue);
+				return EmitConvert<SourceType, double>(this, inputValue);
 			
 			default:
 				TODO_ERROR();
@@ -1145,11 +1150,11 @@ private:
 				switch (information->ElementSize)
 				{
 				case 1:
-					return EmitConvert<SourceType, uint8_t>(value);
+					return EmitConvert<SourceType, uint8_t>(this, value);
 				case 2:
-					return EmitConvert<SourceType, uint16_t>(value);
+					return EmitConvert<SourceType, uint16_t>(this, value);
 				case 4:
-					return EmitConvert<SourceType, uint32_t>(value);
+					return EmitConvert<SourceType, uint32_t>(this, value);
 				default:
 					TODO_ERROR();
 				}

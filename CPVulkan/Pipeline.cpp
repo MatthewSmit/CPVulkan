@@ -8,8 +8,8 @@
 #include "Util.h"
 
 #include <CompiledModule.h>
+#include <Compilers.h>
 #include <Jit.h>
-#include <PipelineCompiler.h>
 #include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
 #include <SPIRVModule.h>

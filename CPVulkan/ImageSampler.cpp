@@ -5,7 +5,7 @@
 #include "Image.h"
 #include "Sampler.h"
 
-#include <ImageCompiler.h>
+#include <Compilers.h>
 
 #include <glm/glm.hpp>
 

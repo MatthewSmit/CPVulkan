@@ -29,7 +29,6 @@ public:
 
 	CompiledModule* Compile();
 
-protected:
 	LLVMTargetDataRef layout{};
 
 	CPJit* jit;
@@ -37,6 +36,7 @@ protected:
 	LLVMContextRef context{};
 	LLVMModuleRef module{};
 	LLVMBuilderRef builder{};
+	LLVMValueRef currentFunction{};
 
 	virtual void MainCompilation() = 0;
 
