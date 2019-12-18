@@ -1920,13 +1920,36 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 		p0.w = builtinData0.position.w;
 		p1.w = builtinData1.position.w;
 		p2.w = builtinData2.position.w;
+		
+		const auto p0Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p0.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
+		};
+		
+		const auto p1Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p1.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p1.y + 1) * 0.5f * viewport.height),
+		};
+		
+		const auto p2Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p2.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p2.y + 1) * 0.5f * viewport.height),
+		};
 
-		for (auto y = 0u; y < viewport.height; y++)
+		const auto startX = std::max(0, std::min({p0Screen.x, p1Screen.x, p2Screen.x}));
+		const auto startY = std::max(0, std::min({p0Screen.y, p1Screen.y, p2Screen.y}));
+		const auto endX = std::min(static_cast<int32_t>(viewport.width), std::max({p0Screen.x, p1Screen.x, p2Screen.x}) + 1);
+		const auto endY = std::min(static_cast<int32_t>(viewport.height), std::max({p0Screen.y, p1Screen.y, p2Screen.y}) + 1);
+
+		for (auto y = startY; y < endY; y++)
 		{
 			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 
-			for (auto x = 0u; x < viewport.width; x++)
+			for (auto x = startX; x < endX; x++)
 			{
 				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
 				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
@@ -1990,12 +2013,35 @@ static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput*
 		p1.w = builtinData1.position.w;
 		p2.w = builtinData2.position.w;
 
-		for (auto y = 0u; y < viewport.height; y++)
+		const auto p0Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p0.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
+		};
+
+		const auto p1Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p1.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p1.y + 1) * 0.5f * viewport.height),
+		};
+
+		const auto p2Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p2.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p2.y + 1) * 0.5f * viewport.height),
+		};
+
+		const auto startX = std::max(0, std::min({p0Screen.x, p1Screen.x, p2Screen.x}));
+		const auto startY = std::max(0, std::min({p0Screen.y, p1Screen.y, p2Screen.y}));
+		const auto endX = std::min(static_cast<int32_t>(viewport.width), std::max({p0Screen.x, p1Screen.x, p2Screen.x}) + 1);
+		const auto endY = std::min(static_cast<int32_t>(viewport.height), std::max({p0Screen.y, p1Screen.y, p2Screen.y}) + 1);
+
+		for (auto y = startY; y < endY; y++)
 		{
 			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 
-			for (auto x = 0u; x < viewport.width; x++)
+			for (auto x = startX; x < endX; x++)
 			{
 				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
 				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
@@ -2059,12 +2105,35 @@ static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* b
 		p1.w = builtinData1.position.w;
 		p2.w = builtinData2.position.w;
 
-		for (auto y = 0u; y < viewport.width; y++)
+		const auto p0Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p0.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
+		};
+
+		const auto p1Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p1.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p1.y + 1) * 0.5f * viewport.height),
+		};
+
+		const auto p2Screen = glm::ivec2
+		{
+			static_cast<int32_t>((p2.x + 1) * 0.5f * viewport.width),
+			static_cast<int32_t>((p2.y + 1) * 0.5f * viewport.height),
+		};
+
+		const auto startX = std::max(0, std::min({p0Screen.x, p1Screen.x, p2Screen.x}));
+		const auto startY = std::max(0, std::min({p0Screen.y, p1Screen.y, p2Screen.y}));
+		const auto endX = std::min(static_cast<int32_t>(viewport.width), std::max({p0Screen.x, p1Screen.x, p2Screen.x}) + 1);
+		const auto endY = std::min(static_cast<int32_t>(viewport.height), std::max({p0Screen.y, p1Screen.y, p2Screen.y}) + 1);
+
+		for (auto y = startY; y < endY; y++)
 		{
 			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
 			builtinInput->fragCoord.y = y;
 
-			for (auto x = 0u; x < viewport.width; x++)
+			for (auto x = startX; x < endX; x++)
 			{
 				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
 				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
