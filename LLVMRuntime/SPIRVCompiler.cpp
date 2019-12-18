@@ -455,16 +455,6 @@ private:
 			}
 	
 		case OpSpecConstantTrue:
-			if (HasSpecOverride(spirvValue))
-			{
-				return GetSpecOverride<VkBool32>(spirvValue)
-					       ? LLVMConstInt(LLVMInt1TypeInContext(context), 1, false)
-					       : LLVMConstInt(LLVMInt1TypeInContext(context), 0, false);
-			}
-	
-		case OpConstantTrue:
-			return LLVMConstInt(LLVMInt1TypeInContext(context), 1, false);
-	
 		case OpSpecConstantFalse:
 			if (HasSpecOverride(spirvValue))
 			{
@@ -473,8 +463,9 @@ private:
 					       : LLVMConstInt(LLVMInt1TypeInContext(context), 0, false);
 			}
 	
+		case OpConstantTrue:
 		case OpConstantFalse:
-			return LLVMConstInt(LLVMInt1TypeInContext(context), 0, false);
+			return LLVMConstInt(LLVMInt1TypeInContext(context), spirvValue->getOpCode() == OpConstantTrue, false);
 	
 		case OpConstantNull:
 			return LLVMConstNull(ConvertType(spirvValue->getType()));
@@ -500,7 +491,7 @@ private:
 				
 				case OpTypeArray:
 					{
-						const auto arrayType = ConvertType(constantComposite->getType());
+						const auto arrayType = ConvertType(constantComposite->getType()->getArrayElementType());
 						if (arrayStrideMultiplier.find(arrayType) != arrayStrideMultiplier.end())
 						{
 							// TODO: Support stride
