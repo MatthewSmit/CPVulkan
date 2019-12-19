@@ -29,10 +29,30 @@
 
 class PipelineLayout;
 
-struct AssemblerOutput
+enum class PrimitiveType
+{
+	Point,
+	Line,
+	Triangle,
+};
+
+struct VertexInput
 {
 	uint32_t rawId;
 	uint32_t vertexId;
+};
+
+struct Primitive
+{
+	uint32_t provokingVertex;
+	uint32_t vertex[3];
+};
+
+struct AssemblerOutput
+{
+	PrimitiveType primitiveType;
+	std::vector<VertexInput> vertices{};
+	std::vector<Primitive> primitives{};
 };
 
 struct VertexBuiltinInput
@@ -626,26 +646,168 @@ static void GetVariablePointers(const SPIRV::SPIRVModule* module,
 	}
 }
 
-static std::vector<AssemblerOutput> ProcessInputAssembler(DeviceState* deviceState, uint32_t firstVertex, uint32_t vertexCount)
+void CalculatePrimitives(DeviceState* deviceState, AssemblerOutput& assemblerOutput)
 {
-	// TODO: Calculate offsets here too
-	std::vector<AssemblerOutput> results(vertexCount);
-	for (auto i = 0u; i < vertexCount; i++)
+	const auto vertexCount = assemblerOutput.vertices.size();
+	switch (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState().Topology)
 	{
-		results[i].rawId = i;
-		results[i].vertexId = firstVertex + i;
+	case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
+		{
+			assemblerOutput.primitiveType = PrimitiveType::Point;
+			assemblerOutput.primitives.resize(vertexCount);
+			for (auto i = 0u; i < vertexCount; i++)
+			{
+				assemblerOutput.primitives[i].provokingVertex = i;
+				assemblerOutput.primitives[i].vertex[0] = i;
+			}
+			break;
+		}
+
+	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
+		{
+			assemblerOutput.primitiveType = PrimitiveType::Line;
+			const auto primitiveCount = vertexCount / 2;
+			assemblerOutput.primitives.resize(primitiveCount);
+			for (auto i = 0u; i < primitiveCount; i++)
+			{
+				assemblerOutput.primitives[i].provokingVertex = i * 2 + 0;
+				assemblerOutput.primitives[i].vertex[0] = i * 2 + 0;
+				assemblerOutput.primitives[i].vertex[1] = i * 2 + 1;
+			}
+			break;
+		}
+
+	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
+		{
+			assemblerOutput.primitiveType = PrimitiveType::Line;
+			assemblerOutput.primitives.resize(std::max(vertexCount, static_cast<size_t>(1)) - 1);
+			for (auto i = 1u; i < vertexCount; i++)
+			{
+				assemblerOutput.primitives[i].provokingVertex = i - 1;
+				assemblerOutput.primitives[i].vertex[0] = i - 1;
+				assemblerOutput.primitives[i].vertex[1] = i - 0;
+			}
+			break;
+		}
+
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
+		{
+			assemblerOutput.primitiveType = PrimitiveType::Triangle;
+			const auto primitiveCount = vertexCount / 3;
+			assemblerOutput.primitives.resize(primitiveCount);
+			for (auto i = 0u; i < primitiveCount; i++)
+			{
+				assemblerOutput.primitives[i].provokingVertex = i * 3 + 0;
+				assemblerOutput.primitives[i].vertex[0] = i * 3 + 0;
+				assemblerOutput.primitives[i].vertex[1] = i * 3 + 1;
+				assemblerOutput.primitives[i].vertex[2] = i * 3 + 2;
+			}
+			break;
+		}
+
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
+		{
+			assemblerOutput.primitiveType = PrimitiveType::Triangle;
+			assemblerOutput.primitives.resize(std::max(vertexCount, static_cast<size_t>(2)) - 2);
+			for (auto i = 2u; i < vertexCount; i++)
+			{
+				assemblerOutput.primitives[i].provokingVertex = i - 2;
+				assemblerOutput.primitives[i].vertex[0] = i - 2;
+				assemblerOutput.primitives[i].vertex[1] = i - 1;
+				assemblerOutput.primitives[i].vertex[2] = i - 0;
+			}
+			break;
+		}
+
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
+		{
+			assemblerOutput.primitiveType = PrimitiveType::Triangle;
+			assemblerOutput.primitives.resize(std::max(vertexCount, static_cast<size_t>(2)) - 2);
+			for (auto i = 1u; i < vertexCount - 1; i++)
+			{
+				assemblerOutput.primitives[i].provokingVertex = i;
+				assemblerOutput.primitives[i].vertex[0] = 0;
+				assemblerOutput.primitives[i].vertex[1] = i;
+				assemblerOutput.primitives[i].vertex[2] = i + 1;
+			}
+			break;
+		}
+
+	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
+	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
+	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY:
+	case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
+		TODO_ERROR();
+
+	default:
+		FATAL_ERROR();
 	}
-	return results;
 }
 
-static std::vector<AssemblerOutput> ProcessInputAssemblerIndexed(DeviceState* deviceState, uint32_t firstIndex, uint32_t indexCount, uint32_t vertexOffset)
+static AssemblerOutput ProcessInputAssembler(DeviceState* deviceState, uint32_t firstVertex, uint32_t vertexCount)
 {
-	// TODO: Calculate offsets here too
-	std::vector<AssemblerOutput> results(indexCount);
+	AssemblerOutput assemblerOutput{};
+	assemblerOutput.vertices.resize(vertexCount);
+	for (auto i = 0u; i < vertexCount; i++)
+	{
+		assemblerOutput.vertices[i].rawId = i;
+		assemblerOutput.vertices[i].vertexId = firstVertex + i;
+	}
 
+	CalculatePrimitives(deviceState, assemblerOutput);
+	
+	return assemblerOutput;
+}
+
+template<typename T>
+static void ProcessIndexedVertices(AssemblerOutput& assemblerOutput, uint32_t indexCount, uint32_t vertexOffset, uint32_t firstIndex, uint32_t primitiveSize, const T* indexData)
+{
+	auto currentVertex = 0u;
+	for (auto i = 0u; i < indexCount; i++)
+	{
+		const auto index = indexData[firstIndex + i];
+		if (primitiveSize > 0 && index == std::numeric_limits<T>::max())
+		{
+			TODO_ERROR();
+		}
+		
+		assemblerOutput.vertices[currentVertex].rawId = i;
+		assemblerOutput.vertices[currentVertex].vertexId = vertexOffset + index;
+		currentVertex++;
+	}
+	
+	if (assemblerOutput.vertices.size() != currentVertex)
+	{
+		assemblerOutput.vertices.resize(currentVertex);
+	}
+}
+
+static AssemblerOutput ProcessInputAssemblerIndexed(DeviceState* deviceState, uint32_t firstIndex, uint32_t indexCount, uint32_t vertexOffset)
+{
+	AssemblerOutput assemblerOutput{};
+	assemblerOutput.vertices.resize(indexCount);
+
+	uint32_t primitiveSize = 0;
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState().PrimitiveRestartEnable)
 	{
-		TODO_ERROR();
+		switch (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState().Topology)
+		{
+		case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
+			primitiveSize = 1;
+			break;
+
+		case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
+			primitiveSize = 2;
+			break;
+
+		case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
+			primitiveSize = 3;
+			break;
+
+		default:
+			FATAL_ERROR();
+		}
 	}
 
 	const auto indexData = deviceState->indexBinding->getDataPtr(deviceState->indexBindingOffset, static_cast<uint64_t>(indexCount) * deviceState->indexBindingStride);
@@ -653,34 +815,24 @@ static std::vector<AssemblerOutput> ProcessInputAssemblerIndexed(DeviceState* de
 	switch (deviceState->indexBindingStride)
 	{
 	case 1:
-		for (auto i = 0u; i < indexCount; i++)
-		{
-			results[i].rawId = i;
-			results[i].vertexId = vertexOffset + indexData[firstIndex + i];
-		}
+		ProcessIndexedVertices(assemblerOutput, indexCount, vertexOffset, firstIndex, primitiveSize, indexData);
 		break;
 		
 	case 2:
-		for (auto i = 0u; i < indexCount; i++)
-		{
-			results[i].rawId = i;
-			results[i].vertexId = vertexOffset + reinterpret_cast<uint16_t*>(indexData)[firstIndex + i];
-		}
+		ProcessIndexedVertices(assemblerOutput, indexCount, vertexOffset, firstIndex, primitiveSize, reinterpret_cast<uint16_t*>(indexData));
 		break;
 
 	case 4:
-		for (auto i = 0u; i < indexCount; i++)
-		{
-			results[i].rawId = i;
-			results[i].vertexId = vertexOffset + reinterpret_cast<uint32_t*>(indexData)[firstIndex + i];
-		}
+		ProcessIndexedVertices(assemblerOutput, indexCount, vertexOffset, firstIndex, primitiveSize, reinterpret_cast<uint32_t*>(indexData));
 		break;
 		
 	default:
 		FATAL_ERROR();
 	}
-	
-	return results;
+
+	CalculatePrimitives(deviceState, assemblerOutput);
+
+	return assemblerOutput;
 }
 
 static bool EnsureVertexMemoryStorage(DeviceState* deviceState, uint64_t numberVertices, uint64_t vertexStorageStride)
@@ -697,9 +849,9 @@ static bool EnsureVertexMemoryStorage(DeviceState* deviceState, uint64_t numberV
 	return !hasChanged;
 }
 
-static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t instance, const std::vector<AssemblerOutput>& assemblerOutput)
+static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t instance, const AssemblerOutput& assemblerOutput)
 {
-	assert(assemblerOutput.size() <= 0xFFFFFFFF);
+	assert(assemblerOutput.vertices.size() <= 0xFFFFFFFF);
 
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(0);
 	const auto& vertexInput = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexInputState();
@@ -715,7 +867,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	std::pair<void*, uint32_t> pushConstant{};
 	GetVariablePointers(spirvModule, llvmModule, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
 
-	EnsureVertexMemoryStorage(deviceState, assemblerOutput.size(), vertexStorageStride);
+	EnsureVertexMemoryStorage(deviceState, assemblerOutput.vertices.size(), vertexStorageStride);
 	const auto outputStorage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexModule()->getPointer("@outputStorage");
 	*static_cast<void**>(outputStorage) = deviceState->vertexOutputStorage.data();
 
@@ -723,7 +875,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	{
 		sizeof(VertexBuiltinOutput),
 		vertexStorageStride,
-		static_cast<uint32_t>(assemblerOutput.size()),
+		static_cast<uint32_t>(assemblerOutput.vertices.size()),
 	};
 
 	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
@@ -733,7 +885,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
 	}
 
-	reinterpret_cast<void(*)(const AssemblerOutput*, uint32_t, uint32_t)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(assemblerOutput.data(), static_cast<uint32_t>(assemblerOutput.size()), instance);
+	reinterpret_cast<void(*)(const VertexInput*, uint32_t, uint32_t)>(deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexEntryPoint())(assemblerOutput.vertices.data(), static_cast<uint32_t>(assemblerOutput.vertices.size()), instance);
 	
 	return output;
 }
@@ -1578,10 +1730,10 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	}
 }
 
-static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                             std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                             std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
-                             const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
+static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
+                          std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                          std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                          const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 1)
 	{
@@ -1597,11 +1749,12 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 		                      ? deviceState->viewports[0]
 		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 
-	const auto numberPrimitives = output.vertexCount;
-	
-	for (auto i = 0u; i < numberPrimitives; i++)
+	for (const auto& primitive : assemblerOutput.primitives)
 	{
-		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + i * output.outputStride);
+		auto provokingVertex = primitive.provokingVertex;
+		const auto p0Index = primitive.vertex[0];
+		
+		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
 		
 		auto p0 = builtinData0.position / builtinData0.position.w;
 		p0.w = builtinData0.position.w;
@@ -1632,7 +1785,7 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 				{
 					for (auto input : inputData)
 					{
-						const auto data = deviceState->vertexOutputStorage.data() + i * output.outputStride + input.offset;
+						const auto data = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
 						SetDatum(input, data);
 					}
 					
@@ -1643,10 +1796,10 @@ static void ProcessPointList(DeviceState* deviceState, FragmentBuiltinInput* bui
 	}
 }
 
-static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                            std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                            std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
-                            const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
+static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
+                         std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
+                         std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                         const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 2)
 	{
@@ -1663,17 +1816,17 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 
 	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
-	const auto numberPrimitives = output.vertexCount / 2;
-	
-	for (auto i = 0u; i < numberPrimitives; i++)
+
+	for (const auto& primitive : assemblerOutput.primitives)
 	{
+		auto provokingVertex = primitive.provokingVertex;
+		const auto p0Index = primitive.vertex[0];
+		const auto p1Index = primitive.vertex[1];
+		
 		if (rasterisationState.StippledLineEnable)
 		{
 			TODO_ERROR();
 		}
-
-		const auto p0Index = i * 2 + 0;
-		const auto p1Index = i * 2 + 1;
 
 		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
 		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
@@ -1760,16 +1913,11 @@ static void ProcessLineList(DeviceState* deviceState, FragmentBuiltinInput* buil
 	}
 }
 
-static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
+static void ProcessTriangles(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
                              std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                             std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                             std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
                              const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
-	if (output.vertexCount < 2)
-	{
-		return;
-	}
-
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
 	{
 		TODO_ERROR();
@@ -1780,131 +1928,13 @@ static void ProcessLineStrip(DeviceState* deviceState, FragmentBuiltinInput* bui
 		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 
 	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
-	const auto numberPrimitives = output.vertexCount - 1;
-	
-	for (auto i = 0u; i < numberPrimitives; i++)
+
+	for (const auto& primitive : assemblerOutput.primitives)
 	{
-		if (rasterisationState.StippledLineEnable)
-		{
-			TODO_ERROR();
-		}
-
-		const auto p0Index = i + 0;
-		const auto p1Index = i + 1;
-
-		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
-		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
-
-		auto p0 = builtinData0.position / builtinData0.position.w;
-		auto p1 = builtinData1.position / builtinData1.position.w;
-		p0.w = builtinData0.position.w;
-		p1.w = builtinData1.position.w;
-		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{viewport.width, viewport.height}) * 0.5f;
-
-		auto lineDirection = glm::normalize(p1 - p0);
-		auto perpendicularLineDirection = glm::fvec2{lineDirection.y, -lineDirection.x};
-		auto p00 = glm::xy(p0) + perpendicularLineDirection * lineWidth;
-		auto p01 = glm::xy(p0) - perpendicularLineDirection * lineWidth;
-		auto p10 = glm::xy(p1) + perpendicularLineDirection * lineWidth;
-		auto p11 = glm::xy(p1) - perpendicularLineDirection * lineWidth;
-			
-		for (auto y = 0u; y < viewport.height; y++)
-		{
-			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
-			builtinInput->fragCoord.y = y;
-		
-			for (auto x = 0u; x < viewport.width; x++)
-			{
-				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
-				const auto p = glm::vec2(xf, yf);
-
-				switch (rasterisationState.LineRasterizationMode)
-				{
-				case VK_LINE_RASTERIZATION_MODE_DEFAULT_EXT:
-				case VK_LINE_RASTERIZATION_MODE_RECTANGULAR_EXT:
-					{
-						// Probably need a better algorithm, too aliased currently
-						if (EdgeFunction(p00, p01, p) >= 0 && EdgeFunction(p11, p10, p) >= 0 && EdgeFunction(p10, p00, p) >= 0 && EdgeFunction(p01, p11, p) >= 0)
-						{
-							auto t = glm::dot(p - glm::xy(p0), glm::xy(p1) - glm::xy(p0)) / (glm::length(glm::xy(p1) - glm::xy(p0)) * glm::length(glm::xy(p1) - glm::xy(p0)));
-							for (auto input : inputData)
-							{
-								switch (input.interpolation)
-								{
-								case InterpolationType::Perspective:
-									{
-										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
-										SetDatum<true>(input, p0.w, p1.w, data0, data1, 1 - t, t);
-										break;
-									}
-
-								case InterpolationType::Linear:
-									{
-										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
-										SetDatum<false>(input, p0.w, p1.w, data0, data1, 1 - t, t);
-										break;
-									}
-
-								case InterpolationType::Flat:
-									memcpy(input.pointer, deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset, input.size);
-									break;
-
-								default:
-									FATAL_ERROR();
-								}
-							}
-							
-							auto depth = p0.z * t + p1.z * (1 - t);
-							DrawPixel(deviceState, builtinInput, shaderStage, true, depth, depthImage, stencilImage, images, outputData, x, y);
-						}
-						break;
-					}
-
-				case VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT:
-					TODO_ERROR();
-
-				case VK_LINE_RASTERIZATION_MODE_RECTANGULAR_SMOOTH_EXT:
-					TODO_ERROR();
-
-				default:
-					FATAL_ERROR();
-				}
-			}
-		}
-	}
-}
-
-static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                                std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                                std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
-                                const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
-{
-	if (output.vertexCount < 3)
-	{
-		return;
-	}
-
-	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
-	{
-		TODO_ERROR();
-	}
-
-	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
-		                      ? deviceState->viewports[0]
-		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
-
-	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
-	const auto numberPrimitives = output.vertexCount / 3;
-
-	for (auto i = 0u; i < numberPrimitives; i++)
-	{
-		auto provokingVertex = i * 3 + 0;
-		auto p0Index = i * 3 + 0;
-		auto p1Index = i * 3 + 1;
-		auto p2Index = i * 3 + 2;
+		auto provokingVertex = primitive.provokingVertex;
+		auto p0Index = primitive.vertex[0];
+		auto p1Index = primitive.vertex[1];
+		auto p2Index = primitive.vertex[2];
 		if (rasterisationState.FrontFace == VK_FRONT_FACE_CLOCKWISE)
 		{
 			std::swap(p0Index, p2Index);
@@ -1969,191 +1999,7 @@ static void ProcessTriangleList(DeviceState* deviceState, FragmentBuiltinInput* 
 	}
 }
 
-static void ProcessTriangleStrip(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                                 std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                                 std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
-                                 const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
-{
-	if (output.vertexCount < 3)
-	{
-		return;
-	}
-
-	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
-	{
-		TODO_ERROR();
-	}
-
-	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
-		                      ? deviceState->viewports[0]
-		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
-	
-	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
-	const auto numberPrimitives = output.vertexCount - 2;
-
-	for (auto i = 0u; i < numberPrimitives; i++)
-	{
-		auto provokingVertex = i + 0;
-		auto p0Index = i + 0;
-		auto p1Index = i + 1;
-		auto p2Index = i + 2;
-		if (rasterisationState.FrontFace == VK_FRONT_FACE_CLOCKWISE)
-		{
-			std::swap(p0Index, p2Index);
-		}
-
-		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
-		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
-		const auto& builtinData2 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p2Index * output.outputStride);
-
-		auto p0 = builtinData0.position / builtinData0.position.w;
-		auto p1 = builtinData1.position / builtinData1.position.w;
-		auto p2 = builtinData2.position / builtinData2.position.w;
-		p0.w = builtinData0.position.w;
-		p1.w = builtinData1.position.w;
-		p2.w = builtinData2.position.w;
-
-		const auto p0Screen = glm::ivec2
-		{
-			static_cast<int32_t>((p0.x + 1) * 0.5f * viewport.width),
-			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
-		};
-
-		const auto p1Screen = glm::ivec2
-		{
-			static_cast<int32_t>((p1.x + 1) * 0.5f * viewport.width),
-			static_cast<int32_t>((p1.y + 1) * 0.5f * viewport.height),
-		};
-
-		const auto p2Screen = glm::ivec2
-		{
-			static_cast<int32_t>((p2.x + 1) * 0.5f * viewport.width),
-			static_cast<int32_t>((p2.y + 1) * 0.5f * viewport.height),
-		};
-
-		const auto startX = std::max(0, std::min({p0Screen.x, p1Screen.x, p2Screen.x}));
-		const auto startY = std::max(0, std::min({p0Screen.y, p1Screen.y, p2Screen.y}));
-		const auto endX = std::min(static_cast<int32_t>(viewport.width), std::max({p0Screen.x, p1Screen.x, p2Screen.x}) + 1);
-		const auto endY = std::min(static_cast<int32_t>(viewport.height), std::max({p0Screen.y, p1Screen.y, p2Screen.y}) + 1);
-
-		for (auto y = startY; y < endY; y++)
-		{
-			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
-			builtinInput->fragCoord.y = y;
-
-			for (auto x = startX; x < endX; x++)
-			{
-				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
-				const auto p = glm::vec2(xf, yf);
-
-				float depth;
-				bool front;
-				if (GetFragmentInput(inputData, deviceState->vertexOutputStorage.data(), output.outputStride,
-				                     provokingVertex, p0Index, p1Index, p2Index,
-				                     p0, p1, p2, p,
-				                     rasterisationState.CullMode, depth, front))
-				{
-					DrawPixel(deviceState, builtinInput, shaderStage, front, depth, depthImage, stencilImage, images, outputData, x, y);
-				}
-			}
-		}
-	}
-}
-
-static void ProcessTriangleFan(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                               std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                               std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
-                               const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
-{
-	if (output.vertexCount < 3)
-	{
-		return;
-	}
-
-	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
-	{
-		TODO_ERROR();
-	}
-
-	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
-		                      ? deviceState->viewports[0]
-		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
-
-	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
-	const auto numberPrimitives = output.vertexCount - 2;
-
-	for (auto i = 0u; i < numberPrimitives; i++)
-	{
-		auto provokingVertex = i + 1;
-		auto p0Index = 0u;
-		auto p1Index = i + 1;
-		auto p2Index = i + 2;
-		if (rasterisationState.FrontFace == VK_FRONT_FACE_CLOCKWISE)
-		{
-			std::swap(p0Index, p2Index);
-		}
-
-		const auto& builtinData0 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p0Index * output.outputStride);
-		const auto& builtinData1 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p1Index * output.outputStride);
-		const auto& builtinData2 = *reinterpret_cast<VertexBuiltinOutput*>(deviceState->vertexOutputStorage.data() + p2Index * output.outputStride);
-
-		auto p0 = builtinData0.position / builtinData0.position.w;
-		auto p1 = builtinData1.position / builtinData1.position.w;
-		auto p2 = builtinData2.position / builtinData2.position.w;
-		p0.w = builtinData0.position.w;
-		p1.w = builtinData1.position.w;
-		p2.w = builtinData2.position.w;
-
-		const auto p0Screen = glm::ivec2
-		{
-			static_cast<int32_t>((p0.x + 1) * 0.5f * viewport.width),
-			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
-		};
-
-		const auto p1Screen = glm::ivec2
-		{
-			static_cast<int32_t>((p1.x + 1) * 0.5f * viewport.width),
-			static_cast<int32_t>((p1.y + 1) * 0.5f * viewport.height),
-		};
-
-		const auto p2Screen = glm::ivec2
-		{
-			static_cast<int32_t>((p2.x + 1) * 0.5f * viewport.width),
-			static_cast<int32_t>((p2.y + 1) * 0.5f * viewport.height),
-		};
-
-		const auto startX = std::max(0, std::min({p0Screen.x, p1Screen.x, p2Screen.x}));
-		const auto startY = std::max(0, std::min({p0Screen.y, p1Screen.y, p2Screen.y}));
-		const auto endX = std::min(static_cast<int32_t>(viewport.width), std::max({p0Screen.x, p1Screen.x, p2Screen.x}) + 1);
-		const auto endY = std::min(static_cast<int32_t>(viewport.height), std::max({p0Screen.y, p1Screen.y, p2Screen.y}) + 1);
-
-		for (auto y = startY; y < endY; y++)
-		{
-			const auto yf = (static_cast<float>(y) / viewport.height + halfPixel.y) * 2 - 1;
-			builtinInput->fragCoord.y = y;
-
-			for (auto x = startX; x < endX; x++)
-			{
-				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderStage->getFragmentOriginUpper() ? x : viewport.width - x - 1;
-				const auto p = glm::vec2(xf, yf);
-
-				float depth;
-				bool front;
-				if (GetFragmentInput(inputData, deviceState->vertexOutputStorage.data(), output.outputStride,
-				                     provokingVertex, p0Index, p1Index, p2Index,
-				                     p0, p1, p2, p,
-				                     rasterisationState.CullMode, depth, front))
-				{
-					DrawPixel(deviceState, builtinInput, shaderStage, front, depth, depthImage, stencilImage, images, outputData, x, y);
-				}
-			}
-		}
-	}
-}
-
-static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& output)
+static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, const VertexOutput& output)
 {
 	const auto& inputAssembly = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState();
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(4);
@@ -2225,46 +2071,19 @@ static void ProcessFragmentShader(DeviceState* deviceState, const VertexOutput& 
 		TODO_ERROR();
 	}
 	
-	switch (inputAssembly.Topology)
+	switch (assemblerOutput.primitiveType)
 	{
-	case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
-		ProcessPointList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
+	case PrimitiveType::Point:
+		ProcessPoints(deviceState, assemblerOutput, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
-		
-	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
-		ProcessLineList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
+
+	case PrimitiveType::Line:
+		ProcessLines(deviceState, assemblerOutput, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
-	
-	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
-		ProcessLineStrip(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
+
+	case PrimitiveType::Triangle:
+		ProcessTriangles(deviceState, assemblerOutput, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
-		
-	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
-		ProcessTriangleList(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
-		break;
-		
-	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
-		ProcessTriangleStrip(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
-		break;
-		
-	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
-		ProcessTriangleFan(deviceState, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
-		break;
-	
-	case VK_PRIMITIVE_TOPOLOGY_LINE_LIST_WITH_ADJACENCY:
-		TODO_ERROR();
-		
-	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP_WITH_ADJACENCY:
-		TODO_ERROR();
-		
-	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST_WITH_ADJACENCY:
-		TODO_ERROR();
-		
-	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP_WITH_ADJACENCY: 
-		TODO_ERROR();
-		
-	case VK_PRIMITIVE_TOPOLOGY_PATCH_LIST:
-		TODO_ERROR();
 		
 	default:
 		FATAL_ERROR();
@@ -2372,7 +2191,7 @@ public:
 				TODO_ERROR();
 			}
 
-			ProcessFragmentShader(deviceState, vertexOutput);
+			ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
 		}
 	}
 
@@ -2432,7 +2251,7 @@ public:
 				TODO_ERROR();
 			}
 
-			ProcessFragmentShader(deviceState, vertexOutput);
+			ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
 		}
 	}
 
@@ -2494,7 +2313,7 @@ public:
 					TODO_ERROR();
 				}
 
-				ProcessFragmentShader(deviceState, vertexOutput);
+				ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
 			}
 		}
 	}
@@ -2556,7 +2375,7 @@ public:
 					TODO_ERROR();
 				}
 
-				ProcessFragmentShader(deviceState, vertexOutput);
+				ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
 			}
 		}
 	}
@@ -2844,7 +2663,7 @@ public:
 					TODO_ERROR();
 				}
 
-				ProcessFragmentShader(deviceState, vertexOutput);
+				ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
 			}
 		}
 	}
@@ -2906,7 +2725,7 @@ public:
 					TODO_ERROR();
 				}
 
-				ProcessFragmentShader(deviceState, vertexOutput);
+				ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
 			}
 		}
 	}
