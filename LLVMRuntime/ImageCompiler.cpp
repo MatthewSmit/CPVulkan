@@ -102,37 +102,59 @@ static LLVMValueRef EmitConvert(CompiledModuleBuilder* moduleBuilder, LLVMValueR
 // Getting pixel functions
 LLVMValueRef EmitSRGBToLinear(CompiledModuleBuilder* moduleBuilder, LLVMValueRef inputValue)
 {
-	const auto trueBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, moduleBuilder->currentFunction, "");
-	const auto falseBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, moduleBuilder->currentFunction, "");
-	const auto nextBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, moduleBuilder->currentFunction, "");
-
-	const auto comparison = moduleBuilder->CreateFCmpUGT(inputValue, moduleBuilder->ConstF32(0.04045f));
-	moduleBuilder->CreateCondBr(comparison, trueBlock, falseBlock);
-
-	LLVMPositionBuilderAtEnd(moduleBuilder->builder, falseBlock);
-	const auto falseValue = moduleBuilder->CreateFDiv(inputValue, moduleBuilder->ConstF32(12.92f));
-	moduleBuilder->CreateBr(nextBlock);
-
-	LLVMPositionBuilderAtEnd(moduleBuilder->builder, trueBlock);
-	auto trueValue = moduleBuilder->CreateFAdd(inputValue, moduleBuilder->ConstF32(0.055f));
-	trueValue = moduleBuilder->CreateFDiv(trueValue, moduleBuilder->ConstF32(1.055f));
-	trueValue = moduleBuilder->CreateIntrinsic<2>(Intrinsics::pow, {trueValue, moduleBuilder->ConstF32(2.4f)});
-	moduleBuilder->CreateBr(nextBlock);
-
-	LLVMPositionBuilderAtEnd(moduleBuilder->builder, nextBlock);
-	const auto value = moduleBuilder->CreatePhi(LLVMFloatTypeInContext(moduleBuilder->context));
-	std::array<LLVMValueRef, 2> incoming
+	auto function = LLVMGetNamedFunction(moduleBuilder->module, "!Image.SRGBToLinear");
+	if (!function)
 	{
-		trueValue,
-		falseValue,
-	};
-	std::array<LLVMBasicBlockRef, 2> incomingBlocks
-	{
-		trueBlock,
-		falseBlock,
-	};
-	LLVMAddIncoming(value, incoming.data(), incomingBlocks.data(), 2);
-	return value;
+		const auto currentBlock = LLVMGetInsertBlock(moduleBuilder->builder);
+		
+		LLVMTypeRef parameters[]
+		{
+			LLVMFloatTypeInContext(moduleBuilder->context),
+		};
+		const auto functionType = LLVMFunctionType(LLVMFloatTypeInContext(moduleBuilder->context), parameters, 1, false);
+		function = LLVMAddFunction(moduleBuilder->module, "!Image.SRGBToLinear", functionType);
+		LLVMSetLinkage(function, LLVMPrivateLinkage);
+
+		const auto functionInput = LLVMGetParam(function, 0);
+
+		const auto initialBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, function, "");
+		const auto trueBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, function, "");
+		const auto falseBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, function, "");
+		const auto nextBlock = LLVMAppendBasicBlockInContext(moduleBuilder->context, function, "");
+
+		LLVMPositionBuilderAtEnd(moduleBuilder->builder, initialBlock);
+		const auto comparison = moduleBuilder->CreateFCmpUGT(functionInput, moduleBuilder->ConstF32(0.04045f));
+		moduleBuilder->CreateCondBr(comparison, trueBlock, falseBlock);
+
+		LLVMPositionBuilderAtEnd(moduleBuilder->builder, falseBlock);
+		const auto falseValue = moduleBuilder->CreateFDiv(functionInput, moduleBuilder->ConstF32(12.92f));
+		moduleBuilder->CreateBr(nextBlock);
+
+		LLVMPositionBuilderAtEnd(moduleBuilder->builder, trueBlock);
+		auto trueValue = moduleBuilder->CreateFAdd(functionInput, moduleBuilder->ConstF32(0.055f));
+		trueValue = moduleBuilder->CreateFDiv(trueValue, moduleBuilder->ConstF32(1.055f));
+		trueValue = moduleBuilder->CreateIntrinsic<2>(Intrinsics::pow, {trueValue, moduleBuilder->ConstF32(2.4f)});
+		moduleBuilder->CreateBr(nextBlock);
+
+		LLVMPositionBuilderAtEnd(moduleBuilder->builder, nextBlock);
+		const auto value = moduleBuilder->CreatePhi(LLVMFloatTypeInContext(moduleBuilder->context));
+		std::array<LLVMValueRef, 2> incoming
+		{
+			trueValue,
+			falseValue,
+		};
+		std::array<LLVMBasicBlockRef, 2> incomingBlocks
+		{
+			trueBlock,
+			falseBlock,
+		};
+		LLVMAddIncoming(value, incoming.data(), incomingBlocks.data(), 2);
+		moduleBuilder->CreateRet(value);
+
+		LLVMPositionBuilderAtEnd(moduleBuilder->builder, currentBlock);
+	}
+
+	return moduleBuilder->CreateCall(function, {inputValue});
 }
 
 template<typename ReturnType>
@@ -226,6 +248,16 @@ static LLVMValueRef EmitGetPackedChannel(CompiledModuleBuilder* moduleBuilder, c
 		return value;
 
 	case BaseType::SNorm:
+		if (bits == 8 || bits == 16)
+		{
+			value = moduleBuilder->CreateTrunc(value, LLVMIntTypeInContext(moduleBuilder->context, bits));
+		}
+		else if (bits < valueBits)
+		{
+			value = moduleBuilder->CreateShl(value, moduleBuilder->ConstI32(valueBits - bits));
+			value = moduleBuilder->CreateAShr(value, moduleBuilder->ConstI32(valueBits - bits));
+			// TODO: ASHR can be exact
+		}
 		value = moduleBuilder->CreateSIToFP(value, LLVMFloatTypeInContext(moduleBuilder->context));
 		value = moduleBuilder->CreateFDiv(value, LLVMConstReal(LLVMFloatTypeInContext(moduleBuilder->context), mask >> 1));
 		return value;
@@ -527,7 +559,6 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMFloatTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
-		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -592,7 +623,6 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMInt8TypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
-		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -635,7 +665,6 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
-		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -848,7 +877,6 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
-		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
@@ -929,7 +957,6 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "main", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
-		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);

@@ -300,7 +300,6 @@ protected:
 		const auto functionType = LLVMFunctionType(LLVMVoidType(), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		const auto function = LLVMAddFunction(module, "@VertexProcessing", functionType);
 		LLVMSetLinkage(function, LLVMExternalLinkage);
-		this->currentFunction = function;
 
 		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
