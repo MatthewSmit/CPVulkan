@@ -680,12 +680,15 @@ void CalculatePrimitives(DeviceState* deviceState, AssemblerOutput& assemblerOut
 	case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
 		{
 			assemblerOutput.primitiveType = PrimitiveType::Line;
-			assemblerOutput.primitives.resize(std::max(vertexCount, static_cast<size_t>(1)) - 1);
-			for (auto i = 1u; i < vertexCount; i++)
+			if (vertexCount > 1)
 			{
-				assemblerOutput.primitives[i].provokingVertex = i - 1;
-				assemblerOutput.primitives[i].vertex[0] = i - 1;
-				assemblerOutput.primitives[i].vertex[1] = i - 0;
+				assemblerOutput.primitives.resize(vertexCount - 1);
+				for (auto i = 0u; i < vertexCount - 1; i++)
+				{
+					assemblerOutput.primitives[i].provokingVertex = i;
+					assemblerOutput.primitives[i].vertex[0] = i + 0;
+					assemblerOutput.primitives[i].vertex[1] = i + 1;
+				}
 			}
 			break;
 		}
@@ -708,13 +711,16 @@ void CalculatePrimitives(DeviceState* deviceState, AssemblerOutput& assemblerOut
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
 		{
 			assemblerOutput.primitiveType = PrimitiveType::Triangle;
-			assemblerOutput.primitives.resize(std::max(vertexCount, static_cast<size_t>(2)) - 2);
-			for (auto i = 2u; i < vertexCount; i++)
+			if (vertexCount > 2)
 			{
-				assemblerOutput.primitives[i].provokingVertex = i - 2;
-				assemblerOutput.primitives[i].vertex[0] = i - 2;
-				assemblerOutput.primitives[i].vertex[1] = i - 1;
-				assemblerOutput.primitives[i].vertex[2] = i - 0;
+				assemblerOutput.primitives.resize(vertexCount - 2);
+				for (auto i = 0u; i < vertexCount - 2; i++)
+				{
+					assemblerOutput.primitives[i].provokingVertex = i + 0;
+					assemblerOutput.primitives[i].vertex[0] = i + 0;
+					assemblerOutput.primitives[i].vertex[1] = i + 1;
+					assemblerOutput.primitives[i].vertex[2] = i + 2;
+				}
 			}
 			break;
 		}
@@ -722,13 +728,16 @@ void CalculatePrimitives(DeviceState* deviceState, AssemblerOutput& assemblerOut
 	case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
 		{
 			assemblerOutput.primitiveType = PrimitiveType::Triangle;
-			assemblerOutput.primitives.resize(std::max(vertexCount, static_cast<size_t>(2)) - 2);
-			for (auto i = 1u; i < vertexCount - 1; i++)
+			if (vertexCount > 2)
 			{
-				assemblerOutput.primitives[i].provokingVertex = i;
-				assemblerOutput.primitives[i].vertex[0] = 0;
-				assemblerOutput.primitives[i].vertex[1] = i;
-				assemblerOutput.primitives[i].vertex[2] = i + 1;
+				assemblerOutput.primitives.resize(vertexCount - 2);
+				for (auto i = 0; i < vertexCount - 2; i++)
+				{
+					assemblerOutput.primitives[i].provokingVertex = i + 1;
+					assemblerOutput.primitives[i].vertex[0] = 0;
+					assemblerOutput.primitives[i].vertex[1] = i + 1;
+					assemblerOutput.primitives[i].vertex[2] = i + 2;
+				}
 			}
 			break;
 		}
@@ -890,53 +899,31 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	return output;
 }
 
-template<bool Perspective, typename T>
-T SetDatum(T f0, T f1, T p0, T p1, float w0, float w1)
+template<bool Perspective, int size, typename T>
+T SetDatum(float points[size], T values[size], float weights[size])
 {
-	return Perspective
-		       ? (w0 * f0 / p0 + w1 * f1 / p1) / (w0 / p0 + w1 / p1)
-		       : w0 * f0 + w1 * f1;
-}
-
-template<bool Perspective, typename T>
-T SetDatum(T f0, T f1, T f2, T p0, T p1, T p2, float w0, float w1, float w2)
-{
-	return Perspective
-		       ? (w0 * f0 / p0 + w1 * f1 / p1 + w2 * f2 / p2) / (w0 / p0 + w1 / p1 + w2 / p2)
-		       : w0 * f0 + w1 * f1 + w2 * f2;
-}
-
-static void SetDatum(const VariableInOutData& input, const void* data)
-{
-	const auto information = GetFormatInformation(input.format);
-	const auto numberElements = information.TotalSize / information.ElementSize;
-	for (auto i = 0u; i < numberElements; i++)
+	if (Perspective)
 	{
-		switch (information.Base)
+		auto numerator = 0.0f;
+		auto denominator = 0.0f;
+		for (auto i = 0; i < size; i++)
 		{
-		case BaseType::SFloat:
-			switch (information.ElementSize)
-			{
-			case 4:
-				{
-					const auto f = static_cast<const float*>(data)[i];
-					static_cast<float*>(input.pointer)[i] = f;
-					break;
-				}
-
-			default:
-				FATAL_ERROR();
-			}
-			break;
-
-		default:
-			FATAL_ERROR();
+			numerator += weights[i] * values[i] / points[i];
+			denominator += weights[i] / points[i];
 		}
+		return numerator / denominator;
 	}
+
+	auto result = 0.0f;
+	for (auto i = 0; i < size; i++)
+	{
+		result += weights[i] * values[i];
+	}
+	return result;
 }
 
-template<bool Perspective>
-void SetDatum(const VariableInOutData& input, float p0, float p1, const void* data0, const void* data1, float w0, float w1)
+template<bool Perspective, int size>
+void SetDatum(const VariableInOutData& input, float points[size], const void* data[size], float weights[size])
 {
 	const auto information = GetFormatInformation(input.format);
 	const auto numberElements = information.TotalSize / information.ElementSize;
@@ -949,41 +936,13 @@ void SetDatum(const VariableInOutData& input, float p0, float p1, const void* da
 			{
 			case 4:
 				{
-					const auto f0 = static_cast<const float*>(data0)[i];
-					const auto f1 = static_cast<const float*>(data1)[i];
-					static_cast<float*>(input.pointer)[i] = SetDatum<Perspective>(f0, f1, p0, p1, w0, w1);
-					break;
-				}
+					float values[size];
+					for (auto j = 0; j < size; j++)
+					{
+						values[j] = static_cast<const float*>(data[j])[i];
+					}
 
-			default:
-				FATAL_ERROR();
-			}
-			break;
-
-		default:
-			FATAL_ERROR();
-		}
-	}
-}
-
-template<bool Perspective>
-void SetDatum(const VariableInOutData& input, float p0, float p1, float p2, const void* data0, const void* data1, const void* data2, float w0, float w1, float w2)
-{
-	const auto information = GetFormatInformation(input.format);
-	const auto numberElements = information.TotalSize / information.ElementSize;
-	for (auto i = 0u; i < numberElements; i++)
-	{
-		switch (information.Base)
-		{
-		case BaseType::SFloat:
-			switch (information.ElementSize)
-			{
-			case 4:
-				{
-					const auto f0 = static_cast<const float*>(data0)[i];
-					const auto f1 = static_cast<const float*>(data1)[i];
-					const auto f2 = static_cast<const float*>(data2)[i];
-					static_cast<float*>(input.pointer)[i] = SetDatum<Perspective>(f0, f1, f2, p0, p1, p2, w0, w1, w2);
+					static_cast<float*>(input.pointer)[i] = SetDatum<Perspective, size>(points, values, weights);
 					break;
 				}
 
@@ -1037,25 +996,36 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, co
 
 	for (auto input : inputData)
 	{
+		float points[]
+		{
+			p0.w,
+			p1.w,
+			p2.w,
+		};
+
+		const void* data[]
+		{
+			vertexData + p0Index * vertexStride + input.offset,
+			vertexData + p1Index * vertexStride + input.offset,
+			vertexData + p2Index * vertexStride + input.offset,
+		};
+
+		float weights[]
+		{
+			w0,
+			w1,
+			w2,
+		};
+
 		switch (input.interpolation)
 		{
 		case InterpolationType::Perspective:
-			{
-				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
-				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
-				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
-				SetDatum<true>(input, p0.w, p1.w, p2.w, data0, data1, data2, w0, w1, w2);
-				break;
-			}
+			SetDatum<true, 3>(input, points, data, weights);
+			break;
 			
 		case InterpolationType::Linear:
-			{
-				const auto data0 = vertexData + p0Index * vertexStride + input.offset;
-				const auto data1 = vertexData + p1Index * vertexStride + input.offset;
-				const auto data2 = vertexData + p2Index * vertexStride + input.offset;
-				SetDatum<false>(input, p0.w, p1.w, p2.w, data0, data1, data2, w0, w1, w2);
-				break;
-			}
+			SetDatum<false, 3>(input, points, data, weights);
+			break;
 			
 		case InterpolationType::Flat:
 			memcpy(input.pointer, vertexData + provokingVertex * vertexStride + input.offset, input.size);
@@ -1786,7 +1756,7 @@ static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assem
 					for (auto input : inputData)
 					{
 						const auto data = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
-						SetDatum(input, data);
+						memcpy(input.pointer, data, input.size);
 					}
 					
 					DrawPixel(deviceState, builtinInput, shaderStage, true, p0.z, depthImage, stencilImage, images, outputData, x, y);
@@ -1835,7 +1805,7 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 		auto p1 = builtinData1.position / builtinData1.position.w;
 		p0.w = builtinData0.position.w;
 		p1.w = builtinData1.position.w;
-		const auto lineWidth = (rasterisationState.LineWidth / glm::fvec2{viewport.width, viewport.height}) * 0.5f;
+		const auto lineWidth = rasterisationState.LineWidth / glm::fvec2{viewport.width, viewport.height};
 
 		auto lineDirection = glm::normalize(p1 - p0);
 		auto perpendicularLineDirection = glm::fvec2{lineDirection.y, -lineDirection.x};
@@ -1864,30 +1834,41 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 						if (EdgeFunction(p00, p01, p) >= 0 && EdgeFunction(p11, p10, p) >= 0 && EdgeFunction(p10, p00, p) >= 0 && EdgeFunction(p01, p11, p) >= 0)
 						{
 							auto t = glm::dot(p - glm::xy(p0), glm::xy(p1) - glm::xy(p0)) / (glm::length(glm::xy(p1) - glm::xy(p0)) * glm::length(glm::xy(p1) - glm::xy(p0)));
+
 							for (auto input : inputData)
 							{
+								float points[]
+								{
+									p0.w,
+									p1.w,
+								};
+
+								const void* data[]
+								{
+									deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset,
+									deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset,
+								};
+
+								float weights[]
+								{
+									1 - t,
+									t,
+								};
+
 								switch (input.interpolation)
 								{
 								case InterpolationType::Perspective:
-									{
-										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
-										SetDatum<true>(input, p0.w, p1.w, data0, data1, 1 - t, t);
-										break;
-									}
-
-								case InterpolationType::Linear:
-									{
-										const auto data0 = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
-										const auto data1 = deviceState->vertexOutputStorage.data() + p1Index * output.outputStride + input.offset;
-										SetDatum<false>(input, p0.w, p1.w, data0, data1, 1 - t, t);
-										break;
-									}
-
-								case InterpolationType::Flat:
-									memcpy(input.pointer, deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset, input.size);
+									SetDatum<true, 2>(input, points, data, weights);
 									break;
-
+			
+								case InterpolationType::Linear:
+									SetDatum<false, 2>(input, points, data, weights);
+									break;
+			
+								case InterpolationType::Flat:
+									memcpy(input.pointer, deviceState->vertexOutputStorage.data() + provokingVertex * output.outputStride + input.offset, input.size);
+									break;
+			
 								default:
 									FATAL_ERROR();
 								}
