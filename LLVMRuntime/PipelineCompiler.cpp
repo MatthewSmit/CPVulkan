@@ -18,7 +18,7 @@
 
 #include <utility>
 
-static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
+static VkFormat GetVariableFormat(const SPIRV::SPIRVType* type)
 {
 	if (type->isTypeVector())
 	{
@@ -181,44 +181,103 @@ static VkFormat GetVariableFormat(SPIRV::SPIRVType* type)
 		return VK_FORMAT_R64_SFLOAT;
 	}
 
-	if (type->isTypeInt(8) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(8) && static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R8_SINT;
 	}
 
-	if (type->isTypeInt(16) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(16) && static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R16_SINT;
 	}
 
-	if (type->isTypeInt(32) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(32) && static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R32_SINT;
 	}
 
-	if (type->isTypeInt(64) && static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(64) && static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R64_SINT;
 	}
 
-	if (type->isTypeInt(8) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(8) && !static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R8_UINT;
 	}
 
-	if (type->isTypeInt(16) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(16) && !static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R16_UINT;
 	}
 
-	if (type->isTypeInt(32) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(32) && !static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R32_UINT;
 	}
 
-	if (type->isTypeInt(64) && !static_cast<SPIRV::SPIRVTypeInt*>(type)->isSigned())
+	if (type->isTypeInt(64) && !static_cast<const SPIRV::SPIRVTypeInt*>(type)->isSigned())
 	{
 		return VK_FORMAT_R64_UINT;
+	}
+
+	FATAL_ERROR();
+}
+
+static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
+{
+	if (type->isTypeArray())
+	{
+		const auto size = GetVariableSize(type->getArrayElementType());
+		if (type->hasDecorate(DecorationArrayStride))
+		{
+			const auto stride = *type->getDecorate(DecorationArrayStride).begin();
+			if (stride != size)
+			{
+				TODO_ERROR();
+			}
+		}
+
+		return size * type->getArrayLength();
+	}
+
+	if (type->isTypeStruct())
+	{
+		auto size = 0u;
+		for (auto i = 0u; i < type->getStructMemberCount(); i++)
+		{
+			const auto decorate = type->getMemberDecorate(i, DecorationOffset);
+			if (decorate && decorate->getLiteral(0) != size)
+			{
+				const auto offset = decorate->getLiteral(0);
+				if (offset < size)
+				{
+					TODO_ERROR();
+				}
+				else
+				{
+					size = offset;
+				}
+			}
+			size += GetVariableSize(type->getStructMemberType(i));
+		}
+		return size;
+	}
+
+	if (type->isTypeMatrix())
+	{
+		// TODO: Matrix stride & so on
+		return GetVariableSize(type->getScalarType()) * type->getMatrixColumnCount() * type->getMatrixColumnType()->getVectorComponentCount();
+	}
+
+	if (type->isTypeVector())
+	{
+		return GetVariableSize(type->getScalarType()) * type->getVectorComponentCount();
+	}
+
+	if (type->isTypeFloat() || type->isTypeInt())
+	{
+		return type->getBitWidth() / 8;
 	}
 
 	FATAL_ERROR();
@@ -243,7 +302,98 @@ public:
 	
 	LLVMValueRef ConvertValue(const SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction) override
 	{
-		TODO_ERROR();
+		switch (spirvValue->getOpCode())
+		{
+		case OpConstant:
+			{
+				const auto spirvConstant = static_cast<const SPIRV::SPIRVConstant*>(spirvValue);
+				const auto spirvType = spirvConstant->getType();
+				const auto llvmType = ConvertType(spirvType);
+				switch (spirvType->getOpCode())
+				{
+				case OpTypeInt:
+					return LLVMConstInt(llvmType, spirvConstant->getInt64Value(), static_cast<SPIRV::SPIRVTypeInt*>(spirvType)->isSigned());
+
+				case OpTypeFloat:
+					{
+						switch (spirvType->getFloatBitWidth())
+						{
+						case 16:
+							TODO_ERROR();
+
+						case 32:
+							return LLVMConstReal(llvmType, spirvConstant->getFloatValue());
+
+						case 64:
+							return LLVMConstReal(llvmType, spirvConstant->getDoubleValue());
+
+						default:
+							TODO_ERROR();
+						}
+					}
+
+				default:
+					TODO_ERROR();
+				}
+			}
+
+		case OpConstantTrue:
+		case OpConstantFalse:
+			return LLVMConstInt(LLVMInt1TypeInContext(context), spirvValue->getOpCode() == OpConstantTrue, false);
+
+		case OpConstantNull:
+			return LLVMConstNull(ConvertType(spirvValue->getType()));
+
+		case OpConstantComposite:
+			{
+				const auto constantComposite = static_cast<const SPIRV::SPIRVConstantComposite*>(spirvValue);
+				std::vector<LLVMValueRef> constants;
+				for (auto& element : constantComposite->getElements())
+				{
+					constants.push_back(ConvertValue(element, currentFunction));
+				}
+				switch (constantComposite->getType()->getOpCode())
+				{
+				case OpTypeVector:
+					return LLVMConstVector(constants.data(), static_cast<uint32_t>(constants.size()));
+
+				case OpTypeArray:
+					{
+						const auto arrayType = ConvertType(constantComposite->getType()->getArrayElementType());
+						if (arrayStrideMultiplier.find(arrayType) != arrayStrideMultiplier.end())
+						{
+							// TODO: Support stride
+							TODO_ERROR();
+						}
+						return LLVMConstArray(arrayType, constants.data(), static_cast<uint32_t>(constants.size()));
+					}
+
+				case OpTypeMatrix:
+				case OpTypeStruct:
+					return LLVMConstNamedStruct(ConvertType(constantComposite->getType()), constants.data(), static_cast<uint32_t>(constants.size()));
+
+				default:
+					TODO_ERROR();
+				}
+			}
+
+		case OpConstantSampler:
+			{
+				//auto BCS = static_cast<SPIRVConstantSampler*>(BV);
+				//return mapValue(BV, oclTransConstantSampler(BCS, BB));
+				TODO_ERROR();
+			}
+
+		case OpConstantPipeStorage:
+			{
+				//auto BCPS = static_cast<SPIRVConstantPipeStorage*>(BV);
+				//return mapValue(BV, oclTransConstantPipeStorage(BCPS));
+				TODO_ERROR();
+			}
+
+		default:
+			TODO_ERROR();
+		}
 	}
 
 protected:
@@ -568,6 +718,83 @@ private:
 		}
 	}
 
+	void EmitCopyInput(uint32_t location, LLVMValueRef vertexId, LLVMValueRef instanceId, LLVMValueRef shaderAddress, const SPIRV::SPIRVType* spirvType)
+	{
+		const auto llvmType = ConvertType(spirvType);
+		const auto& attribute = FindAttribute(location);
+		const auto& binding = FindBinding(attribute.binding);
+
+		// offset = static_cast<uint64_t>(binding.stride) * (vertex or instance) + attribute.offset;
+		const auto bufferIndex = CreateZExt(binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX ? vertexId : instanceId, LLVMInt64TypeInContext(context));
+		auto bufferOffset = CreateMul(ConstU64(binding.stride), bufferIndex);
+		bufferOffset = CreateAdd(bufferOffset, ConstU64(attribute.offset));
+
+		const auto shaderFormat = GetVariableFormat(spirvType);
+
+		auto bufferData = CreateLoad(CreateGEP(CreateLoad(pipelineState), { 0, 0, binding.binding }));
+		bufferData = CreateGEP(bufferData, { bufferOffset });
+
+		if (shaderFormat == attribute.format)
+		{
+			// Handle straight copy when formats are identical
+			bufferData = CreateBitCast(bufferData, LLVMPointerType(llvmType, 0));
+			bufferData = CreateLoad(bufferData);
+		}
+		else
+		{
+			const auto attributeType = GetTypeFromFormat(attribute.format);
+			if (attributeType != nullptr)
+			{
+				// Handle simple conversion when formats map to llvm type
+				bufferData = CreateBitCast(bufferData, LLVMPointerType(attributeType, 0));
+				bufferData = CreateLoad(bufferData);
+				bufferData = EmitConversion(bufferData, attributeType, llvmType, GetFormatInformation(shaderFormat).Base == BaseType::SInt);
+			}
+			else
+			{
+				// Handle complicated loading, such as packed formats
+				const auto shaderType = LLVMGetElementType(LLVMTypeOf(shaderAddress));
+				LLVMTypeRef vectorType;
+				if (LLVMGetTypeKind(shaderType) == LLVMVectorTypeKind)
+				{
+					if (LLVMGetVectorSize(shaderType) == 4)
+					{
+						vectorType = shaderType;
+					}
+					else
+					{
+						vectorType = LLVMVectorType(LLVMGetElementType(shaderType), 4);
+					}
+				}
+				else
+				{
+					vectorType = LLVMVectorType(shaderType, 4);
+				}
+
+				bufferData = EmitGetPixel(this, bufferData, vectorType, &GetFormatInformation(attribute.format));
+
+				if (LLVMGetTypeKind(shaderType) == LLVMVectorTypeKind)
+				{
+					if (vectorType != shaderType)
+					{
+						auto vector = LLVMGetUndef(shaderType);
+						for (auto j = 0u; j < LLVMGetVectorSize(shaderType); j++)
+						{
+							const auto vectorIndex = ConstI32(j);
+							vector = CreateInsertElement(vector, CreateExtractElement(bufferData, vectorIndex), vectorIndex);
+						}
+						bufferData = vector;
+					}
+				}
+				else
+				{
+					bufferData = CreateExtractElement(bufferData, ConstI32(0));
+				}
+			}
+		}
+		CreateStore(bufferData, shaderAddress);
+	}
+
 	void CompileProcessVertex(LLVMValueRef rawId, LLVMValueRef vertexId, LLVMValueRef instanceId,
 	                          LLVMValueRef shaderBuiltinInputAddress, LLVMValueRef shaderBuiltinOutputAddress, 
 	                          LLVMValueRef outputVariable, LLVMTypeRef outputType)
@@ -591,117 +818,33 @@ private:
 				}
 
 				const auto location = *locations.begin();
-
 				const auto spirvType = variable->getType()->getPointerElementType();
-				const auto llvmType = ConvertType(spirvType);
-
 				const auto shaderAddress = CreateIntToPtr(ConstU64(reinterpret_cast<uint64_t>(llvmVertexShader->getPointer(MangleName(variable)))), ConvertType(variable->getType()));
 				
-				if (spirvType->isTypeArray() || spirvType->isTypeMatrix())
+				if (spirvType->isTypeArray())
 				{
-					//const auto format = GetVariableFormat(input.type->getMatrixColumnType());
-					//const auto vectorStride = GetVariableSize(input.type->getMatrixColumnType());
-					//for (auto i = 0u; i < input.type->getMatrixColumnCount(); i++)
-					//{
-					//	const auto& attribute = FindAttribute(input.location + i, vertexInputState);
-					//	const auto& binding = FindBinding(attribute.binding, vertexInputState);
-					//	uint64_t offset;
-					//	if (binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX)
-					//	{
-					//		offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride)* vertex + attribute.offset;
-					//	}
-					//	else
-					//	{
-					//		offset = vertexBindingOffset[binding.binding] + static_cast<uint64_t>(binding.stride)* instance + attribute.offset;
-					//	}
-					//	const auto size = GetFormatInformation(attribute.format).TotalSize;
-					//	const auto pointer = static_cast<uint8_t*>(input.pointer) + i * vectorStride;
-					//	if (format != attribute.format)
-					//	{
-					//		CopyFormatConversion(deviceState, pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), format, attribute.format);
-					//	}
-					//	else
-					//	{
-					//		memcpy(pointer, vertexBinding[binding.binding]->getDataPtr(offset, size), size);
-					//	}
-					//}
-					TODO_ERROR();
+					const auto llvmType = ConvertType(spirvType);
+					const auto elementSize = GetVariableSize(spirvType->getArrayElementType());
+					const auto multiplier = elementSize > 16 ? 2 : 1;
+					for (auto j = 0u; j < LLVMGetArrayLength(llvmType); j++)
+					{
+						const auto columnAddress = CreateGEP(shaderAddress, 0, j);
+						EmitCopyInput(location + j * multiplier, vertexId, instanceId, columnAddress, spirvType->getArrayElementType());
+					}
+				}
+				else if (spirvType->isTypeMatrix())
+				{
+					const auto elementSize = GetVariableSize(spirvType->getMatrixColumnType());
+					const auto multiplier = elementSize > 16 ? 2 : 1;
+					for (auto j = 0u; j < spirvType->getMatrixColumnCount(); j++)
+					{
+						const auto columnAddress = CreateGEP(shaderAddress, 0, j);
+						EmitCopyInput(location + j * multiplier, vertexId, instanceId, columnAddress, spirvType->getMatrixColumnType());
+					}
 				}
 				else
 				{
-					const auto& attribute = FindAttribute(location);
-					const auto& binding = FindBinding(attribute.binding);
-
-					// offset = static_cast<uint64_t>(binding.stride) * (vertex or instance) + attribute.offset;
-					const auto index = CreateZExt(binding.inputRate == VK_VERTEX_INPUT_RATE_VERTEX ? vertexId : instanceId, LLVMInt64TypeInContext(context));
-					auto offset = CreateMul(ConstU64(binding.stride), index);
-					offset = CreateAdd(offset, ConstU64(attribute.offset));
-
-					// const auto size = LLVMSizeOfTypeInBits(jit->getDataLayout(), llvmType) / 8;
-					const auto shaderFormat = GetVariableFormat(spirvType);
-
-					auto bufferData = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 0, binding.binding}));
-					bufferData = CreateGEP(bufferData, {offset});
-					
-					if (shaderFormat == attribute.format)
-					{
-						// Handle straight copy when formats are identical
-						bufferData = CreateBitCast(bufferData, LLVMPointerType(llvmType, 0));
-						bufferData = CreateLoad(bufferData);
-					}
-					else
-					{
-						const auto attributeType = GetTypeFromFormat(attribute.format);
-						if (attributeType != nullptr)
-						{
-							// Handle simple conversion when formats map to llvm type
-							bufferData = CreateBitCast(bufferData, LLVMPointerType(attributeType, 0));
-							bufferData = CreateLoad(bufferData);
-							bufferData = EmitConversion(bufferData, attributeType, llvmType, GetFormatInformation(shaderFormat).Base == BaseType::SInt);
-						}
-						else
-						{
-							// Handle complicated loading, such as packed formats
-							const auto shaderType = LLVMGetElementType(LLVMTypeOf(shaderAddress));
-							LLVMTypeRef vectorType;
-							if (LLVMGetTypeKind(shaderType) == LLVMVectorTypeKind)
-							{
-								if (LLVMGetVectorSize(shaderType) == 4)
-								{
-									vectorType = shaderType;
-								}
-								else
-								{
-									vectorType = LLVMVectorType(LLVMGetElementType(shaderType), 4);
-								}
-							}
-							else
-							{
-								vectorType = LLVMVectorType(shaderType, 4);
-							}
-							
-							bufferData = EmitGetPixel(this, bufferData, vectorType, &GetFormatInformation(attribute.format));
-							
-							if (LLVMGetTypeKind(shaderType) == LLVMVectorTypeKind)
-							{
-								if (vectorType != shaderType)
-								{
-									auto vector = LLVMGetUndef(shaderType);
-									for (auto j = 0u; j < LLVMGetVectorSize(shaderType); j++)
-									{
-										const auto index = ConstI32(j);
-										vector = CreateInsertElement(vector, CreateExtractElement(bufferData, index), index);
-									}
-									bufferData = vector;
-								}
-							}
-							else
-							{
-								bufferData = CreateExtractElement(bufferData, ConstI32(0));
-							}
-						}
-					}
-					CreateStore(bufferData, shaderAddress);
+					EmitCopyInput(location, vertexId, instanceId, shaderAddress, spirvType);
 				}
 			}
 		}
@@ -715,7 +858,7 @@ private:
 
 		// Copy vertex builtin output to storage
 		const auto shaderBuiltinOutput = CreateLoad(shaderBuiltinOutputAddress);
-		const auto outputStorage = CreateBitCast(CreateGEP(CreateLoad(outputVariable), {LLVMBuildMul(builder, rawId, ConstU32(outputStride), "")}), outputType);
+		const auto outputStorage = CreateBitCast(CreateGEP(CreateLoad(outputVariable), {CreateMul(rawId, ConstU32(static_cast<uint32_t>(outputStride)))}), outputType);
 		CreateStore(shaderBuiltinOutput, CreateGEP(outputStorage, 0, 0));
 
 		// Copy custom output to storage

@@ -74,11 +74,9 @@ protected:
 						auto llvmPhi = ConvertValue(phi, function);
 						phi->foreachPair([&](SPIRV::SPIRVValue* incomingValue, SPIRV::SPIRVBasicBlock* incomingBasicBlock, size_t)
 						{
-							// TODO
-							//	const auto phiBasicBlock = ConvertBasicBlock(state, function, incomingBasicBlock);
-							//	const auto translated = ConvertValue(incomingValue, function);
-							//	llvmPhi->addIncoming(translated, phiBasicBlock);
-							TODO_ERROR();
+							auto phiBasicBlock = GetBasicBlock(incomingBasicBlock);
+							auto translated = ConvertValue(incomingValue, function);
+							LLVMAddIncoming(llvmPhi, &translated, &phiBasicBlock, 1);
 						});
 					}
 				}
@@ -2651,7 +2649,7 @@ private:
 			{
 				const auto llvmBasicBlock = currentBlock;
 				const auto branch = static_cast<SPIRV::SPIRVBranch*>(instruction);
-				const auto block = ConvertBasicBlock(currentFunction, branch->getTargetLabel());
+				const auto block = GetBasicBlock(branch->getTargetLabel());
 				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				const auto llvmBranch = CreateBr(block);
 				if (branch->getPrevious() && branch->getPrevious()->getOpCode() == OpLoopMerge)
@@ -2666,8 +2664,8 @@ private:
 			{
 				const auto llvmBasicBlock = currentBlock;
 				const auto branch = static_cast<SPIRV::SPIRVBranchConditional*>(instruction);
-				const auto trueBlock = ConvertBasicBlock(currentFunction, branch->getTrueLabel());
-				const auto falseBlock = ConvertBasicBlock(currentFunction, branch->getFalseLabel());
+				const auto trueBlock = GetBasicBlock(branch->getTrueLabel());
+				const auto falseBlock = GetBasicBlock(branch->getFalseLabel());
 				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				const auto llvmBranch = CreateCondBr(ConvertValue(branch->getCondition(), currentFunction), trueBlock, falseBlock);
 				if (branch->getPrevious() && branch->getPrevious()->getOpCode() == OpLoopMerge)
@@ -2683,7 +2681,7 @@ private:
 				const auto llvmBasicBlock = currentBlock;
 				const auto swtch = static_cast<SPIRV::SPIRVSwitch*>(instruction);
 				const auto select = ConvertValue(swtch->getSelect(), currentFunction);
-				const auto defaultBlock = ConvertBasicBlock(currentFunction, swtch->getDefault());
+				const auto defaultBlock = GetBasicBlock(swtch->getDefault());
 				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				auto llvmSwitch = CreateSwitch(select, defaultBlock, swtch->getNumPairs());
 				swtch->foreachPair([&](SPIRV::SPIRVSwitch::LiteralTy literals, SPIRV::SPIRVBasicBlock* label)
@@ -2695,7 +2693,7 @@ private:
 					{
 						literal += static_cast<uint64_t>(literals.at(1)) << 32;
 					}
-					LLVMAddCase(llvmSwitch, ConstU32(literal), ConvertBasicBlock(currentFunction, label));
+					LLVMAddCase(llvmSwitch, ConstU32(literal), GetBasicBlock(label));
 				});
 				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				return llvmSwitch;
@@ -2925,22 +2923,19 @@ private:
 		TODO_ERROR();
 	}
 	
-	LLVMBasicBlockRef ConvertBasicBlock(LLVMValueRef currentFunction, const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
+	LLVMBasicBlockRef GetBasicBlock(const SPIRV::SPIRVBasicBlock* spirvBasicBlock)
 	{
 		const auto cachedType = valueMapping.find(spirvBasicBlock->getId());
 		if (cachedType != valueMapping.end())
 		{
 			return LLVMValueAsBasicBlock(cachedType->second);
 		}
-	
-		for (const auto decorate : spirvBasicBlock->getDecorates())
-		{
-			TODO_ERROR();
-		}
 
-		const auto llvmBasicBlock = LLVMAppendBasicBlockInContext(context, currentFunction, spirvBasicBlock->getName().c_str());
-		valueMapping[spirvBasicBlock->getId()] = LLVMBasicBlockAsValue(llvmBasicBlock);
+		FATAL_ERROR();
+	}
 	
+	void CompileBasicBlock(const SPIRV::SPIRVBasicBlock* spirvBasicBlock, LLVMValueRef currentFunction, LLVMBasicBlockRef llvmBasicBlock)
+	{
 		for (auto i = 0u; i < spirvBasicBlock->getNumInst(); i++)
 		{
 			//llvm::FastMathFlags flags{};
@@ -2990,8 +2985,6 @@ private:
 			}
 		}
 		currentBlock = nullptr;
-	
-		return llvmBasicBlock;
 	}
 
 	LLVMValueRef ConvertFunction(const SPIRV::SPIRVFunction* spirvFunction)
@@ -3028,7 +3021,15 @@ private:
 	
 		for (auto i = 0u; i < spirvFunction->getNumBasicBlock(); i++)
 		{
-			const auto basicBlock = ConvertBasicBlock(llvmFunction, spirvFunction->getBasicBlock(i));
+			const auto spirvBasicBlock = spirvFunction->getBasicBlock(i);
+			const auto llvmBasicBlock = LLVMAppendBasicBlockInContext(context, llvmFunction, spirvBasicBlock->getName().c_str());
+			valueMapping[spirvBasicBlock->getId()] = LLVMBasicBlockAsValue(llvmBasicBlock);
+		}
+		
+		for (auto i = 0u; i < spirvFunction->getNumBasicBlock(); i++)
+		{
+			const auto basicBlock = GetBasicBlock(spirvFunction->getBasicBlock(i));
+			CompileBasicBlock(spirvFunction->getBasicBlock(i), llvmFunction, basicBlock);
 			if (spirvFunction == entryPoint && executionModel == ExecutionModelFragment)
 			{
 				// Turn all void terminations into return false
