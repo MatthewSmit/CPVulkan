@@ -663,7 +663,43 @@ private:
 						else
 						{
 							// Handle complicated loading, such as packed formats
-							bufferData = EmitGetPixel(this, bufferData, LLVMVectorType(LLVMGetElementType(LLVMGetElementType(LLVMTypeOf(shaderAddress))), 4), &GetFormatInformation(attribute.format));
+							const auto shaderType = LLVMGetElementType(LLVMTypeOf(shaderAddress));
+							LLVMTypeRef vectorType;
+							if (LLVMGetTypeKind(shaderType) == LLVMVectorTypeKind)
+							{
+								if (LLVMGetVectorSize(shaderType) == 4)
+								{
+									vectorType = shaderType;
+								}
+								else
+								{
+									vectorType = LLVMVectorType(LLVMGetElementType(shaderType), 4);
+								}
+							}
+							else
+							{
+								vectorType = LLVMVectorType(shaderType, 4);
+							}
+							
+							bufferData = EmitGetPixel(this, bufferData, vectorType, &GetFormatInformation(attribute.format));
+							
+							if (LLVMGetTypeKind(shaderType) == LLVMVectorTypeKind)
+							{
+								if (vectorType != shaderType)
+								{
+									auto vector = LLVMGetUndef(shaderType);
+									for (auto j = 0u; j < LLVMGetVectorSize(shaderType); j++)
+									{
+										const auto index = ConstI32(j);
+										vector = CreateInsertElement(vector, CreateExtractElement(bufferData, index), index);
+									}
+									bufferData = vector;
+								}
+							}
+							else
+							{
+								bufferData = CreateExtractElement(bufferData, ConstI32(0));
+							}
 						}
 					}
 					CreateStore(bufferData, shaderAddress);

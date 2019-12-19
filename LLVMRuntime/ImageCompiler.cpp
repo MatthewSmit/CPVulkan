@@ -209,6 +209,7 @@ static LLVMValueRef EmitGetNormalChannel(CompiledModuleBuilder* moduleBuilder, c
 
 static LLVMValueRef EmitGetPackedChannel(CompiledModuleBuilder* moduleBuilder, const FormatInformation* information, LLVMValueRef source, LLVMTypeRef destinationPtrType, int channel)
 {
+	const auto valueBits = LLVMSizeOfTypeInBits(moduleBuilder->jit->getDataLayout(), LLVMTypeOf(source));
 	const auto bits = gsl::at(information->Packed.BitValues, channel);
 	const auto mask = (1ULL << bits) - 1;
 	const auto offset = gsl::at(information->Packed.OffsetValues, channel);
@@ -237,7 +238,16 @@ static LLVMValueRef EmitGetPackedChannel(CompiledModuleBuilder* moduleBuilder, c
 		return value;
 
 	case BaseType::SInt:
-		value = moduleBuilder->CreateSExt(value, destinationPtrType);
+		if (valueBits != bits)
+		{
+			value = moduleBuilder->CreateShl(value, moduleBuilder->ConstI32(valueBits - bits));
+			value = moduleBuilder->CreateAShr(value, moduleBuilder->ConstI32(valueBits - bits));
+			// TODO: ASHR can be exact
+		}
+		else
+		{
+			value = moduleBuilder->CreateSExt(value, destinationPtrType);
+		}
 		return value;
 
 	case BaseType::UFloat:
