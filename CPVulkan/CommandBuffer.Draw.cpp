@@ -802,15 +802,12 @@ static AssemblerOutput ProcessInputAssemblerIndexed(DeviceState* deviceState, ui
 	{
 		switch (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getInputAssemblyState().Topology)
 		{
-		case VK_PRIMITIVE_TOPOLOGY_POINT_LIST:
-			primitiveSize = 1;
-			break;
-
-		case VK_PRIMITIVE_TOPOLOGY_LINE_LIST:
+		case VK_PRIMITIVE_TOPOLOGY_LINE_STRIP:
 			primitiveSize = 2;
 			break;
 
-		case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST:
+		case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_STRIP:
+		case VK_PRIMITIVE_TOPOLOGY_TRIANGLE_FAN:
 			primitiveSize = 3;
 			break;
 
