@@ -119,7 +119,7 @@ using EntryPoint = void (*)();
 class ShaderFunction final
 {
 public:
-	ShaderFunction(CPJit* jit, PipelineCache* cache, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo);
+	ShaderFunction(CPJit* jit, PipelineCache* cache, bool& hitCache, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo);
 	~ShaderFunction();
 
 	[[nodiscard]] const SPIRV::SPIRVModule* getSPIRVModule() const { return spirvModule; }

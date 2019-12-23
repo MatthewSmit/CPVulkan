@@ -5,9 +5,10 @@
 #include "DeviceState.h"
 #include "PipelineCache.h"
 #include "PipelineLayout.h"
-#include "sha3.h"
 #include "ShaderModule.h"
 #include "Util.h"
+
+#include "sha3.h"
 
 #include <CompiledModule.h>
 #include <Compilers.h>
@@ -17,6 +18,12 @@
 #include <SPIRVModule.h>
 
 #include <cassert>
+
+struct StageFeedback
+{
+	uint64_t duration;
+	bool hitCache;
+};
 
 static uint32_t GetStageIndex(VkShaderStageFlagBits stage)
 {
@@ -443,7 +450,7 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 	return dynamicState;;
 }
 
-static std::tuple<int, ShaderFunction*> LoadShaderStage(CPJit* jit, PipelineCache* cache, const struct VkPipelineShaderStageCreateInfo& stage)
+static std::tuple<int, ShaderFunction*> LoadShaderStage(CPJit* jit, PipelineCache* cache, bool& hitCache, const struct VkPipelineShaderStageCreateInfo& stage)
 {
 	assert(stage.sType == VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
 
@@ -465,7 +472,7 @@ static std::tuple<int, ShaderFunction*> LoadShaderStage(CPJit* jit, PipelineCach
 	}
 
 	const auto stageIndex = GetStageIndex(stage.stage);
-	return std::make_tuple(stageIndex, new ShaderFunction(jit, cache, UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName, stage.pSpecializationInfo));
+	return std::make_tuple(stageIndex, new ShaderFunction(jit, cache, hitCache, UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName, stage.pSpecializationInfo));
 }
 
 static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SPIRV::SPIRVExecutionModelKind stage, const char* name)
@@ -577,9 +584,10 @@ static Hash CalculateHash(SPIRV::SPIRVModule* spirvModule, ExecutionModel stage,
 	return result;
 }
 
-ShaderFunction::ShaderFunction(CPJit* jit, PipelineCache* cache, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo) :
+ShaderFunction::ShaderFunction(CPJit* jit, PipelineCache* cache, bool& hitCache, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo) :
 	jit{jit}
 {
+	hitCache = false;
 	this->spirvModule = module->getModule();
 	const auto entryPoint = FindEntryPoint(this->spirvModule, static_cast<SPIRV::SPIRVExecutionModelKind>(stageIndex), name);
 	assert(entryPoint);
@@ -828,6 +836,10 @@ ShaderFunction::ShaderFunction(CPJit* jit, PipelineCache* cache, ShaderModule* m
 			this->llvmModule = CompileSPIRVModule(jit, this->spirvModule, static_cast<spv::ExecutionModel>(stageIndex), entryPoint, specializationInfo);
 			cache->AddModule(hash, this->llvmModule);
 		}
+		else
+		{
+			hitCache = true;
+		}
 	}
 	else
 	{
@@ -915,8 +927,6 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		next = next->pNext;
 	}
 
-	const auto startTime = feedback ? Platform::GetTimestamp() : 0;
-
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT)
 	{
 		// TODO
@@ -947,6 +957,8 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		TODO_ERROR();
 	}
 
+	const auto startTime = feedback ? Platform::GetTimestamp() : 0;
+
 	pipeline->vertexInputState = Parse(pCreateInfo->pVertexInputState);
 	pipeline->inputAssemblyState = Parse(pCreateInfo->pInputAssemblyState);
 	pipeline->tessellationState = Parse(pCreateInfo->pTessellationState);
@@ -959,7 +971,7 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	pipeline->layout = UnwrapVulkan<PipelineLayout>(pCreateInfo->layout);
 	pipeline->cache = pipelineCache ? UnwrapVulkan<PipelineCache>(pipelineCache) : nullptr;
 
-	auto shaderTimes = std::vector<uint64_t>(feedback ? pCreateInfo->stageCount : 0);
+	auto shaderFeedback = std::vector<StageFeedback>(feedback ? pCreateInfo->stageCount : 0);
 
 	for (auto i = 0u; i < pCreateInfo->stageCount; i++)
 	{
@@ -967,13 +979,15 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		
 		int stageIndex;
 		ShaderFunction* shaderFunction;
-		std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pipeline->cache, pCreateInfo->pStages[i]);
+		bool hitCache;
+		std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pipeline->cache, hitCache, pCreateInfo->pStages[i]);
 		pipeline->shaderStages[stageIndex] = std::unique_ptr<ShaderFunction>(shaderFunction);
 
 		const auto stageEndTime = feedback ? Platform::GetTimestamp() : 0;
 		if (feedback)
 		{
-			shaderTimes[i] = stageEndTime - stageStartTime;
+			shaderFeedback[i].duration = stageEndTime - stageStartTime;
+			shaderFeedback[i].hitCache = hitCache;
 		}
 	}
 
@@ -994,7 +1008,11 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 				for (auto i = 0u; i < pCreateInfo->stageCount; i++)
 				{
 					feedbackInfo->pPipelineStageCreationFeedbacks[i].flags = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT_EXT;
-					feedbackInfo->pPipelineStageCreationFeedbacks[i].duration = shaderTimes[i] * static_cast<uint64_t>(Platform::GetTimestampPeriod());
+					feedbackInfo->pPipelineStageCreationFeedbacks[i].duration = shaderFeedback[i].duration * static_cast<uint64_t>(Platform::GetTimestampPeriod());
+					if (shaderFeedback[i].hitCache)
+					{
+						feedbackInfo->pPipelineStageCreationFeedbacks[i].flags |= VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT_EXT;
+					}
 				}
 				
 				break;
@@ -1019,17 +1037,19 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
 
-	auto next = pCreateInfo->pNext;
+	auto feedback = false;
+	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
 	while (next)
 	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
+		const auto type = next->sType;
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_PIPELINE_COMPILER_CONTROL_CREATE_INFO_AMD:
 			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT:
-			TODO_ERROR();
+			feedback = true;
+			break;
 
 		case VK_STRUCTURE_TYPE_PIPELINE_DISCARD_RECTANGLE_STATE_CREATE_INFO_EXT:
 			TODO_ERROR();
@@ -1037,7 +1057,7 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		case VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV:
 			TODO_ERROR();
 		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
+		next = next->pNext;
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT)
@@ -1069,17 +1089,52 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	{
 		TODO_ERROR();
 	}
+
+	const auto startTime = feedback ? Platform::GetTimestamp() : 0;
 	
 	pipeline->cache = pipelineCache ? UnwrapVulkan<PipelineCache>(pipelineCache) : nullptr;
-	
+
+	StageFeedback shaderFeedback{};
+	const auto stageStartTime = feedback ? Platform::GetTimestamp() : 0;
+
 	int stageIndex;
 	ShaderFunction* shaderFunction;
-	std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pipeline->cache, pCreateInfo->stage);
+	bool hitCache;
+	std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pipeline->cache, hitCache, pCreateInfo->stage);
 	pipeline->shaderStages[stageIndex] = std::unique_ptr<ShaderFunction>(shaderFunction);
 
-	if (pCreateInfo->basePipelineHandle)
+	const auto stageEndTime = feedback ? Platform::GetTimestamp() : 0;
+	if (feedback)
 	{
-		TODO_ERROR();
+		shaderFeedback.duration = stageEndTime - stageStartTime;
+		shaderFeedback.hitCache = hitCache;
+	}
+
+	const auto endTime = feedback ? Platform::GetTimestamp() : 0;
+
+	if (feedback)
+	{
+		next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
+		while (next)
+		{
+			if (next->sType == VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT)
+			{
+				const auto feedbackInfo = reinterpret_cast<const VkPipelineCreationFeedbackCreateInfoEXT*>(next);
+				feedbackInfo->pPipelineCreationFeedback->flags = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT_EXT;
+				feedbackInfo->pPipelineCreationFeedback->duration = (endTime - startTime) * static_cast<uint64_t>(Platform::GetTimestampPeriod());
+				assert(feedbackInfo->pipelineStageCreationFeedbackCount == 1);
+
+				feedbackInfo->pPipelineStageCreationFeedbacks[0].flags = VK_PIPELINE_CREATION_FEEDBACK_VALID_BIT_EXT;
+				feedbackInfo->pPipelineStageCreationFeedbacks[0].duration = shaderFeedback.duration * static_cast<uint64_t>(Platform::GetTimestampPeriod());
+				if (shaderFeedback.hitCache)
+				{
+					feedbackInfo->pPipelineStageCreationFeedbacks[0].flags |= VK_PIPELINE_CREATION_FEEDBACK_APPLICATION_PIPELINE_CACHE_HIT_BIT_EXT;
+				}
+				
+				break;
+			}
+			next = next->pNext;
+		}
 	}
 
 	WrapVulkan(pipeline, pPipeline);
