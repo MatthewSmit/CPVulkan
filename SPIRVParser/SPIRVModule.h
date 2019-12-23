@@ -419,7 +419,7 @@ namespace SPIRV
 		}
 
 		// I/O functions
-		friend spv_ostream &operator<<(spv_ostream &O, SPIRVModule &M);
+		friend DLL_EXPORT spv_ostream &operator<<(spv_ostream &O, SPIRVModule &M);
 		friend DLL_EXPORT std::istream &operator>>(std::istream &I, SPIRVModule &M);
 
 	protected:

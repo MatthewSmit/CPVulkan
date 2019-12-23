@@ -92,7 +92,7 @@ constexpr auto VENDOR_ID = 0x10000;
 constexpr auto DEVICE_ID = 0;
 constexpr auto DEVICE_TYPE = VK_PHYSICAL_DEVICE_TYPE_CPU;
 constexpr auto DEVICE_NAME = "CPVulkan";
-constexpr uint8_t PIPELINE_CACHE_UUID[VK_UUID_SIZE]{};
+constexpr uint8_t PIPELINE_CACHE_UUID[VK_UUID_SIZE]{1};
 constexpr auto MAX_IMAGE_DIMENSION_1D = 4096;
 constexpr auto MAX_IMAGE_DIMENSION_2D = 4096;
 constexpr auto MAX_IMAGE_DIMENSION_3D = 256;

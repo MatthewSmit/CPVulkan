@@ -6,6 +6,8 @@
 
 #include <Half.h>
 
+#include <llvm-c/BitReader.h>
+#include <llvm-c/BitWriter.h>
 #include <llvm-c/Core.h>
 #include <llvm-c/OrcBindings.h>
 #include <llvm-c/Support.h>
@@ -45,11 +47,13 @@ static uint64_t SymbolResolverStub(const char* name, void* lookupContext)
 CompiledModule::CompiledModule(CPJit* jit, LLVMContextRef context, LLVMModuleRef module, std::function<void*(const std::string&)> getFunction) :
 	jit{jit},
 	context{context},
-	getFunction{std::move(getFunction)}
+	module{module},
+	getFunction{std::move(getFunction)},
+	orcModule{}
 {
 	jit->RunOnCompileThread([&]()
 	{
-		const auto error = LLVMOrcAddEagerlyCompiledIR(jit->getOrc(), &orcModule, module, SymbolResolverStub, this);
+		const auto error = LLVMOrcAddEagerlyCompiledIR(jit->getOrc(), &orcModule, LLVMCloneModule(module), SymbolResolverStub, this);
 		if (error)
 		{
 			const auto errorMessage = LLVMGetErrorMessage(error);
@@ -69,7 +73,21 @@ CompiledModule::~CompiledModule()
 			TODO_ERROR();
 		}
 	});
+	LLVMDisposeModule(module);
 	LLVMContextDispose(context);
+}
+
+std::vector<uint8_t> CompiledModule::ExportBitcode()
+{
+	std::vector<uint8_t> result{};
+	jit->RunOnCompileThread([&]()
+	{
+		const auto buffer = LLVMWriteBitcodeToMemoryBuffer(module);
+		result.resize(LLVMGetBufferSize(buffer));
+		memcpy(result.data(), LLVMGetBufferStart(buffer), result.size());
+		LLVMDisposeMemoryBuffer(buffer);
+	});
+	return result;
 }
 
 uint64_t CompiledModule::ResolveSymbol(const char* name)
@@ -123,6 +141,28 @@ uint64_t CompiledModule::ResolveSymbol(const char* name)
 	}
 
 	return reinterpret_cast<uint64_t>(function);
+}
+
+CompiledModule* CompiledModule::CreateFromBitcode(CPJit* jit, const std::function<void*(const std::basic_string<char>&)>& getFunction, const std::vector<uint8_t>& data)
+{
+	CompiledModule* result{};
+	jit->RunOnCompileThread([&]()
+	{
+		const auto buffer = LLVMCreateMemoryBufferWithMemoryRange(reinterpret_cast<const char*>(data.data()), data.size(), "module", false);
+		
+		const auto context = LLVMContextCreate();
+		LLVMModuleRef module;
+		const auto success = !LLVMParseBitcodeInContext2(context, buffer, &module);
+		if (!success)
+		{
+			TODO_ERROR();
+		}
+
+		LLVMDisposeMemoryBuffer(buffer);
+
+		result = new CompiledModule(jit, context, module, getFunction);
+	});
+	return result;
 }
 
 void* CompiledModule::getPointer(const std::string& name) const

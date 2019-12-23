@@ -94,6 +94,9 @@ set(FILES
 		"Semaphore.cpp"
 		"Semaphore.h"
 
+		"sha3.c"
+		"sha3.h"
+
 		"ShaderModule.cpp"
 		"ShaderModule.h"
 

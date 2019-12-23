@@ -1444,7 +1444,7 @@ namespace SPIRV
 		return O;
 	}
 
-	spv_ostream &operator<<(spv_ostream &O, SPIRVModule &M) {
+	DLL_EXPORT spv_ostream &operator<<(spv_ostream &O, SPIRVModule &M) {
 		SPIRVModuleImpl &MI = *static_cast<SPIRVModuleImpl *>(&M);
 		// Start tracking of the current line with no line
 		MI.CurrentLine.reset();

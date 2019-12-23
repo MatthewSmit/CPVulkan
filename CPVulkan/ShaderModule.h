@@ -23,7 +23,7 @@ public:
 
 	static VkResult Create(const VkShaderModuleCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkShaderModule* pShaderModule);
 
-	[[nodiscard]] const SPIRV::SPIRVModule* getModule() const { return module; }
+	[[nodiscard]] SPIRV::SPIRVModule* getModule() { return module; }
 
 private:
 	SPIRV::SPIRVModule* module;

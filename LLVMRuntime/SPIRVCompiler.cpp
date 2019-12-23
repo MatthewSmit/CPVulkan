@@ -11,7 +11,10 @@
 #include <SPIRVModule.h>
 
 #include <llvm-c/Core.h>
+#include <llvm-c/DebugInfo.h>
 #include <llvm-c/Target.h>
+
+#define EMIT_DEBUG 0
 
 static std::unordered_map<Op, LLVMAtomicRMWBinOp> instructionLookupAtomic
 {
@@ -46,9 +49,22 @@ public:
 	~SPIRVCompiledModuleBuilder() override = default;
 
 protected:
+	void AddDebugInformation(const SPIRV::SPIRVEntry* spirvEntry)
+	{
+		if (spirvEntry->hasLine())
+		{
+			const auto& line = spirvEntry->getLine();
+			TODO_ERROR();
+		}
+	}
+
 	void MainCompilation() override
 	{
 		AddBuiltin();
+
+#if EMIT_DEBUG
+		diBuilder = LLVMCreateDIBuilder(module);
+#endif
 
 		userData = GlobalVariable(LLVMPointerType(LLVMInt8TypeInContext(context), 0), LLVMExternalLinkage, "@userData");
 
@@ -61,7 +77,8 @@ protected:
 		// TODO: Only compile functions linked to entry point
 		for (auto i = 0u; i < spirvModule->getNumFunctions(); i++)
 		{
-			const auto function = ConvertFunction(spirvModule->getFunction(i));
+			const auto spirvFunction = spirvModule->getFunction(i);
+			const auto function = ConvertFunction(spirvFunction);
 			for (auto j = 0u; j < spirvModule->getFunction(i)->getNumBasicBlock(); j++)
 			{
 				const auto spirvBasicBlock = spirvModule->getFunction(i)->getBasicBlock(j);
@@ -108,10 +125,16 @@ protected:
 				}
 			}
 		}
+
+#if EMIT_DEBUG
+		LLVMDIBuilderFinalize(diBuilder);
+		LLVMDisposeDIBuilder(diBuilder);
+#endif
 	}
 
 private:
 	LLVMBasicBlockRef currentBlock{};
+	LLVMDIBuilderRef diBuilder{};
 	
 	std::unordered_map<uint32_t, LLVMValueRef> valueMapping{};
 	std::unordered_set<uint32_t> variablePointers{};
@@ -1328,6 +1351,13 @@ private:
 		TODO_ERROR();
 	}
 
+	void MoveBuilder(LLVMBasicBlockRef basicBlock, SPIRV::SPIRVInstruction* instruction)
+	{
+		currentBlock = basicBlock;
+		LLVMPositionBuilderAtEnd(builder, basicBlock);
+		AddDebugInformation(instruction);
+	}
+
 	LLVMValueRef ConvertInstruction(SPIRV::SPIRVInstruction* instruction, LLVMValueRef currentFunction)
 	{
 		switch (instruction->getOpCode())
@@ -1363,8 +1393,7 @@ private:
 				const auto functionCall = reinterpret_cast<SPIRV::SPIRVFunctionCall*>(instruction);
 				const auto llvmBasicBlock = currentBlock;
 				const auto llvmFunctionType = ConvertFunction(functionCall->getFunction());
-				currentBlock = llvmBasicBlock;
-				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
+				MoveBuilder(llvmBasicBlock, instruction);
 				return CreateCall(llvmFunctionType, ConvertValue(functionCall->getArgumentValues(), currentFunction));
 			}
 	
@@ -2647,10 +2676,8 @@ private:
 	
 		case OpBranch:
 			{
-				const auto llvmBasicBlock = currentBlock;
 				const auto branch = static_cast<SPIRV::SPIRVBranch*>(instruction);
 				const auto block = GetBasicBlock(branch->getTargetLabel());
-				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				const auto llvmBranch = CreateBr(block);
 				if (branch->getPrevious() && branch->getPrevious()->getOpCode() == OpLoopMerge)
 				{
@@ -2662,11 +2689,9 @@ private:
 	
 		case OpBranchConditional:
 			{
-				const auto llvmBasicBlock = currentBlock;
 				const auto branch = static_cast<SPIRV::SPIRVBranchConditional*>(instruction);
 				const auto trueBlock = GetBasicBlock(branch->getTrueLabel());
 				const auto falseBlock = GetBasicBlock(branch->getFalseLabel());
-				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				const auto llvmBranch = CreateCondBr(ConvertValue(branch->getCondition(), currentFunction), trueBlock, falseBlock);
 				if (branch->getPrevious() && branch->getPrevious()->getOpCode() == OpLoopMerge)
 				{
@@ -2678,11 +2703,9 @@ private:
 	
 		case OpSwitch:
 			{
-				const auto llvmBasicBlock = currentBlock;
 				const auto swtch = static_cast<SPIRV::SPIRVSwitch*>(instruction);
 				const auto select = ConvertValue(swtch->getSelect(), currentFunction);
 				const auto defaultBlock = GetBasicBlock(swtch->getDefault());
-				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				auto llvmSwitch = CreateSwitch(select, defaultBlock, swtch->getNumPairs());
 				swtch->foreachPair([&](SPIRV::SPIRVSwitch::LiteralTy literals, SPIRV::SPIRVBasicBlock* label)
 				{
@@ -2695,7 +2718,6 @@ private:
 					}
 					LLVMAddCase(llvmSwitch, ConstU32(literal), GetBasicBlock(label));
 				});
-				LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
 				return llvmSwitch;
 			}
 	
@@ -2970,8 +2992,7 @@ private:
 			}
 			// TODO: state.builder.setFastMathFlags(flags);
 
-			LLVMPositionBuilderAtEnd(builder, llvmBasicBlock);
-			currentBlock = llvmBasicBlock;
+			MoveBuilder(llvmBasicBlock, instruction);
 			const auto llvmValue = ConvertInstruction(instruction, currentFunction);
 			if (instruction->hasType())
 			{
@@ -2994,6 +3015,8 @@ private:
 		{
 			return cachedType->second;
 		}
+
+		AddDebugInformation(spirvFunction);
 	
 		for (const auto decorate : spirvFunction->getDecorates())
 		{
