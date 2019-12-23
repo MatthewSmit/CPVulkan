@@ -389,34 +389,39 @@ namespace SPIRV
 
 		virtual const std::map<SPIRVId, SPIRVEntry*>& getEntries() const = 0;
 
-		virtual bool
-		isAllowedToUseVersion(SPIRV::VersionNumber RequestedVersion) const final {
+		virtual bool isAllowedToUseVersion(SPIRV::VersionNumber RequestedVersion) const final
+		{
 			return TranslationOpts.isAllowedToUseVersion(RequestedVersion);
 		}
 
-		virtual bool isAllowedToUseVersion(SPIRVWord RequestedVersion) const final {
+		virtual bool isAllowedToUseVersion(SPIRVWord RequestedVersion) const final
+		{
 			return TranslationOpts.isAllowedToUseVersion(
 				static_cast<SPIRV::VersionNumber>(RequestedVersion));
 		}
 
-		virtual SPIRV::VersionNumber getMaximumAllowedSPIRVVersion() const final {
+		virtual SPIRV::VersionNumber getMaximumAllowedSPIRVVersion() const final
+		{
 			return TranslationOpts.getMaxVersion();
 		}
 
-		virtual bool
-			isAllowedToUseExtension(ExtensionID RequestedExtension) const final {
+		virtual bool isAllowedToUseExtension(ExtensionID RequestedExtension) const final
+		{
 			return TranslationOpts.isAllowedToUseExtension(RequestedExtension);
 		}
 
-		virtual bool
-			isAllowedToUseExtensions(const SPIRVExtSet& RequestedExtensions) const final {
-			for (const auto& Ext : RequestedExtensions) {
+		virtual bool isAllowedToUseExtensions(const SPIRVExtSet& RequestedExtensions) const final
+		{
+			for (const auto& Ext : RequestedExtensions)
+			{
 				if (!TranslationOpts.isAllowedToUseExtension(Ext))
 					return false;
 			}
 
 			return true;
 		}
+
+		virtual bool hasExtension(ExtensionID extensionId) const = 0;
 
 		// I/O functions
 		friend DLL_EXPORT spv_ostream &operator<<(spv_ostream &O, SPIRVModule &M);

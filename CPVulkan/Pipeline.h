@@ -127,6 +127,8 @@ public:
 	[[nodiscard]] EntryPoint getEntryPoint() const { return entryPoint; }
 	
 	[[nodiscard]] bool getFragmentOriginUpper() const { return fragmentOriginUpper; }
+	[[nodiscard]] bool getFragmentStencilExport() const { return fragmentStencilExport; }
+	
 	[[nodiscard]] glm::uvec3 getComputeLocalSize() const { return computeLocalSize; }
 
 private:
@@ -136,6 +138,8 @@ private:
 	EntryPoint entryPoint;
 	
 	bool fragmentOriginUpper{};
+	bool fragmentStencilExport{};
+	
 	glm::uvec3 computeLocalSize{};
 };
 

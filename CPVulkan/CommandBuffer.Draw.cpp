@@ -65,6 +65,11 @@ struct FragmentBuiltinInput
 	glm::vec4 fragCoord;
 };
 
+struct FragmentBuiltinOutput
+{
+	uint32_t stencilReference;
+};
+
 struct ComputeBuiltinInput
 {
 	glm::uvec3 globalInvocationId;
@@ -1313,7 +1318,7 @@ static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, ImageVie
 	                            ReturnType{});
 }
 
-static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage, bool front, float depth,
+static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, FragmentBuiltinOutput* builtinOutput, const ShaderFunction* shaderStage, bool front, float depth,
                       std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
                       std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData, 
                       uint32_t x, uint32_t y)
@@ -1373,6 +1378,11 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicStencilReference)
 	{
 		TODO_ERROR();
+	}
+
+	if (shaderStage->getFragmentStencilExport())
+	{
+		stencilReference = builtinOutput->stencilReference;
 	}
 
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().StencilTestEnable)
@@ -1642,7 +1652,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	}
 }
 
-static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
+static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, FragmentBuiltinOutput* builtinOutput, const ShaderFunction* shaderStage,
                           std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
                           std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData,
                           const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
@@ -1701,14 +1711,14 @@ static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assem
 						memcpy(input.pointer, data, input.size);
 					}
 					
-					DrawPixel(deviceState, builtinInput, shaderStage, true, p0.z, depthImage, stencilImage, images, outputData, x, y);
+					DrawPixel(deviceState, builtinInput, builtinOutput, shaderStage, true, p0.z, depthImage, stencilImage, images, outputData, x, y);
 				}
 			}
 		}
 	}
 }
 
-static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
+static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, FragmentBuiltinOutput* builtinOutput, const ShaderFunction* shaderStage,
                          std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
                          std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData,
                          const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
@@ -1817,7 +1827,7 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 							}
 							
 							auto depth = p0.z * t + p1.z * (1 - t);
-							DrawPixel(deviceState, builtinInput, shaderStage, true, depth, depthImage, stencilImage, images, outputData, x, y);
+							DrawPixel(deviceState, builtinInput, builtinOutput, shaderStage, true, depth, depthImage, stencilImage, images, outputData, x, y);
 						}
 						break;
 					}
@@ -1836,7 +1846,7 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 	}
 }
 
-static void ProcessTriangles(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
+static void ProcessTriangles(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, FragmentBuiltinOutput* builtinOutput, const ShaderFunction* shaderStage,
                              std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
                              std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData, 
                              const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
@@ -1915,7 +1925,7 @@ static void ProcessTriangles(DeviceState* deviceState, const AssemblerOutput& as
 				                     p0, p1, p2, p,
 				                     rasterisationState.CullMode, depth, front))
 				{
-					DrawPixel(deviceState, builtinInput, shaderStage, front, depth, depthImage, stencilImage, images, outputData, x, y);
+					DrawPixel(deviceState, builtinInput, builtinOutput, shaderStage, front, depth, depthImage, stencilImage, images, outputData, x, y);
 				}
 			}
 		}
@@ -1987,6 +1997,7 @@ static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutpu
 	}
 	
 	auto builtinInput = static_cast<FragmentBuiltinInput*>(builtinInputPointer);
+	auto builtinOutput = static_cast<FragmentBuiltinOutput*>(builtinOutputPointer);
 	builtinInput->fragCoord = glm::vec4(0, 0, 0, 1);
 	
 	if (rasterisationState.PolygonMode != VK_POLYGON_MODE_FILL)
@@ -1997,15 +2008,15 @@ static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutpu
 	switch (assemblerOutput.primitiveType)
 	{
 	case PrimitiveType::Point:
-		ProcessPoints(deviceState, assemblerOutput, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
+		ProcessPoints(deviceState, assemblerOutput, builtinInput, builtinOutput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 
 	case PrimitiveType::Line:
-		ProcessLines(deviceState, assemblerOutput, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
+		ProcessLines(deviceState, assemblerOutput, builtinInput, builtinOutput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 
 	case PrimitiveType::Triangle:
-		ProcessTriangles(deviceState, assemblerOutput, builtinInput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
+		ProcessTriangles(deviceState, assemblerOutput, builtinInput, builtinOutput, shaderStage, depthImage, stencilImage, images, outputData, output, rasterisationState, inputData);
 		break;
 		
 	default:

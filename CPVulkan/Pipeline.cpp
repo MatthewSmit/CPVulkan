@@ -739,6 +739,8 @@ ShaderFunction::ShaderFunction(CPJit* jit, PipelineCache* cache, ShaderModule* m
 		{
 			TODO_ERROR();
 		}
+
+		this->fragmentStencilExport = spirvModule->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export);
 	}
 
 	if (stageIndex == ExecutionModelGLCompute || stageIndex == ExecutionModelKernel)

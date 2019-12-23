@@ -3104,6 +3104,10 @@ private:
 		case ExecutionModelFragment:
 			builtinInputMapping.emplace_back(BuiltInFragCoord, 0);
 			inputMembers.push_back(LLVMVectorType(LLVMFloatTypeInContext(context), 4));
+
+			// TODO: Only when extension enabled
+			builtinOutputMapping.emplace_back(BuiltInFragStencilRefEXT, 0);
+			outputMembers.push_back(LLVMInt32TypeInContext(context));
 			break;
 		
 		case ExecutionModelGLCompute:

@@ -143,7 +143,9 @@ namespace SPIRV
 		                             unsigned I) const override {
 			auto Loc = EntryPointNameVec.find(EM);
 			if (Loc == EntryPointNameVec.end())
-				return nullptr;
+			{
+				assert(false);
+			}
 			assert(I < Loc->second.size());
 			return Loc->second[I];
 		}
@@ -390,7 +392,9 @@ namespace SPIRV
 		SPIRVInstruction *addSampledImageInst(SPIRVType *, SPIRVValue *, SPIRVValue *,
 		                                      SPIRVBasicBlock *) override;
 
-		virtual SPIRVId getExtInstSetId(SPIRVExtInstSetKind Kind) const override;
+		SPIRVId getExtInstSetId(SPIRVExtInstSetKind Kind) const override;
+		
+		bool hasExtension(ExtensionID extensionId) const override;
 
 		virtual const std::map<SPIRVId, SPIRVEntry*>& getEntries() const override { return IdEntryMap; }
 
@@ -1731,6 +1735,13 @@ namespace SPIRV
 		auto Res = ExtInstSetIds.find(Kind);
 		assert(Res != ExtInstSetIds.end() && "extended instruction set not found!");
 		return Res->second;
+	}
+
+	bool SPIRVModuleImpl::hasExtension(ExtensionID extensionId) const
+	{
+		std::string extensionName;
+		SPIRVMap<ExtensionID, std::string>::find(extensionId, &extensionName);
+		return SPIRVExt.find(extensionName) != SPIRVExt.end();
 	}
 
 	bool isSpirvBinary(const std::string &Img) {
