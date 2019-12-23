@@ -53,6 +53,7 @@ CompiledModule::CompiledModule(CPJit* jit, LLVMContextRef context, LLVMModuleRef
 {
 	jit->RunOnCompileThread([&]()
 	{
+		// TODO: Don't duplicate module when we can access directly from orcModule
 		const auto error = LLVMOrcAddEagerlyCompiledIR(jit->getOrc(), &orcModule, LLVMCloneModule(module), SymbolResolverStub, this);
 		if (error)
 		{

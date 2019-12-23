@@ -13,8 +13,6 @@ struct CacheHeader
 	uint32_t VendorId;
 	uint32_t DeviceId;
 	uint8_t PipelineCacheUUID[VK_UUID_SIZE];
-	
-	uint32_t NumberEntries;
 };
 
 void PipelineCache::LoadData(size_t initialDataSize, const void* initialData)
@@ -25,7 +23,7 @@ void PipelineCache::LoadData(size_t initialDataSize, const void* initialData)
 	}
 	
 	const auto header = static_cast<const CacheHeader*>(initialData);
-	if (header->Size > initialDataSize)
+	if (header->Size != sizeof(CacheHeader))
 	{
 		return;
 	}
@@ -51,7 +49,10 @@ void PipelineCache::LoadData(size_t initialDataSize, const void* initialData)
 	}
 
 	auto ptr = static_cast<const uint8_t*>(initialData) + sizeof(CacheHeader);
-	for (auto i = 0u; i < header->NumberEntries; i++)
+	const auto numberEntries = *reinterpret_cast<const uint32_t*>(ptr);
+	ptr += 4;
+	
+	for (auto i = 0u; i < numberEntries; i++)
 	{
 		const auto hash = *reinterpret_cast<const Hash*>(ptr);
 		ptr += sizeof(Hash);
@@ -85,16 +86,18 @@ VkResult PipelineCache::GetData(size_t* pDataSize, void* pData)
 		}
 
 		const auto header = static_cast<CacheHeader*>(pData);
-		header->Size = static_cast<uint32_t>(size);
+		header->Size = sizeof(CacheHeader);
 		header->Version = VK_PIPELINE_CACHE_HEADER_VERSION_ONE;
 		header->VendorId = VENDOR_ID;
 		header->DeviceId = DEVICE_ID;
 		memcpy(header->PipelineCacheUUID, PIPELINE_CACHE_UUID, VK_UUID_SIZE);
 
-		assert(cached.size() <= 0xFFFFFFFF);
-		header->NumberEntries = static_cast<uint32_t>(cached.size());
-
 		auto ptr = static_cast<uint8_t*>(pData) + sizeof(CacheHeader);
+		
+		assert(cached.size() <= 0xFFFFFFFF);
+		*reinterpret_cast<uint32_t*>(ptr) = static_cast<uint32_t>(cached.size());
+		ptr += 4;
+
 		for (const auto& entry : cached)
 		{
 			*reinterpret_cast<Hash*>(ptr) = entry.first;
@@ -135,6 +138,14 @@ void PipelineCache::AddModule(const Hash& hash, CompiledModule* module)
 	cached[hash] = data;
 }
 
+void PipelineCache::Merge(const PipelineCache* cache)
+{
+	for (const auto& entry : cache->cached)
+	{
+		cached[entry.first] = entry.second;
+	}
+}
+
 VkResult PipelineCache::Create(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO);
@@ -170,5 +181,11 @@ void Device::DestroyPipelineCache(VkPipelineCache pipelineCache, const VkAllocat
 
 VkResult Device::MergePipelineCaches(VkPipelineCache dstCache, uint32_t srcCacheCount, const VkPipelineCache* pSrcCaches)
 {
-	TODO_ERROR();
+	const auto realDstCache = UnwrapVulkan<PipelineCache>(dstCache);
+	for (auto i = 0u; i < srcCacheCount; i++)
+	{
+		const auto cache = UnwrapVulkan<PipelineCache>(pSrcCaches[i]);
+		realDstCache->Merge(cache);
+	}
+	return VK_SUCCESS;
 }

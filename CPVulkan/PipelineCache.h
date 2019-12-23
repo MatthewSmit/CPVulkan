@@ -52,7 +52,9 @@ public:
 	
 	CompiledModule* FindModule(const Hash& hash, CPJit* jit, std::function<void*(const std::string&)> getFunction);
 	void AddModule(const Hash& hash, CompiledModule* module);
-	
+
+	void Merge(const PipelineCache* cache);
+
 	static VkResult Create(const VkPipelineCacheCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipelineCache* pPipelineCache);
 
 private:
