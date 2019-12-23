@@ -15,7 +15,6 @@
 #include "Util.h"
 
 #include <CompiledModule.h>
-#include <Compilers.h>
 #include <PipelineData.h>
 #include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
@@ -349,90 +348,6 @@ static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 	FATAL_ERROR();
 }
 
-static void CopyFormatConversion(DeviceState* deviceState, void* destination, const void* source, VkFormat destinationFormat, VkFormat sourceFormat)
-{
-	const auto sourceInformation = GetFormatInformation(sourceFormat);
-	const auto destinationInformation = GetFormatInformation(destinationFormat);
-
-	switch (sourceInformation.Base)
-	{
-	case BaseType::UInt:
-		{
-			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto sourceFunctions = deviceState->getImageFunctions(sourceFormat);
-			auto destFunctions = deviceState->getImageFunctions(destinationFormat);
-			
-			if (!sourceFunctions->GetPixelU32)
-			{
-				sourceFunctions->GetPixelU32 = reinterpret_cast<decltype(sourceFunctions->GetPixelU32)>(CompileGetPixelU32(deviceState->jit, &sourceInformation));
-			}
-			
-			if (!destFunctions->SetPixelU32)
-			{
-				destFunctions->SetPixelU32 = reinterpret_cast<decltype(destFunctions->SetPixelU32)>(CompileSetPixelU32(deviceState->jit, &destinationInformation));
-			}
-
-			uint32_t values[4];
-			sourceFunctions->GetPixelU32(source, values);
-			destFunctions->SetPixelU32(destination, values);
-			break;
-		}
-		
-	case BaseType::SInt:
-		{
-			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto sourceFunctions = deviceState->getImageFunctions(sourceFormat);
-			auto destFunctions = deviceState->getImageFunctions(destinationFormat);
-			
-			if (!sourceFunctions->GetPixelI32)
-			{
-				sourceFunctions->GetPixelI32 = reinterpret_cast<decltype(sourceFunctions->GetPixelI32)>(CompileGetPixelI32(deviceState->jit, &sourceInformation));
-			}
-			
-			if (!destFunctions->SetPixelI32)
-			{
-				destFunctions->SetPixelI32 = reinterpret_cast<decltype(destFunctions->SetPixelI32)>(CompileSetPixelI32(deviceState->jit, &destinationInformation));
-			}
-
-			int32_t values[4];
-			sourceFunctions->GetPixelI32(source, values);
-			destFunctions->SetPixelI32(destination, values);
-			break;
-		}
-		
-	case BaseType::UNorm:
-	case BaseType::SNorm:
-	case BaseType::UScaled:
-	case BaseType::SScaled:
-	case BaseType::UFloat:
-	case BaseType::SFloat:
-	case BaseType::SRGB:
-		{
-			assert(GetFormatInformation(sourceFormat).ElementSize <= 4);
-			auto sourceFunctions = deviceState->getImageFunctions(sourceFormat);
-			auto destFunctions = deviceState->getImageFunctions(destinationFormat);
-			
-			if (!sourceFunctions->GetPixelF32)
-			{
-				sourceFunctions->GetPixelF32 = reinterpret_cast<decltype(sourceFunctions->GetPixelF32)>(CompileGetPixelF32(deviceState->jit, &sourceInformation));
-			}
-			
-			if (!destFunctions->SetPixelF32)
-			{
-				destFunctions->SetPixelF32 = reinterpret_cast<decltype(destFunctions->SetPixelF32)>(CompileSetPixelF32(deviceState->jit, &destinationInformation));
-			}
-
-			float values[4];
-			sourceFunctions->GetPixelF32(source, values);
-			destFunctions->SetPixelF32(destination, values);
-			break;
-		}
-		
-	default:
-		FATAL_ERROR();
-	}
-}
-
 static void LoadUniforms(DeviceState* deviceState, const std::vector<VariableUniformData>& uniformData, int pipelineIndex)
 {
 	for (const auto& data : uniformData)
@@ -731,7 +646,7 @@ void CalculatePrimitives(DeviceState* deviceState, AssemblerOutput& assemblerOut
 			if (vertexCount > 2)
 			{
 				assemblerOutput.primitives.resize(vertexCount - 2);
-				for (auto i = 0; i < vertexCount - 2; i++)
+				for (auto i = 0u; i < vertexCount - 2; i++)
 				{
 					assemblerOutput.primitives[i].provokingVertex = i + 1;
 					assemblerOutput.primitives[i].vertex[0] = 0;
@@ -860,7 +775,6 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	assert(assemblerOutput.vertices.size() <= 0xFFFFFFFF);
 
 	const auto& shaderStage = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(0);
-	const auto& vertexInput = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getVertexInputState();
 
 	const auto spirvModule = shaderStage->getSPIRVModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
@@ -897,7 +811,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 }
 
 template<bool Perspective, int size, typename T>
-T SetDatum(float points[size], T values[size], float weights[size])
+T SetDatum(const float points[size], const T values[size], const float weights[size])
 {
 	if (Perspective)
 	{
@@ -1364,29 +1278,32 @@ static T ApplyBlend(T source, T destination, T constant, const VkPipelineColorBl
 }
 
 // TODO: Merge glslfunctions version, probably move to imagesampler
-static void GetFormatOffset(Image* image, uint64_t& offset, uint64_t& size)
+static void GetFormatOffset(ImageView* imageView, uint64_t& offset, uint64_t& size)
 {
-	offset = image->getImageSize().Level[0].Offset;
-	size = image->getImageSize().Level[0].LevelSize;
+	const auto& imageSize = imageView->getImage()->getImageSize();
+
+	offset = imageSize.Level[imageView->getSubresourceRange().baseMipLevel].Offset + imageView->getSubresourceRange().baseArrayLayer * imageSize.LayerSize;
+	size = imageSize.Level[imageView->getSubresourceRange().baseMipLevel].LevelSize;
 }
 
 template<int length>
-glm::vec<length, uint32_t> GetImageRange(Image* image);
+glm::vec<length, uint32_t> GetImageRange(ImageView* imageView);
 
 template<>
-glm::uvec2 GetImageRange<2>(Image* image)
+glm::uvec2 GetImageRange<2>(ImageView* imageView)
 {
-	return glm::uvec2{image->getWidth(), image->getHeight()};
+	const auto& size = imageView->getImage()->getImageSize().Level[imageView->getSubresourceRange().baseMipLevel];
+	return glm::uvec2{size.Width, size.Height};
 }
 
 template<typename ReturnType, typename CoordinateType>
-static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, Image* image, CoordinateType coordinates)
+static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, ImageView* imageView, CoordinateType coordinates)
 {
 	uint64_t offset;
 	uint64_t size;
-	GetFormatOffset(image, offset, size);
-	auto data = image->getData(offset, size);
-	auto range = GetImageRange<CoordinateType::length()>(image);
+	GetFormatOffset(imageView, offset, size);
+	auto data = imageView->getImage()->getData(offset, size);
+	auto range = GetImageRange<CoordinateType::length()>(imageView);
 
 	return GetPixel<ReturnType>(deviceState,
 	                            format,
@@ -1397,8 +1314,8 @@ static ReturnType ImageFetch(DeviceState* deviceState, VkFormat format, Image* i
 }
 
 static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage, bool front, float depth,
-                      std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                      std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
+                      std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
+                      std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData, 
                       uint32_t x, uint32_t y)
 {
 	builtinInput->fragCoord.z = depth;
@@ -1426,7 +1343,11 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	// TODO: 27.10. Depth and Stencil Operations
 	 
 	// 27.11. Depth Bounds Test
-	const auto currentDepth = depthImage.second ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0) : 0;
+	const auto currentDepth = depthImage.second
+		                          ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second->getImage(), 
+		                                          x, y, 0, 
+		                                          depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer)
+		                          : 0;
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthBoundsTestEnable)
 	{
 		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicDepthBounds)
@@ -1462,7 +1383,9 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			TODO_ERROR();
 		}
 
-		currentStencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0);
+		currentStencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(), 
+		                                 x, y, 0, 
+		                                 stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer); 
 		stencilResult = CompareTest(stencilReference & compareMask, currentStencil & compareMask, stencilOpState.compareOp);
 	}
 
@@ -1546,7 +1469,10 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			};
 
 			// TODO: No clamp if float format?
-			SetPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0, input);
+			SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
+			         x, y, 0,
+			         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
+			         input);
 		}
 		else
 		{
@@ -1557,7 +1483,10 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 			};
 
 			// TODO: No clamp if float format?
-			SetPixel(deviceState, stencilImage.first.format, stencilImage.second, x, y, 0, 0, 0, input);
+			SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
+			         x, y, 0,
+			         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
+			         input);
 		}
 	}
 	else if (depthWrite)
@@ -1565,11 +1494,18 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		const VkClearDepthStencilValue input
 		{
 			depth,
-			stencilImage.second == nullptr ? 0u : GetStencilPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0),
+			stencilImage.second == nullptr
+				? 0u
+				: GetStencilPixel(deviceState, depthImage.first.format, depthImage.second->getImage(), 
+				                  x, y, 0, 
+				                  depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer),
 		};
 
 		// TODO: No clamp if float format?
-		SetPixel(deviceState, depthImage.first.format, depthImage.second, x, y, 0, 0, 0, input);
+		SetPixel(deviceState, depthImage.first.format, depthImage.second->getImage(),
+		         x, y, 0,
+		         depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer,
+		         input);
 	}
 
 	// TODO: 27.14. Representative Fragment Test
@@ -1627,7 +1563,10 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
 						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
 
-						SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
+						SetPixel(deviceState, images[j].first.format, images[j].second->getImage(),
+						         x, y, 0,
+						         images[j].second->getSubresourceRange().baseMipLevel, images[j].second->getSubresourceRange().baseArrayLayer,
+						         *reinterpret_cast<VkClearColorValue*>(&colour));
 						break;
 					}
 
@@ -1655,8 +1594,11 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
 						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
 						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
-
-						SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
+						
+						SetPixel(deviceState, images[j].first.format, images[j].second->getImage(),
+						         x, y, 0,
+						         images[j].second->getSubresourceRange().baseMipLevel, images[j].second->getSubresourceRange().baseArrayLayer,
+						         *reinterpret_cast<VkClearColorValue*>(&colour));
 						break;
 					}
 					
@@ -1684,8 +1626,11 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
 						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
 						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
-
-						SetPixel(deviceState, images[j].first.format, images[j].second, x, y, 0, 0, 0, *reinterpret_cast<VkClearColorValue*>(&colour));
+						
+						SetPixel(deviceState, images[j].first.format, images[j].second->getImage(),
+						         x, y, 0,
+						         images[j].second->getSubresourceRange().baseMipLevel, images[j].second->getSubresourceRange().baseArrayLayer,
+						         *reinterpret_cast<VkClearColorValue*>(&colour));
 						break;
 					}
 					
@@ -1698,8 +1643,8 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 }
 
 static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                          std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                          std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                          std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
+                          std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData,
                           const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 1)
@@ -1764,8 +1709,8 @@ static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assem
 }
 
 static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                         std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                         std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData,
+                         std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
+                         std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData,
                          const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (output.vertexCount < 2)
@@ -1892,8 +1837,8 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 }
 
 static void ProcessTriangles(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, const ShaderFunction* shaderStage,
-                             std::pair<AttachmentDescription, Image*> depthImage, std::pair<AttachmentDescription, Image*> stencilImage,
-                             std::vector<std::pair<AttachmentDescription, Image*>>& images, std::vector<VariableInOutData>& outputData, 
+                             std::pair<AttachmentDescription, ImageView*> depthImage, std::pair<AttachmentDescription, ImageView*> stencilImage,
+                             std::vector<std::pair<AttachmentDescription, ImageView*>>& images, std::vector<VariableInOutData>& outputData, 
                              const VertexOutput& output, const RasterizationState& rasterisationState, std::vector<VariableInOutData>& inputData)
 {
 	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports.size() != 1)
@@ -2004,17 +1949,17 @@ static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutpu
 	
 	LoadUniforms(deviceState, uniformData, PIPELINE_GRAPHICS);
 	
-	std::vector<std::pair<AttachmentDescription, Image*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
-	std::pair<AttachmentDescription, Image*> depthImage{};
-	std::pair<AttachmentDescription, Image*> stencilImage{};
-	
+	std::vector<std::pair<AttachmentDescription, ImageView*>> images{MAX_FRAGMENT_OUTPUT_ATTACHMENTS};
+	std::pair<AttachmentDescription, ImageView*> depthImage{};
+	std::pair<AttachmentDescription, ImageView*> stencilImage{};
+
 	for (auto i = 0u; i < deviceState->currentSubpass->colourAttachments.size(); i++)
 	{
 		const auto attachmentIndex = deviceState->currentSubpass->colourAttachments[i].attachment;
 		if (attachmentIndex != VK_ATTACHMENT_UNUSED)
 		{
 			const auto& attachment = deviceState->currentRenderPass->getAttachments()[attachmentIndex];
-			images[i] = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+			images[i] = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]);
 		}
 	}
 	
@@ -2027,11 +1972,11 @@ static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutpu
 			const auto format = deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getFormat();
 			if (GetFormatInformation(format).DepthStencil.DepthOffset != INVALID_OFFSET)
 			{
-				depthImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+				depthImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]);
 			}
 			if (GetFormatInformation(format).DepthStencil.StencilOffset != INVALID_OFFSET)
 			{
-				stencilImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]->getImage());
+				stencilImage = std::make_pair(attachment, deviceState->currentFramebuffer->getAttachments()[attachmentIndex]);
 			}
 		}
 	}
@@ -2077,7 +2022,6 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 	const auto localCount = shaderStage->getComputeLocalSize();
 	
 	const auto builtinInputPointer = llvmModule->getPointer("_builtinInput");
-	const auto builtinOutputPointer = llvmModule->getPointer("_builtinOutput");
 	
 	auto inputSize = 0u;
 	auto outputSize = 0u;
