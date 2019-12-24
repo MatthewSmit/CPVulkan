@@ -1324,6 +1324,11 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
                       uint32_t x, uint32_t y)
 {
 	builtinInput->fragCoord.z = depth;
+	
+	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
+		                      ? deviceState->dynamicPipelineState.viewports[0]
+		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
+	depth = (viewport.maxDepth - viewport.minDepth) * depth + viewport.minDepth;
 
 	// TODO: 27.2. Discard Rectangles Test
 	// TODO: 27.3. Scissor Test
@@ -1357,13 +1362,19 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	{
 		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicDepthBounds)
 		{
-			TODO_ERROR();
+			if (currentDepth < deviceState->dynamicPipelineState.minDepthBounds ||
+				currentDepth > deviceState->dynamicPipelineState.maxDepthBounds)
+			{
+				return;
+			}
 		}
-
-		if (currentDepth < deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().MinDepthBounds ||
-			currentDepth > deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().MaxDepthBounds)
+		else
 		{
-			return;
+			if (currentDepth < deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().MinDepthBounds ||
+				currentDepth > deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().MaxDepthBounds)
+			{
+				return;
+			}
 		}
 	}
 
@@ -1402,18 +1413,25 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 	// 27.13. Depth Test
 	auto depthResult = true;
 	// TODO: Optimise so depth checking uses native type
-	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthTestEnable)
+	if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthTestEnable && depthImage.second)
 	{
-		if (depthImage.second)
+		if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getRasterizationState().DepthClampEnable)
 		{
-			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getRasterizationState().DepthClampEnable)
-			{
-				TODO_ERROR();
-			}
-
-			depthResult = CompareTest(depth, currentDepth, deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthCompareOp);
+			depth = std::clamp(depth, viewport.minDepth, viewport.maxDepth);
 		}
+
+		if (depthImage.first.format != VK_FORMAT_D32_SFLOAT && depthImage.first.format != VK_FORMAT_D32_SFLOAT_S8_UINT)
+		{
+			depth = std::clamp(depth, 0.0f, 1.0f);
+		}
+
+		depthResult = CompareTest(depth, currentDepth, deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthCompareOp);
 	}
+	else
+	{
+		depth = std::clamp(depth, 0.0f, 1.0f);
+	}
+	
 	auto depthWrite = depthResult && 
 		deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthTestEnable &&
 		deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDepthStencilState().DepthWriteEnable &&
@@ -1668,7 +1686,7 @@ static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assem
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
-		                      ? deviceState->viewports[0]
+		                      ? deviceState->dynamicPipelineState.viewports[0]
 		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 
 	for (const auto& primitive : assemblerOutput.primitives)
@@ -1682,8 +1700,8 @@ static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assem
 		p0.w = builtinData0.position.w;
 		const auto pointScreen = glm::ivec2
 		{
-			static_cast<int32_t>((p0.x + 1) * 0.5f * viewport.width),
-			static_cast<int32_t>((p0.y + 1) * 0.5f * viewport.height),
+			static_cast<int32_t>((p0.x + 1) * 0.5f * (viewport.width - 1)),
+			static_cast<int32_t>((p0.y + 1) * 0.5f * (viewport.height - 1)),
 		};
 		const auto pointSize = builtinData0.pointSize;
 		const auto intPointSize = static_cast<int32_t>(std::ceil(pointSize / 2));
@@ -1710,8 +1728,9 @@ static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assem
 						const auto data = deviceState->vertexOutputStorage.data() + p0Index * output.outputStride + input.offset;
 						memcpy(input.pointer, data, input.size);
 					}
-					
-					DrawPixel(deviceState, builtinInput, builtinOutput, shaderStage, true, p0.z, depthImage, stencilImage, images, outputData, x, y);
+
+					const auto depth = p0.z;
+					DrawPixel(deviceState, builtinInput, builtinOutput, shaderStage, true, depth, depthImage, stencilImage, images, outputData, x, y);
 				}
 			}
 		}
@@ -1734,7 +1753,7 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
-		                      ? deviceState->viewports[0]
+		                      ? deviceState->dynamicPipelineState.viewports[0]
 		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 
 	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;
@@ -1825,8 +1844,8 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 									FATAL_ERROR();
 								}
 							}
-							
-							auto depth = p0.z * t + p1.z * (1 - t);
+
+							const auto depth = p0.z * t + p1.z * (1 - t);
 							DrawPixel(deviceState, builtinInput, builtinOutput, shaderStage, true, depth, depthImage, stencilImage, images, outputData, x, y);
 						}
 						break;
@@ -1857,7 +1876,7 @@ static void ProcessTriangles(DeviceState* deviceState, const AssemblerOutput& as
 	}
 
 	const auto viewport = deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getDynamicState().DynamicViewport
-		                      ? deviceState->viewports[0]
+		                      ? deviceState->dynamicPipelineState.viewports[0]
 		                      : deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getViewportState().Viewports[0];
 
 	const auto halfPixel = glm::vec2(1.0f / viewport.width, 1.0f / viewport.height) * 0.5f;

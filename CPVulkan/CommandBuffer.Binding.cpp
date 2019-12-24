@@ -40,68 +40,6 @@ private:
 	Pipeline* pipeline;
 };
 
-class SetViewportCommand final : public Command
-{
-public:
-	SetViewportCommand(uint32_t firstViewport, std::vector<VkViewport> viewports):
-		firstViewport{firstViewport},
-		viewports{std::move(viewports)}
-	{
-	}
-
-	~SetViewportCommand() override = default;
-
-#if CV_DEBUG_LEVEL > 0
-	void DebugOutput(DeviceState* deviceState) override
-	{
-		*deviceState->debugOutput << "SetViewport: Setting viewports starting at " << firstViewport << " with " << viewports << std::endl;
-	}
-#endif
-
-	void Process(DeviceState* deviceState) override
-	{
-		for (auto i = 0u; i < viewports.size(); i++)
-		{
-			deviceState->viewports[i + firstViewport] = viewports[i];
-		}
-	}
-
-private:
-	uint32_t firstViewport;
-	std::vector<VkViewport> viewports;
-};
-
-class SetScissorCommand final : public Command
-{
-public:
-	SetScissorCommand(uint32_t firstScissor, std::vector<VkRect2D> scissors):
-		firstScissor{firstScissor},
-		scissors{std::move(scissors)}
-	{
-	}
-
-	~SetScissorCommand() override = default;
-
-#if CV_DEBUG_LEVEL > 0
-	void DebugOutput(DeviceState* deviceState) override
-	{
-		*deviceState->debugOutput << "SetScissor: Setting scissor regions starting at " << firstScissor << " with " << scissors << std::endl;
-	}
-#endif
-
-	void Process(DeviceState* deviceState) override
-	{
-		for (auto i = 0u; i < scissors.size(); i++)
-		{
-			deviceState->scissors[i + firstScissor] = scissors[i];
-		}
-	}
-
-private:
-	uint32_t firstScissor;
-	std::vector<VkRect2D> scissors;
-};
-
 class BindDescriptorSetsCommand final : public Command
 {
 public:
@@ -257,7 +195,13 @@ void CommandBuffer::SetViewport(uint32_t firstViewport, uint32_t viewportCount, 
 	assert(state == State::Recording);
 	std::vector<VkViewport> viewports(viewportCount);
 	memcpy(viewports.data(), pViewports, sizeof(VkViewport) * viewportCount);
-	commands.push_back(std::make_unique<SetViewportCommand>(firstViewport, viewports));
+	commands.emplace_back(std::make_unique<FunctionCommand>([firstViewport, viewports](DeviceState* deviceState)
+	{
+		for (auto i = 0u; i < viewports.size(); i++)
+		{
+			deviceState->dynamicPipelineState.viewports[i + firstViewport] = viewports[i];
+		}
+	}));
 }
 
 void CommandBuffer::SetScissor(uint32_t firstScissor, uint32_t scissorCount, const VkRect2D* pScissors)
@@ -265,7 +209,23 @@ void CommandBuffer::SetScissor(uint32_t firstScissor, uint32_t scissorCount, con
 	assert(state == State::Recording);
 	std::vector<VkRect2D> scissors(scissorCount);
 	memcpy(scissors.data(), pScissors, sizeof(VkRect2D) * scissorCount);
-	commands.push_back(std::make_unique<SetScissorCommand>(firstScissor, scissors));
+	commands.emplace_back(std::make_unique<FunctionCommand>([firstScissor, scissors](DeviceState* deviceState)
+	{
+		for (auto i = 0u; i < scissors.size(); i++)
+		{
+			deviceState->dynamicPipelineState.scissors[i + firstScissor] = scissors[i];
+		}
+	}));
+}
+
+void CommandBuffer::SetDepthBounds(float minDepthBounds, float maxDepthBounds)
+{
+	assert(state == State::Recording);
+	commands.emplace_back(std::make_unique<FunctionCommand>([minDepthBounds, maxDepthBounds](DeviceState* deviceState)
+	{
+		deviceState->dynamicPipelineState.minDepthBounds = minDepthBounds;
+		deviceState->dynamicPipelineState.maxDepthBounds = maxDepthBounds;
+	}));
 }
 
 void CommandBuffer::BindDescriptorSets(VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t firstSet, uint32_t descriptorSetCount, const VkDescriptorSet* pDescriptorSets, uint32_t dynamicOffsetCount, const uint32_t* pDynamicOffsets)

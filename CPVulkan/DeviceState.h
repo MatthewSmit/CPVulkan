@@ -39,6 +39,14 @@ struct GraphicsPipelineState
 	uint8_t* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
 };
 
+struct DynamicPipelineState
+{
+	VkViewport viewports[MAX_VIEWPORTS];
+	VkRect2D scissors[MAX_VIEWPORTS];
+	float minDepthBounds;
+	float maxDepthBounds;
+};
+
 struct DeviceState
 {
 public:
@@ -51,8 +59,8 @@ public:
 	} pipelineState[MAX_PIPELINES]{};
 
 	GraphicsPipelineState graphicsPipelineState;
-	VkViewport viewports[MAX_VIEWPORTS];
-	VkRect2D scissors[MAX_VIEWPORTS];
+	DynamicPipelineState dynamicPipelineState;
+	
 	Buffer* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
 	Buffer* indexBinding;
 	uint64_t indexBindingOffset;

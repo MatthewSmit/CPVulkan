@@ -937,11 +937,6 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		TODO_ERROR();
 	}
 
-	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISPATCH_BASE)
-	{
-		TODO_ERROR();
-	}
-
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DEFER_COMPILE_BIT_NV)
 	{
 		TODO_ERROR();
@@ -1044,18 +1039,9 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 		const auto type = next->sType;
 		switch (type)
 		{
-		case VK_STRUCTURE_TYPE_PIPELINE_COMPILER_CONTROL_CREATE_INFO_AMD:
-			TODO_ERROR();
-
 		case VK_STRUCTURE_TYPE_PIPELINE_CREATION_FEEDBACK_CREATE_INFO_EXT:
 			feedback = true;
 			break;
-
-		case VK_STRUCTURE_TYPE_PIPELINE_DISCARD_RECTANGLE_STATE_CREATE_INFO_EXT:
-			TODO_ERROR();
-
-		case VK_STRUCTURE_TYPE_PIPELINE_REPRESENTATIVE_FRAGMENT_TEST_STATE_CREATE_INFO_NV:
-			TODO_ERROR();
 		}
 		next = next->pNext;
 	}
@@ -1063,11 +1049,6 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISABLE_OPTIMIZATION_BIT)
 	{
 		// TODO
-	}
-
-	if (pCreateInfo->flags & VK_PIPELINE_CREATE_VIEW_INDEX_FROM_DEVICE_INDEX_BIT)
-	{
-		TODO_ERROR();
 	}
 
 	if (pCreateInfo->flags & VK_PIPELINE_CREATE_DISPATCH_BASE)

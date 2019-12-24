@@ -888,19 +888,21 @@ protected:
 		if (information->DepthStencil.DepthOffset != INVALID_OFFSET)
 		{
 			auto dst = destinationPtr;
-			auto value = CreateMinNum(CreateMaxNum(depthSource, ConstF32(0)), ConstF32(1));
+			auto value = depthSource;
 			switch (information->Format)
 			{
 			case VK_FORMAT_D16_UNORM:
 			case VK_FORMAT_D16_UNORM_S8_UINT:
+				value = CreateMinNum(CreateMaxNum(value, ConstF32(0)), ConstF32(1));
 				value = EmitConvert<float, uint16_t>(this, value);
 				dst = LLVMBuildBitCast(builder, dst, LLVMPointerType(LLVMInt16TypeInContext(context), 0), "");
 				break;
 		
 			case VK_FORMAT_D24_UNORM_S8_UINT:
 			case VK_FORMAT_X8_D24_UNORM_PACK32:
+				value = CreateMinNum(CreateMaxNum(value, ConstF32(0)), ConstF32(1));
 				value = LLVMBuildFMul(builder, value, ConstF32(0x00FFFFFF), "");
-				value = CreateIntrinsic<1>(Intrinsics::round, {value});
+				value = CreateIntrinsic<1>(Intrinsics::round, { value });
 				value = LLVMBuildFPToUI(builder, value, LLVMInt32TypeInContext(context), "");
 				dst = LLVMBuildBitCast(builder, dst, LLVMPointerType(LLVMInt32TypeInContext(context), 0), "");
 				if (information->Format == VK_FORMAT_D24_UNORM_S8_UINT)

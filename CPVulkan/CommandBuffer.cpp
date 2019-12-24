@@ -814,11 +814,6 @@ VkResult CommandBuffer::End()
 
 VkResult CommandBuffer::Reset(VkCommandBufferResetFlags flags)
 {
-	if (flags)
-	{
-		TODO_ERROR();
-	}
-
 	ForceReset();
 
 	return VK_SUCCESS;

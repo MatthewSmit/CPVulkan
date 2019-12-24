@@ -37,7 +37,7 @@ public:
 	VKAPI_ATTR void VKAPI_PTR SetLineWidth(float lineWidth) { TODO_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SetDepthBias(float depthBiasConstantFactor, float depthBiasClamp, float depthBiasSlopeFactor) { TODO_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SetBlendConstants(const float blendConstants[4]) { TODO_ERROR(); } 
-	VKAPI_ATTR void VKAPI_PTR SetDepthBounds(float minDepthBounds, float maxDepthBounds) { TODO_ERROR(); } 
+	VKAPI_ATTR void VKAPI_PTR SetDepthBounds(float minDepthBounds, float maxDepthBounds);
 	VKAPI_ATTR void VKAPI_PTR SetStencilCompareMask(VkStencilFaceFlags faceMask, uint32_t compareMask) { TODO_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SetStencilWriteMask(VkStencilFaceFlags faceMask, uint32_t writeMask) { TODO_ERROR(); } 
 	VKAPI_ATTR void VKAPI_PTR SetStencilReference(VkStencilFaceFlags faceMask, uint32_t reference) { TODO_ERROR(); } 
