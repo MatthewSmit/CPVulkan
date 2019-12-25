@@ -2143,7 +2143,10 @@ public:
 				TODO_ERROR();
 			}
 
-			ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
+			if (deviceState->pipelineState[PIPELINE_GRAPHICS].pipeline->getShaderStage(4) != nullptr)
+			{
+				ProcessFragmentShader(deviceState, assemblerOutput, vertexOutput);
+			}
 		}
 	}
 
