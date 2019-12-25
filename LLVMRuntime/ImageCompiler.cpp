@@ -513,8 +513,7 @@ LLVMValueRef EmitGetPixel(CompiledModuleBuilder* moduleBuilder, LLVMValueRef sou
 class PixelCompiledModuleBuilder : public CompiledModuleBuilder
 {
 public:
-	PixelCompiledModuleBuilder(CPJit* jit, const FormatInformation* information) :
-		CompiledModuleBuilder{jit},
+	PixelCompiledModuleBuilder(const FormatInformation* information) :
 		information{information}
 	{
 	}
@@ -542,15 +541,15 @@ protected:
 class GetDepthPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
 {
 public:
-	GetDepthPixelCompiledModuleBuilder(CPJit* jit, const FormatInformation* information) :
-		PixelCompiledModuleBuilder{jit, information}
+	GetDepthPixelCompiledModuleBuilder(const FormatInformation* information) :
+		PixelCompiledModuleBuilder{information}
 	{
 		assert(information->Type == FormatType::DepthStencil);
 		assert(information->DepthStencil.DepthOffset != INVALID_OFFSET);
 	}
 
 protected:
-	void MainCompilation() override
+	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		std::vector<LLVMTypeRef> parameters
 		{
@@ -595,26 +594,29 @@ protected:
 		}
 
 		LLVMBuildRet(builder, value);
+
+		return function;
 	}
 };
 
 CP_DLL_EXPORT FunctionPointer CompileGetPixelDepth(CPJit* jit, const FormatInformation* information)
 {
-	return GetDepthPixelCompiledModuleBuilder(jit, information).Compile()->getFunctionPointer("main");
+	GetDepthPixelCompiledModuleBuilder builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 class GetStencilPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
 {
 public:
-	GetStencilPixelCompiledModuleBuilder(CPJit* jit, const FormatInformation* information) :
-		PixelCompiledModuleBuilder{jit, information}
+	GetStencilPixelCompiledModuleBuilder(const FormatInformation* information) :
+		PixelCompiledModuleBuilder{information}
 	{
 		assert(information->Type == FormatType::DepthStencil);
 		assert(information->DepthStencil.StencilOffset != INVALID_OFFSET);
 	}
 
 protected:
-	void MainCompilation() override
+	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		std::vector<LLVMTypeRef> parameters
 		{
@@ -632,25 +634,28 @@ protected:
 		const auto value = CreateLoad(sourcePtr);
 
 		LLVMBuildRet(builder, value);
+
+		return function;
 	}
 };
 
 CP_DLL_EXPORT FunctionPointer CompileGetPixelStencil(CPJit* jit, const FormatInformation* information)
 {
-	return GetStencilPixelCompiledModuleBuilder(jit, information).Compile()->getFunctionPointer("main");
+	GetStencilPixelCompiledModuleBuilder builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 template<typename ReturnType>
 class GetPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
 {
 public:
-	GetPixelCompiledModuleBuilder(CPJit* jit, const FormatInformation* information) :
-		PixelCompiledModuleBuilder{jit, information}
+	GetPixelCompiledModuleBuilder(const FormatInformation* information) :
+		PixelCompiledModuleBuilder{information}
 	{
 	}
 
 protected:
-	void MainCompilation() override
+	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		std::vector<LLVMTypeRef> parameters
 		{
@@ -838,35 +843,40 @@ protected:
 		}
 
 		LLVMBuildRetVoid(builder);
+
+		return function;
 	}
 };
 
 CP_DLL_EXPORT FunctionPointer CompileGetPixelF32(CPJit* jit, const FormatInformation* information)
 {
-	return GetPixelCompiledModuleBuilder<float>(jit, information).Compile()->getFunctionPointer("main");
+	GetPixelCompiledModuleBuilder<float> builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 CP_DLL_EXPORT FunctionPointer CompileGetPixelI32(CPJit* jit, const FormatInformation* information)
 {
-	return GetPixelCompiledModuleBuilder<int32_t>(jit, information).Compile()->getFunctionPointer("main");
+	GetPixelCompiledModuleBuilder<int32_t> builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 CP_DLL_EXPORT FunctionPointer CompileGetPixelU32(CPJit* jit, const FormatInformation* information)
 {
-	return GetPixelCompiledModuleBuilder<uint32_t>(jit, information).Compile()->getFunctionPointer("main");
+	GetPixelCompiledModuleBuilder<uint32_t> builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 class SetDSPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
 {
 public:
-	SetDSPixelCompiledModuleBuilder(CPJit* jit, const FormatInformation* information) :
-		PixelCompiledModuleBuilder{jit, information}
+	SetDSPixelCompiledModuleBuilder(const FormatInformation* information) :
+		PixelCompiledModuleBuilder{information}
 	{
 		assert(information->Type == FormatType::DepthStencil);
 	}
 
 protected:
-	void MainCompilation() override
+	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		std::vector<LLVMTypeRef> parameters
 		{
@@ -931,25 +941,28 @@ protected:
 		}
 
 		LLVMBuildRetVoid(builder);
+
+		return function;
 	}
 };
 
 CP_DLL_EXPORT FunctionPointer CompileSetPixelDepthStencil(CPJit* jit, const FormatInformation* information)
 {
-	return SetDSPixelCompiledModuleBuilder(jit, information).Compile()->getFunctionPointer("main");
+	SetDSPixelCompiledModuleBuilder builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 template<typename SourceType>
 class SetPixelCompiledModuleBuilder final : public PixelCompiledModuleBuilder
 {
 public:
-	SetPixelCompiledModuleBuilder(CPJit* jit, const FormatInformation* information) :
-		PixelCompiledModuleBuilder{jit, information}
+	SetPixelCompiledModuleBuilder(const FormatInformation* information) :
+		PixelCompiledModuleBuilder{information}
 	{
 	}
 
 protected:
-	void MainCompilation() override
+	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		std::vector<LLVMTypeRef> parameters
 		{
@@ -989,6 +1002,8 @@ protected:
 		}
 
 		LLVMBuildRetVoid(builder);
+
+		return function;
 	}
 
 private:
@@ -1370,15 +1385,18 @@ private:
 
 CP_DLL_EXPORT FunctionPointer CompileSetPixelF32(CPJit* jit, const FormatInformation* information)
 {
-	return SetPixelCompiledModuleBuilder<float>(jit, information).Compile()->getFunctionPointer("main");
+	SetPixelCompiledModuleBuilder<float> builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 CP_DLL_EXPORT FunctionPointer CompileSetPixelI32(CPJit* jit, const FormatInformation* information)
 {
-	return SetPixelCompiledModuleBuilder<int32_t>(jit, information).Compile()->getFunctionPointer("main");
+	SetPixelCompiledModuleBuilder<int32_t> builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }
 
 CP_DLL_EXPORT FunctionPointer CompileSetPixelU32(CPJit* jit, const FormatInformation* information)
 {
-	return SetPixelCompiledModuleBuilder<uint32_t>(jit, information).Compile()->getFunctionPointer("main");
+	SetPixelCompiledModuleBuilder<uint32_t> builder{information};
+	return Compile(&builder, jit)->getFunctionPointer("main");
 }

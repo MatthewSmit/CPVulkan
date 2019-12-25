@@ -69,7 +69,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 			if (spirvType->hasDecorate(DecorationArrayStride))
 			{
 				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
-				const auto originalStride = LLVMSizeOfTypeInBits(layout, elementType) / 8;
+				const auto originalStride = LLVMSizeOfTypeInBits(jit->getDataLayout(), elementType) / 8;
 				if (stride != originalStride)
 				{
 					multiplier = stride / originalStride;
@@ -92,7 +92,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 			if (runtimeArray->hasDecorate(DecorationArrayStride))
 			{
 				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
-				const auto originalStride = LLVMSizeOfTypeInBits(layout, elementType) / 8;
+				const auto originalStride = LLVMSizeOfTypeInBits(jit->getDataLayout(), elementType) / 8;
 				if (stride != originalStride)
 				{
 					multiplier = stride / originalStride;
@@ -211,7 +211,7 @@ LLVMTypeRef SPIRVBaseCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* 
 				}
 				else
 				{
-					currentOffset += LLVMSizeOfTypeInBits(layout, llvmMemberType) / 8;
+					currentOffset += LLVMSizeOfTypeInBits(jit->getDataLayout(), llvmMemberType) / 8;
 				}
 			}
 			LLVMStructSetBody(llvmType, types.data(), static_cast<uint32_t>(types.size()), true);

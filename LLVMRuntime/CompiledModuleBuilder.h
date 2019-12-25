@@ -24,20 +24,15 @@ class CPJit;
 class CompiledModuleBuilder
 {
 public:
-	explicit CompiledModuleBuilder(CPJit* jit, std::function<void*(const std::string&)> getFunction = nullptr);
-	virtual ~CompiledModuleBuilder();
-
-	CompiledModule* Compile();
-
-	LLVMTargetDataRef layout{};
-
-	CPJit* jit;
-	std::function<void*(const std::string&)> getFunction;
+	CPJit* jit{};
 	LLVMContextRef context{};
 	LLVMModuleRef module{};
 	LLVMBuilderRef builder{};
 
-	virtual void MainCompilation() = 0;
+	void Initialise(CPJit* jit, LLVMContextRef context, LLVMModuleRef module);
+
+	LLVMValueRef CompileMainFunction();
+	virtual LLVMValueRef CompileMainFunctionImpl() = 0;
 
 	// Generic Helpers
 

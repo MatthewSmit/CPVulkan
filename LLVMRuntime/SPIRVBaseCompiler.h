@@ -1,8 +1,6 @@
 #pragma once
 #include "CompiledModuleBuilder.h"
 
-#include <utility>
-
 namespace SPIRV
 {
 	class SPIRVType;
@@ -12,14 +10,6 @@ namespace SPIRV
 
 class SPIRVBaseCompiledModuleBuilder : public CompiledModuleBuilder
 {
-public:
-	explicit SPIRVBaseCompiledModuleBuilder(CPJit* jit, std::function<void*(const std::string&)> getFunction = nullptr) :
-		CompiledModuleBuilder{jit, std::move(getFunction)}
-	{
-	}
-	
-	~SPIRVBaseCompiledModuleBuilder() override = default;
-
 protected:
 	std::unordered_map<uint32_t, LLVMTypeRef> typeMapping{};
 	std::unordered_map<LLVMTypeRef, uint32_t> arrayStrideMultiplier{};

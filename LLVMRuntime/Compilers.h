@@ -4,12 +4,15 @@
 #include <spirv.hpp>
 
 struct FormatInformation;
+class CompiledModuleBuilder;
 
 namespace SPIRV
 {
 	class SPIRVFunction;
 	class SPIRVModule;
 }
+
+CompiledModule* Compile(CompiledModuleBuilder* moduleBuilder, CPJit* jit, std::function<void*(const std::string&)> getFunction = nullptr);
 
 CP_DLL_EXPORT FunctionPointer CompileGetPixelDepth(CPJit* jit, const FormatInformation* information);
 CP_DLL_EXPORT FunctionPointer CompileGetPixelStencil(CPJit* jit, const FormatInformation* information);

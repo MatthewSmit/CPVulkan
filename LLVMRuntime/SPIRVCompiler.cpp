@@ -33,8 +33,7 @@ static std::unordered_map<Op, LLVMAtomicRMWBinOp> instructionLookupAtomic
 class SPIRVCompiledModuleBuilder final : public SPIRVBaseCompiledModuleBuilder
 {
 public:
-	SPIRVCompiledModuleBuilder(CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo) :
-		SPIRVBaseCompiledModuleBuilder{jit},
+	SPIRVCompiledModuleBuilder(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo) :
 		spirvModule{spirvModule},
 		executionModel{executionModel},
 		entryPoint{entryPoint},
@@ -46,8 +45,6 @@ public:
 		}
 	}
 
-	~SPIRVCompiledModuleBuilder() override = default;
-
 protected:
 	void AddDebugInformation(const SPIRV::SPIRVEntry* spirvEntry)
 	{
@@ -58,7 +55,7 @@ protected:
 		}
 	}
 
-	void MainCompilation() override
+	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		AddBuiltin();
 
@@ -130,6 +127,9 @@ protected:
 		LLVMDIBuilderFinalize(diBuilder);
 		LLVMDisposeDIBuilder(diBuilder);
 #endif
+
+		// TODO
+		return nullptr;
 	}
 
 private:
@@ -3136,7 +3136,14 @@ private:
 
 CompiledModule* CompileSPIRVModule(CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
 {
-	return SPIRVCompiledModuleBuilder(jit, spirvModule, executionModel, entryPoint, specializationInfo).Compile();
+	SPIRVCompiledModuleBuilder builder
+	{
+		spirvModule,
+		executionModel,
+		entryPoint,
+		specializationInfo
+	};
+	return Compile(&builder, jit);
 }
 
 std::string MangleName(const SPIRV::SPIRVVariable* variable)

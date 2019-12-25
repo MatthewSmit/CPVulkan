@@ -44,6 +44,41 @@ static uint64_t SymbolResolverStub(const char* name, void* lookupContext)
 	return static_cast<CompiledModule*>(lookupContext)->ResolveSymbol(name);
 }
 
+CompiledModule* Compile(CompiledModuleBuilder* moduleBuilder, CPJit* jit, std::function<void*(const std::string&)> getFunction)
+{
+	CompiledModule* compiledModule;
+	jit->RunOnCompileThread([&]()
+	{
+		const auto context = LLVMContextCreate();
+		const auto module = LLVMModuleCreateWithNameInContext("", context);
+		const auto builder = LLVMCreateBuilderInContext(context);
+
+		moduleBuilder->Initialise(jit, context, module);
+		moduleBuilder->CompileMainFunction();
+
+		LLVMDisposeBuilder(builder);
+
+#ifdef NDEBUG
+		LLVMRunPassManager(jit->getPassManager(), module);
+#endif
+
+		// TODO: Soft fail?
+		// LLVMVerifyModule(module, LLVMAbortProcessAction, nullpointer);
+
+		std::cout << DumpModule(module) << std::endl;
+
+		compiledModule = new CompiledModule(jit, context, module, getFunction);
+
+		const auto userData = compiledModule->getOptionalPointer("@userData");
+		if (userData)
+		{
+			*reinterpret_cast<void**>(userData) = jit->getUserData();
+		}
+	});
+
+	return compiledModule;
+}
+
 CompiledModule::CompiledModule(CPJit* jit, LLVMContextRef context, LLVMModuleRef module, std::function<void*(const std::string&)> getFunction) :
 	jit{jit},
 	context{context},
@@ -198,47 +233,20 @@ FunctionPointer CompiledModule::getFunctionPointer(const std::string& name) cons
 	return reinterpret_cast<FunctionPointer>(getPointer(name));
 }
 
-CompiledModuleBuilder::CompiledModuleBuilder(CPJit* jit, std::function<void*(const std::string&)> getFunction) :
-	jit{jit},
-	getFunction{std::move(getFunction)}
+void CompiledModuleBuilder::Initialise(CPJit* jit, LLVMContextRef context, LLVMModuleRef module)
 {
-	this->layout = jit->getDataLayout();
+	this->jit = jit;
+	this->context = context;
+	this->module = module;
 }
 
-CompiledModuleBuilder::~CompiledModuleBuilder() = default;
-
-CompiledModule* CompiledModuleBuilder::Compile()
+LLVMValueRef CompiledModuleBuilder::CompileMainFunction()
 {
-	CompiledModule* compiledModule;
-	this->jit->RunOnCompileThread([&]()
-	{
-		context = LLVMContextCreate();
-		module = LLVMModuleCreateWithNameInContext("", context);
-		builder = LLVMCreateBuilderInContext(context);
-
-		MainCompilation();
-
-		LLVMDisposeBuilder(builder);
-
-#ifdef NDEBUG
-		LLVMRunPassManager(this->jit->getPassManager(), module);
-#endif
-
-		// TODO: Soft fail?
-		// LLVMVerifyModule(module, LLVMAbortProcessAction, nullpointer);
-
-		std::cout << DumpModule(module) << std::endl;
-
-		compiledModule = new CompiledModule(jit, context, module, getFunction);
-
-		const auto userData = compiledModule->getOptionalPointer("@userData");
-		if (userData)
-		{
-			*reinterpret_cast<void**>(userData) = jit->getUserData();
-		}
-	});
-
-	return compiledModule;
+	this->builder = LLVMCreateBuilderInContext(context);
+	const auto result = CompileMainFunctionImpl();
+	LLVMDisposeBuilder(this->builder);
+	this->builder = nullptr;
+	return result;
 }
 
 bool CompiledModuleBuilder::HasName(LLVMValueRef value)

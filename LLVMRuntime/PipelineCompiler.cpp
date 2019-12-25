@@ -286,12 +286,10 @@ static uint32_t GetVariableSize(SPIRV::SPIRVType* type)
 class PipelineVertexCompiledModuleBuilder final : public SPIRVBaseCompiledModuleBuilder
 {
 public:
-	PipelineVertexCompiledModuleBuilder(CPJit* jit, const SPIRV::SPIRVModule* spirvVertexShader, CompiledModule* llvmVertexShader,
+	PipelineVertexCompiledModuleBuilder(const SPIRV::SPIRVModule* spirvVertexShader, CompiledModule* llvmVertexShader,
 	                                    const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings, 
 	                                    const std::vector<VkVertexInputBindingDescription>& vertexBindingDescriptions,
-	                                    const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions,
-	                                    std::function<void*(const std::string&)> getFunction) :
-		SPIRVBaseCompiledModuleBuilder{jit, std::move(getFunction)},
+	                                    const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions) :
 		spirvVertexShader{spirvVertexShader},
 		llvmVertexShader{llvmVertexShader},
 		layoutBindings{layoutBindings},
@@ -397,7 +395,7 @@ public:
 	}
 
 protected:
-	void MainCompilation() override
+	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		// TODO: Prefer globals over inttoptr of a constant address - this gives you dereferencability information. In MCJIT, use getSymbolAddress to provide actual address.
 
@@ -471,6 +469,8 @@ protected:
 		});
 
 		LLVMBuildRetVoid(builder);
+
+		return function;
 	}
 	
 private:
@@ -731,8 +731,8 @@ private:
 
 		const auto shaderFormat = GetVariableFormat(spirvType);
 
-		auto bufferData = CreateLoad(CreateGEP(CreateLoad(pipelineState), { 0, 0, binding.binding }));
-		bufferData = CreateGEP(bufferData, { bufferOffset });
+		auto bufferData = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 0, binding.binding}));
+		bufferData = CreateGEP(bufferData, {bufferOffset});
 
 		if (shaderFormat == attribute.format)
 		{
@@ -919,9 +919,13 @@ CompiledModule* CompileVertexPipeline(CPJit* jit, const SPIRV::SPIRVModule* spir
                                       const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions,
                                       std::function<void*(const std::string&)> getFunction)
 {
-	return PipelineVertexCompiledModuleBuilder(jit, spirvVertexShader, llvmVertexShader, 
-	                                           layoutBindings, 
-	                                           vertexBindingDescriptions,
-	                                           vertexAttributeDescriptions,
-	                                           std::move(getFunction)).Compile();
+	PipelineVertexCompiledModuleBuilder builder
+	{
+		spirvVertexShader,
+		llvmVertexShader, 
+		layoutBindings, 
+		vertexBindingDescriptions,
+		vertexAttributeDescriptions
+	};
+	return Compile(&builder, jit, getFunction);
 }

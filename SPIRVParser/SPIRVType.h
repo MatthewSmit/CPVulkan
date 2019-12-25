@@ -567,8 +567,6 @@ protected:
     assert(Desc.Depth <= 1);
     assert(Desc.Arrayed <= 1);
     assert(Desc.MS <= 1);
-    assert(Desc.Sampled == 0); // For OCL only
-    assert(Desc.Format == 0);  // For OCL only
     assert(Acc.size() <= 1);
   }
   void setWordCount(SPIRVWord TheWC) override {
