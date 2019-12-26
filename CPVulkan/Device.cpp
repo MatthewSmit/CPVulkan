@@ -45,12 +45,19 @@ Device::~Device()
 
 void Device::OnDelete(const VkAllocationCallbacks* pAllocator)
 {
-	for (auto& pipelineState : state->pipelineState)
+	for (auto& pushDescriptorSet : state->graphicsPipelineState.pushDescriptorSets)
 	{
-		for (auto& pushDescriptorSet : pipelineState.pushDescriptorSets)
-		{
-			delete pushDescriptorSet;
-		}
+		delete pushDescriptorSet;
+	}
+
+	for (auto& pushDescriptorSet : state->computePipelineState.pushDescriptorSets)
+	{
+		delete pushDescriptorSet;
+	}
+
+	for (auto& pushDescriptorSet : state->rayTracingPipelineState.pushDescriptorSets)
+	{
+		delete pushDescriptorSet;
 	}
 	
 	for (auto& queue : queues)

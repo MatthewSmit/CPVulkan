@@ -401,7 +401,7 @@ protected:
 
 		std::vector<LLVMTypeRef> pipelineStateMembers
 		{
-			// uint8_t* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
+			// uint8_t* vertexBindingPtr[MAX_VERTEX_INPUT_BINDINGS];
 			LLVMArrayType(LLVMPointerType(LLVMInt8TypeInContext(context), 0), MAX_VERTEX_INPUT_BINDINGS),
 		};
 		const auto pipelineStateType = StructType(pipelineStateMembers, "_PipelineState", true);

@@ -207,12 +207,8 @@ constexpr auto SPARSE_RESIDENCY_NON_RESIDENT_STRICT = false;
 static_assert(MAX_FRAGMENT_OUTPUT_ATTACHMENTS == MAX_COLOUR_ATTACHMENTS);
 static_assert(MAX_FRAGMENT_COMBINED_OUTPUT_RESOURCES >= MAX_FRAGMENT_OUTPUT_ATTACHMENTS);
 
-constexpr auto PIPELINE_GRAPHICS = 0;
-constexpr auto PIPELINE_COMPUTE = 1;
-
 #if defined(VK_NV_ray_tracing)
 constexpr auto MAX_PIPELINES = 3;
-constexpr auto PIPELINE_RAYTRACE = 2;
 #else
 constexpr auto MAX_PIPELINES = 2;
 #endif

@@ -5,7 +5,6 @@
 
 #include <array>
 #include <vector>
-#include "DeviceState.h"
 
 namespace SPIRV
 {
@@ -143,13 +142,13 @@ private:
 	glm::uvec3 computeLocalSize{};
 };
 
-class Pipeline final
+class Pipeline
 {
 public:
 	Pipeline() = default;
 	Pipeline(const Pipeline&) = delete;
 	Pipeline(Pipeline&&) = delete;
-	~Pipeline();
+	virtual ~Pipeline() = default;
 
 	Pipeline& operator=(const Pipeline&) = delete;
 	Pipeline&& operator=(const Pipeline&&) = delete;
@@ -157,14 +156,34 @@ public:
 	void OnDelete(const VkAllocationCallbacks*)
 	{
 	}
-	
-	void CompilePipeline(DeviceState* deviceState);
+
+	[[nodiscard]] virtual uint32_t getMaxShaderStages() const = 0;
+	[[nodiscard]] virtual const ShaderFunction* getShaderStage(uint32_t index) const = 0;
+
+protected:
+	CPJit* jit{};
+
+	PipelineLayout* layout{};
+	PipelineCache* cache{};
+};
+
+class GraphicsPipeline final : public Pipeline
+{
+public:
+	~GraphicsPipeline() override;
 	
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
-	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
-	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const { return shaderStages.at(index).get(); }
-	
+	[[nodiscard]] uint32_t getMaxShaderStages() const override
+	{
+		return 5;
+	}
+
+	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const override
+	{
+		return shaderStages.at(index).get();
+	}
+
 	[[nodiscard]] const VertexInputState& getVertexInputState() const { return vertexInputState; }
 	[[nodiscard]] const InputAssemblyState& getInputAssemblyState() const { return inputAssemblyState; }
 	[[nodiscard]] const TessellationState& getTessellationState() const { return tessellationState; }
@@ -179,12 +198,11 @@ public:
 	[[nodiscard]] EntryPoint getVertexEntryPoint() const { return vertexEntryPoint; }
 
 private:
-	std::array<std::unique_ptr<ShaderFunction>, 6> shaderStages;
+	std::array<std::unique_ptr<ShaderFunction>, 5> shaderStages;
 
-	CPJit* jit{};
 	CompiledModule* vertexModule{};
 	EntryPoint vertexEntryPoint{};
-	
+
 	VertexInputState vertexInputState{};
 	InputAssemblyState inputAssemblyState{};
 	TessellationState tessellationState{};
@@ -194,7 +212,33 @@ private:
 	DepthStencilState depthStencilState{};
 	ColourBlendState colourBlendState{};
 	DynamicState dynamicState{};
-	
-	PipelineLayout* layout{};
-	PipelineCache* cache{};
+};
+
+class ComputePipeline final : public Pipeline
+{
+public:
+	~ComputePipeline() override = default;
+
+	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
+
+	[[nodiscard]] uint32_t getMaxShaderStages() const override
+	{
+		return 1;
+	}
+
+	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const override
+	{
+		assert(index == 0);
+		return computeStage.get();
+	}
+
+	[[nodiscard]] const ShaderFunction* getComputeStage() const
+	{
+		return computeStage.get();
+	}
+
+private:
+	std::unique_ptr<ShaderFunction> computeStage;
+
+	CPJit* jit{};
 };

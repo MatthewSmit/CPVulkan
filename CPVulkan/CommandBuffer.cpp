@@ -590,13 +590,13 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		deviceState->currentSubpass = &renderPass->getSubpasses()[0];
-		deviceState->currentSubpassIndex = 0;
-		deviceState->currentRenderPass = renderPass;
-		deviceState->currentFramebuffer = framebuffer;
-		deviceState->currentRenderArea = renderArea;
+		deviceState->graphicsPipelineState.currentSubpass = &renderPass->getSubpasses()[0];
+		deviceState->graphicsPipelineState.currentSubpassIndex = 0;
+		deviceState->graphicsPipelineState.currentRenderPass = renderPass;
+		deviceState->graphicsPipelineState.currentFramebuffer = framebuffer;
+		deviceState->graphicsPipelineState.currentRenderArea = renderArea;
 
-		for (auto attachmentReference : deviceState->currentSubpass->colourAttachments)
+		for (auto attachmentReference : deviceState->graphicsPipelineState.currentSubpass->colourAttachments)
 		{
 			if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 			{
@@ -611,7 +611,7 @@ public:
 			}
 		}
 
-		const auto attachmentReference = deviceState->currentSubpass->depthStencilAttachment;
+		const auto attachmentReference = deviceState->graphicsPipelineState.currentSubpass->depthStencilAttachment;
 		if (attachmentReference.attachment != VK_ATTACHMENT_UNUSED)
 		{
 			const auto attachment = renderPass->getAttachments()[attachmentReference.attachment];
@@ -658,8 +658,8 @@ public:
 	
 	void Process(DeviceState* deviceState) override
 	{
-		deviceState->currentSubpassIndex += 1;
-		deviceState->currentSubpass = &deviceState->currentRenderPass->getSubpasses()[deviceState->currentSubpassIndex];
+		deviceState->graphicsPipelineState.currentSubpassIndex += 1;
+		deviceState->graphicsPipelineState.currentSubpass = &deviceState->graphicsPipelineState.currentRenderPass->getSubpasses()[deviceState->graphicsPipelineState.currentSubpassIndex];
 	}
 };
 
@@ -693,10 +693,10 @@ public:
 		}
 #endif
 
-		deviceState->currentSubpass = nullptr;
-		deviceState->currentSubpassIndex = 0;
-		deviceState->currentRenderPass = nullptr;
-		deviceState->currentFramebuffer = nullptr;
+		deviceState->graphicsPipelineState.currentSubpass = nullptr;
+		deviceState->graphicsPipelineState.currentSubpassIndex = 0;
+		deviceState->graphicsPipelineState.currentRenderPass = nullptr;
+		deviceState->graphicsPipelineState.currentFramebuffer = nullptr;
 		// TODO
 	}
 };

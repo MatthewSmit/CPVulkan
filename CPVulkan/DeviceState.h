@@ -1,13 +1,8 @@
 #pragma once
 #include "Base.h"
 
-class Buffer;
 class CompiledModule;
 class CPJit;
-class DescriptorSet;
-class Framebuffer;
-class Pipeline;
-class RenderPass;
 
 struct SubpassDescription;
 
@@ -34,11 +29,6 @@ private:
 	CPJit* jit;
 };
 
-struct GraphicsPipelineState
-{
-	uint8_t* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
-};
-
 struct DynamicPipelineState
 {
 	VkViewport viewports[MAX_VIEWPORTS];
@@ -47,25 +37,29 @@ struct DynamicPipelineState
 	float maxDepthBounds;
 };
 
-struct DeviceState
+class CommonPipelineState
 {
 public:
-	struct
-	{
-		Pipeline* pipeline{};
-		DescriptorSet* descriptorSets[MAX_BOUND_DESCRIPTOR_SETS]{};
-		DescriptorSet* pushDescriptorSets[MAX_BOUND_DESCRIPTOR_SETS]{};
-		uint32_t descriptorSetDynamicOffset[MAX_BOUND_DESCRIPTOR_SETS][MAX_PER_STAGE_RESOURCES * 5]{};
-	} pipelineState[MAX_PIPELINES]{};
+	std::array<DescriptorSet*, MAX_BOUND_DESCRIPTOR_SETS> descriptorSets{};
+	std::array<DescriptorSet*, MAX_BOUND_DESCRIPTOR_SETS> pushDescriptorSets{};
+	std::array<std::array<uint32_t, MAX_PER_STAGE_RESOURCES * 5>, MAX_BOUND_DESCRIPTOR_SETS> descriptorSetDynamicOffset{};
+};
 
-	GraphicsPipelineState graphicsPipelineState;
-	DynamicPipelineState dynamicPipelineState;
-	
-	Buffer* vertexBinding[MAX_VERTEX_INPUT_BINDINGS];
+struct GraphicsNativeState
+{
+	uint8_t* vertexBindingPtr[MAX_VERTEX_INPUT_BINDINGS];
+};
+
+class GraphicsPipelineState final : public CommonPipelineState
+{
+public:
+	GraphicsPipeline* pipeline{};
+	std::array<Buffer*, MAX_VERTEX_INPUT_BINDINGS> vertexBinding;
+	GraphicsNativeState nativeState;
+
 	Buffer* indexBinding;
 	uint64_t indexBindingOffset;
 	uint32_t indexBindingStride;
-	uint8_t pushConstants[MAX_PUSH_CONSTANTS_SIZE];
 
 	const SubpassDescription* currentSubpass;
 	uint32_t currentSubpassIndex;
@@ -74,6 +68,34 @@ public:
 	VkRect2D currentRenderArea;
 
 	std::vector<uint8_t> vertexOutputStorage{};
+
+	DynamicPipelineState dynamicState;
+};
+
+class ComputePipelineState final : public CommonPipelineState
+{
+public:
+	ComputePipeline* pipeline{};
+};
+
+#if defined(VK_NV_ray_tracing)
+class RayTracingPipelineState final : public CommonPipelineState
+{
+public:
+	RayTracingPipeline* pipeline{};
+};
+#endif
+
+struct DeviceState
+{
+public:
+	GraphicsPipelineState graphicsPipelineState{};
+	ComputePipelineState computePipelineState{};
+#if defined(VK_NV_ray_tracing)
+	RayTracingPipelineState rayTracingPipelineState{};
+#endif
+
+	uint8_t pushConstants[MAX_PUSH_CONSTANTS_SIZE];
 
 	std::unordered_map<VkFormat, std::unique_ptr<ImageFunctions>> imageFunctions{};
 	CPJit* jit;

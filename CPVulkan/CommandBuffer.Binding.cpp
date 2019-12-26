@@ -12,34 +12,6 @@
 class Pipeline;
 class PipelineLayout;
 
-class BindPipelineCommand final : public Command
-{
-public:
-	BindPipelineCommand(VkPipelineBindPoint bindPoint, Pipeline* pipeline):
-		bindPoint{bindPoint},
-		pipeline{pipeline}
-	{
-	}
-
-	~BindPipelineCommand() override = default;
-
-#if CV_DEBUG_LEVEL > 0
-	void DebugOutput(DeviceState* deviceState) override
-	{
-		*deviceState->debugOutput << "BindPipeline: Binding pipeline for " << bindPoint << " to " << pipeline << std::endl;
-	}
-#endif
-
-	void Process(DeviceState* deviceState) override
-	{
-		gsl::at(deviceState->pipelineState, bindPoint).pipeline = pipeline;
-	}
-
-private:
-	VkPipelineBindPoint bindPoint;
-	Pipeline* pipeline;
-};
-
 class BindDescriptorSetsCommand final : public Command
 {
 public:
@@ -65,9 +37,27 @@ public:
 	}
 #endif
 
+	CommonPipelineState& GetPipelineState(DeviceState* deviceState, VkPipelineBindPoint bindPoint)
+	{
+		switch (bindPoint)
+		{
+		case VK_PIPELINE_BIND_POINT_GRAPHICS:
+			return deviceState->graphicsPipelineState;
+			
+		case VK_PIPELINE_BIND_POINT_COMPUTE:
+			return deviceState->computePipelineState;
+			
+		case VK_PIPELINE_BIND_POINT_RAY_TRACING_NV:
+			return deviceState->rayTracingPipelineState;
+			
+		default:
+			FATAL_ERROR();
+		}
+	}
+
 	void Process(DeviceState* deviceState) override
 	{
-		auto& pipelineState = deviceState->pipelineState[bindPoint];
+		auto& pipelineState = GetPipelineState(deviceState, bindPoint);
 		for (auto i = 0u, dynamic = 0u; i < descriptorSets.size(); i++)
 		{
 			const auto& descriptorSet = pipelineState.descriptorSets[i + firstSet] = descriptorSets[i];
@@ -119,20 +109,20 @@ public:
 
 	void Process(DeviceState* deviceState) override
 	{
-		deviceState->indexBinding = buffer;
-		deviceState->indexBindingOffset = offset;
+		deviceState->graphicsPipelineState.indexBinding = buffer;
+		deviceState->graphicsPipelineState.indexBindingOffset = offset;
 		switch (indexType)
 		{
 		case VK_INDEX_TYPE_UINT8_EXT:
-			deviceState->indexBindingStride = 1;
+			deviceState->graphicsPipelineState.indexBindingStride = 1;
 			break;
 
 		case VK_INDEX_TYPE_UINT16:
-			deviceState->indexBindingStride = 2;
+			deviceState->graphicsPipelineState.indexBindingStride = 2;
 			break;
 
 		case VK_INDEX_TYPE_UINT32:
-			deviceState->indexBindingStride = 4;
+			deviceState->graphicsPipelineState.indexBindingStride = 4;
 			break;
 
 		default:
@@ -173,8 +163,8 @@ public:
 	{
 		for (auto i = 0u; i < buffers.size(); i++)
 		{
-			deviceState->vertexBinding[i + firstBinding] = buffers[i];
-			deviceState->graphicsPipelineState.vertexBinding[i + firstBinding] = buffers[i]->getDataPtr(bufferOffsets[i], 0);
+			deviceState->graphicsPipelineState.vertexBinding[i + firstBinding] = buffers[i];
+			deviceState->graphicsPipelineState.nativeState.vertexBindingPtr[i + firstBinding] = buffers[i]->getDataPtr(bufferOffsets[i], 0);
 		}
 	}
 
@@ -187,7 +177,27 @@ private:
 void CommandBuffer::BindPipeline(VkPipelineBindPoint pipelineBindPoint, VkPipeline pipeline)
 {
 	assert(state == State::Recording);
-	commands.push_back(std::make_unique<BindPipelineCommand>(pipelineBindPoint, UnwrapVulkan<Pipeline>(pipeline)));
+	commands.push_back(std::make_unique<FunctionCommand>([pipelineBindPoint, pipeline](DeviceState* deviceState)
+	{
+		switch (pipelineBindPoint)
+		{
+		case VK_PIPELINE_BIND_POINT_GRAPHICS:
+			deviceState->graphicsPipelineState.pipeline = UnwrapVulkan<GraphicsPipeline>(pipeline);
+			break;
+			
+		case VK_PIPELINE_BIND_POINT_COMPUTE:
+			deviceState->computePipelineState.pipeline = UnwrapVulkan<ComputePipeline>(pipeline);
+			break;
+
+#if defined(VK_NV_ray_tracing)
+		case VK_PIPELINE_BIND_POINT_RAY_TRACING_NV:
+			TODO_ERROR();
+#endif
+			
+		default:
+			FATAL_ERROR();
+		}
+	}));
 }
 
 void CommandBuffer::SetViewport(uint32_t firstViewport, uint32_t viewportCount, const VkViewport* pViewports)
@@ -199,7 +209,7 @@ void CommandBuffer::SetViewport(uint32_t firstViewport, uint32_t viewportCount, 
 	{
 		for (auto i = 0u; i < viewports.size(); i++)
 		{
-			deviceState->dynamicPipelineState.viewports[i + firstViewport] = viewports[i];
+			deviceState->graphicsPipelineState.dynamicState.viewports[i + firstViewport] = viewports[i];
 		}
 	}));
 }
@@ -213,7 +223,7 @@ void CommandBuffer::SetScissor(uint32_t firstScissor, uint32_t scissorCount, con
 	{
 		for (auto i = 0u; i < scissors.size(); i++)
 		{
-			deviceState->dynamicPipelineState.scissors[i + firstScissor] = scissors[i];
+			deviceState->graphicsPipelineState.dynamicState.scissors[i + firstScissor] = scissors[i];
 		}
 	}));
 }
@@ -223,8 +233,8 @@ void CommandBuffer::SetDepthBounds(float minDepthBounds, float maxDepthBounds)
 	assert(state == State::Recording);
 	commands.emplace_back(std::make_unique<FunctionCommand>([minDepthBounds, maxDepthBounds](DeviceState* deviceState)
 	{
-		deviceState->dynamicPipelineState.minDepthBounds = minDepthBounds;
-		deviceState->dynamicPipelineState.maxDepthBounds = maxDepthBounds;
+		deviceState->graphicsPipelineState.dynamicState.minDepthBounds = minDepthBounds;
+		deviceState->graphicsPipelineState.dynamicState.maxDepthBounds = maxDepthBounds;
 	}));
 }
 

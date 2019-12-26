@@ -38,6 +38,8 @@ set(FILES
 		"Device.cpp"
 		"Device.h"
 
+		"DeviceState.h"
+
 		"Event.cpp"
 		"Event.h"
 

@@ -88,6 +88,7 @@ class Buffer;
 class BufferView;
 class CommandBuffer;
 class CommandPool;
+class ComputePipeline;
 class DescriptorPool;
 class DescriptorSet;
 class DescriptorSetLayout;
@@ -95,6 +96,7 @@ class Device;
 class Event;
 class Fence;
 class Framebuffer;
+class GraphicsPipeline;
 class Image;
 class ImageView;
 class Instance;
@@ -108,6 +110,10 @@ class RenderPass;
 class Sampler;
 class Semaphore;
 class ShaderModule;
+
+#if defined(VK_NV_ray_tracing)
+class RayTracingPipeline;
+#endif
 
 template<typename LocalType>
 struct VulkanTypeHelper;
@@ -151,6 +157,14 @@ VK_TYPE_HELPER(VkPipelineLayout, PipelineLayout, true);
 VK_TYPE_HELPER(VkRenderPass, RenderPass, true);
 
 VK_TYPE_HELPER(VkPipeline, Pipeline, true);
+
+VK_TYPE_HELPER(VkPipeline, ComputePipeline, true);
+
+VK_TYPE_HELPER(VkPipeline, GraphicsPipeline, true);
+
+#if defined(VK_NV_ray_tracing)
+VK_TYPE_HELPER(VkPipeline, RayTracingPipeline, true);
+#endif
 
 VK_TYPE_HELPER(VkDescriptorSetLayout, DescriptorSetLayout, true);
 

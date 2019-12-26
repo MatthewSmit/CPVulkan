@@ -861,42 +861,16 @@ ShaderFunction::~ShaderFunction()
 	delete llvmModule;
 }
 
-Pipeline::~Pipeline()
+GraphicsPipeline::~GraphicsPipeline()
 {
 	delete vertexModule;
 }
 
-void Pipeline::CompilePipeline(DeviceState* deviceState)
-{
-	// TODO: Use cache - needs to integrate shader into pipeline JIT code otherwise pointers will be invalid
-	auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(layout->getDescriptorSetLayouts().size());
-	for (auto i = 0u; i < layoutBindings.size(); i++)
-	{
-		layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
-	}
-	
-	vertexModule = CompileVertexPipeline(jit, shaderStages[0]->getSPIRVModule(), shaderStages[0]->getLLVMModule(),
-	                                     layoutBindings,
-	                                     vertexInputState.VertexBindingDescriptions,
-	                                     vertexInputState.VertexAttributeDescriptions,
-	                                     [&](const std::string& symbolName)
-	                                     {
-		                                     if (symbolName == "!VertexShader")
-		                                     {
-			                                     return static_cast<void*>(this->shaderStages[0]->getEntryPoint());
-		                                     }
-
-		                                     return static_cast<void*>(nullptr);
-	                                     });
-	vertexEntryPoint = vertexModule->getFunctionPointer("@VertexProcessing");
-	*static_cast<GraphicsPipelineState**>(vertexModule->getPointer("@pipelineState")) = &deviceState->graphicsPipelineState;
-}
-
-VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
+VkResult GraphicsPipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO);
 
-	auto pipeline = Allocate<Pipeline>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	auto pipeline = Allocate<GraphicsPipeline>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 	if (!pipeline)
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -1015,18 +989,58 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 			next = next->pNext;
 		}
 	}
-
-	pipeline->CompilePipeline(device->getState());
+	
+	// TODO: Use cache - needs to integrate shader into pipeline JIT code otherwise pointers will be invalid
+	auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(pipeline->layout->getDescriptorSetLayouts().size());
+	for (auto i = 0u; i < layoutBindings.size(); i++)
+	{
+		layoutBindings[i] = &pipeline->layout->getDescriptorSetLayouts()[i]->getBindings();
+	}
+	
+	pipeline->vertexModule = CompileVertexPipeline(pipeline->jit, pipeline->shaderStages[0]->getSPIRVModule(), pipeline->shaderStages[0]->getLLVMModule(),
+	                                               layoutBindings,
+	                                               pipeline->vertexInputState.VertexBindingDescriptions,
+	                                               pipeline->vertexInputState.VertexAttributeDescriptions,
+	                                               [&](const std::string& symbolName)
+	                                               {
+		                                               if (symbolName == "!VertexShader")
+		                                               {
+			                                               return static_cast<void*>(pipeline->shaderStages[0]->getEntryPoint());
+		                                               }
+	
+		                                               return static_cast<void*>(nullptr);
+	                                               });
+	pipeline->vertexEntryPoint = pipeline->vertexModule->getFunctionPointer("@VertexProcessing");
+	*static_cast<GraphicsNativeState**>(pipeline->vertexModule->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
 
 	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;
 }
 
-VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
+VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
+{
+	for (auto i = 0u; i < createInfoCount; i++)
+	{
+		pPipelines[i] = VK_NULL_HANDLE;
+	}
+
+	for (auto i = 0u; i < createInfoCount; i++)
+	{
+		const auto result = GraphicsPipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		if (result != VK_SUCCESS)
+		{
+			return result;
+		}
+	}
+
+	return VK_SUCCESS;
+}
+
+VkResult ComputePipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO);
 
-	auto pipeline = Allocate<Pipeline>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
+	auto pipeline = Allocate<ComputePipeline>(pAllocator, VK_SYSTEM_ALLOCATION_SCOPE_DEVICE);
 	if (!pipeline)
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
@@ -1082,7 +1096,7 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	ShaderFunction* shaderFunction;
 	bool hitCache;
 	std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pipeline->cache, hitCache, pCreateInfo->stage);
-	pipeline->shaderStages[stageIndex] = std::unique_ptr<ShaderFunction>(shaderFunction);
+	pipeline->computeStage = std::unique_ptr<ShaderFunction>(shaderFunction);
 
 	const auto stageEndTime = feedback ? Platform::GetTimestamp() : 0;
 	if (feedback)
@@ -1122,25 +1136,6 @@ VkResult Pipeline::Create(Device* device, VkPipelineCache pipelineCache, const V
 	return VK_SUCCESS;
 }
 
-VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkGraphicsPipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
-{
-	for (auto i = 0u; i < createInfoCount; i++)
-	{
-		pPipelines[i] = VK_NULL_HANDLE;
-	}
-	
-	for (auto i = 0u; i < createInfoCount; i++)
-	{
-		const auto result = Pipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
-		if (result != VK_SUCCESS)
-		{
-			return result;
-		}
-	}
-
-	return VK_SUCCESS;
-}
-
 VkResult Device::CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkComputePipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
 {
 	for (auto i = 0u; i < createInfoCount; i++)
@@ -1150,7 +1145,7 @@ VkResult Device::CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t 
 
 	for (auto i = 0u; i < createInfoCount; i++)
 	{
-		const auto result = Pipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
+		const auto result = ComputePipeline::Create(this, pipelineCache, &pCreateInfos[i], pAllocator, &pPipelines[i]);
 		if (result != VK_SUCCESS)
 		{
 			return result;
@@ -1183,7 +1178,7 @@ VkResult Device::GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipel
 	
 	const auto pipeline = UnwrapVulkan<Pipeline>(pPipelineInfo->pipeline);
 	auto count = 0u;
-	for (auto i = 0; i < 6; i++)
+	for (auto i = 0u; i < pipeline->getMaxShaderStages(); i++)
 	{
 		if (pipeline->getShaderStage(i) != nullptr)
 		{
@@ -1204,7 +1199,7 @@ VkResult Device::GetPipelineExecutableProperties(const VkPipelineInfoKHR* pPipel
 		result = VK_INCOMPLETE;
 	}
 
-	for (auto i = 0u, j = 0u; i < 6 && j < count; i++)
+	for (auto i = 0u, j = 0u; i < pipeline->getMaxShaderStages() && j < count; i++)
 	{
 		const auto shaderStage = pipeline->getShaderStage(i);
 		if (shaderStage)
