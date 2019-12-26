@@ -450,31 +450,6 @@ static DynamicState Parse(const VkPipelineDynamicStateCreateInfo* pDynamicState)
 	return dynamicState;;
 }
 
-static std::tuple<int, ShaderFunction*> LoadShaderStage(CPJit* jit, PipelineCache* cache, bool& hitCache, const struct VkPipelineShaderStageCreateInfo& stage)
-{
-	assert(stage.sType == VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
-
-	auto next = stage.pNext;
-	while (next)
-	{
-		const auto type = static_cast<const VkBaseInStructure*>(next)->sType;
-		switch (type)
-		{
-		case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT:
-			TODO_ERROR();
-		}
-		next = static_cast<const VkBaseInStructure*>(next)->pNext;
-	}
-
-	if (stage.flags)
-	{
-		TODO_ERROR();
-	}
-
-	const auto stageIndex = GetStageIndex(stage.stage);
-	return std::make_tuple(stageIndex, new ShaderFunction(jit, cache, hitCache, UnwrapVulkan<ShaderModule>(stage.module), stageIndex, stage.pName, stage.pSpecializationInfo));
-}
-
 static SPIRV::SPIRVFunction* FindEntryPoint(const SPIRV::SPIRVModule* module, SPIRV::SPIRVExecutionModelKind stage, const char* name)
 {
 	for (auto i = 0u; i < module->getNumEntryPoints(stage); i++)
@@ -584,286 +559,41 @@ static Hash CalculateHash(SPIRV::SPIRVModule* spirvModule, ExecutionModel stage,
 	return result;
 }
 
-ShaderFunction::ShaderFunction(CPJit* jit, PipelineCache* cache, bool& hitCache, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo) :
-	jit{jit}
-{
-	hitCache = false;
-	this->spirvModule = module->getModule();
-	const auto entryPoint = FindEntryPoint(this->spirvModule, static_cast<SPIRV::SPIRVExecutionModelKind>(stageIndex), name);
-	assert(entryPoint);
-
-	if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
-	{
-		TODO_ERROR();
-	}
-	
-	if (stageIndex == ExecutionModelTessellationControl || stageIndex == ExecutionModelTessellationEvaluation)
-	{
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingEqual))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalEven))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalOdd))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCw))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCcw))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePointMode))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeQuads))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeIsolines))
-		{
-			TODO_ERROR();
-		}
-
-		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
-		if (outputVertices)
-		{
-			TODO_ERROR();
-		}
-	}
-
-	if (stageIndex == ExecutionModelGeometry)
-	{
-		const auto invocations = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInvocations);
-		if (invocations)
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputPoints))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLines))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLinesAdjacency))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputTrianglesAdjacency))
-		{
-			TODO_ERROR();
-		}
-
-		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
-		if (outputVertices)
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputPoints))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputLineStrip))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputTriangleStrip))
-		{
-			TODO_ERROR();
-		}
-	}
-
-	if (stageIndex == ExecutionModelFragment)
-	{
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePixelCenterInteger))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginUpperLeft))
-		{
-			this->fragmentOriginUpper = true;
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginLowerLeft))
-		{
-			this->fragmentOriginUpper = false;
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeEarlyFragmentTests))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthReplacing))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthGreater))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthLess))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
-		{
-			TODO_ERROR();
-		}
-
-		this->fragmentStencilExport = spirvModule->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export);
-	}
-
-	if (stageIndex == ExecutionModelGLCompute || stageIndex == ExecutionModelKernel)
-	{
-		const auto localSize = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSize);
-		if (localSize)
-		{
-			const auto& literals = localSize->getLiterals();
-			this->computeLocalSize = glm::uvec3{literals[0], literals[1], literals[2]};
-		}
-
-		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
-		if (localSizeId)
-		{
-			TODO_ERROR();
-		}
-	}
-
-	if (stageIndex == ExecutionModelKernel)
-	{
-		const auto localSizeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHint);
-		if (localSizeHint)
-		{
-			TODO_ERROR();
-		}
-
-		const auto vecTypeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeContractionOff);
-		if (vecTypeHint)
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInitializer))
-		{
-			TODO_ERROR();
-		}
-
-		if (entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeFinalizer))
-		{
-			TODO_ERROR();
-		}
-
-		const auto subgroupSize = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupSize);
-		if (subgroupSize)
-		{
-			TODO_ERROR();
-		}
-
-		const auto subgroupsPerWorkgroup = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroup);
-		if (subgroupsPerWorkgroup)
-		{
-			TODO_ERROR();
-		}
-
-		const auto subgroupsPerWorkgroupId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroupId);
-		if (subgroupsPerWorkgroupId)
-		{
-			TODO_ERROR();
-		}
-
-		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
-		if (localSizeId)
-		{
-			TODO_ERROR();
-		}
-
-		const auto localSizeHintId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHintId);
-		if (localSizeHintId)
-		{
-			TODO_ERROR();
-		}
-	}
-
-	if (cache)
-	{
-		const auto hash = CalculateHash(this->spirvModule, static_cast<spv::ExecutionModel>(stageIndex), entryPoint, specializationInfo);
-		this->llvmModule = cache->FindModule(hash, jit, nullptr);
-		if (!this->llvmModule)
-		{
-			this->llvmModule = CompileSPIRVModule(jit, this->spirvModule, static_cast<spv::ExecutionModel>(stageIndex), entryPoint, specializationInfo);
-			cache->AddModule(hash, this->llvmModule);
-		}
-		else
-		{
-			hitCache = true;
-		}
-	}
-	else
-	{
-		this->llvmModule = CompileSPIRVModule(jit, this->spirvModule, static_cast<spv::ExecutionModel>(stageIndex), entryPoint, specializationInfo);
-	}
-
-	this->entryPoint = this->llvmModule->getFunctionPointer(MangleName(entryPoint));
-	
-	const auto workgroupSizePtr = this->llvmModule->getOptionalPointer("@WorkgroupSize");
-	if (workgroupSizePtr)
-	{
-		const auto workgroupSizeValue = static_cast<glm::uvec3*>(workgroupSizePtr);
-		this->computeLocalSize = *workgroupSizeValue;
-	}
-}
-
-ShaderFunction::~ShaderFunction()
+CompiledShaderModule::~CompiledShaderModule()
 {
 	delete llvmModule;
 }
 
-GraphicsPipeline::~GraphicsPipeline()
+VertexShaderModule::~VertexShaderModule()
 {
-	delete vertexModule;
+	delete vertexModuleXXX;
+}
+
+void Pipeline::CompileBaseShaderModule(ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, spv::ExecutionModel executionModel, bool& hitCache, CompiledModule*& llvmModule, SPIRV::SPIRVFunction*& entryPointFunction)
+{
+	entryPointFunction = FindEntryPoint(shaderModule->getModule(), executionModel, entryName);
+	assert(entryPointFunction);
+
+	Hash hash{};
+
+	if (cache)
+	{
+		hash = CalculateHash(shaderModule->getModule(), executionModel, entryPointFunction, specializationInfo);
+		llvmModule = cache->FindModule(hash, jit, nullptr);
+		if (llvmModule)
+		{
+			hitCache = true;
+		}
+	}
+
+	if (!llvmModule)
+	{
+		llvmModule = CompileSPIRVModule(jit, shaderModule->getModule(), executionModel, entryPointFunction, specializationInfo);
+		if (cache)
+		{
+			cache->AddModule(hash, llvmModule);
+		}
+	}
 }
 
 VkResult GraphicsPipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
@@ -940,24 +670,11 @@ VkResult GraphicsPipeline::Create(Device* device, VkPipelineCache pipelineCache,
 	pipeline->layout = UnwrapVulkan<PipelineLayout>(pCreateInfo->layout);
 	pipeline->cache = pipelineCache ? UnwrapVulkan<PipelineCache>(pipelineCache) : nullptr;
 
-	auto shaderFeedback = std::vector<StageFeedback>(feedback ? pCreateInfo->stageCount : 0);
+	auto shaderFeedback = std::vector<StageFeedback>(pCreateInfo->stageCount);
 
 	for (auto i = 0u; i < pCreateInfo->stageCount; i++)
 	{
-		const auto stageStartTime = feedback ? Platform::GetTimestamp() : 0;
-		
-		int stageIndex;
-		ShaderFunction* shaderFunction;
-		bool hitCache;
-		std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pipeline->cache, hitCache, pCreateInfo->pStages[i]);
-		pipeline->shaderStages[stageIndex] = std::unique_ptr<ShaderFunction>(shaderFunction);
-
-		const auto stageEndTime = feedback ? Platform::GetTimestamp() : 0;
-		if (feedback)
-		{
-			shaderFeedback[i].duration = stageEndTime - stageStartTime;
-			shaderFeedback[i].hitCache = hitCache;
-		}
+		pipeline->LoadShaderStage(device, feedback, shaderFeedback[i], pCreateInfo->pStages[i]);
 	}
 
 	const auto endTime = feedback ? Platform::GetTimestamp() : 0;
@@ -989,29 +706,6 @@ VkResult GraphicsPipeline::Create(Device* device, VkPipelineCache pipelineCache,
 			next = next->pNext;
 		}
 	}
-	
-	// TODO: Use cache - needs to integrate shader into pipeline JIT code otherwise pointers will be invalid
-	auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(pipeline->layout->getDescriptorSetLayouts().size());
-	for (auto i = 0u; i < layoutBindings.size(); i++)
-	{
-		layoutBindings[i] = &pipeline->layout->getDescriptorSetLayouts()[i]->getBindings();
-	}
-	
-	pipeline->vertexModule = CompileVertexPipeline(pipeline->jit, pipeline->shaderStages[0]->getSPIRVModule(), pipeline->shaderStages[0]->getLLVMModule(),
-	                                               layoutBindings,
-	                                               pipeline->vertexInputState.VertexBindingDescriptions,
-	                                               pipeline->vertexInputState.VertexAttributeDescriptions,
-	                                               [&](const std::string& symbolName)
-	                                               {
-		                                               if (symbolName == "!VertexShader")
-		                                               {
-			                                               return static_cast<void*>(pipeline->shaderStages[0]->getEntryPoint());
-		                                               }
-	
-		                                               return static_cast<void*>(nullptr);
-	                                               });
-	pipeline->vertexEntryPoint = pipeline->vertexModule->getFunctionPointer("@VertexProcessing");
-	*static_cast<GraphicsNativeState**>(pipeline->vertexModule->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
 
 	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;
@@ -1034,6 +728,269 @@ VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t
 	}
 
 	return VK_SUCCESS;
+}
+
+void GraphicsPipeline::LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage)
+{
+	const auto stageStartTime = fetchFeedback ? Platform::GetTimestamp() : 0;
+	
+	assert(stage.sType == VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+
+	auto next = static_cast<const VkBaseInStructure*>(stage.pNext);
+	while (next)
+	{
+		const auto type = next->sType;
+		switch (type)
+		{
+		case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT:
+			TODO_ERROR();
+		}
+		next = next->pNext;
+	}
+
+	if (stage.flags)
+	{
+		TODO_ERROR();
+	}
+
+	const auto stageIndex = GetStageIndex(stage.stage);
+	auto hitCache = false;
+	switch (stageIndex)
+	{
+	case 0:
+		vertexShaderModule = CompileVertexShaderModule(device, UnwrapVulkan<ShaderModule>(stage.module), stage.pName, stage.pSpecializationInfo, hitCache);
+		break;
+
+	case 1:
+		TODO_ERROR();
+
+		// 	if (stageIndex == ExecutionModelTessellationControl || stageIndex == ExecutionModelTessellationEvaluation)
+		// 	{
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingEqual))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalEven))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSpacingFractionalOdd))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCw))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeVertexOrderCcw))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePointMode))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeQuads))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeIsolines))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
+		// 		if (outputVertices)
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		// 	}
+
+	case 2:
+		TODO_ERROR();
+
+	case 3:
+		// 	if (stageIndex == ExecutionModelGeometry)
+		// 	{
+		// 		const auto invocations = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInvocations);
+		// 		if (invocations)
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputPoints))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLines))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputLinesAdjacency))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeTriangles))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInputTrianglesAdjacency))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		const auto outputVertices = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputVertices);
+		// 		if (outputVertices)
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputPoints))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputLineStrip))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		//
+		// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOutputTriangleStrip))
+		// 		{
+		// 			TODO_ERROR();
+		// 		}
+		// 	}
+		TODO_ERROR();
+
+	case 4:
+		fragmentShaderModule = CompileFragmentShaderModule(device, UnwrapVulkan<ShaderModule>(stage.module), stage.pName, stage.pSpecializationInfo, hitCache);
+		break;
+		
+	default:
+		FATAL_ERROR();
+	}
+
+	if (fetchFeedback)
+	{
+		const auto stageEndTime = Platform::GetTimestamp();
+		stageFeedback.duration = stageEndTime - stageStartTime;
+		stageFeedback.hitCache = hitCache;
+	}
+}
+
+std::unique_ptr<VertexShaderModule> GraphicsPipeline::CompileVertexShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache)
+{
+	CompiledModule* llvmModule;
+	SPIRV::SPIRVFunction* entryPointFunction;
+	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelVertex, hitCache, llvmModule, entryPointFunction);
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
+	{
+		TODO_ERROR();
+	}
+
+	const auto entryPoint = llvmModule->getFunctionPointer(MangleName(entryPointFunction));
+	auto result = std::make_unique<VertexShaderModule>(shaderModule->getModule(), llvmModule, entryPoint);
+
+	// TODO: Use cache - needs to integrate shader into pipeline JIT code otherwise pointers will be invalid
+	auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(layout->getDescriptorSetLayouts().size());
+	for (auto i = 0u; i < layoutBindings.size(); i++)
+	{
+		layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
+	}
+	
+	result->vertexModuleXXX = CompileVertexPipeline(jit, shaderModule->getModule(), llvmModule,
+	                                                layoutBindings,
+	                                                vertexInputState.VertexBindingDescriptions,
+	                                                vertexInputState.VertexAttributeDescriptions,
+	                                                [&](const std::string& symbolName)
+	                                                {
+		                                                if (symbolName == "!VertexShader")
+		                                                {
+			                                                return static_cast<void*>(entryPoint);
+		                                                }
+	
+		                                                return static_cast<void*>(nullptr);
+	                                                });
+	result->vertexEntryPointXXX = result->vertexModuleXXX->getFunctionPointer("@VertexProcessing");
+	*static_cast<GraphicsNativeState**>(result->vertexModuleXXX->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
+	 
+	return std::move(result);
+}
+
+std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache)
+{
+	CompiledModule* llvmModule;
+	SPIRV::SPIRVFunction* entryPointFunction;
+	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelFragment, hitCache, llvmModule, entryPointFunction);
+
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
+	{
+		TODO_ERROR();
+	}
+
+	const auto entryPoint = llvmModule->getFunctionPointer(MangleName(entryPointFunction));
+	auto result = std::make_unique<FragmentShaderModule>(shaderModule->getModule(), llvmModule, entryPoint);
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePixelCenterInteger))
+	{
+		TODO_ERROR();
+	}
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginUpperLeft))
+	{
+		result->fragmentOriginUpper = true;
+	}
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginLowerLeft))
+	{
+		result->fragmentOriginUpper = false;
+	}
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeEarlyFragmentTests))
+	{
+		TODO_ERROR();
+	}
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthReplacing))
+	{
+		TODO_ERROR();
+	}
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthGreater))
+	{
+		TODO_ERROR();
+	}
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthLess))
+	{
+		TODO_ERROR();
+	}
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
+	{
+		TODO_ERROR();
+	}
+	
+	result->fragmentStencilExport = shaderModule->getModule()->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export);
+	
+	return std::move(result);
 }
 
 VkResult ComputePipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
@@ -1090,20 +1047,7 @@ VkResult ComputePipeline::Create(Device* device, VkPipelineCache pipelineCache, 
 	pipeline->cache = pipelineCache ? UnwrapVulkan<PipelineCache>(pipelineCache) : nullptr;
 
 	StageFeedback shaderFeedback{};
-	const auto stageStartTime = feedback ? Platform::GetTimestamp() : 0;
-
-	int stageIndex;
-	ShaderFunction* shaderFunction;
-	bool hitCache;
-	std::tie(stageIndex, shaderFunction) = LoadShaderStage(device->getState()->jit, pipeline->cache, hitCache, pCreateInfo->stage);
-	pipeline->computeStage = std::unique_ptr<ShaderFunction>(shaderFunction);
-
-	const auto stageEndTime = feedback ? Platform::GetTimestamp() : 0;
-	if (feedback)
-	{
-		shaderFeedback.duration = stageEndTime - stageStartTime;
-		shaderFeedback.hitCache = hitCache;
-	}
+	pipeline->LoadShaderStage(device, feedback, shaderFeedback, pCreateInfo->stage);
 
 	const auto endTime = feedback ? Platform::GetTimestamp() : 0;
 
@@ -1134,6 +1078,142 @@ VkResult ComputePipeline::Create(Device* device, VkPipelineCache pipelineCache, 
 
 	WrapVulkan(pipeline, pPipeline);
 	return VK_SUCCESS;
+}
+
+void ComputePipeline::LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage)
+{
+	const auto stageStartTime = fetchFeedback ? Platform::GetTimestamp() : 0;
+
+	assert(stage.sType == VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO);
+	
+	auto next = static_cast<const VkBaseInStructure*>(stage.pNext);
+	while (next)
+	{
+		const auto type = next->sType;
+		switch (type)
+		{
+		case VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_REQUIRED_SUBGROUP_SIZE_CREATE_INFO_EXT:
+			TODO_ERROR();
+		}
+		next = next->pNext;
+	}
+	
+	if (stage.flags)
+	{
+		TODO_ERROR();
+	}
+
+	if (stage.stage != VK_SHADER_STAGE_COMPUTE_BIT)
+	{
+		FATAL_ERROR();
+	}
+
+	auto hitCache = false;
+	computeShaderModule = CompileComputeShaderModule(device, UnwrapVulkan<ShaderModule>(stage.module), stage.pName, stage.pSpecializationInfo, hitCache);
+
+	if (fetchFeedback)
+	{
+		const auto stageEndTime = Platform::GetTimestamp();
+		stageFeedback.duration = stageEndTime - stageStartTime;
+		stageFeedback.hitCache = hitCache;
+	}
+}
+
+std::unique_ptr<ComputeShaderModule> ComputePipeline::CompileComputeShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache)
+{
+	CompiledModule* llvmModule;
+	SPIRV::SPIRVFunction* entryPointFunction;
+	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelGLCompute, hitCache, llvmModule, entryPointFunction);
+	
+	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
+	{
+		TODO_ERROR();
+	}
+
+	const auto entryPoint = llvmModule->getFunctionPointer(MangleName(entryPointFunction));
+	auto result = std::make_unique<ComputeShaderModule>(shaderModule->getModule(), llvmModule, entryPoint);
+	
+	const auto localSize = entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSize);
+	if (localSize)
+	{
+		const auto& literals = localSize->getLiterals();
+		result->computeLocalSize = glm::uvec3{literals[0], literals[1], literals[2]};
+	}
+	
+	const auto localSizeId = entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
+	if (localSizeId)
+	{
+		TODO_ERROR();
+	}
+
+	// 	if (stageIndex == ExecutionModelKernel)
+	// 	{
+	// 		const auto localSizeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHint);
+	// 		if (localSizeHint)
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		const auto vecTypeHint = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeContractionOff);
+	// 		if (vecTypeHint)
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeDepthUnchanged))
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeInitializer))
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeFinalizer))
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		const auto subgroupSize = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupSize);
+	// 		if (subgroupSize)
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		const auto subgroupsPerWorkgroup = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroup);
+	// 		if (subgroupsPerWorkgroup)
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		const auto subgroupsPerWorkgroupId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeSubgroupsPerWorkgroupId);
+	// 		if (subgroupsPerWorkgroupId)
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		const auto localSizeId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
+	// 		if (localSizeId)
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	//
+	// 		const auto localSizeHintId = entryPoint->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeHintId);
+	// 		if (localSizeHintId)
+	// 		{
+	// 			TODO_ERROR();
+	// 		}
+	// 	}
+
+	const auto workgroupSizePtr = llvmModule->getOptionalPointer("@WorkgroupSize");
+	if (workgroupSizePtr)
+	{
+		const auto workgroupSizeValue = static_cast<glm::uvec3*>(workgroupSizePtr);
+		result->computeLocalSize = *workgroupSizeValue;
+	}
+
+	return std::move(result);
 }
 
 VkResult Device::CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkComputePipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)

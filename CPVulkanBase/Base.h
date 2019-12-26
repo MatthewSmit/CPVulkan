@@ -88,6 +88,7 @@ class Buffer;
 class BufferView;
 class CommandBuffer;
 class CommandPool;
+class CompiledShaderModule;
 class ComputePipeline;
 class DescriptorPool;
 class DescriptorSet;

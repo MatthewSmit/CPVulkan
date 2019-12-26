@@ -3,20 +3,20 @@
 
 #include <glm/glm.hpp>
 
-#include <array>
+#include <spirv.hpp>
+
 #include <vector>
 
 namespace SPIRV
 {
+	class SPIRVFunction;
 	class SPIRVModule;
 }
 
 class CompiledModule;
 class CPJit;
 
-class Device;
-class ShaderFunction;
-class ShaderModule;
+struct StageFeedback;
 
 struct VertexInputState
 {
@@ -115,30 +115,122 @@ struct DynamicState
 
 using EntryPoint = void (*)();
 
-class ShaderFunction final
+class CompiledShaderModule
 {
 public:
-	ShaderFunction(CPJit* jit, PipelineCache* cache, bool& hitCache, ShaderModule* module, uint32_t stageIndex, const char* name, const VkSpecializationInfo* specializationInfo);
-	~ShaderFunction();
+	CompiledShaderModule(const SPIRV::SPIRVModule* spirvModule, CompiledModule* llvmModule, EntryPoint entryPoint) :
+		spirvModule{spirvModule},
+		llvmModule{llvmModule},
+		entryPoint{entryPoint}
+	{
+	}
+
+	virtual ~CompiledShaderModule();
 
 	[[nodiscard]] const SPIRV::SPIRVModule* getSPIRVModule() const { return spirvModule; }
 	[[nodiscard]] CompiledModule* getLLVMModule() const { return llvmModule; }
 	[[nodiscard]] EntryPoint getEntryPoint() const { return entryPoint; }
+
+private:
+	const SPIRV::SPIRVModule* spirvModule;
+	CompiledModule* llvmModule;
+	EntryPoint entryPoint;
+};
+
+class VertexShaderModule final : public CompiledShaderModule
+{
+public:
+	VertexShaderModule(const SPIRV::SPIRVModule* spirvModule, CompiledModule* llvmModule, EntryPoint entryPoint) :
+		CompiledShaderModule{spirvModule, llvmModule, entryPoint}
+	{
+	}
+
+	~VertexShaderModule() override;
+
+	[[nodiscard]] CompiledModule* getVertexModuleXXX() const { return vertexModuleXXX; }
+	[[nodiscard]] EntryPoint getVertexEntryPointXXX() const { return vertexEntryPointXXX; }
+
+	friend class GraphicsPipeline;
+
+private:
+	CompiledModule* vertexModuleXXX{};
+	EntryPoint vertexEntryPointXXX{};
+};
+
+class TessellationControlShaderModule final : public CompiledShaderModule
+{
+public:
+	TessellationControlShaderModule(const SPIRV::SPIRVModule* spirvModule, CompiledModule* llvmModule, EntryPoint entryPoint) :
+		CompiledShaderModule{spirvModule, llvmModule, entryPoint}
+	{
+	}
+
+	~TessellationControlShaderModule() override = default;
+
+	friend class GraphicsPipeline;
+};
+
+class TessellationEvaluationShaderModule final : public CompiledShaderModule
+{
+public:
+	TessellationEvaluationShaderModule(const SPIRV::SPIRVModule* spirvModule, CompiledModule* llvmModule, EntryPoint entryPoint) :
+		CompiledShaderModule{spirvModule, llvmModule, entryPoint}
+	{
+	}
+
+	~TessellationEvaluationShaderModule() override = default;
+
+	friend class GraphicsPipeline;
+};
+
+class GeometryShaderModule final : public CompiledShaderModule
+{
+public:
+	GeometryShaderModule(const SPIRV::SPIRVModule* spirvModule, CompiledModule* llvmModule, EntryPoint entryPoint) :
+		CompiledShaderModule{spirvModule, llvmModule, entryPoint}
+	{
+	}
+
+	~GeometryShaderModule() override = default;
+
+	friend class GraphicsPipeline;
+};
+
+class FragmentShaderModule final : public CompiledShaderModule
+{
+public:
+	FragmentShaderModule(const SPIRV::SPIRVModule* spirvModule, CompiledModule* llvmModule, EntryPoint entryPoint) :
+		CompiledShaderModule{spirvModule, llvmModule, entryPoint}
+	{
+	}
+
+	~FragmentShaderModule() override = default;
 	
 	[[nodiscard]] bool getFragmentOriginUpper() const { return fragmentOriginUpper; }
 	[[nodiscard]] bool getFragmentStencilExport() const { return fragmentStencilExport; }
+
+	friend class GraphicsPipeline;
+
+private:
+	bool fragmentOriginUpper{};
+	bool fragmentStencilExport{};
+};
+
+class ComputeShaderModule final : public CompiledShaderModule
+{
+public:
+	ComputeShaderModule(const SPIRV::SPIRVModule* spirvModule, CompiledModule* llvmModule, EntryPoint entryPoint) :
+		CompiledShaderModule{spirvModule, llvmModule, entryPoint}
+	{
+	}
+
+	~ComputeShaderModule() override = default;
 	
 	[[nodiscard]] glm::uvec3 getComputeLocalSize() const { return computeLocalSize; }
 
+	friend class ComputePipeline;
+
 private:
-	CPJit* jit;
-	SPIRV::SPIRVModule* spirvModule;
-	CompiledModule* llvmModule;
-	EntryPoint entryPoint;
-	
-	bool fragmentOriginUpper{};
-	bool fragmentStencilExport{};
-	
 	glm::uvec3 computeLocalSize{};
 };
 
@@ -158,19 +250,21 @@ public:
 	}
 
 	[[nodiscard]] virtual uint32_t getMaxShaderStages() const = 0;
-	[[nodiscard]] virtual const ShaderFunction* getShaderStage(uint32_t index) const = 0;
+	[[nodiscard]] virtual const CompiledShaderModule* getShaderStage(uint32_t index) const = 0;
 
 protected:
 	CPJit* jit{};
 
 	PipelineLayout* layout{};
 	PipelineCache* cache{};
+	
+	void CompileBaseShaderModule(ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, spv::ExecutionModel executionModel, bool& hitCache, CompiledModule*& llvmModule, SPIRV::SPIRVFunction*& entryPointFunction);
 };
 
 class GraphicsPipeline final : public Pipeline
 {
 public:
-	~GraphicsPipeline() override;
+	~GraphicsPipeline() override = default;
 	
 	static VkResult Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline);
 
@@ -179,10 +273,36 @@ public:
 		return 5;
 	}
 
-	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const override
+	[[nodiscard]] const CompiledShaderModule* getShaderStage(uint32_t index) const override
 	{
-		return shaderStages.at(index).get();
+		switch (index)
+		{
+		case 0:
+			return vertexShaderModule.get();
+
+		case 1:
+			return tessellationControlShaderModule.get();
+
+		case 2:
+			return tessellationEvaluationShaderModule.get();
+
+		case 3:
+			return geometryShaderModule.get();
+
+		case 4:
+			return fragmentShaderModule.get();
+
+		default:
+			assert(false);
+			return nullptr;
+		}
 	}
+
+	[[nodiscard]] const VertexShaderModule* getVertexShaderModule() const { return vertexShaderModule.get(); }
+	[[nodiscard]] const TessellationControlShaderModule* getTessellationControlShaderModule() const { return tessellationControlShaderModule.get(); }
+	[[nodiscard]] const TessellationEvaluationShaderModule* getTessellationEvaluationShaderModule() const { return tessellationEvaluationShaderModule.get(); }
+	[[nodiscard]] const GeometryShaderModule* getGeometryShaderModule() const { return geometryShaderModule.get(); }
+	[[nodiscard]] const FragmentShaderModule* getFragmentShaderModule() const { return fragmentShaderModule.get(); }
 
 	[[nodiscard]] const VertexInputState& getVertexInputState() const { return vertexInputState; }
 	[[nodiscard]] const InputAssemblyState& getInputAssemblyState() const { return inputAssemblyState; }
@@ -194,14 +314,12 @@ public:
 	[[nodiscard]] const ColourBlendState& getColourBlendState() const { return colourBlendState; }
 	[[nodiscard]] const DynamicState& getDynamicState() const { return dynamicState; }
 
-	[[nodiscard]] CompiledModule* getVertexModule() const { return vertexModule; }
-	[[nodiscard]] EntryPoint getVertexEntryPoint() const { return vertexEntryPoint; }
-
 private:
-	std::array<std::unique_ptr<ShaderFunction>, 5> shaderStages;
-
-	CompiledModule* vertexModule{};
-	EntryPoint vertexEntryPoint{};
+	std::unique_ptr<VertexShaderModule> vertexShaderModule;
+	std::unique_ptr<TessellationControlShaderModule> tessellationControlShaderModule;
+	std::unique_ptr<TessellationEvaluationShaderModule> tessellationEvaluationShaderModule;
+	std::unique_ptr<GeometryShaderModule> geometryShaderModule;
+	std::unique_ptr<FragmentShaderModule> fragmentShaderModule;
 
 	VertexInputState vertexInputState{};
 	InputAssemblyState inputAssemblyState{};
@@ -212,6 +330,11 @@ private:
 	DepthStencilState depthStencilState{};
 	ColourBlendState colourBlendState{};
 	DynamicState dynamicState{};
+
+	void LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage);
+
+	std::unique_ptr<VertexShaderModule> CompileVertexShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache);
+	std::unique_ptr<FragmentShaderModule> CompileFragmentShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache);
 };
 
 class ComputePipeline final : public Pipeline
@@ -226,19 +349,21 @@ public:
 		return 1;
 	}
 
-	[[nodiscard]] const ShaderFunction* getShaderStage(uint32_t index) const override
+	[[nodiscard]] const CompiledShaderModule* getShaderStage(uint32_t index) const override
 	{
 		assert(index == 0);
-		return computeStage.get();
+		return computeShaderModule.get();
 	}
 
-	[[nodiscard]] const ShaderFunction* getComputeStage() const
+	[[nodiscard]] const ComputeShaderModule* getComputeShaderModule() const
 	{
-		return computeStage.get();
+		return computeShaderModule.get();
 	}
 
 private:
-	std::unique_ptr<ShaderFunction> computeStage;
+	std::unique_ptr<ComputeShaderModule> computeShaderModule;
 
-	CPJit* jit{};
+	void LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage);
+	
+	std::unique_ptr<ComputeShaderModule> CompileComputeShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache);
 };
