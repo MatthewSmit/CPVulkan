@@ -955,12 +955,12 @@ std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderMod
 	
 	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginUpperLeft))
 	{
-		result->fragmentOriginUpper = true;
+		result->originUpper = true;
 	}
 	
 	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeOriginLowerLeft))
 	{
-		result->fragmentOriginUpper = false;
+		result->originUpper = false;
 	}
 	
 	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeEarlyFragmentTests))
@@ -988,7 +988,7 @@ std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderMod
 		TODO_ERROR();
 	}
 	
-	result->fragmentStencilExport = shaderModule->getModule()->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export);
+	result->stencilExport = shaderModule->getModule()->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export);
 	
 	return std::move(result);
 }
@@ -1137,7 +1137,7 @@ std::unique_ptr<ComputeShaderModule> ComputePipeline::CompileComputeShaderModule
 	if (localSize)
 	{
 		const auto& literals = localSize->getLiterals();
-		result->computeLocalSize = glm::uvec3{literals[0], literals[1], literals[2]};
+		result->localSize = glm::uvec3{literals[0], literals[1], literals[2]};
 	}
 	
 	const auto localSizeId = entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeLocalSizeId);
@@ -1210,7 +1210,7 @@ std::unique_ptr<ComputeShaderModule> ComputePipeline::CompileComputeShaderModule
 	if (workgroupSizePtr)
 	{
 		const auto workgroupSizeValue = static_cast<glm::uvec3*>(workgroupSizePtr);
-		result->computeLocalSize = *workgroupSizeValue;
+		result->localSize = *workgroupSizeValue;
 	}
 
 	return std::move(result);

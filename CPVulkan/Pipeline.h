@@ -206,14 +206,14 @@ public:
 
 	~FragmentShaderModule() override = default;
 	
-	[[nodiscard]] bool getFragmentOriginUpper() const { return fragmentOriginUpper; }
-	[[nodiscard]] bool getFragmentStencilExport() const { return fragmentStencilExport; }
+	[[nodiscard]] bool getOriginUpper() const { return originUpper; }
+	[[nodiscard]] bool getStencilExport() const { return stencilExport; }
 
 	friend class GraphicsPipeline;
 
 private:
-	bool fragmentOriginUpper{};
-	bool fragmentStencilExport{};
+	bool originUpper{};
+	bool stencilExport{};
 };
 
 class ComputeShaderModule final : public CompiledShaderModule
@@ -226,12 +226,12 @@ public:
 
 	~ComputeShaderModule() override = default;
 	
-	[[nodiscard]] glm::uvec3 getComputeLocalSize() const { return computeLocalSize; }
+	[[nodiscard]] glm::uvec3 getLocalSize() const { return localSize; }
 
 	friend class ComputePipeline;
 
 private:
-	glm::uvec3 computeLocalSize{};
+	glm::uvec3 localSize{};
 };
 
 class Pipeline

@@ -1391,7 +1391,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		TODO_ERROR();
 	}
 
-	if (shaderModule->getFragmentStencilExport())
+	if (shaderModule->getStencilExport())
 	{
 		stencilReference = builtinOutput->stencilReference;
 	}
@@ -1717,7 +1717,7 @@ static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assem
 		
 			for (auto x = startX; x < endX; x++)
 			{
-				builtinInput->fragCoord.x = shaderModule->getFragmentOriginUpper() ? x : viewport.width - x - 1;
+				builtinInput->fragCoord.x = shaderModule->getOriginUpper() ? x : viewport.width - x - 1;
 
 				const auto s = 0.5f + (static_cast<int32_t>(x) - pointScreen.x) / pointSize;
 				const auto t = 0.5f + (static_cast<int32_t>(y) - pointScreen.y) / pointSize;
@@ -1793,7 +1793,7 @@ static void ProcessLines(DeviceState* deviceState, const AssemblerOutput& assemb
 			for (auto x = 0u; x < viewport.width; x++)
 			{
 				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderModule->getFragmentOriginUpper() ? x : viewport.width - x - 1;
+				builtinInput->fragCoord.x = shaderModule->getOriginUpper() ? x : viewport.width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 
 				switch (rasterisationState.LineRasterizationMode)
@@ -1934,7 +1934,7 @@ static void ProcessTriangles(DeviceState* deviceState, const AssemblerOutput& as
 			for (auto x = startX; x < endX; x++)
 			{
 				const auto xf = (static_cast<float>(x) / viewport.width + halfPixel.x) * 2 - 1;
-				builtinInput->fragCoord.x = shaderModule->getFragmentOriginUpper() ? x : viewport.width - x - 1;
+				builtinInput->fragCoord.x = shaderModule->getOriginUpper() ? x : viewport.width - x - 1;
 				const auto p = glm::vec2(xf, yf);
 
 				float depth;
@@ -2049,7 +2049,7 @@ static void ProcessComputeShader(DeviceState* deviceState, uint32_t groupCountX,
 	
 	const auto spirvModule = shaderStage->getSPIRVModule();
 	const auto llvmModule = shaderStage->getLLVMModule();
-	const auto localCount = shaderStage->getComputeLocalSize();
+	const auto localCount = shaderStage->getLocalSize();
 	
 	const auto builtinInputPointer = llvmModule->getPointer("_builtinInput");
 	
