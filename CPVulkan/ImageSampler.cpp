@@ -698,7 +698,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 	}
 }
 
-void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, float values[4])
+void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, const float values[4])
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
@@ -711,7 +711,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 	functions->SetPixelF32(image->getDataPtr(offset, information.TotalSize), values);
 }
 
-void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, int32_t values[4])
+void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, const int32_t values[4])
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);
@@ -724,7 +724,7 @@ void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i
 	functions->SetPixelI32(image->getDataPtr(offset, information.TotalSize), values);
 }
 
-void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, uint32_t values[4])
+void SetPixel(DeviceState* deviceState, VkFormat format, Image* image, int32_t i, int32_t j, int32_t k, uint32_t mipLevel, uint32_t layer, const uint32_t values[4])
 {
 	const auto& information = GetFormatInformation(format);
 	const auto offset = GetImagePixelOffset(image->getImageSize(), i, j, k, mipLevel, layer);

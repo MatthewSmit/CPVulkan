@@ -48,6 +48,8 @@ public:
 struct GraphicsNativeState
 {
 	uint8_t* vertexBindingPtr[MAX_VERTEX_INPUT_BINDINGS];
+	ImageView* imageAttachment[MAX_FRAGMENT_OUTPUT_ATTACHMENTS];
+	ImageView* depthStencilAttachment;
 };
 
 class GraphicsPipelineState final : public CommonPipelineState

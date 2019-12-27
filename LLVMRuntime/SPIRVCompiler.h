@@ -29,6 +29,11 @@ public:
 	{
 		return builtinOutputVariable;
 	}
+	
+	[[nodiscard]] LLVMValueRef getUserData() const
+	{
+		return userData;
+	}
 
 protected:
 	LLVMValueRef CompileMainFunctionImpl() override;

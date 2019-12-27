@@ -160,6 +160,6 @@ public:
 	[[nodiscard]] virtual const DynamicState& getDynamicState() const = 0;
 
 	[[nodiscard]] virtual const std::vector<AttachmentDescription>& getAttachments() const = 0;
-	[[nodiscard]] virtual const std::vector<SubpassDescription>& getSubpasses() const = 0;
+	[[nodiscard]] virtual const SubpassDescription& getSubpass() const = 0;
 	[[nodiscard]] virtual const std::vector<SubpassDependency>& getDependencies() const = 0;
 };

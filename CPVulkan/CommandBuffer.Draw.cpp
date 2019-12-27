@@ -955,25 +955,6 @@ static bool GetFragmentInput(const std::vector<VariableInOutData>& inputData, co
 	return true;
 }
 
-template<typename T>
-bool CompareTest(const T reference, const T value, const VkCompareOp compare)
-{
-	switch (compare)
-	{
-	case VK_COMPARE_OP_NEVER: return false;
-	case VK_COMPARE_OP_LESS: return reference < value;
-	case VK_COMPARE_OP_EQUAL: return reference == value;
-	case VK_COMPARE_OP_LESS_OR_EQUAL: return reference <= value;
-	case VK_COMPARE_OP_GREATER: return reference > value;
-	case VK_COMPARE_OP_NOT_EQUAL: return reference != value;
-	case VK_COMPARE_OP_GREATER_OR_EQUAL: return reference >= value;
-	case VK_COMPARE_OP_ALWAYS: return true;
-		
-	default:
-		FATAL_ERROR();
-	}
-}
-
 template<typename T, bool IsSource>
 static T ApplyBlendFactor(T source, T destination, T constant, const VkPipelineColorBlendAttachmentState& blendState)
 {
@@ -1330,344 +1311,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		                      : deviceState->graphicsPipelineState.pipeline->getViewportState().Viewports[0];
 	depth = (viewport.maxDepth - viewport.minDepth) * depth + viewport.minDepth;
 
-	// TODO: 27.2. Discard Rectangles Test
-	// TODO: 27.3. Scissor Test
-	// TODO: 27.4. Exclusive Scissor Test
-	// TODO: 27.5. Sample Mask
-
-	// TODO: If early per-fragment operations are enabled by the fragment shader, these operations are also performed:
-	// TODO: 27.11. Depth Bounds Test
-	// TODO: 27.12. Stencil Test
-	// TODO: 27.13. Depth Test
-	// TODO: 27.14. Representative Fragment Test
-	// TODO: 27.15. Sample Counting
-
-	const auto discard = reinterpret_cast<bool(*)()>(shaderModule->getEntryPoint())();
-	if (discard)
-	{
-		return;
-	}
-
-	// TODO: 27.8. Mixed attachment samples
-	// TODO: 27.9. Multisample Coverage
-	// TODO: 27.10. Depth and Stencil Operations
-	 
-	// 27.11. Depth Bounds Test
-	const auto currentDepth = depthImage.second
-		                          ? GetDepthPixel(deviceState, depthImage.first.format, depthImage.second->getImage(), 
-		                                          x, y, 0, 
-		                                          depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer)
-		                          : 0;
-	if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().DepthBoundsTestEnable)
-	{
-		if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicDepthBounds)
-		{
-			if (currentDepth < deviceState->graphicsPipelineState.dynamicState.minDepthBounds ||
-				currentDepth > deviceState->graphicsPipelineState.dynamicState.maxDepthBounds)
-			{
-				return;
-			}
-		}
-		else
-		{
-			if (currentDepth < deviceState->graphicsPipelineState.pipeline->getDepthStencilState().MinDepthBounds ||
-				currentDepth > deviceState->graphicsPipelineState.pipeline->getDepthStencilState().MaxDepthBounds)
-			{
-				return;
-			}
-		}
-	}
-
-	// 27.12. Stencil Test
-	auto stencilResult = true;
-	auto& stencilOpState = front
-		                       ? deviceState->graphicsPipelineState.pipeline->getDepthStencilState().Front
-		                       : deviceState->graphicsPipelineState.pipeline->getDepthStencilState().Back;
-
-	uint8_t stencilReference = stencilOpState.reference;
-	uint8_t currentStencil = 0;
-	if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilReference)
-	{
-		TODO_ERROR();
-	}
-
-	if (shaderModule->getStencilExport())
-	{
-		stencilReference = builtinOutput->stencilReference;
-	}
-
-	if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().StencilTestEnable)
-	{
-		auto compareMask = stencilOpState.compareMask;
-		if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilCompareMask)
-		{
-			TODO_ERROR();
-		}
-
-		currentStencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(), 
-		                                 x, y, 0, 
-		                                 stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer); 
-		stencilResult = CompareTest(stencilReference & compareMask, currentStencil & compareMask, stencilOpState.compareOp);
-	}
-
-	// 27.13. Depth Test
-	auto depthResult = true;
-	// TODO: Optimise so depth checking uses native type
-	if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().DepthTestEnable && depthImage.second)
-	{
-		if (deviceState->graphicsPipelineState.pipeline->getRasterizationState().DepthClampEnable)
-		{
-			depth = std::clamp(depth, viewport.minDepth, viewport.maxDepth);
-		}
-
-		if (depthImage.first.format != VK_FORMAT_D32_SFLOAT && depthImage.first.format != VK_FORMAT_D32_SFLOAT_S8_UINT)
-		{
-			depth = std::clamp(depth, 0.0f, 1.0f);
-		}
-
-		depthResult = CompareTest(depth, currentDepth, deviceState->graphicsPipelineState.pipeline->getDepthStencilState().DepthCompareOp);
-	}
-	else
-	{
-		depth = std::clamp(depth, 0.0f, 1.0f);
-	}
-	
-	auto depthWrite = depthResult && 
-		deviceState->graphicsPipelineState.pipeline->getDepthStencilState().DepthTestEnable &&
-		deviceState->graphicsPipelineState.pipeline->getDepthStencilState().DepthWriteEnable &&
-		depthImage.second;
-
-	// Stencil & Depth Write
-	if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().StencilTestEnable && stencilImage.second)
-	{
-		const auto stencilOperation = !stencilResult ? stencilOpState.failOp : (!depthResult ? stencilOpState.depthFailOp : stencilOpState.passOp);
-		uint8_t writeValue;
-		switch (stencilOperation)
-		{
-		case VK_STENCIL_OP_KEEP:
-			writeValue = currentStencil;
-			break;
-
-		case VK_STENCIL_OP_ZERO:
-			writeValue = 0;
-			break;
-
-		case VK_STENCIL_OP_REPLACE:
-			writeValue = stencilReference;
-			break;
-
-		case VK_STENCIL_OP_INCREMENT_AND_CLAMP:
-			writeValue = currentStencil < 0xFF ? currentStencil + 1 : 0xFF;
-			break;
-
-		case VK_STENCIL_OP_DECREMENT_AND_CLAMP:
-			writeValue = currentStencil > 0 ? currentStencil - 1 : 0;
-			break;
-
-		case VK_STENCIL_OP_INVERT:
-			writeValue = ~currentStencil;
-			break;
-
-		case VK_STENCIL_OP_INCREMENT_AND_WRAP:
-			writeValue = currentStencil + 1;
-			break;
-
-		case VK_STENCIL_OP_DECREMENT_AND_WRAP:
-			writeValue = currentStencil - 1;
-			break;
-
-		default:
-			FATAL_ERROR();
-		}
-
-		auto writeMask = stencilOpState.writeMask;
-		if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilWriteMask)
-		{
-			TODO_ERROR();
-		}
-
-		writeValue = (writeValue & writeMask) | (currentStencil & ~writeMask);
-
-		if (depthWrite)
-		{
-			const VkClearDepthStencilValue input
-			{
-				depth,
-				writeValue,
-			};
-
-			// TODO: No clamp if float format?
-			SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
-			         x, y, 0,
-			         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
-			         input);
-		}
-		else
-		{
-			const VkClearDepthStencilValue input
-			{
-				currentDepth,
-				writeValue,
-			};
-
-			// TODO: No clamp if float format?
-			SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
-			         x, y, 0,
-			         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
-			         input);
-		}
-	}
-	else if (depthWrite)
-	{
-		const VkClearDepthStencilValue input
-		{
-			depth,
-			stencilImage.second == nullptr
-				? 0u
-				: GetStencilPixel(deviceState, depthImage.first.format, depthImage.second->getImage(), 
-				                  x, y, 0, 
-				                  depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer),
-		};
-
-		// TODO: No clamp if float format?
-		SetPixel(deviceState, depthImage.first.format, depthImage.second->getImage(),
-		         x, y, 0,
-		         depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer,
-		         input);
-	}
-
-	// TODO: 27.14. Representative Fragment Test
-	// TODO: 27.15. Sample Counting
-	// TODO: 27.16. Fragment Coverage To Color
-	// TODO: 27.17. Coverage Reduction
-
-	if (stencilResult && depthResult)
-	{
-		for (auto j = 0u; j < MAX_FRAGMENT_OUTPUT_ATTACHMENTS; j++)
-		{
-			if (images[j].second)
-			{
-				void* dataPtr = nullptr;
-				for (auto data : outputData)
-				{
-					if (data.location == j)
-					{
-						dataPtr = data.pointer;
-						break;
-					}
-				}
-				assert(dataPtr);
-
-				switch (GetFormatInformation(images[j].first.format).Base)
-				{
-				case BaseType::UNorm:
-				case BaseType::SNorm:
-				case BaseType::UScaled:
-				case BaseType::SScaled:
-				case BaseType::UFloat:
-				case BaseType::SFloat:
-				case BaseType::SRGB:
-					{
-						auto colour = *static_cast<glm::fvec4*>(dataPtr);
-
-						// 28.1. Blending
-						const auto& blend = deviceState->graphicsPipelineState.pipeline->getColourBlendState().Attachments[j];
-						const auto destination = ImageFetch<glm::fvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
-						if (blend.blendEnable)
-						{
-							auto constant = *reinterpret_cast<const glm::fvec4*>(deviceState->graphicsPipelineState.pipeline->getColourBlendState().BlendConstants);
-							colour = ApplyBlend(colour, destination, constant, blend);
-						}
-
-						// 28.2. Logical Operations
-						if (deviceState->graphicsPipelineState.pipeline->getColourBlendState().LogicOpEnable)
-						{
-							TODO_ERROR();
-						}
-
-						// 28.3. Color Write Mask
-						colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
-						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
-						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
-						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
-
-						SetPixel(deviceState, images[j].first.format, images[j].second->getImage(),
-						         x, y, 0,
-						         images[j].second->getSubresourceRange().baseMipLevel, images[j].second->getSubresourceRange().baseArrayLayer,
-						         *reinterpret_cast<VkClearColorValue*>(&colour));
-						break;
-					}
-
-				case BaseType::UInt:
-					{
-						auto colour = *static_cast<glm::uvec4*>(dataPtr);
-
-						// 28.1. Blending
-						const auto& blend = deviceState->graphicsPipelineState.pipeline->getColourBlendState().Attachments[j];
-						const auto destination = ImageFetch<glm::uvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
-						if (blend.blendEnable)
-						{
-							auto constant = *reinterpret_cast<const glm::uvec4*>(deviceState->graphicsPipelineState.pipeline->getColourBlendState().BlendConstants);
-							colour = ApplyBlend(colour, destination, constant, blend);
-						}
-
-						// 28.2. Logical Operations
-						if (deviceState->graphicsPipelineState.pipeline->getColourBlendState().LogicOpEnable)
-						{
-							TODO_ERROR();
-						}
-
-						// 28.3. Color Write Mask
-						colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
-						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
-						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
-						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
-						
-						SetPixel(deviceState, images[j].first.format, images[j].second->getImage(),
-						         x, y, 0,
-						         images[j].second->getSubresourceRange().baseMipLevel, images[j].second->getSubresourceRange().baseArrayLayer,
-						         *reinterpret_cast<VkClearColorValue*>(&colour));
-						break;
-					}
-					
-				case BaseType::SInt:
-					{
-						auto colour = *static_cast<glm::ivec4*>(dataPtr);
-
-						// 28.1. Blending
-						const auto& blend = deviceState->graphicsPipelineState.pipeline->getColourBlendState().Attachments[j];
-						const auto destination = ImageFetch<glm::ivec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
-						if (blend.blendEnable)
-						{
-							auto constant = *reinterpret_cast<const glm::ivec4*>(deviceState->graphicsPipelineState.pipeline->getColourBlendState().BlendConstants);
-							colour = ApplyBlend(colour, destination, constant, blend);
-						}
-
-						// 28.2. Logical Operations
-						if (deviceState->graphicsPipelineState.pipeline->getColourBlendState().LogicOpEnable)
-						{
-							TODO_ERROR();
-						}
-
-						// 28.3. Color Write Mask
-						colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
-						colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
-						colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
-						colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
-						
-						SetPixel(deviceState, images[j].first.format, images[j].second->getImage(),
-						         x, y, 0,
-						         images[j].second->getSubresourceRange().baseMipLevel, images[j].second->getSubresourceRange().baseArrayLayer,
-						         *reinterpret_cast<VkClearColorValue*>(&colour));
-						break;
-					}
-					
-				default:
-					FATAL_ERROR();
-				}
-			}
-		}
-	}
+	reinterpret_cast<void(*)(float, uint32_t, uint32_t)>(shaderModule->getEntryPoint())(depth, x, y);
 }
 
 static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, FragmentBuiltinOutput* builtinOutput, const FragmentShaderModule* shaderModule,
@@ -1989,6 +1633,11 @@ static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutpu
 		{
 			const auto& attachment = deviceState->graphicsPipelineState.currentRenderPass->getAttachments()[attachmentIndex];
 			images[i] = std::make_pair(attachment, deviceState->graphicsPipelineState.currentFramebuffer->getAttachments()[attachmentIndex]);
+			deviceState->graphicsPipelineState.nativeState.imageAttachment[i] = deviceState->graphicsPipelineState.currentFramebuffer->getAttachments()[attachmentIndex];
+		}
+		else
+		{
+			deviceState->graphicsPipelineState.nativeState.imageAttachment[i] = nullptr;
 		}
 	}
 	
@@ -1998,6 +1647,8 @@ static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutpu
 		if (attachmentIndex != VK_ATTACHMENT_UNUSED)
 		{
 			const auto& attachment = deviceState->graphicsPipelineState.currentRenderPass->getAttachments()[attachmentIndex];
+			deviceState->graphicsPipelineState.nativeState.depthStencilAttachment = deviceState->graphicsPipelineState.currentFramebuffer->getAttachments()[attachmentIndex];
+			
 			const auto format = deviceState->graphicsPipelineState.currentFramebuffer->getAttachments()[attachmentIndex]->getFormat();
 			if (GetFormatInformation(format).DepthStencil.DepthOffset != INVALID_OFFSET)
 			{
@@ -2007,6 +1658,10 @@ static void ProcessFragmentShader(DeviceState* deviceState, const AssemblerOutpu
 			{
 				stencilImage = std::make_pair(attachment, deviceState->graphicsPipelineState.currentFramebuffer->getAttachments()[attachmentIndex]);
 			}
+		}
+		else
+		{
+			deviceState->graphicsPipelineState.nativeState.depthStencilAttachment = nullptr;
 		}
 	}
 	

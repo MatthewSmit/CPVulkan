@@ -367,6 +367,52 @@ public:
 		LLVMPositionBuilderAtEnd(builder, endBlock);
 	}
 
+	template<int size>
+	std::array<LLVMValueRef, size> CreatePhiIf(LLVMValueRef currentFunction, LLVMValueRef comparision, 
+	                                           const std::function<std::array<LLVMValueRef, size>()>& trueFunction,
+	                                           const std::function<std::array<LLVMValueRef, size>()>& falseFunction)
+	{
+		assert(trueFunction && falseFunction);
+		
+		auto trueBlock = LLVMAppendBasicBlock(currentFunction, "if-true");
+		auto falseBlock = LLVMAppendBasicBlock(currentFunction, "if-false");
+		const auto endBlock = LLVMAppendBasicBlock(currentFunction, "if-end");
+
+		// Perform conditional branch
+		CreateCondBr(comparision, trueBlock, falseBlock);
+		
+		// true body
+		LLVMPositionBuilderAtEnd(builder, trueBlock);
+		const auto trueResult = trueFunction();
+		trueBlock = LLVMGetInsertBlock(builder);
+		CreateBr(endBlock);
+
+		// false body
+		LLVMPositionBuilderAtEnd(builder, falseBlock);
+		const auto falseResult = falseFunction();
+		falseBlock = LLVMGetInsertBlock(builder);
+		CreateBr(endBlock);
+
+		LLVMPositionBuilderAtEnd(builder, endBlock);
+		std::array<LLVMValueRef, size> results;
+		for (auto i = 0; i < size; i++)
+		{
+			results[i] = CreatePhi(LLVMTypeOf(trueResult[i]));
+			LLVMValueRef incomingValues[2]
+			{
+				trueResult[i],
+				falseResult[i]
+			};
+			LLVMBasicBlockRef incomingBlocks[2]
+			{
+				trueBlock,
+				falseBlock
+			};
+			LLVMAddIncoming(results[i], incomingValues, incomingBlocks, 2);
+		}
+		return results;
+	}
+
 protected:
 	const SPIRV::SPIRVModule* shader;
 	const SPIRV::SPIRVFunction* entryPoint;
@@ -391,6 +437,10 @@ protected:
 		{
 			// uint8_t* vertexBindingPtr[MAX_VERTEX_INPUT_BINDINGS];
 			LLVMArrayType(LLVMPointerType(LLVMInt8TypeInContext(context), 0), MAX_VERTEX_INPUT_BINDINGS),
+			// ImageView* imageAttachment[MAX_FRAGMENT_OUTPUT_ATTACHMENTS];
+			LLVMArrayType(LLVMPointerType(LLVMInt8TypeInContext(context), 0), MAX_FRAGMENT_OUTPUT_ATTACHMENTS),
+			// ImageView* depthStencilAttachment;
+			LLVMPointerType(LLVMInt8TypeInContext(context), 0),
 		};
 		const auto pipelineStateType = StructType(pipelineStateMembers, "_PipelineState", true);
 		pipelineState = GlobalVariable(LLVMPointerType(pipelineStateType, 0), LLVMExternalLinkage, "@pipelineState");
@@ -866,6 +916,7 @@ private:
 			const auto variable = shader->getVariable(i);
 			if (variable->getStorageClass() == StorageClassOutput)
 			{
+				// TODO: use location?
 				auto locations = variable->getDecorate(DecorationLocation);
 				if (locations.empty())
 				{
@@ -895,26 +946,602 @@ public:
 	~PipelineFragmentCompiledModuleBuilder() override = default;
 
 protected:
+	LLVMValueRef mainFunction{};
+	LLVMValueRef depth{};
+	LLVMValueRef x{};
+	LLVMValueRef y{};
+	LLVMValueRef depthResult{};
+	LLVMValueRef stencilResult{};
+
+	LLVMValueRef currentDepth{};
+	
 	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		CompileShader(ExecutionModelFragment);
 		CreatePipelineState();
 
-		std::array<LLVMTypeRef, 0> parameters
+		std::array<LLVMTypeRef, 3> parameters
 		{
+			LLVMFloatTypeInContext(context),
+			LLVMInt32TypeInContext(context),
+			LLVMInt32TypeInContext(context),
 		};
-		const auto functionType = LLVMFunctionType(LLVMInt1TypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
-		const auto function = LLVMAddFunction(module, "@main", functionType);
-		LLVMSetLinkage(function, LLVMExternalLinkage);
+		const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+		mainFunction = LLVMAddFunction(module, "@main", functionType);
+		LLVMSetLinkage(mainFunction, LLVMExternalLinkage);
 
-		const auto basicBlock = LLVMAppendBasicBlockInContext(context, function, "");
+		depth = LLVMGetParam(mainFunction, 0);
+		x = LLVMGetParam(mainFunction, 1);
+		y = LLVMGetParam(mainFunction, 2);
+
+		const auto basicBlock = LLVMAppendBasicBlockInContext(context, mainFunction, "");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
+
+		// TODO: 27.2. Discard Rectangles Test
+		// TODO: 27.3. Scissor Test
+		// TODO: 27.4. Exclusive Scissor Test
+		// TODO: 27.5. Sample Mask
+
+		// TODO: If early per-fragment operations are enabled by the fragment shader, these operations are also performed:
+		// TODO: 27.11. Depth Bounds Test
+		// TODO: 27.12. Stencil Test
+		// TODO: 27.13. Depth Test
+		// TODO: 27.14. Representative Fragment Test
+		// TODO: 27.15. Sample Counting
 
 		// Call the shader
 		const auto shaderResult = CreateCall(shaderEntryPoint, {});
-		CreateRet(shaderResult);
 
-		return function;
+		CreateIf(mainFunction, shaderResult, nullptr, [&](LLVMBasicBlockRef)
+		{
+			// TODO: 27.8. Mixed attachment samples
+			// TODO: 27.9. Multisample Coverage
+			// TODO: 27.10. Depth and Stencil Operations
+
+			CompileDepthBoundsTest();
+			CompileStencilTest();
+			CompileDepthTest();
+			CompileDepthStencilWrite();
+			// TODO: 27.14. Representative Fragment Test
+			// TODO: 27.15. Sample Counting
+			// TODO: 27.16. Fragment Coverage To Color
+			// TODO: 27.17. Coverage Reduction
+			CompileWriteFragment();
+		});
+
+		CreateRetVoid();
+
+		return mainFunction;
+	}
+
+	void CompileDepthBoundsTest()
+	{
+		// 27.11. Depth Bounds Test
+		if (state->getDepthStencilState().DepthBoundsTestEnable)
+		{
+			// if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().DepthBoundsTestEnable)
+			// {
+			// 	if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicDepthBounds)
+			// 	{
+			// 		if (currentDepth < deviceState->graphicsPipelineState.dynamicState.minDepthBounds ||
+			// 			currentDepth > deviceState->graphicsPipelineState.dynamicState.maxDepthBounds)
+			// 		{
+			// 			return;
+			// 		}
+			// 	}
+			// 	else
+			// 	{
+			// 		if (currentDepth < deviceState->graphicsPipelineState.pipeline->getDepthStencilState().MinDepthBounds ||
+			// 			currentDepth > deviceState->graphicsPipelineState.pipeline->getDepthStencilState().MaxDepthBounds)
+			// 		{
+			// 			return;
+			// 		}
+			// 	}
+			// }
+			//
+			TODO_ERROR();
+		}
+	}
+
+	void CompileStencilTest()
+	{
+		// 27.12. Stencil Test
+		if (state->getDepthStencilState().StencilTestEnable)
+		{
+			// auto stencilResult = true;
+			// auto& stencilOpState = front
+			// 	                       ? deviceState->graphicsPipelineState.pipeline->getDepthStencilState().Front
+			// 	                       : deviceState->graphicsPipelineState.pipeline->getDepthStencilState().Back;
+			//
+			// uint8_t stencilReference = stencilOpState.reference;
+			// uint8_t currentStencil = 0;
+			// if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilReference)
+			// {
+			// 	TODO_ERROR();
+			// }
+			//
+			// if (shaderModule->getStencilExport())
+			// {
+			// 	stencilReference = builtinOutput->stencilReference;
+			// }
+			//
+			// if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().StencilTestEnable)
+			// {
+			// 	auto compareMask = stencilOpState.compareMask;
+			// 	if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilCompareMask)
+			// 	{
+			// 		TODO_ERROR();
+			// 	}
+			//
+			// 	currentStencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(), 
+			// 	                                 x, y, 0, 
+			// 	                                 stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer); 
+			// 	stencilResult = CompareTest(stencilReference & compareMask, currentStencil & compareMask, stencilOpState.compareOp);
+			// }
+			TODO_ERROR();
+		}
+		else
+		{
+			stencilResult = ConstBool(true);
+		}
+	}
+
+	void CompileDepthTest()
+	{
+		// 27.13. Depth Test
+		if (state->getDepthStencilState().DepthTestEnable && state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED)
+		{
+			const auto& depthStencilAttachmentType = state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment];
+			const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
+			const auto hasDepth = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
+			const auto tmp = CreatePhiIf<2>(mainFunction, hasDepth,
+			                                [&]()
+			                                {
+				                                if (state->getRasterizationState().DepthClampEnable)
+				                                {
+					                                // depth = std::clamp(depth, viewport.minDepth, viewport.maxDepth);
+					                                TODO_ERROR();
+				                                }
+
+				                                const auto newDepth = CompileConvertDepth(depth, depthStencilAttachmentType.format);
+				                                const auto floatFormat = depthStencilAttachmentType.format == VK_FORMAT_D32_SFLOAT || depthStencilAttachmentType.format == VK_FORMAT_D32_SFLOAT_S8_UINT;
+				                                const auto depthResult = floatFormat
+					                                                         ? CompileFCompareTest(newDepth, GetCurrentDepth(depthStencilAttachment), state->getDepthStencilState().DepthCompareOp)
+					                                                         : CompileICompareTest(newDepth, GetCurrentDepth(depthStencilAttachment), state->getDepthStencilState().DepthCompareOp);
+				                                return std::array<LLVMValueRef, 2>{depthResult, newDepth};
+			                                },
+			                                [&]()
+			                                {
+				                                const auto newDepth = CompileConvertDepth(depth, depthStencilAttachmentType.format);
+				                                return std::array<LLVMValueRef, 2>{ConstBool(true), newDepth};
+			                                });
+			depthResult = tmp[0];
+			depth = tmp[1];
+		}
+		else
+		{
+			depthResult = ConstBool(true);
+		}
+	}
+
+	void CompileDepthStencilWrite()
+	{
+		if (state->getDepthStencilState().StencilTestEnable)
+		{
+			// if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().StencilTestEnable && stencilImage.second)
+			// {
+			// 	const auto stencilOperation = !stencilResult ? stencilOpState.failOp : (!depthResult ? stencilOpState.depthFailOp : stencilOpState.passOp);
+			// 	uint8_t writeValue;
+			// 	switch (stencilOperation)
+			// 	{
+			// 	case VK_STENCIL_OP_KEEP:
+			// 		writeValue = currentStencil;
+			// 		break;
+			//
+			// 	case VK_STENCIL_OP_ZERO:
+			// 		writeValue = 0;
+			// 		break;
+			//
+			// 	case VK_STENCIL_OP_REPLACE:
+			// 		writeValue = stencilReference;
+			// 		break;
+			//
+			// 	case VK_STENCIL_OP_INCREMENT_AND_CLAMP:
+			// 		writeValue = currentStencil < 0xFF ? currentStencil + 1 : 0xFF;
+			// 		break;
+			//
+			// 	case VK_STENCIL_OP_DECREMENT_AND_CLAMP:
+			// 		writeValue = currentStencil > 0 ? currentStencil - 1 : 0;
+			// 		break;
+			//
+			// 	case VK_STENCIL_OP_INVERT:
+			// 		writeValue = ~currentStencil;
+			// 		break;
+			//
+			// 	case VK_STENCIL_OP_INCREMENT_AND_WRAP:
+			// 		writeValue = currentStencil + 1;
+			// 		break;
+			//
+			// 	case VK_STENCIL_OP_DECREMENT_AND_WRAP:
+			// 		writeValue = currentStencil - 1;
+			// 		break;
+			//
+			// 	default:
+			// 		FATAL_ERROR();
+			// 	}
+			//
+			// 	auto writeMask = stencilOpState.writeMask;
+			// 	if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilWriteMask)
+			// 	{
+			// 		TODO_ERROR();
+			// 	}
+			//
+			// 	writeValue = (writeValue & writeMask) | (currentStencil & ~writeMask);
+			//
+			// 	if (depthWrite)
+			// 	{
+			// 		const VkClearDepthStencilValue input
+			// 		{
+			// 			depth,
+			// 			writeValue,
+			// 		};
+			//
+			// 		// TODO: No clamp if float format?
+			// 		SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
+			// 		         x, y, 0,
+			// 		         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
+			// 		         input);
+			// 	}
+			// 	else
+			// 	{
+			// 		const VkClearDepthStencilValue input
+			// 		{
+			// 			currentDepth,
+			// 			writeValue,
+			// 		};
+			//
+			// 		// TODO: No clamp if float format?
+			// 		SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
+			// 		         x, y, 0,
+			// 		         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
+			// 		         input);
+			// 	}
+			// }
+			// else if (depthWrite)
+			// {
+			// 	const VkClearDepthStencilValue input
+			// 	{
+			// 		depth,
+			// 		stencilImage.second == nullptr
+			// 			? 0u
+			// 			: GetStencilPixel(deviceState, depthImage.first.format, depthImage.second->getImage(), 
+			// 			                  x, y, 0, 
+			// 			                  depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer),
+			// 	};
+			//
+			// 	// TODO: No clamp if float format?
+			// 	SetPixel(deviceState, depthImage.first.format, depthImage.second->getImage(),
+			// 	         x, y, 0,
+			// 	         depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer,
+			// 	         input);
+			// }
+			//
+			TODO_ERROR();
+		}
+		
+		if (state->getDepthStencilState().DepthTestEnable && state->getDepthStencilState().DepthWriteEnable && state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED)
+		{
+			const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
+			const auto hasDepth = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
+			const auto depthWrite = CreateAnd(depthResult, hasDepth);
+			CreateIf(mainFunction, depthWrite, 
+			         [&](LLVMBasicBlockRef)
+			         {
+				         // TODO: No clamp if float format?
+				         auto setDepthPixel = LLVMGetNamedFunction(module, "@setDepthPixel");
+				         if (!setDepthPixel)
+				         {
+					         std::array<LLVMTypeRef, 5> parameters
+					         {
+						         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+						         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+						         LLVMInt32TypeInContext(context),
+						         LLVMInt32TypeInContext(context),
+						         LLVMFloatTypeInContext(context),
+					         };
+					         const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+					         setDepthPixel = LLVMAddFunction(module, "@setDepthPixel", functionType);
+				         }
+
+				         const auto& depthStencilAttachmentType = state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment];
+				         std::array<LLVMValueRef, 5> arguments
+				         {
+					         CreateLoad(shaderModuleBuilder->getUserData()),
+					         depthStencilAttachment,
+					         x,
+					         y,
+					         CompileUnconvertDepth(depth, depthStencilAttachmentType.format),
+				         };
+				         CreateCall(setDepthPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
+			         }, nullptr);
+		}
+	}
+
+	void CompileWriteFragment()
+	{
+		const auto write = CreateAnd(stencilResult, depthResult);
+		CreateIf(mainFunction, write, 
+		         [&](LLVMBasicBlockRef)
+		         {
+			         for (auto i = 0u; i < state->getSubpass().colourAttachments.size(); i++)
+			         {
+				         const auto& attachment = state->getSubpass().colourAttachments[i];
+				         if (attachment.attachment != VK_ATTACHMENT_UNUSED)
+				         {
+					         CompileWriteFragmentAttachment(i, state->getAttachments()[attachment.attachment]);
+				         }
+			         }
+		         }, nullptr);
+	}
+
+	LLVMValueRef GetCurrentDepth(LLVMValueRef depthImage)
+	{
+		if (currentDepth)
+		{
+			return currentDepth;
+		}
+
+		// TODO: use native type
+
+		auto getDepthPixel = LLVMGetNamedFunction(module, "@getDepthPixel");
+		if (!getDepthPixel)
+		{
+			std::array<LLVMTypeRef, 4> parameters
+			{
+				LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+				LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+				LLVMInt32TypeInContext(context),
+				LLVMInt32TypeInContext(context),
+			};
+			const auto functionType = LLVMFunctionType(LLVMFloatTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+			getDepthPixel = LLVMAddFunction(module, "@getDepthPixel", functionType);
+		}
+
+		const auto& depthStencilAttachmentType = state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment];
+		std::array<LLVMValueRef, 4> arguments
+		{
+			CreateLoad(shaderModuleBuilder->getUserData()),
+			depthImage,
+			x,
+			y,
+		};
+		currentDepth = CreateCall(getDepthPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
+		currentDepth = CompileConvertDepth(currentDepth, depthStencilAttachmentType.format);
+		return currentDepth;
+	}
+
+	LLVMValueRef CompileFClamp(LLVMValueRef value, LLVMValueRef min, LLVMValueRef max)
+	{
+		const auto isMin = CreateFCmpOLT(value, min);
+		const auto isMax = CreateFCmpOGT(value, max);
+		value = CreateSelect(isMin, min, value);
+		value = CreateSelect(isMax, max, value);
+		return value;
+	}
+
+	LLVMValueRef CompileConvertDepth(LLVMValueRef depth, VkFormat targetFormat)
+	{
+		LLVMTypeRef targetType;
+		LLVMValueRef multiplier;
+		switch (targetFormat)
+		{
+		case VK_FORMAT_D16_UNORM:
+		case VK_FORMAT_D16_UNORM_S8_UINT:
+			targetType = LLVMInt16TypeInContext(context);
+			multiplier = ConstF32(0xFFFF);
+			break;
+			
+		case VK_FORMAT_X8_D24_UNORM_PACK32:
+		case VK_FORMAT_D24_UNORM_S8_UINT:
+			targetType = LLVMInt32TypeInContext(context);
+			multiplier = ConstF32(0x00FFFFFF);
+			break;
+
+		case VK_FORMAT_D32_SFLOAT:
+		case VK_FORMAT_D32_SFLOAT_S8_UINT:
+			return depth;
+			
+		default:
+			FATAL_ERROR();
+		}
+
+		depth = CompileFClamp(depth, ConstF32(0), ConstF32(1));
+		depth = CreateFMul(depth, multiplier);
+		return CreateFPToUI(depth, targetType);
+	}
+
+	LLVMValueRef CompileUnconvertDepth(LLVMValueRef depth, VkFormat targetFormat)
+	{
+		LLVMValueRef multiplier;
+		switch (targetFormat)
+		{
+		case VK_FORMAT_D16_UNORM:
+		case VK_FORMAT_D16_UNORM_S8_UINT:
+			multiplier = ConstF32(0xFFFF);
+			break;
+			
+		case VK_FORMAT_X8_D24_UNORM_PACK32:
+		case VK_FORMAT_D24_UNORM_S8_UINT:
+			multiplier = ConstF32(0x00FFFFFF);
+			break;
+
+		case VK_FORMAT_D32_SFLOAT:
+		case VK_FORMAT_D32_SFLOAT_S8_UINT:
+			return depth;
+			
+		default:
+			FATAL_ERROR();
+		}
+
+		depth = CreateUIToFP(depth, LLVMFloatTypeInContext(context));
+		depth = CreateFDiv(depth, multiplier);
+		return depth;
+	}
+
+	LLVMValueRef CompileFCompareTest(LLVMValueRef reference, LLVMValueRef value, const VkCompareOp compare)
+	{
+		switch (compare)
+		{
+		case VK_COMPARE_OP_NEVER: return ConstBool(false);
+		case VK_COMPARE_OP_LESS: return CreateFCmpULT(reference, value);
+		case VK_COMPARE_OP_EQUAL: return CreateFCmpUEQ(reference, value);
+		case VK_COMPARE_OP_LESS_OR_EQUAL: return CreateFCmpULE(reference, value);
+		case VK_COMPARE_OP_GREATER: return CreateFCmpUGT(reference, value);
+		case VK_COMPARE_OP_NOT_EQUAL: return CreateFCmpUNE(reference, value);
+		case VK_COMPARE_OP_GREATER_OR_EQUAL: return CreateFCmpUGE(reference, value);
+		case VK_COMPARE_OP_ALWAYS: return ConstBool(true);
+
+		default:
+			FATAL_ERROR();
+		}
+	}
+
+	LLVMValueRef CompileICompareTest(LLVMValueRef reference, LLVMValueRef value, const VkCompareOp compare)
+	{
+		switch (compare)
+		{
+		case VK_COMPARE_OP_NEVER: return ConstBool(false);
+		case VK_COMPARE_OP_LESS: return CreateICmpULE(reference, value);
+		case VK_COMPARE_OP_EQUAL: return CreateICmpEQ(reference, value);
+		case VK_COMPARE_OP_LESS_OR_EQUAL: return CreateICmpULE(reference, value);
+		case VK_COMPARE_OP_GREATER: return CreateICmpUGT(reference, value);
+		case VK_COMPARE_OP_NOT_EQUAL: return CreateICmpNE(reference, value);
+		case VK_COMPARE_OP_GREATER_OR_EQUAL: return CreateICmpUGE(reference, value);
+		case VK_COMPARE_OP_ALWAYS: return ConstBool(true);
+
+		default:
+			FATAL_ERROR();
+		}
+	}
+
+	void CompileWriteFragmentAttachment(uint32_t index, const AttachmentDescription& attachmentDescription)
+	{
+		const auto attachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 1, index}));
+		const auto hasImage = CreateICmpNE(attachment, LLVMConstNull(LLVMTypeOf(attachment)));
+		CreateIf(mainFunction, hasImage, 
+		         [&](LLVMBasicBlockRef)
+		         {
+			         const auto data = FindFragmentOutput(index);
+
+			         switch (GetFormatInformation(attachmentDescription.format).Base)
+			         {
+			         case BaseType::UNorm:
+			         case BaseType::SNorm:
+			         case BaseType::UScaled:
+			         case BaseType::SScaled:
+			         case BaseType::UFloat:
+			         case BaseType::SFloat:
+			         case BaseType::SRGB:
+				         CompileWriteFragmentBlend<glm::fvec4>(index, attachmentDescription, data);
+				         break;
+				          
+			         case BaseType::UInt:
+				         CompileWriteFragmentBlend<glm::uvec4>(index, attachmentDescription, data);
+				         break;
+			         	
+			         case BaseType::SInt:
+				         CompileWriteFragmentBlend<glm::ivec4>(index, attachmentDescription, data);
+				         break;
+						 	
+			         default:
+				         FATAL_ERROR();
+			         }
+		         }, nullptr);
+	}
+
+	LLVMValueRef FindFragmentOutput(uint32_t index)
+	{
+		for (auto i = 0u; i < shader->getNumVariables(); i++)
+		{
+			const auto& variable = shader->getVariable(i);
+			if (variable->getStorageClass() == StorageClassOutput)
+			{
+				auto locations = variable->getDecorate(DecorationLocation);
+				if (locations.empty())
+				{
+					continue;
+				}
+				
+				const auto location = *locations.begin();
+				if (location == index)
+				{
+					return shaderModuleBuilder->ConvertValue(variable, nullptr);
+				}
+			}
+		}
+
+		FATAL_ERROR();
+	}
+
+	template<typename T>
+	void CompileWriteFragmentBlend(uint32_t index, const AttachmentDescription& attachmentDescription, LLVMValueRef colour)
+	{
+		// 28.1. Blending
+		const auto& blend = state->getColourBlendState().Attachments[index];
+		if (blend.blendEnable)
+		{
+			TODO_ERROR();
+			// 		const auto destination = ImageFetch<glm::fvec4, glm::ivec2>(deviceState, images[j].first.format, images[j].second, glm::ivec2(x, y));
+			// 		if (blend.blendEnable)
+			// 		{
+			// 			auto constant = *reinterpret_cast<const glm::fvec4*>(deviceState->graphicsPipelineState.pipeline->getColourBlendState().BlendConstants);
+			// 			colour = ApplyBlend(colour, destination, constant, blend);
+			// 		}
+			// 
+		}
+		
+		// 28.2. Logical Operations
+		if (state->getColourBlendState().LogicOpEnable)
+		{
+			TODO_ERROR();
+		}
+		
+		// 28.3. Color Write Mask
+		if (blend.colorWriteMask != (VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT | VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT))
+		{
+			// colour.r = (blend.colorWriteMask & VK_COLOR_COMPONENT_R_BIT) ? colour.r : destination.r;
+			// colour.g = (blend.colorWriteMask & VK_COLOR_COMPONENT_G_BIT) ? colour.g : destination.g;
+			// colour.b = (blend.colorWriteMask & VK_COLOR_COMPONENT_B_BIT) ? colour.b : destination.b;
+			// colour.a = (blend.colorWriteMask & VK_COLOR_COMPONENT_A_BIT) ? colour.a : destination.a;
+			TODO_ERROR();
+		}
+
+		// TODO: support non float types
+		auto setPixel = LLVMGetNamedFunction(module, "@setPixel");
+		if (!setPixel)
+		{
+			std::array<LLVMTypeRef, 5> parameters
+			{
+				LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+				LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+				LLVMInt32TypeInContext(context),
+				LLVMInt32TypeInContext(context),
+				LLVMPointerType(LLVMVectorType(LLVMFloatTypeInContext(context), 4), 0),
+			};
+			const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+			setPixel = LLVMAddFunction(module, "@setPixel", functionType);
+		}
+		
+		const auto attachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 1, index}));
+		std::array<LLVMValueRef, 5> arguments
+		{
+			CreateLoad(shaderModuleBuilder->getUserData()),
+			attachment,
+			x,
+			y,
+			colour,
+		};
+		CreateCall(setPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
 	}
 };
 

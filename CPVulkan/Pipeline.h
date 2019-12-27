@@ -219,7 +219,7 @@ public:
 	[[nodiscard]] const DynamicState& getDynamicState() const override { return dynamicState; }
 
 	[[nodiscard]] const std::vector<AttachmentDescription>& getAttachments() const override { return renderPass->getAttachments(); }
-	[[nodiscard]] const std::vector<SubpassDescription>& getSubpasses() const override { return renderPass->getSubpasses(); }
+	[[nodiscard]] const SubpassDescription& getSubpass() const override { return renderPass->getSubpasses()[subpass]; }
 	[[nodiscard]] const std::vector<SubpassDependency>& getDependencies() const override { return renderPass->getDependencies(); }
 
 private:
@@ -239,6 +239,7 @@ private:
 	ColourBlendState colourBlendState{};
 	DynamicState dynamicState{};
 	RenderPass* renderPass{};
+	uint32_t subpass{};
 
 	void LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage);
 

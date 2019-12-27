@@ -666,6 +666,7 @@ VkResult GraphicsPipeline::Create(Device* device, VkPipelineCache pipelineCache,
 	pipeline->dynamicState = Parse(pCreateInfo->pDynamicState);
 	pipeline->layout = UnwrapVulkan<PipelineLayout>(pCreateInfo->layout);
 	pipeline->renderPass = UnwrapVulkan<RenderPass>(pCreateInfo->renderPass);
+	pipeline->subpass = pCreateInfo->subpass;
 	pipeline->cache = pipelineCache ? UnwrapVulkan<PipelineCache>(pipelineCache) : nullptr;
 
 	auto shaderFeedback = std::vector<StageFeedback>(pCreateInfo->stageCount);

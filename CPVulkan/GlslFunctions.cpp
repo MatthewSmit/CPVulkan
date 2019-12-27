@@ -770,6 +770,36 @@ static int32_t ImageQuerySize1D(ImageDescriptor* image)
 	return range[0].x;
 }
 
+static void SetPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, const glm::fvec4* colour)
+{
+	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	         x, y, 0,
+	         imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer,
+	         &colour->x);
+}
+
+static void SetDepthPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, float depth)
+{
+	// TODO: Save stencil
+	const VkClearDepthStencilValue input
+	{
+		depth,
+		0,
+	};
+
+	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	         x, y, 0,
+	         imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer,
+	         input);
+}
+
+static float GetDepthPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y)
+{
+	return GetDepthPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	                     x, y, 0,
+	                     imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer);
+}
+
 void AddGlslFunctions(DeviceState* deviceState)
 {
 	auto jit = deviceState->jit;
@@ -1287,4 +1317,9 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@Image.Read.U32[4].Image[F32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec3>));
 	jit->AddFunction("@Image.Read.U32[4].Image[I32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec3>));
 	jit->AddFunction("@Image.Read.U32[4].Image[U32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec3>));
+
+	// Hacks until pipeline supports getting the correct methods
+	jit->AddFunction("@setPixel", reinterpret_cast<FunctionPointer>(SetPixelXXX));
+	jit->AddFunction("@setDepthPixel", reinterpret_cast<FunctionPointer>(SetDepthPixelXXX));
+	jit->AddFunction("@getDepthPixel", reinterpret_cast<FunctionPointer>(GetDepthPixelXXX));
 }
