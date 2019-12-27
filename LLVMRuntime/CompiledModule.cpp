@@ -278,6 +278,11 @@ LLVMValueRef CompiledModuleBuilder::ConstF64(double value)
 	return LLVMConstReal(LLVMDoubleTypeInContext(context), value);
 }
 
+LLVMValueRef CompiledModuleBuilder::ConstBool(bool value)
+{
+	return LLVMConstInt(LLVMInt1TypeInContext(context), value, false);
+}
+
 LLVMValueRef CompiledModuleBuilder::ConstI8(int8_t value)
 {
 	return LLVMConstInt(LLVMInt8TypeInContext(context), value, true);

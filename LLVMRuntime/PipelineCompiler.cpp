@@ -284,19 +284,94 @@ class BasePipelineCompiledModuleBuilder : public CompiledModuleBuilder
 public:
 	BasePipelineCompiledModuleBuilder(const SPIRV::SPIRVModule* shader,
 	                                  const SPIRV::SPIRVFunction* entryPoint,
-	                                  const VkSpecializationInfo* specializationInfo) :
+	                                  const VkSpecializationInfo* specializationInfo,
+	                                  const GraphicsPipelineStateStorage* state) :
 		shader{shader},
 		entryPoint{entryPoint},
-		specializationInfo{specializationInfo}
+		specializationInfo{specializationInfo},
+		state{state}
 	{
 	}
 	
 	~BasePipelineCompiledModuleBuilder() override = default;
 
+	void CreateFor(LLVMValueRef currentFunction, LLVMValueRef initialiser, LLVMValueRef comparison, LLVMValueRef increment, 
+	               std::function<void(LLVMValueRef i, LLVMBasicBlockRef continueBlock, LLVMBasicBlockRef breakBlock)> forFunction)
+	{
+		const auto comparisonBlock = LLVMAppendBasicBlock(currentFunction, "for-comparison");
+		const auto bodyBlock = LLVMAppendBasicBlock(currentFunction, "for-body");
+		const auto incrementBlock = LLVMAppendBasicBlock(currentFunction, "for-increment");
+		const auto endBlock = LLVMAppendBasicBlock(currentFunction, "for-end");
+
+		// auto i = initialiser
+		const auto index = CreateAlloca(LLVMTypeOf(initialiser), "for-index");
+		CreateStore(initialiser, index);
+		CreateBr(comparisonBlock);
+
+		// break if i >= comparison
+		LLVMPositionBuilderAtEnd(builder, comparisonBlock);
+		const auto reachedEnd = CreateICmpUGE(CreateLoad(index), comparison);
+		CreateCondBr(reachedEnd, endBlock, bodyBlock);
+
+		// main body
+		LLVMPositionBuilderAtEnd(builder, bodyBlock);
+		forFunction(CreateLoad(index), incrementBlock, endBlock);
+		CreateBr(incrementBlock);
+
+		// index += increment
+		LLVMPositionBuilderAtEnd(builder, incrementBlock);
+		CreateStore(CreateAdd(CreateLoad(index), increment), index);
+		CreateBr(comparisonBlock);
+
+		LLVMPositionBuilderAtEnd(builder, endBlock);
+	}
+
+	void CreateIf(LLVMValueRef currentFunction, LLVMValueRef comparision, std::function<void(LLVMBasicBlockRef endBlock)> trueFunction, std::function<void(LLVMBasicBlockRef endBlock)> falseFunction)
+	{
+		assert(trueFunction || falseFunction);
+		
+		const auto trueBlock = trueFunction ? LLVMAppendBasicBlock(currentFunction, "if-true") : nullptr;
+		const auto falseBlock = falseFunction ? LLVMAppendBasicBlock(currentFunction, "if-false") : nullptr;
+		const auto endBlock = LLVMAppendBasicBlock(currentFunction, "if-end");
+
+		// Perform conditional branch
+		if (!trueBlock)
+		{
+			CreateCondBr(comparision, endBlock, falseBlock);
+		}
+		else if (!falseBlock)
+		{
+			CreateCondBr(comparision, trueBlock, endBlock);
+		}
+		else
+		{
+			CreateCondBr(comparision, trueBlock, falseBlock);
+		}
+
+		if (trueBlock)
+		{
+			// true body
+			LLVMPositionBuilderAtEnd(builder, trueBlock);
+			trueFunction(endBlock);
+			CreateBr(endBlock);
+		}
+
+		if (falseBlock)
+		{
+			// false body
+			LLVMPositionBuilderAtEnd(builder, falseBlock);
+			falseFunction(endBlock);
+			CreateBr(endBlock);
+		}
+
+		LLVMPositionBuilderAtEnd(builder, endBlock);
+	}
+
 protected:
 	const SPIRV::SPIRVModule* shader;
 	const SPIRV::SPIRVFunction* entryPoint;
 	const VkSpecializationInfo* specializationInfo;
+	const GraphicsPipelineStateStorage* state;
 
 	std::unique_ptr<SPIRVCompiledModuleBuilder> shaderModuleBuilder{};
 	LLVMValueRef shaderEntryPoint{};
@@ -328,13 +403,8 @@ public:
 	PipelineVertexCompiledModuleBuilder(const SPIRV::SPIRVModule* vertexShader,
 	                                    const SPIRV::SPIRVFunction* entryPoint,
 	                                    const VkSpecializationInfo* specializationInfo,
-	                                    const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings, 
-	                                    const std::vector<VkVertexInputBindingDescription>& vertexBindingDescriptions,
-	                                    const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions) :
-		BasePipelineCompiledModuleBuilder{vertexShader, entryPoint, specializationInfo},
-		layoutBindings{layoutBindings},
-		vertexBindingDescriptions{vertexBindingDescriptions},
-		vertexAttributeDescriptions{vertexAttributeDescriptions}
+	                                    const GraphicsPipelineStateStorage* state) :
+		BasePipelineCompiledModuleBuilder{vertexShader, entryPoint, specializationInfo, state}
 	{
 	}
 
@@ -413,10 +483,6 @@ protected:
 	}
 	
 private:
-	const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings;
-	const std::vector<VkVertexInputBindingDescription>& vertexBindingDescriptions;
-	const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions;
-
 	void AddOutputData(std::vector<LLVMTypeRef>& outputMembers)
 	{
 		for (auto i = 0u; i < shader->getNumVariables(); i++)
@@ -437,7 +503,7 @@ private:
 
 	const VkVertexInputAttributeDescription& FindAttribute(uint32_t location)
 	{
-		for (const auto& attribute : vertexAttributeDescriptions)
+		for (const auto& attribute : state->getVertexInputState().VertexAttributeDescriptions)
 		{
 			if (attribute.location == location)
 			{
@@ -449,7 +515,7 @@ private:
 	
 	const VkVertexInputBindingDescription& FindBinding(uint32_t binding)
 	{
-		for (const auto& bindingDescription : vertexBindingDescriptions)
+		for (const auto& bindingDescription : state->getVertexInputState().VertexBindingDescriptions)
 		{
 			if (bindingDescription.binding == binding)
 			{
@@ -813,37 +879,6 @@ private:
 			}
 		}
 	}
-
-	void CreateFor(LLVMValueRef currentFunction, LLVMValueRef initialiser, LLVMValueRef comparison, LLVMValueRef increment, 
-	               std::function<void(LLVMValueRef i, LLVMBasicBlockRef continueBlock, LLVMBasicBlockRef breakBlock)> forFunction)
-	{
-		const auto comparisonBlock = LLVMAppendBasicBlock(currentFunction, "for-comparison");
-		const auto bodyBlock = LLVMAppendBasicBlock(currentFunction, "for-body");
-		const auto incrementBlock = LLVMAppendBasicBlock(currentFunction, "for-increment");
-		const auto endBlock = LLVMAppendBasicBlock(currentFunction, "for-end");
-
-		// auto i = initialiser
-		const auto index = CreateAlloca(LLVMTypeOf(initialiser), "for-index");
-		CreateStore(initialiser, index);
-		CreateBr(comparisonBlock);
-
-		// break if i >= comparison
-		LLVMPositionBuilderAtEnd(builder, comparisonBlock);
-		const auto reachedEnd = CreateICmpUGE(CreateLoad(index), comparison);
-		CreateCondBr(reachedEnd, endBlock, bodyBlock);
-
-		// main body
-		LLVMPositionBuilderAtEnd(builder, bodyBlock);
-		forFunction(CreateLoad(index), incrementBlock, endBlock);
-		CreateBr(incrementBlock);
-
-		// index += increment
-		LLVMPositionBuilderAtEnd(builder, incrementBlock);
-		CreateStore(CreateAdd(CreateLoad(index), increment), index);
-		CreateBr(comparisonBlock);
-
-		LLVMPositionBuilderAtEnd(builder, endBlock);
-	}
 };
 
 class PipelineFragmentCompiledModuleBuilder final : public BasePipelineCompiledModuleBuilder
@@ -851,8 +886,9 @@ class PipelineFragmentCompiledModuleBuilder final : public BasePipelineCompiledM
 public:
 	PipelineFragmentCompiledModuleBuilder(const SPIRV::SPIRVModule* fragmentShader,
 	                                      const SPIRV::SPIRVFunction* entryPoint,
-	                                      const VkSpecializationInfo* specializationInfo) :
-		BasePipelineCompiledModuleBuilder{ fragmentShader, entryPoint, specializationInfo}
+	                                      const VkSpecializationInfo* specializationInfo,
+	                                      const GraphicsPipelineStateStorage* state) :
+		BasePipelineCompiledModuleBuilder{fragmentShader, entryPoint, specializationInfo, state}
 	{
 	}
 
@@ -883,9 +919,7 @@ protected:
 };
 
 CompiledModule* CompileVertexPipeline(CPJit* jit,
-                                      const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings,
-                                      const std::vector<VkVertexInputBindingDescription>& vertexBindingDescriptions,
-                                      const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions,
+                                      const GraphicsPipelineStateStorage* state,
                                       const SPIRV::SPIRVModule* vertexShader,
                                       const SPIRV::SPIRVFunction* entryPoint,
                                       const VkSpecializationInfo* specializationInfo)
@@ -895,15 +929,14 @@ CompiledModule* CompileVertexPipeline(CPJit* jit,
 		vertexShader,
 		entryPoint,
 		specializationInfo,
-		layoutBindings, 
-		vertexBindingDescriptions,
-		vertexAttributeDescriptions
+		state
 	};
 	return Compile(&builder, jit);
 }
 
 
 CompiledModule* CompileFragmentPipeline(CPJit* jit,
+                                        const GraphicsPipelineStateStorage* state,
                                         const SPIRV::SPIRVModule* fragmentShader,
                                         const SPIRV::SPIRVFunction* entryPoint,
                                         const VkSpecializationInfo* specializationInfo)
@@ -913,6 +946,7 @@ CompiledModule* CompileFragmentPipeline(CPJit* jit,
 		fragmentShader,
 		entryPoint,
 		specializationInfo,
+		state
 	};
 	return Compile(&builder, jit);
 }

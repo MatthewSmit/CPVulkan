@@ -13,6 +13,8 @@ set(FILES
 		"Half.h"
 
 		"PipelineData.h"
+
+		"PipelineState.h"
 		)
 
 set(DEFINES VK_NO_PROTOTYPES)

@@ -4,7 +4,9 @@
 #include <spirv.hpp>
 
 struct FormatInformation;
+
 class CompiledModuleBuilder;
+class GraphicsPipelineStateStorage;
 
 namespace SPIRV
 {
@@ -30,14 +32,13 @@ CP_DLL_EXPORT FunctionPointer CompileSetPixelI32(CPJit* jit, const FormatInforma
 CP_DLL_EXPORT FunctionPointer CompileSetPixelU32(CPJit* jit, const FormatInformation* information);
 
 CP_DLL_EXPORT CompiledModule* CompileVertexPipeline(CPJit* jit,
-                                                    const std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>& layoutBindings,
-                                                    const std::vector<VkVertexInputBindingDescription>& vertexBindingDescriptions,
-                                                    const std::vector<VkVertexInputAttributeDescription>& vertexAttributeDescriptions,
+                                                    const GraphicsPipelineStateStorage* state,
                                                     const SPIRV::SPIRVModule* vertexShader,
                                                     const SPIRV::SPIRVFunction* entryPoint,
                                                     const VkSpecializationInfo* specializationInfo);
 
 CP_DLL_EXPORT CompiledModule* CompileFragmentPipeline(CPJit* jit,
+                                                      const GraphicsPipelineStateStorage* state,
                                                       const SPIRV::SPIRVModule* fragmentShader,
                                                       const SPIRV::SPIRVFunction* entryPoint,
                                                       const VkSpecializationInfo* specializationInfo);

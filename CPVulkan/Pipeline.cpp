@@ -897,17 +897,9 @@ std::unique_ptr<VertexShaderModule> GraphicsPipeline::CompileVertexShaderModule(
 	SPIRV::SPIRVFunction* entryPointFunction;
 	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelVertex, 
 	                        hitCache, llvmModule, entryPointFunction, 
-	                        [this, device](CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
+	                        [this, device](CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
 	                        {
-		                        auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(layout->getDescriptorSetLayouts().size());
-		                        for (auto i = 0u; i < layoutBindings.size(); i++)
-		                        {
-			                        layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
-		                        }
-		
-		                        const auto llvmModule = CompileVertexPipeline(jit,
-		                                                                      layoutBindings, vertexInputState.VertexBindingDescriptions, vertexInputState.VertexAttributeDescriptions,
-		                                                                      spirvModule, entryPoint, specializationInfo);
+		                        const auto llvmModule = CompileVertexPipeline(jit, this, spirvModule, entryPoint, specializationInfo);
 		                        *static_cast<GraphicsNativeState**>(llvmModule->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
 		                        return llvmModule;
 	                        });
@@ -926,10 +918,9 @@ std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderMod
 	CompiledModule* llvmModule;
 	SPIRV::SPIRVFunction* entryPointFunction;
 	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelFragment, hitCache, llvmModule, entryPointFunction, 
-	                        [this, device](CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
+	                        [this, device](CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
 	                        {
-		                        const auto llvmModule = CompileFragmentPipeline(jit,
-		                                                                        spirvModule, entryPoint, specializationInfo);
+		                        const auto llvmModule = CompileFragmentPipeline(jit, this, spirvModule, entryPoint, specializationInfo);
 		                        *static_cast<GraphicsNativeState**>(llvmModule->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
 		                        return llvmModule;
 	                        });

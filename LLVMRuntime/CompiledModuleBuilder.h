@@ -47,6 +47,7 @@ public:
 	// Constant Helpers
 	LLVMValueRef ConstF32(float value);
 	LLVMValueRef ConstF64(double value);
+	LLVMValueRef ConstBool(bool value);
 	LLVMValueRef ConstI8(int8_t value);
 	LLVMValueRef ConstI16(int16_t value);
 	LLVMValueRef ConstI32(int32_t value);

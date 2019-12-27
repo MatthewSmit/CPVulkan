@@ -1,11 +1,11 @@
 #pragma once
 #include "Base.h"
 
+#include <PipelineState.h>
+
 #include <glm/glm.hpp>
 
 #include <spirv.hpp>
-
-#include <vector>
 
 namespace SPIRV
 {
@@ -17,101 +17,6 @@ class CompiledModule;
 class CPJit;
 
 struct StageFeedback;
-
-struct VertexInputState
-{
-	std::vector<VkVertexInputBindingDescription> VertexBindingDescriptions;
-	std::vector<VkVertexInputAttributeDescription> VertexAttributeDescriptions;
-};
-
-struct InputAssemblyState
-{
-	VkPrimitiveTopology Topology;
-	bool PrimitiveRestartEnable;
-};
-
-struct TessellationState
-{
-	uint32_t PatchControlPoints;
-};
-
-struct ViewportState
-{
-	std::vector<VkViewport> Viewports;
-	std::vector<VkRect2D> Scissors;
-};
-
-struct RasterizationState
-{
-	bool DepthClampEnable;
-	bool RasterizerDiscardEnable;
-	VkPolygonMode PolygonMode;
-	VkCullModeFlags CullMode;
-	VkFrontFace FrontFace;
-	bool DepthBiasEnable;
-	float DepthBiasConstantFactor;
-	float DepthBiasClamp;
-	float DepthBiasSlopeFactor;
-	float LineWidth;
-
-#if defined(VK_EXT_line_rasterization)
-	VkLineRasterizationModeEXT LineRasterizationMode;
-	bool StippledLineEnable;
-	uint32_t LineStippleFactor;
-	uint32_t LineStipplePattern;
-#endif
-};
-
-struct MultisampleState
-{
-	VkSampleCountFlagBits RasterizationSamples;
-	bool SampleShadingEnable;
-	float MinSampleShading;
-	bool AlphaToCoverageEnable;
-	bool AlphaToOneEnable;
-	uint64_t SampleMask;
-};
-
-struct DepthStencilState
-{
-	bool DepthTestEnable;
-	bool DepthWriteEnable;
-	VkCompareOp DepthCompareOp;
-	bool DepthBoundsTestEnable;
-	bool StencilTestEnable;
-	VkStencilOpState Front;
-	VkStencilOpState Back;
-	float MinDepthBounds;
-	float MaxDepthBounds;
-};
-
-struct ColourBlendState
-{
-	bool LogicOpEnable;
-	VkLogicOp LogicOp;
-	std::vector<VkPipelineColorBlendAttachmentState> Attachments;
-	float BlendConstants[4];
-};
-
-struct DynamicState
-{
-	bool DynamicViewport;
-	bool DynamicScissor;
-	bool DynamicLineWidth;
-	bool DynamicDepthBias;
-	bool DynamicBlendConstants;
-	bool DynamicDepthBounds;
-	bool DynamicStencilCompareMask;
-	bool DynamicStencilWriteMask;
-	bool DynamicStencilReference;
-	bool DynamicViewportWScaling;
-	bool DynamicDiscardRectangle;
-	bool DynamicSampleLocations;
-	bool DynamicViewportShadingRatePalette;
-	bool DynamicViewportCoarseSampleOrder;
-	bool DynamicExclusiveScissor;
-	bool DynamicLineStipple;
-};
 
 using EntryPoint = void (*)();
 
@@ -256,7 +161,7 @@ protected:
 	                             std::function<CompiledModule*(CPJit*, const SPIRV::SPIRVModule*, spv::ExecutionModel, const SPIRV::SPIRVFunction*, const VkSpecializationInfo*)> compileFunction);
 };
 
-class GraphicsPipeline final : public Pipeline
+class GraphicsPipeline final : public Pipeline, public GraphicsPipelineStateStorage
 {
 public:
 	~GraphicsPipeline() override = default;
@@ -299,15 +204,15 @@ public:
 	[[nodiscard]] const GeometryShaderModule* getGeometryShaderModule() const { return geometryShaderModule.get(); }
 	[[nodiscard]] const FragmentShaderModule* getFragmentShaderModule() const { return fragmentShaderModule.get(); }
 
-	[[nodiscard]] const VertexInputState& getVertexInputState() const { return vertexInputState; }
-	[[nodiscard]] const InputAssemblyState& getInputAssemblyState() const { return inputAssemblyState; }
-	[[nodiscard]] const TessellationState& getTessellationState() const { return tessellationState; }
-	[[nodiscard]] const ViewportState& getViewportState() const { return viewportState; }
-	[[nodiscard]] const RasterizationState& getRasterizationState() const { return rasterizationState; }
-	[[nodiscard]] const MultisampleState& getMultisampleState() const { return multisampleState; }
-	[[nodiscard]] const DepthStencilState& getDepthStencilState() const { return depthStencilState; }
-	[[nodiscard]] const ColourBlendState& getColourBlendState() const { return colourBlendState; }
-	[[nodiscard]] const DynamicState& getDynamicState() const { return dynamicState; }
+	[[nodiscard]] const VertexInputState& getVertexInputState() const override { return vertexInputState; }
+	[[nodiscard]] const InputAssemblyState& getInputAssemblyState() const override { return inputAssemblyState; }
+	[[nodiscard]] const TessellationState& getTessellationState() const override { return tessellationState; }
+	[[nodiscard]] const ViewportState& getViewportState() const override { return viewportState; }
+	[[nodiscard]] const RasterizationState& getRasterizationState() const override { return rasterizationState; }
+	[[nodiscard]] const MultisampleState& getMultisampleState() const override { return multisampleState; }
+	[[nodiscard]] const DepthStencilState& getDepthStencilState() const override { return depthStencilState; }
+	[[nodiscard]] const ColourBlendState& getColourBlendState() const override { return colourBlendState; }
+	[[nodiscard]] const DynamicState& getDynamicState() const override { return dynamicState; }
 
 private:
 	std::unique_ptr<VertexShaderModule> vertexShaderModule;
