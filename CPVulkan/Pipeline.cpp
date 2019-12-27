@@ -925,14 +925,21 @@ std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderMod
 {
 	CompiledModule* llvmModule;
 	SPIRV::SPIRVFunction* entryPointFunction;
-	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelFragment, hitCache, llvmModule, entryPointFunction);
+	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelFragment, hitCache, llvmModule, entryPointFunction, 
+	                        [this, device](CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
+	                        {
+		                        const auto llvmModule = CompileFragmentPipeline(jit,
+		                                                                        spirvModule, entryPoint, specializationInfo);
+		                        *static_cast<GraphicsNativeState**>(llvmModule->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
+		                        return llvmModule;
+	                        });
 
 	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
 	{
 		TODO_ERROR();
 	}
 
-	const auto entryPoint = llvmModule->getFunctionPointer(MangleName(entryPointFunction));
+	const auto entryPoint = llvmModule->getFunctionPointer("@main");
 	auto result = std::make_unique<FragmentShaderModule>(shaderModule->getModule(), llvmModule, entryPoint);
 	
 	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModePixelCenterInteger))
@@ -977,7 +984,7 @@ std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderMod
 	
 	result->stencilExport = shaderModule->getModule()->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export);
 	
-	return std::move(result);
+	return result;
 }
 
 VkResult ComputePipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkComputePipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
@@ -1200,7 +1207,7 @@ std::unique_ptr<ComputeShaderModule> ComputePipeline::CompileComputeShaderModule
 		result->localSize = *workgroupSizeValue;
 	}
 
-	return std::move(result);
+	return result;
 }
 
 VkResult Device::CreateComputePipelines(VkPipelineCache pipelineCache, uint32_t createInfoCount, const VkComputePipelineCreateInfo* pCreateInfos, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipelines)
