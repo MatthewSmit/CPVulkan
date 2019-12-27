@@ -1,6 +1,8 @@
 #pragma once
 #include "Base.h"
 
+#include "RenderPass.h"
+
 #include <PipelineState.h>
 
 #include <glm/glm.hpp>
@@ -204,6 +206,8 @@ public:
 	[[nodiscard]] const GeometryShaderModule* getGeometryShaderModule() const { return geometryShaderModule.get(); }
 	[[nodiscard]] const FragmentShaderModule* getFragmentShaderModule() const { return fragmentShaderModule.get(); }
 
+	[[nodiscard]] const PipelineLayout* getLayout() const override { return layout; }
+	
 	[[nodiscard]] const VertexInputState& getVertexInputState() const override { return vertexInputState; }
 	[[nodiscard]] const InputAssemblyState& getInputAssemblyState() const override { return inputAssemblyState; }
 	[[nodiscard]] const TessellationState& getTessellationState() const override { return tessellationState; }
@@ -213,6 +217,10 @@ public:
 	[[nodiscard]] const DepthStencilState& getDepthStencilState() const override { return depthStencilState; }
 	[[nodiscard]] const ColourBlendState& getColourBlendState() const override { return colourBlendState; }
 	[[nodiscard]] const DynamicState& getDynamicState() const override { return dynamicState; }
+
+	[[nodiscard]] const std::vector<AttachmentDescription>& getAttachments() const override { return renderPass->getAttachments(); }
+	[[nodiscard]] const std::vector<SubpassDescription>& getSubpasses() const override { return renderPass->getSubpasses(); }
+	[[nodiscard]] const std::vector<SubpassDependency>& getDependencies() const override { return renderPass->getDependencies(); }
 
 private:
 	std::unique_ptr<VertexShaderModule> vertexShaderModule;
@@ -230,6 +238,7 @@ private:
 	DepthStencilState depthStencilState{};
 	ColourBlendState colourBlendState{};
 	DynamicState dynamicState{};
+	RenderPass* renderPass{};
 
 	void LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage);
 

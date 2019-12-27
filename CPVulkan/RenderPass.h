@@ -1,51 +1,7 @@
 #pragma once
 #include "Base.h"
 
-#include <vector>
-
-struct AttachmentDescription
-{
-	VkAttachmentDescriptionFlags flags;
-	VkFormat format;
-	VkSampleCountFlagBits samples;
-	VkAttachmentLoadOp loadOp;
-	VkAttachmentStoreOp storeOp;
-	VkAttachmentLoadOp stencilLoadOp;
-	VkAttachmentStoreOp stencilStoreOp;
-	VkImageLayout initialLayout;
-	VkImageLayout finalLayout;
-};
-
-struct AttachmentReference
-{
-	uint32_t attachment;
-	VkImageLayout layout;
-	VkImageAspectFlags aspectMask;
-};
-
-struct SubpassDescription
-{
-	VkSubpassDescriptionFlags flags;
-	VkPipelineBindPoint pipelineBindPoint;
-	uint32_t viewMask;
-	std::vector<AttachmentReference> inputAttachments;
-	std::vector<AttachmentReference> colourAttachments;
-	std::vector<AttachmentReference> resolveAttachments;
-	AttachmentReference depthStencilAttachment;
-	std::vector<uint32_t> preserveAttachments;
-};
-
-struct SubpassDependency
-{
-	uint32_t srcSubpass;
-	uint32_t dstSubpass;
-	VkPipelineStageFlags srcStageMask;
-	VkPipelineStageFlags dstStageMask;
-	VkAccessFlags srcAccessMask;
-	VkAccessFlags dstAccessMask;
-	VkDependencyFlags dependencyFlags;
-	int32_t viewOffset;
-};
+#include <PipelineState.h>
 
 class RenderPass final
 {
