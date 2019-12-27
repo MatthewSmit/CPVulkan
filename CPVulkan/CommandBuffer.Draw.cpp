@@ -15,8 +15,8 @@
 #include "Util.h"
 
 #include <CompiledModule.h>
+#include <Compilers.h>
 #include <PipelineData.h>
-#include <SPIRVCompiler.h>
 #include <SPIRVFunction.h>
 #include <SPIRVInstruction.h>
 #include <SPIRVModule.h>
@@ -793,7 +793,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 	GetVariablePointers(spirvModule, llvmModule, inputData, uniformData, outputData, pushConstant, inputSize, vertexStorageStride);
 
 	EnsureVertexMemoryStorage(deviceState, assemblerOutput.vertices.size(), vertexStorageStride);
-	const auto outputStorage = deviceState->graphicsPipelineState.pipeline->getVertexShaderModule()->getVertexModuleXXX()->getPointer("@outputStorage");
+	const auto outputStorage = deviceState->graphicsPipelineState.pipeline->getVertexShaderModule()->getLLVMModule()->getPointer("@outputStorage");
 	*static_cast<void**>(outputStorage) = deviceState->graphicsPipelineState.vertexOutputStorage.data();
 
 	const VertexOutput output
@@ -810,7 +810,7 @@ static VertexOutput ProcessVertexShader(DeviceState* deviceState, uint32_t insta
 		memcpy(pushConstant.first, deviceState->pushConstants, pushConstant.second);
 	}
 
-	reinterpret_cast<void(*)(const VertexInput*, uint32_t, uint32_t)>(deviceState->graphicsPipelineState.pipeline->getVertexShaderModule()->getVertexEntryPointXXX())(assemblerOutput.vertices.data(), static_cast<uint32_t>(assemblerOutput.vertices.size()), instance);
+	reinterpret_cast<void(*)(const VertexInput*, uint32_t, uint32_t)>(deviceState->graphicsPipelineState.pipeline->getVertexShaderModule()->getEntryPoint())(assemblerOutput.vertices.data(), static_cast<uint32_t>(assemblerOutput.vertices.size()), instance);
 	
 	return output;
 }

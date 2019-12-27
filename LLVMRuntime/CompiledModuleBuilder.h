@@ -29,6 +29,8 @@ public:
 	LLVMModuleRef module{};
 	LLVMBuilderRef builder{};
 
+	virtual ~CompiledModuleBuilder() = default;
+
 	void Initialise(CPJit* jit, LLVMContextRef context, LLVMModuleRef module);
 
 	LLVMValueRef CompileMainFunction();

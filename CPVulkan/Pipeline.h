@@ -145,16 +145,9 @@ public:
 	{
 	}
 
-	~VertexShaderModule() override;
-
-	[[nodiscard]] CompiledModule* getVertexModuleXXX() const { return vertexModuleXXX; }
-	[[nodiscard]] EntryPoint getVertexEntryPointXXX() const { return vertexEntryPointXXX; }
+	~VertexShaderModule() override = default;
 
 	friend class GraphicsPipeline;
-
-private:
-	CompiledModule* vertexModuleXXX{};
-	EntryPoint vertexEntryPointXXX{};
 };
 
 class TessellationControlShaderModule final : public CompiledShaderModule
@@ -258,7 +251,9 @@ protected:
 	PipelineLayout* layout{};
 	PipelineCache* cache{};
 	
-	void CompileBaseShaderModule(ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, spv::ExecutionModel executionModel, bool& hitCache, CompiledModule*& llvmModule, SPIRV::SPIRVFunction*& entryPointFunction);
+	void CompileBaseShaderModule(ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, spv::ExecutionModel executionModel,
+	                             bool& hitCache, CompiledModule*& llvmModule, SPIRV::SPIRVFunction*& entryPointFunction,
+	                             std::function<CompiledModule*(CPJit*, const SPIRV::SPIRVModule*, spv::ExecutionModel, const SPIRV::SPIRVFunction*, const VkSpecializationInfo*)> compileFunction);
 };
 
 class GraphicsPipeline final : public Pipeline

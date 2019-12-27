@@ -564,12 +564,9 @@ CompiledShaderModule::~CompiledShaderModule()
 	delete llvmModule;
 }
 
-VertexShaderModule::~VertexShaderModule()
-{
-	delete vertexModuleXXX;
-}
-
-void Pipeline::CompileBaseShaderModule(ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, spv::ExecutionModel executionModel, bool& hitCache, CompiledModule*& llvmModule, SPIRV::SPIRVFunction*& entryPointFunction)
+void Pipeline::CompileBaseShaderModule(ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, spv::ExecutionModel executionModel, 
+                                       bool& hitCache, CompiledModule*& llvmModule, SPIRV::SPIRVFunction*& entryPointFunction, 
+                                       std::function<CompiledModule*(CPJit*, const SPIRV::SPIRVModule*, spv::ExecutionModel, const SPIRV::SPIRVFunction*, const VkSpecializationInfo*)> compileFunction = CompileSPIRVModule)
 {
 	entryPointFunction = FindEntryPoint(shaderModule->getModule(), executionModel, entryName);
 	assert(entryPointFunction);
@@ -588,7 +585,7 @@ void Pipeline::CompileBaseShaderModule(ShaderModule* shaderModule, const char* e
 
 	if (!llvmModule)
 	{
-		llvmModule = CompileSPIRVModule(jit, shaderModule->getModule(), executionModel, entryPointFunction, specializationInfo);
+		llvmModule = compileFunction(jit, shaderModule->getModule(), executionModel, entryPointFunction, specializationInfo);
 		if (cache)
 		{
 			cache->AddModule(hash, llvmModule);
@@ -898,40 +895,30 @@ std::unique_ptr<VertexShaderModule> GraphicsPipeline::CompileVertexShaderModule(
 {
 	CompiledModule* llvmModule;
 	SPIRV::SPIRVFunction* entryPointFunction;
-	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelVertex, hitCache, llvmModule, entryPointFunction);
+	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelVertex, 
+	                        hitCache, llvmModule, entryPointFunction, 
+	                        [this, device](CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
+	                        {
+		                        auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(layout->getDescriptorSetLayouts().size());
+		                        for (auto i = 0u; i < layoutBindings.size(); i++)
+		                        {
+			                        layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
+		                        }
+		
+		                        const auto llvmModule = CompileVertexPipeline(jit,
+		                                                                      layoutBindings, vertexInputState.VertexBindingDescriptions, vertexInputState.VertexAttributeDescriptions,
+		                                                                      spirvModule, entryPoint, specializationInfo);
+		                        *static_cast<GraphicsNativeState**>(llvmModule->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
+		                        return llvmModule;
+	                        });
 	
 	if (entryPointFunction->getExecutionMode(SPIRV::SPIRVExecutionModeKind::ExecutionModeXfb))
 	{
 		TODO_ERROR();
 	}
 
-	const auto entryPoint = llvmModule->getFunctionPointer(MangleName(entryPointFunction));
-	auto result = std::make_unique<VertexShaderModule>(shaderModule->getModule(), llvmModule, entryPoint);
-
-	// TODO: Use cache - needs to integrate shader into pipeline JIT code otherwise pointers will be invalid
-	auto layoutBindings = std::vector<const std::vector<VkDescriptorSetLayoutBinding>*>(layout->getDescriptorSetLayouts().size());
-	for (auto i = 0u; i < layoutBindings.size(); i++)
-	{
-		layoutBindings[i] = &layout->getDescriptorSetLayouts()[i]->getBindings();
-	}
-	
-	result->vertexModuleXXX = CompileVertexPipeline(jit, shaderModule->getModule(), llvmModule,
-	                                                layoutBindings,
-	                                                vertexInputState.VertexBindingDescriptions,
-	                                                vertexInputState.VertexAttributeDescriptions,
-	                                                [&](const std::string& symbolName)
-	                                                {
-		                                                if (symbolName == "!VertexShader")
-		                                                {
-			                                                return static_cast<void*>(entryPoint);
-		                                                }
-	
-		                                                return static_cast<void*>(nullptr);
-	                                                });
-	result->vertexEntryPointXXX = result->vertexModuleXXX->getFunctionPointer("@VertexProcessing");
-	*static_cast<GraphicsNativeState**>(result->vertexModuleXXX->getPointer("@pipelineState")) = &device->getState()->graphicsPipelineState.nativeState;
-	 
-	return std::move(result);
+	const auto entryPoint = llvmModule->getFunctionPointer("@main");
+	return std::make_unique<VertexShaderModule>(shaderModule->getModule(), llvmModule, entryPoint);
 }
 
 std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache)
