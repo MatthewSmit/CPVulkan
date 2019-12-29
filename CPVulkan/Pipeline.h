@@ -3,6 +3,8 @@
 
 #include "RenderPass.h"
 
+#include "sha3.h"
+
 #include <PipelineState.h>
 
 #include <glm/glm.hpp>
@@ -21,6 +23,16 @@ class CPJit;
 struct StageFeedback;
 
 using EntryPoint = void (*)();
+
+struct Hash
+{
+	// 256 bits
+	union
+	{
+		uint64_t values[4];
+		uint8_t bytes[32];
+	};
+};
 
 class CompiledShaderModule
 {
@@ -161,6 +173,9 @@ protected:
 	void CompileBaseShaderModule(ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, spv::ExecutionModel executionModel,
 	                             bool& hitCache, CompiledModule*& llvmModule, SPIRV::SPIRVFunction*& entryPointFunction,
 	                             std::function<CompiledModule*(CPJit*, const SPIRV::SPIRVModule*, spv::ExecutionModel, const SPIRV::SPIRVFunction*, const VkSpecializationInfo*)> compileFunction);
+
+	Hash CalculateHash(SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel stage, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo);
+	virtual void CalculatePipelineHash(sha3_context* context, spv::ExecutionModel stage) = 0;
 };
 
 class GraphicsPipeline final : public Pipeline, public GraphicsPipelineStateStorage
@@ -222,6 +237,9 @@ public:
 	[[nodiscard]] const SubpassDescription& getSubpass() const override { return renderPass->getSubpasses()[subpass]; }
 	[[nodiscard]] const std::vector<SubpassDependency>& getDependencies() const override { return renderPass->getDependencies(); }
 
+protected:
+	void CalculatePipelineHash(sha3_context* context, spv::ExecutionModel stage) override;
+
 private:
 	std::unique_ptr<VertexShaderModule> vertexShaderModule;
 	std::unique_ptr<TessellationControlShaderModule> tessellationControlShaderModule;
@@ -269,6 +287,9 @@ public:
 	{
 		return computeShaderModule.get();
 	}
+
+protected:
+	void CalculatePipelineHash(sha3_context* context, spv::ExecutionModel stage) override;
 
 private:
 	std::unique_ptr<ComputeShaderModule> computeShaderModule;

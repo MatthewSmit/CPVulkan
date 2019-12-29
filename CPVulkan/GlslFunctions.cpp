@@ -770,7 +770,23 @@ static int32_t ImageQuerySize1D(ImageDescriptor* image)
 	return range[0].x;
 }
 
-static void SetPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, const glm::fvec4* colour)
+static void SetPixelF32XXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, const glm::fvec4* colour)
+{
+	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	         x, y, 0,
+	         imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer,
+	         &colour->x);
+}
+
+static void SetPixelI32XXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, const glm::ivec4* colour)
+{
+	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	         x, y, 0,
+	         imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer,
+	         &colour->x);
+}
+
+static void SetPixelU32XXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, const glm::uvec4* colour)
 {
 	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
 	         x, y, 0,
@@ -1319,7 +1335,21 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@Image.Read.U32[4].Image[U32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec3>));
 
 	// Hacks until pipeline supports getting the correct methods
-	jit->AddFunction("@setPixel", reinterpret_cast<FunctionPointer>(SetPixelXXX));
+	jit->AddFunction("@setPixelF32", reinterpret_cast<FunctionPointer>(SetPixelF32XXX));
+	jit->AddFunction("@setPixelF32[2]", reinterpret_cast<FunctionPointer>(SetPixelF32XXX));
+	jit->AddFunction("@setPixelF32[3]", reinterpret_cast<FunctionPointer>(SetPixelF32XXX));
+	jit->AddFunction("@setPixelF32[4]", reinterpret_cast<FunctionPointer>(SetPixelF32XXX));
+
+	jit->AddFunction("@setPixelI32", reinterpret_cast<FunctionPointer>(SetPixelI32XXX));
+	jit->AddFunction("@setPixelI32[2]", reinterpret_cast<FunctionPointer>(SetPixelI32XXX));
+	jit->AddFunction("@setPixelI32[3]", reinterpret_cast<FunctionPointer>(SetPixelI32XXX));
+	jit->AddFunction("@setPixelI32[4]", reinterpret_cast<FunctionPointer>(SetPixelI32XXX));
+
+	jit->AddFunction("@setPixelU32", reinterpret_cast<FunctionPointer>(SetPixelU32XXX));
+	jit->AddFunction("@setPixelU32[2]", reinterpret_cast<FunctionPointer>(SetPixelU32XXX));
+	jit->AddFunction("@setPixelU32[3]", reinterpret_cast<FunctionPointer>(SetPixelU32XXX));
+	jit->AddFunction("@setPixelU32[4]", reinterpret_cast<FunctionPointer>(SetPixelU32XXX));
+	
 	jit->AddFunction("@setDepthPixel", reinterpret_cast<FunctionPointer>(SetDepthPixelXXX));
 	jit->AddFunction("@getDepthPixel", reinterpret_cast<FunctionPointer>(GetDepthPixelXXX));
 }

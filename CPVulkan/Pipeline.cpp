@@ -532,33 +532,6 @@ private:
 	std::vector<char> data{};
 };
 
-static Hash CalculateHash(SPIRV::SPIRVModule* spirvModule, ExecutionModel stage, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
-{
-	sha3_context c;
-	sha3_Init256(&c);
-
-	MemoryStream ms{};
-	std::ostream os{&ms};
-	os << *spirvModule;
-	sha3_Update(&c, ms.getData().data(), ms.getData().size());
-
-	sha3_Update(&c, &stage, sizeof(stage));
-
-	const auto id = entryPoint->getId();
-	sha3_Update(&c, &id, sizeof(id));
-
-	if (specializationInfo)
-	{
-		sha3_Update(&c, specializationInfo->pMapEntries, specializationInfo->mapEntryCount * sizeof(VkSpecializationMapEntry));
-		sha3_Update(&c, specializationInfo->pData, specializationInfo->dataSize);
-	}
-	
-	const auto hash = sha3_Finalize(&c);
-	Hash result{};
-	memcpy(result.bytes, hash, sizeof(result.bytes));
-	return result;
-}
-
 CompiledShaderModule::~CompiledShaderModule()
 {
 	delete llvmModule;
@@ -591,6 +564,35 @@ void Pipeline::CompileBaseShaderModule(ShaderModule* shaderModule, const char* e
 			cache->AddModule(hash, llvmModule);
 		}
 	}
+}
+
+Hash Pipeline::CalculateHash(SPIRV::SPIRVModule* spirvModule, ExecutionModel stage, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
+{
+	sha3_context c;
+	sha3_Init256(&c);
+
+	CalculatePipelineHash(&c, stage);
+
+	MemoryStream ms{};
+	std::ostream os{&ms};
+	os << *spirvModule;
+	sha3_Update(&c, ms.getData().data(), ms.getData().size());
+
+	sha3_Update(&c, &stage, sizeof(stage));
+
+	const auto id = entryPoint->getId();
+	sha3_Update(&c, &id, sizeof(id));
+
+	if (specializationInfo)
+	{
+		sha3_Update(&c, specializationInfo->pMapEntries, specializationInfo->mapEntryCount * sizeof(VkSpecializationMapEntry));
+		sha3_Update(&c, specializationInfo->pData, specializationInfo->dataSize);
+	}
+	
+	const auto hash = sha3_Finalize(&c);
+	Hash result{};
+	memcpy(result.bytes, hash, sizeof(result.bytes));
+	return result;
 }
 
 VkResult GraphicsPipeline::Create(Device* device, VkPipelineCache pipelineCache, const VkGraphicsPipelineCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkPipeline* pPipeline)
@@ -727,6 +729,36 @@ VkResult Device::CreateGraphicsPipelines(VkPipelineCache pipelineCache, uint32_t
 	}
 
 	return VK_SUCCESS;
+}
+
+void GraphicsPipeline::CalculatePipelineHash(sha3_context* context, spv::ExecutionModel stage)
+{
+	// TODO: Ideally only save state relevant to specific module
+	sha3_Update(context, vertexInputState.VertexAttributeDescriptions.data(), sizeof(vertexInputState.VertexAttributeDescriptions[0]) * vertexInputState.VertexAttributeDescriptions.size());
+	sha3_Update(context, vertexInputState.VertexBindingDescriptions.data(), sizeof(vertexInputState.VertexBindingDescriptions[0]) * vertexInputState.VertexBindingDescriptions.size());
+	sha3_Update(context, &inputAssemblyState, sizeof(inputAssemblyState));
+	sha3_Update(context, &tessellationState, sizeof(tessellationState));
+	sha3_Update(context, viewportState.Viewports.data(), sizeof(viewportState.Viewports[0]) * viewportState.Viewports.size());
+	sha3_Update(context, viewportState.Scissors.data(), sizeof(viewportState.Scissors[0]) * viewportState.Scissors.size());
+	sha3_Update(context, &rasterizationState, sizeof(rasterizationState));
+	sha3_Update(context, &multisampleState, sizeof(multisampleState));
+	sha3_Update(context, &depthStencilState, sizeof(depthStencilState));
+	sha3_Update(context, colourBlendState.Attachments.data(), sizeof(colourBlendState.Attachments[0]) * colourBlendState.Attachments.size());
+	sha3_Update(context, &colourBlendState.BlendConstants, sizeof(colourBlendState.BlendConstants));
+	sha3_Update(context, &colourBlendState.LogicOp, sizeof(colourBlendState.LogicOp));
+	sha3_Update(context, &colourBlendState.LogicOpEnable, sizeof(colourBlendState.LogicOpEnable));
+	sha3_Update(context, &dynamicState, sizeof(dynamicState));
+	sha3_Update(context, renderPass->getAttachments().data(), sizeof(renderPass->getAttachments()[0]) * renderPass->getAttachments().size());
+
+	const auto& currentSubpass = renderPass->getSubpasses()[subpass];
+	sha3_Update(context, &currentSubpass.flags, sizeof(currentSubpass.flags));
+	sha3_Update(context, &currentSubpass.pipelineBindPoint, sizeof(currentSubpass.pipelineBindPoint));
+	sha3_Update(context, &currentSubpass.viewMask, sizeof(currentSubpass.viewMask));
+	sha3_Update(context, currentSubpass.inputAttachments.data(), sizeof(currentSubpass.inputAttachments[0]) * currentSubpass.inputAttachments.size());
+	sha3_Update(context, currentSubpass.colourAttachments.data(), sizeof(currentSubpass.colourAttachments[0]) * currentSubpass.colourAttachments.size());
+	sha3_Update(context, currentSubpass.resolveAttachments.data(), sizeof(currentSubpass.resolveAttachments[0]) * currentSubpass.resolveAttachments.size());
+	sha3_Update(context, &currentSubpass.depthStencilAttachment, sizeof(currentSubpass.depthStencilAttachment));
+	sha3_Update(context, currentSubpass.preserveAttachments.data(), sizeof(currentSubpass.preserveAttachments[0]) * currentSubpass.preserveAttachments.size());
 }
 
 void GraphicsPipeline::LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage)
@@ -895,7 +927,7 @@ void GraphicsPipeline::LoadShaderStage(Device* device, bool fetchFeedback, Stage
 
 std::unique_ptr<VertexShaderModule> GraphicsPipeline::CompileVertexShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache)
 {
-	CompiledModule* llvmModule;
+	CompiledModule* llvmModule{};
 	SPIRV::SPIRVFunction* entryPointFunction;
 	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelVertex, 
 	                        hitCache, llvmModule, entryPointFunction, 
@@ -917,7 +949,7 @@ std::unique_ptr<VertexShaderModule> GraphicsPipeline::CompileVertexShaderModule(
 
 std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache)
 {
-	CompiledModule* llvmModule;
+	CompiledModule* llvmModule{};
 	SPIRV::SPIRVFunction* entryPointFunction;
 	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelFragment, hitCache, llvmModule, entryPointFunction, 
 	                        [this, device](CPJit* jit, const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel, const SPIRV::SPIRVFunction* entryPoint, const VkSpecializationInfo* specializationInfo)
@@ -989,6 +1021,8 @@ VkResult ComputePipeline::Create(Device* device, VkPipelineCache pipelineCache, 
 	{
 		return VK_ERROR_OUT_OF_HOST_MEMORY;
 	}
+
+	pipeline->jit = device->getState()->jit;
 
 	auto feedback = false;
 	auto next = static_cast<const VkBaseInStructure*>(pCreateInfo->pNext);
@@ -1067,6 +1101,11 @@ VkResult ComputePipeline::Create(Device* device, VkPipelineCache pipelineCache, 
 	return VK_SUCCESS;
 }
 
+void ComputePipeline::CalculatePipelineHash(sha3_context*, spv::ExecutionModel)
+{
+	// No state to hash
+}
+
 void ComputePipeline::LoadShaderStage(Device* device, bool fetchFeedback, StageFeedback& stageFeedback, const VkPipelineShaderStageCreateInfo& stage)
 {
 	const auto stageStartTime = fetchFeedback ? Platform::GetTimestamp() : 0;
@@ -1108,7 +1147,7 @@ void ComputePipeline::LoadShaderStage(Device* device, bool fetchFeedback, StageF
 
 std::unique_ptr<ComputeShaderModule> ComputePipeline::CompileComputeShaderModule(Device* device, ShaderModule* shaderModule, const char* entryName, const VkSpecializationInfo* specializationInfo, bool& hitCache)
 {
-	CompiledModule* llvmModule;
+	CompiledModule* llvmModule{};
 	SPIRV::SPIRVFunction* entryPointFunction;
 	CompileBaseShaderModule(shaderModule, entryName, specializationInfo, ExecutionModelGLCompute, hitCache, llvmModule, entryPointFunction);
 	

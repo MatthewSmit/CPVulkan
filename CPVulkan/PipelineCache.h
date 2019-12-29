@@ -2,16 +2,6 @@
 #include "Base.h"
 #include "Pipeline.h"
 
-struct Hash
-{
-	// 256 bits
-	union
-	{
-		uint64_t values[4];
-		uint8_t bytes[32];
-	};
-};
-
 inline bool operator==(const Hash& lhs, const Hash& rhs)
 {
 	return lhs.values[0] == rhs.values[0] &&
