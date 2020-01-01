@@ -552,6 +552,7 @@ void Pipeline::CompileBaseShaderModule(ShaderModule* shaderModule, const char* e
 		llvmModule = cache->FindModule(hash, jit, nullptr);
 		if (llvmModule)
 		{
+			std::cout << "Hit cache" << std::endl;
 			hitCache = true;
 		}
 	}
@@ -1006,8 +1007,6 @@ std::unique_ptr<FragmentShaderModule> GraphicsPipeline::CompileFragmentShaderMod
 	{
 		TODO_ERROR();
 	}
-	
-	result->stencilExport = shaderModule->getModule()->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export);
 	
 	return result;
 }

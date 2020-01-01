@@ -1311,7 +1311,7 @@ static void DrawPixel(DeviceState* deviceState, FragmentBuiltinInput* builtinInp
 		                      : deviceState->graphicsPipelineState.pipeline->getViewportState().Viewports[0];
 	depth = (viewport.maxDepth - viewport.minDepth) * depth + viewport.minDepth;
 
-	reinterpret_cast<void(*)(float, uint32_t, uint32_t)>(shaderModule->getEntryPoint())(depth, x, y);
+	reinterpret_cast<void(*)(float, uint32_t, uint32_t, bool)>(shaderModule->getEntryPoint())(depth, x, y, front);
 }
 
 static void ProcessPoints(DeviceState* deviceState, const AssemblerOutput& assemblerOutput, FragmentBuiltinInput* builtinInput, FragmentBuiltinOutput* builtinOutput, const FragmentShaderModule* shaderModule,

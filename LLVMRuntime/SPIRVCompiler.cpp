@@ -1000,7 +1000,9 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 
 	case OpConstantTrue:
 	case OpConstantFalse:
-		return LLVMConstInt(LLVMInt1TypeInContext(context), spirvValue->getOpCode() == OpConstantTrue, false);
+		return LLVMConstInt(LLVMInt1TypeInContext(context), 
+		                    spirvValue->getOpCode() == OpConstantTrue || spirvValue->getOpCode() == OpSpecConstantTrue,
+		                    false);
 
 	case OpConstantNull:
 		return LLVMConstNull(ConvertType(spirvValue->getType()));

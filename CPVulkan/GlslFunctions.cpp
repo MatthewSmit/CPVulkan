@@ -794,13 +794,30 @@ static void SetPixelU32XXX(DeviceState* deviceState, ImageView* imageView, uint3
 	         &colour->x);
 }
 
+static float GetDepthPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y)
+{
+	return GetDepthPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	                     x, y, 0,
+	                     imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer);
+}
+
+static uint8_t GetStencilPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y)
+{
+	return GetStencilPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	                       x, y, 0,
+	                       imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer);
+}
+
 static void SetDepthPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, float depth)
 {
-	// TODO: Save stencil
+	const auto stencil = GetFormatInformation(imageView->getFormat()).DepthStencil.StencilOffset == INVALID_OFFSET
+		                     ? 0u
+		                     : GetStencilPixelXXX(deviceState, imageView, x, y);
+	
 	const VkClearDepthStencilValue input
 	{
 		depth,
-		0,
+		stencil,
 	};
 
 	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
@@ -809,11 +826,36 @@ static void SetDepthPixelXXX(DeviceState* deviceState, ImageView* imageView, uin
 	         input);
 }
 
-static float GetDepthPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y)
+static void SetStencilPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, uint8_t stencil)
 {
-	return GetDepthPixel(deviceState, imageView->getFormat(), imageView->getImage(),
-	                     x, y, 0,
-	                     imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer);
+	const auto depth = GetFormatInformation(imageView->getFormat()).DepthStencil.DepthOffset == INVALID_OFFSET
+		                   ? 0.0f
+		                   : GetDepthPixelXXX(deviceState, imageView, x, y);
+	
+	const VkClearDepthStencilValue input
+	{
+		depth,
+		stencil,
+	};
+
+	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	         x, y, 0,
+	         imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer,
+	         input);
+}
+
+static void SetDepthStencilPixelXXX(DeviceState* deviceState, ImageView* imageView, uint32_t x, uint32_t y, float depth, uint8_t stencil)
+{
+	const VkClearDepthStencilValue input
+	{
+		depth,
+		stencil,
+	};
+
+	SetPixel(deviceState, imageView->getFormat(), imageView->getImage(),
+	         x, y, 0,
+	         imageView->getSubresourceRange().baseMipLevel, imageView->getSubresourceRange().baseArrayLayer,
+	         input);
 }
 
 void AddGlslFunctions(DeviceState* deviceState)
@@ -1350,6 +1392,9 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@setPixelU32[3]", reinterpret_cast<FunctionPointer>(SetPixelU32XXX));
 	jit->AddFunction("@setPixelU32[4]", reinterpret_cast<FunctionPointer>(SetPixelU32XXX));
 	
-	jit->AddFunction("@setDepthPixel", reinterpret_cast<FunctionPointer>(SetDepthPixelXXX));
 	jit->AddFunction("@getDepthPixel", reinterpret_cast<FunctionPointer>(GetDepthPixelXXX));
+	jit->AddFunction("@getStencilPixel", reinterpret_cast<FunctionPointer>(GetStencilPixelXXX));
+	jit->AddFunction("@setDepthPixel", reinterpret_cast<FunctionPointer>(SetDepthPixelXXX));
+	jit->AddFunction("@setStencilPixel", reinterpret_cast<FunctionPointer>(SetStencilPixelXXX));
+	jit->AddFunction("@setDepthStencilPixel", reinterpret_cast<FunctionPointer>(SetDepthStencilPixelXXX));
 }

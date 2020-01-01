@@ -298,10 +298,10 @@ public:
 	void CreateFor(LLVMValueRef currentFunction, LLVMValueRef initialiser, LLVMValueRef comparison, LLVMValueRef increment, 
 	               std::function<void(LLVMValueRef i, LLVMBasicBlockRef continueBlock, LLVMBasicBlockRef breakBlock)> forFunction)
 	{
-		const auto comparisonBlock = LLVMAppendBasicBlock(currentFunction, "for-comparison");
-		const auto bodyBlock = LLVMAppendBasicBlock(currentFunction, "for-body");
-		const auto incrementBlock = LLVMAppendBasicBlock(currentFunction, "for-increment");
-		const auto endBlock = LLVMAppendBasicBlock(currentFunction, "for-end");
+		const auto comparisonBlock = LLVMAppendBasicBlockInContext(context, currentFunction, "for-comparison");
+		const auto bodyBlock = LLVMAppendBasicBlockInContext(context, currentFunction, "for-body");
+		const auto incrementBlock = LLVMCreateBasicBlockInContext(context, "for-increment");
+		const auto endBlock = LLVMCreateBasicBlockInContext(context, "for-end");
 
 		// auto i = initialiser
 		const auto index = CreateAlloca(LLVMTypeOf(initialiser), "for-index");
@@ -319,20 +319,25 @@ public:
 		CreateBr(incrementBlock);
 
 		// index += increment
+		LLVMAppendExistingBasicBlock(currentFunction, incrementBlock);
 		LLVMPositionBuilderAtEnd(builder, incrementBlock);
 		CreateStore(CreateAdd(CreateLoad(index), increment), index);
 		CreateBr(comparisonBlock);
 
+		LLVMAppendExistingBasicBlock(currentFunction, endBlock);
 		LLVMPositionBuilderAtEnd(builder, endBlock);
 	}
 
-	void CreateIf(LLVMValueRef currentFunction, LLVMValueRef comparision, std::function<void(LLVMBasicBlockRef endBlock)> trueFunction, std::function<void(LLVMBasicBlockRef endBlock)> falseFunction)
+	void CreateIf(LLVMValueRef currentFunction, LLVMValueRef comparision,
+	              const std::string& labelPrefix,
+	              std::function<void(LLVMBasicBlockRef endBlock)> trueFunction,
+	              std::function<void(LLVMBasicBlockRef endBlock)> falseFunction)
 	{
 		assert(trueFunction || falseFunction);
 		
-		const auto trueBlock = trueFunction ? LLVMAppendBasicBlock(currentFunction, "if-true") : nullptr;
-		const auto falseBlock = falseFunction ? LLVMCreateBasicBlockInContext(context, "if-false") : nullptr;
-		const auto endBlock = LLVMCreateBasicBlockInContext(context, "if-end");
+		const auto trueBlock = trueFunction ? LLVMAppendBasicBlockInContext(context, currentFunction, (labelPrefix + "-true").data()) : nullptr;
+		const auto falseBlock = falseFunction ? LLVMCreateBasicBlockInContext(context, (labelPrefix + "-false").data()) : nullptr;
+		const auto endBlock = LLVMCreateBasicBlockInContext(context, (labelPrefix + "-end").data());
 
 		// Perform conditional branch
 		if (!trueBlock)
@@ -370,14 +375,15 @@ public:
 	}
 
 	LLVMValueRef CreatePhiIf(LLVMValueRef currentFunction, LLVMValueRef comparision, 
+	                         const std::string& labelPrefix,
 	                         const std::function<LLVMValueRef()>& trueFunction,
 	                         const std::function<LLVMValueRef()>& falseFunction)
 	{
 		assert(trueFunction && falseFunction);
 		
-		auto trueBlock = LLVMAppendBasicBlock(currentFunction, "if-true");
-		auto falseBlock = LLVMAppendBasicBlock(currentFunction, "if-false");
-		const auto endBlock = LLVMAppendBasicBlock(currentFunction, "if-end");
+		auto trueBlock = LLVMAppendBasicBlock(currentFunction, (labelPrefix + "-true").data());
+		auto falseBlock = LLVMAppendBasicBlock(currentFunction, (labelPrefix + "-false").data());
+		const auto endBlock = LLVMAppendBasicBlock(currentFunction, (labelPrefix + "-end").data());
 
 		// Perform conditional branch
 		CreateCondBr(comparision, trueBlock, falseBlock);
@@ -975,6 +981,13 @@ private:
 	}
 };
 
+static bool IsLargeType(SPIRV::SPIRVType* type)
+{
+	return type->isTypeVector() &&
+		type->getVectorComponentCount() > 2 &&
+		(type->getVectorComponentType()->isTypeInt(64) || type->getVectorComponentType()->isTypeFloat(64));
+}
+
 class PipelineFragmentCompiledModuleBuilder final : public BasePipelineCompiledModuleBuilder
 {
 public:
@@ -993,21 +1006,30 @@ protected:
 	LLVMValueRef depth{};
 	LLVMValueRef x{};
 	LLVMValueRef y{};
+	LLVMValueRef isFront{};
+	
 	LLVMValueRef depthResult{};
+	LLVMValueRef stencilReference{};
 	LLVMValueRef stencilResult{};
 
 	LLVMValueRef currentDepth{};
-	
+	LLVMValueRef currentStencil{};
+
+	std::unordered_map<uint32_t, std::tuple<SPIRV::SPIRVVariable*, uint32_t>> outputLocations{};
+
 	LLVMValueRef CompileMainFunctionImpl() override
 	{
 		CompileShader(ExecutionModelFragment);
 		CreatePipelineState();
 
-		std::array<LLVMTypeRef, 3> parameters
+		FindShaderLocations();
+
+		std::array<LLVMTypeRef, 4> parameters
 		{
 			LLVMFloatTypeInContext(context),
 			LLVMInt32TypeInContext(context),
 			LLVMInt32TypeInContext(context),
+			LLVMInt1TypeInContext(context),
 		};
 		const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
 		mainFunction = LLVMAddFunction(module, "@main", functionType);
@@ -1016,8 +1038,9 @@ protected:
 		depth = LLVMGetParam(mainFunction, 0);
 		x = LLVMGetParam(mainFunction, 1);
 		y = LLVMGetParam(mainFunction, 2);
+		isFront = LLVMGetParam(mainFunction, 3);
 
-		const auto basicBlock = LLVMAppendBasicBlockInContext(context, mainFunction, "");
+		const auto basicBlock = LLVMAppendBasicBlockInContext(context, mainFunction, "run-fragment-shader");
 		LLVMPositionBuilderAtEnd(builder, basicBlock);
 
 		// TODO: 27.2. Discard Rectangles Test
@@ -1035,16 +1058,20 @@ protected:
 		// Call the shader
 		const auto shaderResult = CreateCall(shaderEntryPoint, {});
 
-		CreateIf(mainFunction, shaderResult, nullptr, [&](LLVMBasicBlockRef endFragmentBlock)
+		CreateIf(mainFunction, shaderResult, "check-discard", nullptr, [&](LLVMBasicBlockRef endFragmentBlock)
 		{
+			CompileGetCurrentData();
+			
 			// TODO: 27.8. Mixed attachment samples
 			// TODO: 27.9. Multisample Coverage
 			// TODO: 27.10. Depth and Stencil Operations
 
 			CompileDepthBoundsTest(endFragmentBlock);
-			CompileStencilTest();
-			CompileDepthTest();
-			CompileDepthStencilWrite();
+			CompileStencilTest([this](bool front)
+			{
+				CompileDepthTest();
+				CompileDepthStencilWrite(front);
+			});
 			// TODO: 27.14. Representative Fragment Test
 			// TODO: 27.15. Sample Counting
 			// TODO: 27.16. Fragment Coverage To Color
@@ -1057,6 +1084,47 @@ protected:
 		return mainFunction;
 	}
 
+	void CompileGetCurrentData()
+	{
+		if ((state->getDepthStencilState().DepthBoundsTestEnable || state->getDepthStencilState().DepthTestEnable)
+			&& state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED
+			&& GetFormatInformation(state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment].format).DepthStencil.DepthOffset != INVALID_OFFSET)
+		{
+			const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
+			const auto hasDepth = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
+			currentDepth = CreatePhiIf(mainFunction, hasDepth, "has-depth", [&]()
+			                           {
+				                           return CompileGetCurrentDepth(depthStencilAttachment);
+			                           }, [&]()
+			                           {
+				                           return ConstF32(0);
+			                           });
+		}
+		else
+		{
+			currentDepth = ConstF32(0);
+		}
+
+		if (state->getDepthStencilState().StencilTestEnable
+			&& state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED
+			&& GetFormatInformation(state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment].format).DepthStencil.StencilOffset != INVALID_OFFSET)
+		{
+			const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
+			const auto hasStencil = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
+			currentStencil = CreatePhiIf(mainFunction, hasStencil, "has-stencil", [&]()
+			                             {
+				                             return CompileGetCurrentStencil(depthStencilAttachment);
+			                             }, [&]()
+			                             {
+				                             return ConstU8(0);
+			                             });
+		}
+		else
+		{
+			currentStencil = ConstU8(0);
+		}
+	}
+
 	void CompileDepthBoundsTest(LLVMBasicBlockRef endFragmentBlock)
 	{
 		// 27.11. Depth Bounds Test
@@ -1066,104 +1134,108 @@ protected:
 
 			CreateBr(startBlock);
 			LLVMPositionBuilderAtEnd(builder, startBlock);
-			
-			const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
-			const auto hasDepth = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
-			CreateIf(mainFunction, hasDepth, [&](LLVMBasicBlockRef endBlock)
+
+			LLVMValueRef minDepthBounds;
+			LLVMValueRef maxDepthBounds;
+
+			if (state->getDynamicState().DynamicDepthBounds)
 			{
-				const auto currentDepth = GetCurrentDepth(depthStencilAttachment);
+				//if (currentDepth < deviceState->graphicsPipelineState.dynamicState.minDepthBounds ||
+				//	currentDepth > deviceState->graphicsPipelineState.dynamicState.maxDepthBounds)
+				//{
+				//	return;
+				//}
+				TODO_ERROR();
+			}
+			else
+			{
+				minDepthBounds = ConstF32(state->getDepthStencilState().MinDepthBounds);
+				maxDepthBounds = ConstF32(state->getDepthStencilState().MaxDepthBounds);
+			}
 
-				LLVMValueRef minDepthBounds;
-				LLVMValueRef maxDepthBounds;
-				
-				if (state->getDynamicState().DynamicDepthBounds)
-				{
-					//if (currentDepth < deviceState->graphicsPipelineState.dynamicState.minDepthBounds ||
-					//	currentDepth > deviceState->graphicsPipelineState.dynamicState.maxDepthBounds)
-					//{
-					//	return;
-					//}
-					TODO_ERROR();
-				}
-				else
-				{
-					minDepthBounds = ConstF32(state->getDepthStencilState().MinDepthBounds);
-					maxDepthBounds = ConstF32(state->getDepthStencilState().MaxDepthBounds);
-				}
+			const auto endBlock = LLVMCreateBasicBlockInContext(context, "end-depth-bounds-test");
 
-				const auto isDepthLess = CreateFCmpULT(currentDepth, minDepthBounds, "depth-test-less");
-				const auto isDepthGreater = CreateFCmpUGT(currentDepth, maxDepthBounds, "depth-test-greater");
-				const auto isDepthOutOfBounds = CreateOr(isDepthLess, isDepthGreater, "depth-test-out-of-bounds");
-				CreateCondBr(isDepthOutOfBounds, endFragmentBlock, endBlock);
-			}, nullptr);
+			const auto isDepthLess = CreateFCmpULT(currentDepth, minDepthBounds, "depth-test-less");
+			const auto isDepthGreater = CreateFCmpUGT(currentDepth, maxDepthBounds, "depth-test-greater");
+			const auto isDepthOutOfBounds = CreateOr(isDepthLess, isDepthGreater, "depth-test-out-of-bounds");
+			CreateCondBr(isDepthOutOfBounds, endFragmentBlock, endBlock);
+
+			LLVMAppendExistingBasicBlock(mainFunction, endBlock);
+			LLVMPositionBuilderAtEnd(builder, endBlock);
 		}
 	}
 
-	void CompileStencilTest()
+	void CompileStencilTest(std::function<void(bool)> depthFunctions)
 	{
 		// 27.12. Stencil Test
-		if (state->getDepthStencilState().StencilTestEnable)
+		if (state->getDepthStencilState().StencilTestEnable
+			&& state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED
+			&& GetFormatInformation(state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment].format).DepthStencil.StencilOffset != INVALID_OFFSET)
 		{
-			// auto stencilResult = true;
-			// auto& stencilOpState = front
-			// 	                       ? deviceState->graphicsPipelineState.pipeline->getDepthStencilState().Front
-			// 	                       : deviceState->graphicsPipelineState.pipeline->getDepthStencilState().Back;
-			//
-			// uint8_t stencilReference = stencilOpState.reference;
-			// uint8_t currentStencil = 0;
-			// if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilReference)
-			// {
-			// 	TODO_ERROR();
-			// }
-			//
-			// if (shaderModule->getStencilExport())
-			// {
-			// 	stencilReference = builtinOutput->stencilReference;
-			// }
-			//
-			// if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().StencilTestEnable)
-			// {
-			// 	auto compareMask = stencilOpState.compareMask;
-			// 	if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilCompareMask)
-			// 	{
-			// 		TODO_ERROR();
-			// 	}
-			//
-			// 	currentStencil = GetStencilPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(), 
-			// 	                                 x, y, 0, 
-			// 	                                 stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer); 
-			// 	stencilResult = CompareTest(stencilReference & compareMask, currentStencil & compareMask, stencilOpState.compareOp);
-			// }
-			TODO_ERROR();
+			CreateIf(mainFunction, isFront, "is-front", [&](LLVMBasicBlockRef)
+			         {
+				         const auto& stencilState = state->getDepthStencilState().Front;
+				         stencilResult = CompileStencilOperation(stencilState);
+				         depthFunctions(true);
+			         }, [&](LLVMBasicBlockRef)
+			         {
+				         const auto& stencilState = state->getDepthStencilState().Back;
+				         stencilResult = CompileStencilOperation(stencilState);
+				         depthFunctions(true);
+			         });
 		}
 		else
 		{
 			stencilResult = ConstBool(true);
+			depthFunctions(true);
 		}
+	}
+
+	LLVMValueRef CompileStencilOperation(const VkStencilOpState& stencilState)
+	{
+		if (shader->hasExtension(SPIRV::ExtensionID::SPV_EXT_shader_stencil_export))
+		{
+			// 	stencilReference = builtinOutput->stencilReference;
+			TODO_ERROR();
+		}
+		else if (state->getDynamicState().DynamicStencilReference)
+		{
+			TODO_ERROR();
+		}
+		else
+		{
+			stencilReference = ConstU8(stencilState.reference);
+		}
+
+		LLVMValueRef compareMask;
+		if (state->getDynamicState().DynamicStencilCompareMask)
+		{
+			TODO_ERROR();
+		}
+		else
+		{
+			compareMask = ConstU8(stencilState.compareMask);
+		}
+
+		return CompileICompareTest(CreateAnd(stencilReference, compareMask),
+		                           CreateAnd(currentStencil, compareMask),
+		                           stencilState.compareOp);
 	}
 
 	void CompileDepthTest()
 	{
 		// 27.13. Depth Test
-		if (state->getDepthStencilState().DepthTestEnable && state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED)
+		if (state->getDepthStencilState().DepthTestEnable
+			&& state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED
+			&& state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment].format != VK_FORMAT_S8_UINT)
 		{
-			const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
-			const auto hasDepth = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
-			depthResult = CreatePhiIf(mainFunction, hasDepth,
-			                          [&]()
-			                          {
-				                          if (state->getRasterizationState().DepthClampEnable)
-				                          {
-					                          // depth = std::clamp(depth, viewport.minDepth, viewport.maxDepth);
-					                          TODO_ERROR();
-				                          }
+			if (state->getRasterizationState().DepthClampEnable)
+			{
+				// depth = std::clamp(depth, viewport.minDepth, viewport.maxDepth);
+				TODO_ERROR();
+			}
 
-				                          return CompileFCompareTest(depth, GetCurrentDepth(depthStencilAttachment), state->getDepthStencilState().DepthCompareOp);
-			                          },
-			                          [&]()
-			                          {
-				                          return ConstBool(true);
-			                          });
+			depthResult = CompileFCompareTest(depth, currentDepth, state->getDepthStencilState().DepthCompareOp);
 		}
 		else
 		{
@@ -1171,172 +1243,193 @@ protected:
 		}
 	}
 
-	void CompileDepthStencilWrite()
+	void CompileDepthStencilWrite(bool front)
 	{
-		if (state->getDepthStencilState().StencilTestEnable)
+		if (state->getDepthStencilState().StencilTestEnable
+			&& state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED
+			&& GetFormatInformation(state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment].format).DepthStencil.StencilOffset != INVALID_OFFSET)
 		{
-			// if (deviceState->graphicsPipelineState.pipeline->getDepthStencilState().StencilTestEnable && stencilImage.second)
-			// {
-			// 	const auto stencilOperation = !stencilResult ? stencilOpState.failOp : (!depthResult ? stencilOpState.depthFailOp : stencilOpState.passOp);
-			// 	uint8_t writeValue;
-			// 	switch (stencilOperation)
-			// 	{
-			// 	case VK_STENCIL_OP_KEEP:
-			// 		writeValue = currentStencil;
-			// 		break;
-			//
-			// 	case VK_STENCIL_OP_ZERO:
-			// 		writeValue = 0;
-			// 		break;
-			//
-			// 	case VK_STENCIL_OP_REPLACE:
-			// 		writeValue = stencilReference;
-			// 		break;
-			//
-			// 	case VK_STENCIL_OP_INCREMENT_AND_CLAMP:
-			// 		writeValue = currentStencil < 0xFF ? currentStencil + 1 : 0xFF;
-			// 		break;
-			//
-			// 	case VK_STENCIL_OP_DECREMENT_AND_CLAMP:
-			// 		writeValue = currentStencil > 0 ? currentStencil - 1 : 0;
-			// 		break;
-			//
-			// 	case VK_STENCIL_OP_INVERT:
-			// 		writeValue = ~currentStencil;
-			// 		break;
-			//
-			// 	case VK_STENCIL_OP_INCREMENT_AND_WRAP:
-			// 		writeValue = currentStencil + 1;
-			// 		break;
-			//
-			// 	case VK_STENCIL_OP_DECREMENT_AND_WRAP:
-			// 		writeValue = currentStencil - 1;
-			// 		break;
-			//
-			// 	default:
-			// 		FATAL_ERROR();
-			// 	}
-			//
-			// 	auto writeMask = stencilOpState.writeMask;
-			// 	if (deviceState->graphicsPipelineState.pipeline->getDynamicState().DynamicStencilWriteMask)
-			// 	{
-			// 		TODO_ERROR();
-			// 	}
-			//
-			// 	writeValue = (writeValue & writeMask) | (currentStencil & ~writeMask);
-			//
-			// 	if (depthWrite)
-			// 	{
-			// 		const VkClearDepthStencilValue input
-			// 		{
-			// 			depth,
-			// 			writeValue,
-			// 		};
-			//
-			// 		// TODO: No clamp if float format?
-			// 		SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
-			// 		         x, y, 0,
-			// 		         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
-			// 		         input);
-			// 	}
-			// 	else
-			// 	{
-			// 		const VkClearDepthStencilValue input
-			// 		{
-			// 			currentDepth,
-			// 			writeValue,
-			// 		};
-			//
-			// 		// TODO: No clamp if float format?
-			// 		SetPixel(deviceState, stencilImage.first.format, stencilImage.second->getImage(),
-			// 		         x, y, 0,
-			// 		         stencilImage.second->getSubresourceRange().baseMipLevel, stencilImage.second->getSubresourceRange().baseArrayLayer,
-			// 		         input);
-			// 	}
-			// }
-			// else if (depthWrite)
-			// {
-			// 	const VkClearDepthStencilValue input
-			// 	{
-			// 		depth,
-			// 		stencilImage.second == nullptr
-			// 			? 0u
-			// 			: GetStencilPixel(deviceState, depthImage.first.format, depthImage.second->getImage(), 
-			// 			                  x, y, 0, 
-			// 			                  depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer),
-			// 	};
-			//
-			// 	// TODO: No clamp if float format?
-			// 	SetPixel(deviceState, depthImage.first.format, depthImage.second->getImage(),
-			// 	         x, y, 0,
-			// 	         depthImage.second->getSubresourceRange().baseMipLevel, depthImage.second->getSubresourceRange().baseArrayLayer,
-			// 	         input);
-			// }
-			//
-			TODO_ERROR();
+			const auto& stencilState = front ? state->getDepthStencilState().Front : state->getDepthStencilState().Back;
+			CompileStencilWrite(stencilState);
 		}
-		
-		if (state->getDepthStencilState().DepthTestEnable && state->getDepthStencilState().DepthWriteEnable && state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED)
+		else if (state->getDepthStencilState().DepthTestEnable
+			&& state->getDepthStencilState().DepthWriteEnable
+			&& state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED
+			&& state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment].format != VK_FORMAT_S8_UINT)
 		{
 			const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
 			const auto hasDepth = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
 			const auto depthWrite = CreateAnd(depthResult, hasDepth);
-			CreateIf(mainFunction, depthWrite, 
-			         [&](LLVMBasicBlockRef)
-			         {
-				         // TODO: No clamp if float format?
-				         auto setDepthPixel = LLVMGetNamedFunction(module, "@setDepthPixel");
-				         if (!setDepthPixel)
-				         {
-					         std::array<LLVMTypeRef, 5> parameters
-					         {
-						         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-						         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
-						         LLVMInt32TypeInContext(context),
-						         LLVMInt32TypeInContext(context),
-						         LLVMFloatTypeInContext(context),
-					         };
-					         const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
-					         setDepthPixel = LLVMAddFunction(module, "@setDepthPixel", functionType);
-				         }
+			CreateIf(mainFunction, depthWrite, "write-depth", [&](LLVMBasicBlockRef)
+			{
+				// TODO: No clamp if float format?
+				auto setDepthPixel = LLVMGetNamedFunction(module, "@setDepthPixel");
+				if (!setDepthPixel)
+				{
+					std::array<LLVMTypeRef, 5> parameters
+					{
+						LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+						LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+						LLVMInt32TypeInContext(context),
+						LLVMInt32TypeInContext(context),
+						LLVMFloatTypeInContext(context),
+					};
+					const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+					setDepthPixel = LLVMAddFunction(module, "@setDepthPixel", functionType);
+				}
 
-				         std::array<LLVMValueRef, 5> arguments
+				std::array<LLVMValueRef, 5> arguments
+				{
+					CreateLoad(shaderModuleBuilder->getUserData()),
+					depthStencilAttachment,
+					x,
+					y,
+					depth,
+				};
+				CreateCall(setDepthPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
+			}, nullptr);
+		}
+	}
+
+	void CompileStencilWrite(const VkStencilOpState& stencilState)
+	{
+		const auto failResult = CompileGetStencilResult(stencilState.failOp);
+		const auto depthFailResult = CompileGetStencilResult(stencilState.depthFailOp);
+		const auto passResult = CompileGetStencilResult(stencilState.passOp);
+		
+		auto writeValue = CreateSelect(stencilResult,
+		                               CreateSelect(depthResult, passResult, depthFailResult),
+		                               failResult);
+
+		LLVMValueRef writeMask;
+		if (state->getDynamicState().DynamicStencilWriteMask)
+		{
+			TODO_ERROR();
+		}
+		else
+		{
+			writeMask = ConstU8(stencilState.writeMask);
+		}
+
+		writeValue = CreateOr(CreateAnd(writeValue, writeMask), CreateAnd(currentStencil, CreateNot(writeMask)));
+
+		const auto depthStencilAttachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 2}));
+		const auto hasDepthStencil = CreateICmpNE(depthStencilAttachment, LLVMConstNull(LLVMTypeOf(depthStencilAttachment)));
+		const auto shouldAttemptDepthWrite = state->getDepthStencilState().DepthTestEnable
+			&& state->getDepthStencilState().DepthWriteEnable
+			&& state->getSubpass().depthStencilAttachment.attachment != VK_ATTACHMENT_UNUSED
+			&& state->getAttachments()[state->getSubpass().depthStencilAttachment.attachment].format != VK_FORMAT_S8_UINT;
+		
+		const auto depthWrite = CreateAnd(CreateAnd(depthResult, ConstBool(shouldAttemptDepthWrite)), hasDepthStencil);
+		CreateIf(mainFunction, depthWrite, "write-depth", [&](LLVMBasicBlockRef)
+		         {
+			         // TODO: No clamp if float format?
+			         auto setDepthStencilPixel = LLVMGetNamedFunction(module, "@setDepthStencilPixel");
+			         if (!setDepthStencilPixel)
+			         {
+				         std::array<LLVMTypeRef, 6> parameters
 				         {
-					         CreateLoad(shaderModuleBuilder->getUserData()),
-					         depthStencilAttachment,
-					         x,
-					         y,
-					         depth,
+					         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+					         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+					         LLVMInt32TypeInContext(context),
+					         LLVMInt32TypeInContext(context),
+					         LLVMFloatTypeInContext(context),
+					         LLVMInt8TypeInContext(context),
 				         };
-				         CreateCall(setDepthPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
-			         }, nullptr);
+				         const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+				         setDepthStencilPixel = LLVMAddFunction(module, "@setDepthStencilPixel", functionType);
+			         }
+
+			         std::array<LLVMValueRef, 6> arguments
+			         {
+				         CreateLoad(shaderModuleBuilder->getUserData()),
+				         depthStencilAttachment,
+				         x,
+				         y,
+				         depth,
+				         writeValue,
+			         };
+			         CreateCall(setDepthStencilPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
+		         }, [&](LLVMBasicBlockRef)
+		         {
+			         auto setStencilPixel = LLVMGetNamedFunction(module, "@setStencilPixel");
+			         if (!setStencilPixel)
+			         {
+				         std::array<LLVMTypeRef, 5> parameters
+				         {
+					         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+					         LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+					         LLVMInt32TypeInContext(context),
+					         LLVMInt32TypeInContext(context),
+					         LLVMInt8TypeInContext(context),
+				         };
+				         const auto functionType = LLVMFunctionType(LLVMVoidTypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+				         setStencilPixel = LLVMAddFunction(module, "@setStencilPixel", functionType);
+			         }
+
+			         std::array<LLVMValueRef, 5> arguments
+			         {
+				         CreateLoad(shaderModuleBuilder->getUserData()),
+				         depthStencilAttachment,
+				         x,
+				         y,
+				         writeValue,
+			         };
+			         CreateCall(setStencilPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
+		         });
+	}
+
+	LLVMValueRef CompileGetStencilResult(VkStencilOp stencilOperation)
+	{
+		switch (stencilOperation)
+		{
+		case VK_STENCIL_OP_KEEP:
+			return currentStencil;
+		
+		case VK_STENCIL_OP_ZERO:
+			return ConstU8(0);
+		
+		case VK_STENCIL_OP_REPLACE:
+			return stencilReference;
+		
+		case VK_STENCIL_OP_INCREMENT_AND_CLAMP:
+			return CreateIntrinsic<2>(Intrinsics::sadd_sat, {currentStencil, ConstU8(1)});
+		
+		case VK_STENCIL_OP_DECREMENT_AND_CLAMP:
+			return CreateIntrinsic<2>(Intrinsics::ssub_sat, {currentStencil, ConstU8(1)});
+		
+		case VK_STENCIL_OP_INVERT:
+			return CreateNot(currentStencil);
+		
+		case VK_STENCIL_OP_INCREMENT_AND_WRAP:
+			return CreateAdd(currentStencil, ConstU8(1));
+		
+		case VK_STENCIL_OP_DECREMENT_AND_WRAP:
+			return CreateSub(currentStencil, ConstU8(1));
+		
+		default:
+			FATAL_ERROR();
 		}
 	}
 
 	void CompileWriteFragment()
 	{
 		const auto write = CreateAnd(stencilResult, depthResult);
-		CreateIf(mainFunction, write, 
-		         [&](LLVMBasicBlockRef)
-		         {
-			         for (auto i = 0u; i < state->getSubpass().colourAttachments.size(); i++)
-			         {
-				         const auto& attachment = state->getSubpass().colourAttachments[i];
-				         if (attachment.attachment != VK_ATTACHMENT_UNUSED)
-				         {
-					         CompileWriteFragmentAttachment(i, state->getAttachments()[attachment.attachment]);
-				         }
-			         }
-		         }, nullptr);
+		CreateIf(mainFunction, write, "write-fragment", [&](LLVMBasicBlockRef)
+		{
+			for (auto i = 0u; i < state->getSubpass().colourAttachments.size(); i++)
+			{
+				const auto& attachment = state->getSubpass().colourAttachments[i];
+				if (attachment.attachment != VK_ATTACHMENT_UNUSED)
+				{
+					CompileWriteFragmentAttachment(i, state->getAttachments()[attachment.attachment]);
+				}
+			}
+		}, nullptr);
 	}
 
-	LLVMValueRef GetCurrentDepth(LLVMValueRef depthImage)
+	LLVMValueRef CompileGetCurrentDepth(LLVMValueRef depthImage)
 	{
-		if (currentDepth)
-		{
-			return currentDepth;
-		}
-
 		auto getDepthPixel = LLVMGetNamedFunction(module, "@getDepthPixel");
 		if (!getDepthPixel)
 		{
@@ -1361,10 +1454,36 @@ protected:
 		return CreateCall(getDepthPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
 	}
 
+	LLVMValueRef CompileGetCurrentStencil(LLVMValueRef stencilImage)
+	{
+		auto getStencilPixel = LLVMGetNamedFunction(module, "@getStencilPixel");
+		if (!getStencilPixel)
+		{
+			std::array<LLVMTypeRef, 4> parameters
+			{
+				LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+				LLVMPointerType(LLVMInt8TypeInContext(context), 0),
+				LLVMInt32TypeInContext(context),
+				LLVMInt32TypeInContext(context),
+			};
+			const auto functionType = LLVMFunctionType(LLVMInt8TypeInContext(context), parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+			getStencilPixel = LLVMAddFunction(module, "@getStencilPixel", functionType);
+		}
+
+		std::array<LLVMValueRef, 4> arguments
+		{
+			CreateLoad(shaderModuleBuilder->getUserData()),
+			stencilImage,
+			x,
+			y,
+		};
+		return CreateCall(getStencilPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
+	}
+
 	LLVMValueRef CompileFClamp(LLVMValueRef value, LLVMValueRef min, LLVMValueRef max)
 	{
-		const auto isMin = CreateFCmpOLT(value, min);
-		const auto isMax = CreateFCmpOGT(value, max);
+		const auto isMin = CreateFCmpULT(value, min);
+		const auto isMax = CreateFCmpUGT(value, max);
 		value = CreateSelect(isMin, min, value);
 		value = CreateSelect(isMax, max, value);
 		return value;
@@ -1375,12 +1494,12 @@ protected:
 		switch (compare)
 		{
 		case VK_COMPARE_OP_NEVER: return ConstBool(false);
-		case VK_COMPARE_OP_LESS: return CreateFCmpULT(reference, value);
-		case VK_COMPARE_OP_EQUAL: return CreateFCmpUEQ(reference, value);
-		case VK_COMPARE_OP_LESS_OR_EQUAL: return CreateFCmpULE(reference, value);
-		case VK_COMPARE_OP_GREATER: return CreateFCmpUGT(reference, value);
-		case VK_COMPARE_OP_NOT_EQUAL: return CreateFCmpUNE(reference, value);
-		case VK_COMPARE_OP_GREATER_OR_EQUAL: return CreateFCmpUGE(reference, value);
+		case VK_COMPARE_OP_LESS: return CreateFCmpOLT(reference, value);
+		case VK_COMPARE_OP_EQUAL: return CreateFCmpOEQ(reference, value);
+		case VK_COMPARE_OP_LESS_OR_EQUAL: return CreateFCmpOLE(reference, value);
+		case VK_COMPARE_OP_GREATER: return CreateFCmpOGT(reference, value);
+		case VK_COMPARE_OP_NOT_EQUAL: return CreateFCmpONE(reference, value);
+		case VK_COMPARE_OP_GREATER_OR_EQUAL: return CreateFCmpOGE(reference, value);
 		case VK_COMPARE_OP_ALWAYS: return ConstBool(true);
 
 		default:
@@ -1393,7 +1512,7 @@ protected:
 		switch (compare)
 		{
 		case VK_COMPARE_OP_NEVER: return ConstBool(false);
-		case VK_COMPARE_OP_LESS: return CreateICmpULE(reference, value);
+		case VK_COMPARE_OP_LESS: return CreateICmpULT(reference, value);
 		case VK_COMPARE_OP_EQUAL: return CreateICmpEQ(reference, value);
 		case VK_COMPARE_OP_LESS_OR_EQUAL: return CreateICmpULE(reference, value);
 		case VK_COMPARE_OP_GREATER: return CreateICmpUGT(reference, value);
@@ -1410,7 +1529,7 @@ protected:
 	{
 		const auto attachment = CreateLoad(CreateGEP(CreateLoad(pipelineState), {0, 1, index}));
 		const auto hasImage = CreateICmpNE(attachment, LLVMConstNull(LLVMTypeOf(attachment)));
-		CreateIf(mainFunction, hasImage, [&](LLVMBasicBlockRef)
+		CreateIf(mainFunction, hasImage, "has-image", [&](LLVMBasicBlockRef)
 		{
 			const auto data = FindFragmentOutput(index);
 
@@ -1535,26 +1654,17 @@ protected:
 
 	LLVMValueRef FindFragmentOutput(uint32_t index)
 	{
-		for (auto i = 0u; i < shader->getNumVariables(); i++)
+		SPIRV::SPIRVVariable* variable;
+		uint32_t arrayIndex;
+		std::tie(variable, arrayIndex) = outputLocations.at(index);
+		const auto value = shaderModuleBuilder->ConvertValue(variable, nullptr);
+		
+		if (arrayIndex < 0xFFFFFFF0)
 		{
-			const auto& variable = shader->getVariable(i);
-			if (variable->getStorageClass() == StorageClassOutput)
-			{
-				auto locations = variable->getDecorate(DecorationLocation);
-				if (locations.empty())
-				{
-					continue;
-				}
-				
-				const auto location = *locations.begin();
-				if (location == index)
-				{
-					return shaderModuleBuilder->ConvertValue(variable, nullptr);
-				}
-			}
+			return CreateGEP(value, 0, arrayIndex);
 		}
 
-		FATAL_ERROR();
+		return value;
 	}
 
 	void CompileWriteFragmentBlend(uint32_t index, const AttachmentDescription& attachmentDescription, LLVMValueRef colour, LLVMTypeRef colourType, const char* pixelFunction)
@@ -1589,7 +1699,6 @@ protected:
 			TODO_ERROR();
 		}
 
-		// TODO: support non float types
 		auto setPixel = LLVMGetNamedFunction(module, pixelFunction);
 		if (!setPixel)
 		{
@@ -1615,6 +1724,77 @@ protected:
 			colour,
 		};
 		CreateCall(setPixel, arguments.data(), static_cast<uint32_t>(arguments.size()));
+	}
+
+	void FindShaderLocations()
+	{
+		for (auto i = 0u; i < shader->getNumVariables(); i++)
+		{
+			const auto& variable = shader->getVariable(i);
+			if (variable->getStorageClass() == StorageClassOutput)
+			{
+				auto locations = variable->getDecorate(DecorationLocation);
+				if (locations.empty())
+				{
+					continue;
+				}
+				
+				const auto location = *locations.begin();
+				const auto variableType = variable->getType()->getPointerElementType();
+				if (variableType->isTypeArray())
+				{
+					// TODO: array stride
+					const auto isLargeType = IsLargeType(variableType->getArrayElementType());
+					const auto size = variableType->getArrayLength();
+					for (auto j = 0u; j < size; j++)
+					{
+						const auto index = location + j * (isLargeType ? 2 : 1);
+						if (outputLocations.find(index) != outputLocations.end())
+						{
+							FATAL_ERROR();
+						}
+
+						outputLocations[index] = std::make_tuple(variable, j);
+						if (IsLargeType(variableType))
+						{
+							outputLocations[index + 1] = std::make_tuple(nullptr, 0xFFFFFFF0);
+						}
+					}
+				}
+				else if (variableType->isTypeMatrix())
+				{
+					const auto isLargeType = IsLargeType(variableType->getMatrixColumnType());
+					const auto size = variableType->getMatrixColumnCount();
+					for (auto j = 0u; j < size; j++)
+					{
+						const auto index = location + j * (isLargeType ? 2 : 1);
+						if (outputLocations.find(index) != outputLocations.end())
+						{
+							FATAL_ERROR();
+						}
+
+						outputLocations[index] = std::make_tuple(variable, j);
+						if (IsLargeType(variableType))
+						{
+							outputLocations[index + 1] = std::make_tuple(nullptr, 0xFFFFFFF0);
+						}
+					}
+				}
+				else
+				{
+					if (outputLocations.find(location) != outputLocations.end())
+					{
+						FATAL_ERROR();
+					}
+					
+					outputLocations[location] = std::make_tuple(variable, 0xFFFFFFFF);
+					if (IsLargeType(variableType))
+					{
+						outputLocations[location + 1] = std::make_tuple(nullptr, 0xFFFFFFF0);
+					}
+				}
+			}
+		}
 	}
 };
 

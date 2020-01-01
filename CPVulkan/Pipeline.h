@@ -117,15 +117,13 @@ public:
 	}
 
 	~FragmentShaderModule() override = default;
-	
-	[[nodiscard]] bool getOriginUpper() const { return originUpper; }
-	[[nodiscard]] bool getStencilExport() const { return stencilExport; }
 
+	[[nodiscard]] bool getOriginUpper() const { return originUpper; }
+	
 	friend class GraphicsPipeline;
 
 private:
 	bool originUpper{};
-	bool stencilExport{};
 };
 
 class ComputeShaderModule final : public CompiledShaderModule
