@@ -1143,7 +1143,10 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TEXEL_BUFFER_ALIGNMENT_PROPERTIES_EXT:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceTexelBufferAlignmentPropertiesEXT*>(next);
-				TODO_ERROR();
+				properties->storageTexelBufferOffsetAlignmentBytes = MIN_TEXEL_BUFFER_OFFSET_ALIGNMENT;
+				properties->storageTexelBufferOffsetSingleTexelAlignment = true;
+				properties->uniformTexelBufferOffsetAlignmentBytes = MIN_TEXEL_BUFFER_OFFSET_ALIGNMENT;
+				properties->uniformTexelBufferOffsetSingleTexelAlignment = true;
 				break;
 			}
 

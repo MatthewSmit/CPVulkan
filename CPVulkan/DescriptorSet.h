@@ -31,6 +31,7 @@ union DescriptorValue
 
 struct Descriptor
 {
+	bool immutable;
 	uint32_t count;
 	std::unique_ptr<DescriptorValue[]> values;
 };

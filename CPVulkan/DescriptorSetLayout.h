@@ -9,7 +9,7 @@ public:
 	DescriptorSetLayout() = default;
 	DescriptorSetLayout(const DescriptorSetLayout&) = delete;
 	DescriptorSetLayout(DescriptorSetLayout&&) = delete;
-	~DescriptorSetLayout() = default;
+	~DescriptorSetLayout();
 
 	DescriptorSetLayout& operator=(const DescriptorSetLayout&) = delete;
 	DescriptorSetLayout&& operator=(const DescriptorSetLayout&&) = delete;

@@ -5,6 +5,17 @@
 
 #include <cassert>
 
+DescriptorSetLayout::~DescriptorSetLayout()
+{
+	for (const auto& binding : bindings)
+	{
+		if (binding.pImmutableSamplers)
+		{
+			delete[] binding.pImmutableSamplers;
+		}
+	}
+}
+
 VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDescriptorSetLayout* pSetLayout)
 {
 	assert(pCreateInfo->sType == VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO);
@@ -28,6 +39,15 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 	}
 
 	descriptorSetLayout->bindings = ArrayToVector(pCreateInfo->bindingCount, pCreateInfo->pBindings);
+	for (auto& binding : descriptorSetLayout->bindings)
+	{
+		if (binding.pImmutableSamplers)
+		{
+			const auto newSamplers = new VkSampler[binding.descriptorCount];
+			memcpy(newSamplers, binding.pImmutableSamplers, sizeof(VkSampler) * binding.descriptorCount);
+			binding.pImmutableSamplers = newSamplers;
+		}
+	}
 
 	WrapVulkan(descriptorSetLayout, pSetLayout);
 	return VK_SUCCESS;

@@ -26,18 +26,26 @@ VkResult DescriptorSet::Initialise(DescriptorSetLayout* descriptorSetLayout)
 	{
 		assert(bindingValues[binding.binding].count == 0);
 		bindingTypes[binding.binding] = binding.descriptorType;
+		bindingValues[binding.binding].immutable = binding.pImmutableSamplers != nullptr;
 		bindingValues[binding.binding].count = binding.descriptorCount;
 		bindingValues[binding.binding].values = std::unique_ptr<DescriptorValue[]>(new DescriptorValue[binding.descriptorCount]);
+
 		for (auto i = 0u; i < binding.descriptorCount; i++)
 		{
 			bindingValues[binding.binding].values[i] = {};
 		}
-
-		// TODO: Stage flags
-
+		
 		if (binding.pImmutableSamplers)
 		{
-			TODO_ERROR();
+			assert(binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER);
+			for (auto i = 0u; i < binding.descriptorCount; i++)
+			{
+				bindingValues[binding.binding].values[i].Image.Type = ImageDescriptorType::None;
+				bindingValues[binding.binding].values[i].Image.Data.Image = nullptr;
+				bindingValues[binding.binding].values[i].Image.ImageSampler = binding.pImmutableSamplers[i]
+					                                                              ? UnwrapVulkan<Sampler>(binding.pImmutableSamplers[i])
+					                                                              : nullptr;
+			}
 		}
 	}
 
@@ -70,28 +78,38 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 		switch (descriptorWrite.descriptorType)
 		{
 		case VK_DESCRIPTOR_TYPE_SAMPLER:
-			value.Image.Type = ImageDescriptorType::None;
-			value.Image.Data.Image = nullptr;
-			value.Image.ImageSampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+			if (!bindingValues[targetBinding].immutable)
+			{
+				value.Image.Type = ImageDescriptorType::None;
+				value.Image.Data.Image = nullptr;
+				value.Image.ImageSampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo[i].sampler);
+			}
 			break;
 						
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
 			value.Image.Type = ImageDescriptorType::Image;
-			value.Image.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
-			value.Image.ImageSampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo->sampler);
+			value.Image.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo[i].imageView);
+			if (!bindingValues[targetBinding].immutable)
+			{
+				value.Image.ImageSampler = UnwrapVulkan<Sampler>(descriptorWrite.pImageInfo[i].sampler);
+			}
+			else
+			{
+				assert(value.Image.ImageSampler);
+			}
 			break;
 						
 		case VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE:
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 			value.Image.Type = ImageDescriptorType::Image;
-			value.Image.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo->imageView);
+			value.Image.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo[i].imageView);
 			value.Image.ImageSampler = nullptr;
 			break;
 			
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
 			value.Image.Type = ImageDescriptorType::Buffer;
-			value.Image.Data.Buffer = UnwrapVulkan<BufferView>(*descriptorWrite.pTexelBufferView);
+			value.Image.Data.Buffer = UnwrapVulkan<BufferView>(descriptorWrite.pTexelBufferView[i]);
 			value.Image.ImageSampler = nullptr;
 			break;
 			
