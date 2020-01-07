@@ -60,7 +60,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 	{
 		if (targetBinding >= getNumberBindings())
 		{
-			TODO_ERROR();
+			FATAL_ERROR();
 		}
 		
 		if (targetArrayElement >= bindingValues[targetBinding].count)
@@ -70,7 +70,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 
 		if (descriptorWrite.descriptorType != bindingTypes[targetBinding])
 		{
-			TODO_ERROR();
+			FATAL_ERROR();
 		}
 
 		auto& value = bindingValues[targetBinding].values[targetArrayElement];
@@ -117,7 +117,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC:
 		case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC:
-			value.Buffer = *descriptorWrite.pBufferInfo;
+			value.Buffer = descriptorWrite.pBufferInfo[i];
 			if (value.Buffer.range == VK_WHOLE_SIZE)
 			{
 				// TODO: might be buggy with dynamic offsets
@@ -139,6 +139,57 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 		}
 
 		targetArrayElement += 1;
+	}
+}
+
+void DescriptorSet::CopyFrom(const VkCopyDescriptorSet& descriptorCopy)
+{
+	const auto source = UnwrapVulkan<DescriptorSet>(descriptorCopy.srcSet);
+
+	const auto srcBinding = descriptorCopy.srcBinding;
+	auto srcArrayElement = descriptorCopy.srcArrayElement;
+	const auto dstBinding = descriptorCopy.dstBinding;
+	auto dstArrayElement = descriptorCopy.dstArrayElement;
+
+	for (auto i = 0u; i < descriptorCopy.descriptorCount; i++)
+	{
+		if (srcBinding >= source->getNumberBindings())
+		{
+			FATAL_ERROR();
+		}
+
+		if (dstBinding >= getNumberBindings())
+		{
+			FATAL_ERROR();
+		}
+
+		if (srcArrayElement >= source->bindingValues[srcBinding].count)
+		{
+			TODO_ERROR();
+		}
+
+		if (dstArrayElement >= bindingValues[dstBinding].count)
+		{
+			TODO_ERROR();
+		}
+
+		if (bindingTypes[dstBinding] != source->bindingTypes[srcBinding])
+		{
+			FATAL_ERROR();
+		}
+
+		if (bindingValues[dstBinding].immutable)
+		{
+			bindingValues[dstBinding].values[dstArrayElement].Image.Type = source->bindingValues[srcBinding].values[srcArrayElement].Image.Type;
+			bindingValues[dstBinding].values[dstArrayElement].Image.Data = source->bindingValues[srcBinding].values[srcArrayElement].Image.Data;
+		}
+		else
+		{
+			bindingValues[dstBinding].values[dstArrayElement] = source->bindingValues[srcBinding].values[srcArrayElement];
+		}
+
+		srcArrayElement += 1;
+		dstArrayElement += 1;
 	}
 }
 
@@ -172,7 +223,10 @@ void Device::UpdateDescriptorSets(uint32_t descriptorWriteCount, const VkWriteDe
 
 	for (auto i = 0u; i < descriptorCopyCount; i++)
 	{
-		TODO_ERROR();
+		const auto& descriptorCopy = pDescriptorCopies[i];
+		assert(descriptorCopy.sType == VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET);
+
+		UnwrapVulkan<DescriptorSet>(descriptorCopy.dstSet)->CopyFrom(descriptorCopy);
 	}
 }
 

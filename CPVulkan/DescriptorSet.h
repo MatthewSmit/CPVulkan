@@ -54,7 +54,8 @@ public:
 	VkResult Initialise(DescriptorSetLayout* descriptorSetLayout);
 	
 	void Update(const VkWriteDescriptorSet& descriptorWrite);
-	
+	void CopyFrom(const VkCopyDescriptorSet& descriptorCopy);
+
 	static VkResult Create(DescriptorPool* descriptorPool, VkDescriptorSetLayout pSetLayout, VkDescriptorSet* pDescriptorSet);
 
 	[[nodiscard]] uint32_t getNumberBindings() const { return static_cast<uint32_t>(bindingTypes.size()); }

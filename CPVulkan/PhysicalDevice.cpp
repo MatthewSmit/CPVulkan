@@ -1075,7 +1075,14 @@ void PhysicalDevice::GetProperties2(VkPhysicalDeviceProperties2* pProperties)
 		case VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PROPERTIES_NV:
 			{
 				const auto properties = reinterpret_cast<VkPhysicalDeviceRayTracingPropertiesNV*>(next);
-				TODO_ERROR();
+				properties->shaderGroupHandleSize = RT_SHADER_GROUP_HANDLE_SIZE;
+				properties->maxRecursionDepth = RT_MAX_RECURSION_DEPTH;
+				properties->maxShaderGroupStride = RT_MAX_SHADER_GROUP_STRIDE;
+				properties->shaderGroupBaseAlignment = RT_SHADER_GROUP_BASE_ALIGNMENT;
+				properties->maxGeometryCount = RT_MAX_GEOMETRY_COUNT;
+				properties->maxInstanceCount = RT_MAX_INSTANCE_COUNT;
+				properties->maxTriangleCount = RT_MAX_TRIANGLE_COUNT;
+				properties->maxDescriptorSetAccelerationStructures = RT_MAX_DESCRIPTOR_SET_ACCELERATION_STRUCTURES;
 				break;
 			}
 

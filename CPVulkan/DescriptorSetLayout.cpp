@@ -33,7 +33,11 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 		switch (type)
 		{
 		case VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO_EXT:
-			TODO_ERROR();
+			{
+				// Not likely we need these flags currently, so we just ignore them
+				const auto bindingLayoutFlagsInfo = reinterpret_cast<const VkDescriptorSetLayoutBindingFlagsCreateInfoEXT*>(next);
+				break;
+			}
 		}
 		next = next->pNext;
 	}
