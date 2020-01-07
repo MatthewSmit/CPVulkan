@@ -29,6 +29,53 @@ static std::unordered_map<Op, LLVMAtomicRMWBinOp> instructionLookupAtomic
 	{OpAtomicXor, LLVMAtomicRMWBinOpXor},
 };
 
+static bool IsOpCodeType(Op op)
+{
+	switch (op)
+	{
+	case OpTypeVoid:
+	case OpTypeBool:
+	case OpTypeInt:
+	case OpTypeFloat:
+	case OpTypeVector:
+	case OpTypeMatrix:
+	case OpTypeImage:
+	case OpTypeSampler:
+	case OpTypeSampledImage:
+	case OpTypeArray:
+	case OpTypeRuntimeArray:
+	case OpTypeStruct:
+	case OpTypeOpaque:
+	case OpTypePointer:
+	case OpTypeFunction:
+	case OpTypeEvent:
+	case OpTypeDeviceEvent:
+	case OpTypeReserveId:
+	case OpTypeQueue:
+	case OpTypePipe:
+	case OpTypePipeStorage:
+	case OpTypeNamedBarrier:
+	case OpTypeAccelerationStructureNV:
+	case OpTypeCooperativeMatrixNV:
+	case OpTypeVmeImageINTEL:
+	case OpTypeAvcImePayloadINTEL:
+	case OpTypeAvcRefPayloadINTEL:
+	case OpTypeAvcSicPayloadINTEL:
+	case OpTypeAvcMcePayloadINTEL:
+	case OpTypeAvcMceResultINTEL:
+	case OpTypeAvcImeResultINTEL:
+	case OpTypeAvcImeResultSingleReferenceStreamoutINTEL:
+	case OpTypeAvcImeResultDualReferenceStreamoutINTEL:
+	case OpTypeAvcImeSingleReferenceStreaminINTEL:
+	case OpTypeAvcImeDualReferenceStreaminINTEL:
+	case OpTypeAvcRefResultINTEL:
+	case OpTypeAvcSicResultINTEL:
+		return true;
+	default:
+		return false;
+	}
+}
+
 template<>
 int32_t SPIRVCompiledModuleBuilder::GetConstant(LLVMValueRef value)
 {
@@ -40,152 +87,42 @@ int32_t SPIRVCompiledModuleBuilder::GetConstant(LLVMValueRef value)
 	return static_cast<int32_t>(LLVMConstIntGetSExtValue(value));
 }
 
-LLVMTypeRef SPIRVCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spirvType, bool isClassMember)
+void SPIRVCompiledModuleBuilder::CompileTypes()
 {
-	const auto cachedType = typeMapping.find(spirvType->getId());
-	if (cachedType != typeMapping.end())
+	for (const auto entryPair : spirvModule->getEntries())
 	{
-		return cachedType->second;
+		const auto entry = entryPair.second;
+		if (IsOpCodeType(entry->getOpCode()))
+		{
+			AddType(static_cast<SPIRV::SPIRVType*>(entry));
+		}
 	}
-		
-	LLVMTypeRef llvmType{};
-		
-	switch (spirvType->getOpCode())
+
+	FinaliseStructs();
+}
+
+void SPIRVCompiledModuleBuilder::FinaliseStructs()
+{
+	for (const auto entryPair : spirvModule->getEntries())
 	{
-	case OpTypeVoid:
-		llvmType = LLVMVoidTypeInContext(context);
-		break;
-			
-	case OpTypeBool:
-		llvmType = LLVMInt1TypeInContext(context);
-		break;
-			
-	case OpTypeInt:
-		llvmType = LLVMIntTypeInContext(context, spirvType->getIntegerBitWidth());
-		break;
-			
-	case OpTypeFloat:
-		switch (spirvType->getFloatBitWidth())
+		const auto entry = entryPair.second;
+		if (entry->getOpCode() == OpTypeStruct)
 		{
-		case 16:
-			llvmType = LLVMHalfTypeInContext(context);
-			break;
-			
-		case 32:
-			llvmType = LLVMFloatTypeInContext(context);
-			break;
-			
-		case 64:
-			llvmType = LLVMDoubleTypeInContext(context);
-			break;
-			
-		default:
-			TODO_ERROR();
-		}
-			
-		break;
-			
-	case OpTypeArray:
-		{
-			const auto elementType = ConvertType(spirvType->getArrayElementType());
-			auto multiplier = 1u;
-			if (spirvType->hasDecorate(DecorationArrayStride))
+			const auto makeBigPointers = spirvModule->getAddressingModel() == AddressingModelPhysical64 &&
+				LLVMSizeOfTypeInBits(jit->getDataLayout(), LLVMPointerType(LLVMInt32TypeInContext(context), 0)) == 32;
+
+			if (makeBigPointers)
 			{
-				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
-				const auto originalStride = LLVMSizeOfTypeInBits(jit->getDataLayout(), elementType) / 8;
-				if (stride != originalStride)
-				{
-					multiplier = stride / originalStride;
-					assert((stride % originalStride) == 0);
-				}
+				TODO_ERROR();
+				// TODO: Handle case when on x32 platform and struct contains pointers.
+				// When using the PhysicalStorageBuffer64EXT addressing model, pointers with a class of PhysicalStorageBuffer should be treated as 64 bits wide.
 			}
-			llvmType = LLVMArrayType(elementType, GetConstant<int32_t>(ConvertValue(static_cast<const SPIRV::SPIRVTypeArray*>(spirvType)->getLength(), nullptr)) * multiplier);
-			if (multiplier > 1)
-			{
-				arrayStrideMultiplier[llvmType] = multiplier;
-			}
-			break;
-		}
 			
-	case OpTypeRuntimeArray:
-		{
-			const auto runtimeArray = static_cast<const SPIRV::SPIRVTypeRuntimeArray*>(spirvType);
-			const auto elementType = ConvertType(runtimeArray->getElementType());
-			auto multiplier = 1u;
-			if (runtimeArray->hasDecorate(DecorationArrayStride))
-			{
-				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
-				const auto originalStride = LLVMSizeOfTypeInBits(jit->getDataLayout(), elementType) / 8;
-				if (stride != originalStride)
-				{
-					multiplier = stride / originalStride;
-					assert((stride % originalStride) == 0);
-				}
-			}
-			llvmType = LLVMArrayType(elementType, 0);
-			if (multiplier > 1)
-			{
-				arrayStrideMultiplier[llvmType] = multiplier;
-			}
-			break;
-		}
-			
-	case OpTypePointer:
-		llvmType = LLVMPointerType(ConvertType(spirvType->getPointerElementType(), isClassMember), 0);
-		break;
-			
-	case OpTypeVector:
-		llvmType = LLVMVectorType(ConvertType(spirvType->getVectorComponentType()), spirvType->getVectorComponentCount());
-		break;
-			
-	case OpTypeOpaque:
-		llvmType = LLVMStructCreateNamed(context, spirvType->getName().c_str());
-		break;
-			
-	case OpTypeFunction:
-		{
-			const auto functionType = static_cast<const SPIRV::SPIRVTypeFunction*>(spirvType);
-			const auto returnType = ConvertType(functionType->getReturnType());
-			std::vector<LLVMTypeRef> parameters;
-			for (auto i = 0u; i != functionType->getNumParameters(); ++i)
-			{
-				parameters.push_back(ConvertType(functionType->getParameterType(i)));
-			}
-			llvmType = LLVMFunctionType(returnType, parameters.data(), static_cast<uint32_t>(parameters.size()), false);
-			break;
-		}
-			
-	case OpTypeImage:
-		{
-			const auto image = static_cast<const SPIRV::SPIRVTypeImage*>(spirvType);
-			llvmType = CreateOpaqueImageType(GetImageTypeName(image));
-			break;
-		}
-			
-	case OpTypeSampler:
-		{
-			llvmType = CreateOpaqueImageType("Sampler");
-			break;
-		}
-			
-	case OpTypeSampledImage:
-		{
-			const auto sampledImage = static_cast<const SPIRV::SPIRVTypeSampledImage*>(spirvType);
-			llvmType = CreateOpaqueImageType(GetTypeName(sampledImage));
-			break;
-		}
-			
-	case OpTypeStruct:
-		{
-			// TODO: Handle case when on x32 platform and struct contains pointers.
-			// When using the PhysicalStorageBuffer64EXT addressing model, pointers with a class of PhysicalStorageBuffer should be treated as 64 bits wide.
-			const auto strct = static_cast<const SPIRV::SPIRVTypeStruct*>(spirvType);
-			const auto& name = strct->getName();
-			llvmType = LLVMStructCreateNamed(context, name.c_str());
+			const auto strct = static_cast<const SPIRV::SPIRVTypeStruct*>(entry);
+			const auto llvmType = typeMapping.at(entry->getId());
 			auto& indexMapping = structIndexMapping[llvmType];
 			std::vector<LLVMTypeRef> types{};
 			uint64_t currentOffset = 0;
-			// TODO: If no offset decoration and struct is not packed, insert own packing
 			for (auto i = 0u; i < strct->getMemberCount(); ++i)
 			{
 				const auto decorate = strct->getMemberDecorate(i, DecorationOffset);
@@ -223,8 +160,12 @@ LLVMTypeRef SPIRVCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spir
 					}
 					currentOffset = offset;
 				}
-					
-				const auto llvmMemberType = ConvertType(strct->getMemberType(i), true);
+				else if (!strct->isPacked())
+				{
+					// TODO: If no offset decoration and struct is not packed, insert own packing
+				}
+
+				const auto llvmMemberType = GetType(strct->getMemberType(i));
 				indexMapping.push_back(static_cast<uint32_t>(types.size()));
 				types.push_back(llvmMemberType);
 
@@ -238,9 +179,57 @@ LLVMTypeRef SPIRVCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spir
 				}
 			}
 			LLVMStructSetBody(llvmType, types.data(), static_cast<uint32_t>(types.size()), true);
-			break;
 		}
-			
+	}
+}
+
+void SPIRVCompiledModuleBuilder::AddType(const SPIRV::SPIRVType* spirvType)
+{
+	if (typeMapping.find(spirvType->getId()) != typeMapping.end())
+	{
+		return;
+	}
+
+	LLVMTypeRef llvmType{};
+	switch (spirvType->getOpCode())
+	{
+	case OpTypeVoid:
+		llvmType = LLVMVoidTypeInContext(context);
+		break;
+		
+	case OpTypeBool:
+		llvmType = LLVMInt1TypeInContext(context);
+		break;
+				
+	case OpTypeInt:
+		llvmType = LLVMIntTypeInContext(context, spirvType->getIntegerBitWidth());
+		break;
+		
+	case OpTypeFloat:
+		switch (spirvType->getFloatBitWidth())
+		{
+		case 16:
+			llvmType = LLVMHalfTypeInContext(context);
+			break;
+					
+		case 32:
+			llvmType = LLVMFloatTypeInContext(context);
+			break;
+					
+		case 64:
+			llvmType = LLVMDoubleTypeInContext(context);
+			break;
+					
+		default:
+			TODO_ERROR();
+		}
+					
+		break;
+					
+	case OpTypeVector:
+		llvmType = LLVMVectorType(GetType(spirvType->getVectorComponentType()), spirvType->getVectorComponentCount());
+		break;
+		
 	case OpTypeMatrix:
 		{
 			if (spirvType->hasDecorate(DecorationMatrixStride))
@@ -253,7 +242,7 @@ LLVMTypeRef SPIRVCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spir
 				TODO_ERROR();
 			}
 
-			auto name = std::string{"@Matrix.Col"};
+			auto name = std::string{ "@Matrix.Col" };
 			name += std::to_string(spirvType->getMatrixColumnCount());
 			name += 'x';
 			name += std::to_string(spirvType->getMatrixColumnType()->getVectorComponentCount());
@@ -261,12 +250,110 @@ LLVMTypeRef SPIRVCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spir
 			std::vector<LLVMTypeRef> types{};
 			for (auto i = 0u; i < spirvType->getMatrixColumnCount(); i++)
 			{
-				types.push_back(ConvertType(spirvType->getMatrixColumnType(), true));
+				types.push_back(GetType(spirvType->getMatrixColumnType()));
 			}
 			llvmType = StructType(types, name);
 			break;
 		}
-			
+		
+	case OpTypeImage:
+		{
+			const auto image = static_cast<const SPIRV::SPIRVTypeImage*>(spirvType);
+			llvmType = CreateOpaqueImageType(GetImageTypeName(image));
+			break;
+		}
+		
+	case OpTypeSampler:
+		llvmType = CreateOpaqueImageType("Sampler");
+		break;
+		
+	case OpTypeSampledImage:
+		{
+			const auto sampledImage = static_cast<const SPIRV::SPIRVTypeSampledImage*>(spirvType);
+			llvmType = CreateOpaqueImageType(GetTypeName(sampledImage));
+			break;
+		}
+		
+	case OpTypeArray:
+		{
+			const auto elementType = GetType(spirvType->getArrayElementType());
+			auto multiplier = 1u;
+			if (spirvType->hasDecorate(DecorationArrayStride))
+			{
+				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
+				const auto originalStride = LLVMSizeOfTypeInBits(jit->getDataLayout(), elementType) / 8;
+				if (stride != originalStride)
+				{
+					multiplier = stride / originalStride;
+					assert((stride % originalStride) == 0);
+				}
+			}
+			llvmType = LLVMArrayType(elementType, GetConstant<int32_t>(ConvertValue(static_cast<const SPIRV::SPIRVTypeArray*>(spirvType)->getLength(), nullptr)) * multiplier);
+			if (multiplier > 1)
+			{
+				arrayStrideMultiplier[llvmType] = multiplier;
+			}
+			break;
+		}
+		
+	case OpTypeRuntimeArray:
+		{
+			const auto runtimeArray = static_cast<const SPIRV::SPIRVTypeRuntimeArray*>(spirvType);
+			const auto elementType = GetType(runtimeArray->getElementType());
+			auto multiplier = 1u;
+			if (runtimeArray->hasDecorate(DecorationArrayStride))
+			{
+				const auto stride = *spirvType->getDecorate(DecorationArrayStride).begin();
+				const auto originalStride = LLVMSizeOfTypeInBits(jit->getDataLayout(), elementType) / 8;
+				if (stride != originalStride)
+				{
+					multiplier = stride / originalStride;
+					assert((stride % originalStride) == 0);
+				}
+			}
+			llvmType = LLVMArrayType(elementType, 0);
+			if (multiplier > 1)
+			{
+				arrayStrideMultiplier[llvmType] = multiplier;
+			}
+			break;
+		}
+		
+	case OpTypeStruct:
+		{
+			const auto strct = static_cast<const SPIRV::SPIRVTypeStruct*>(spirvType);
+			const auto& name = strct->getName();
+			llvmType = LLVMStructCreateNamed(context, name.c_str());
+			break;
+		}
+		
+	case OpTypeOpaque:
+		llvmType = LLVMStructCreateNamed(context, spirvType->getName().c_str());
+		break;
+		
+	case OpTypePointer:
+		llvmType = LLVMPointerType(GetType(spirvType->getPointerElementType()), 0);
+		break;
+		
+	case OpTypeFunction:
+		{
+			const auto functionType = static_cast<const SPIRV::SPIRVTypeFunction*>(spirvType);
+			const auto returnType = GetType(functionType->getReturnType());
+			std::vector<LLVMTypeRef> parameters;
+			for (auto i = 0u; i != functionType->getNumParameters(); ++i)
+			{
+				parameters.push_back(GetType(functionType->getParameterType(i)));
+			}
+			llvmType = LLVMFunctionType(returnType, parameters.data(), static_cast<uint32_t>(parameters.size()), false);
+			break;
+		}
+		
+	case OpTypeEvent:
+	case OpTypeDeviceEvent:
+	case OpTypeReserveId:
+	case OpTypeQueue:
+		TODO_ERROR();
+		
 	case OpTypePipe:
 		{
 			//   auto PT = static_cast<SPIRVTypePipe *>(T);
@@ -277,7 +364,7 @@ LLVMTypeRef SPIRVCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spir
 			//                         getOCLOpaqueTypeAddrSpace(T->getOpCode())));
 			TODO_ERROR();
 		}
-			
+		
 	case OpTypePipeStorage:
 		{
 			//   auto PST = static_cast<SPIRVTypePipeStorage *>(T);
@@ -287,13 +374,29 @@ LLVMTypeRef SPIRVCompiledModuleBuilder::ConvertType(const SPIRV::SPIRVType* spir
 			TODO_ERROR();
 		}
 		
-	default:
+	case OpTypeNamedBarrier:
+	case OpTypeAccelerationStructureNV:
+	case OpTypeCooperativeMatrixNV:
+	case OpTypeVmeImageINTEL:
+	case OpTypeAvcImePayloadINTEL:
+	case OpTypeAvcRefPayloadINTEL:
+	case OpTypeAvcSicPayloadINTEL:
+	case OpTypeAvcMcePayloadINTEL:
+	case OpTypeAvcMceResultINTEL:
+	case OpTypeAvcImeResultINTEL:
+	case OpTypeAvcImeResultSingleReferenceStreamoutINTEL:
+	case OpTypeAvcImeResultDualReferenceStreamoutINTEL:
+	case OpTypeAvcImeSingleReferenceStreaminINTEL:
+	case OpTypeAvcImeDualReferenceStreaminINTEL:
+	case OpTypeAvcRefResultINTEL:
+	case OpTypeAvcSicResultINTEL:
 		TODO_ERROR();
+		
+	default:
+		FATAL_ERROR();
 	}
-		
+
 	typeMapping[spirvType->getId()] = llvmType;
-		
-	return llvmType;
 }
 
 LLVMTypeRef SPIRVCompiledModuleBuilder::CreateOpaqueImageType(const std::string& name)
@@ -373,7 +476,6 @@ std::string SPIRVCompiledModuleBuilder::GetTypeName(const SPIRV::SPIRVType* type
 	case OpTypeReserveId: TODO_ERROR();
 	case OpTypeQueue: TODO_ERROR();
 	case OpTypePipe: TODO_ERROR();
-	case OpTypeForwardPointer: TODO_ERROR();
 	case OpTypePipeStorage: TODO_ERROR();
 	case OpTypeNamedBarrier: TODO_ERROR();
 	case OpTypeAccelerationStructureNV: TODO_ERROR();
@@ -599,6 +701,15 @@ SPIRVCompiledModuleBuilder::SPIRVCompiledModuleBuilder(const SPIRV::SPIRVModule*
 	}
 }
 
+LLVMTypeRef SPIRVCompiledModuleBuilder::GetType(const SPIRV::SPIRVType* spirvType)
+{
+	if (typeMapping.find(spirvType->getId()) == typeMapping.end())
+	{
+		AddType(spirvType);
+	}
+	return typeMapping.at(spirvType->getId());
+}
+
 void SPIRVCompiledModuleBuilder::AddDebugInformation(const SPIRV::SPIRVEntry* spirvEntry)
 {
 	if (spirvEntry->hasLine())
@@ -615,6 +726,8 @@ LLVMValueRef SPIRVCompiledModuleBuilder::CompileMainFunctionImpl()
 #if EMIT_DEBUG
 		diBuilder = LLVMCreateDIBuilder(module);
 #endif
+
+	CompileTypes();
 
 	userData = GlobalVariable(LLVMPointerType(LLVMInt8TypeInContext(context), 0), LLVMExternalLinkage, "@userData");
 
@@ -913,7 +1026,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 		{
 			const auto spirvConstant = static_cast<const SPIRV::SPIRVConstant*>(spirvValue);
 			const auto spirvType = spirvConstant->getType();
-			const auto llvmType = ConvertType(spirvType);
+			const auto llvmType = GetType(spirvType);
 			switch (spirvType->getOpCode())
 			{
 			case OpTypeInt:
@@ -960,7 +1073,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 		{
 			const auto spirvConstant = static_cast<const SPIRV::SPIRVConstant*>(spirvValue);
 			const auto spirvType = spirvConstant->getType();
-			const auto llvmType = ConvertType(spirvType);
+			const auto llvmType = GetType(spirvType);
 			switch (spirvType->getOpCode())
 			{
 			case OpTypeInt:
@@ -1005,7 +1118,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 		                    false);
 
 	case OpConstantNull:
-		return LLVMConstNull(ConvertType(spirvValue->getType()));
+		return LLVMConstNull(GetType(spirvValue->getType()));
 
 	case OpSpecConstantComposite:
 		if (HasSpecOverride(spirvValue))
@@ -1028,7 +1141,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 
 			case OpTypeArray:
 				{
-					const auto arrayType = ConvertType(constantComposite->getType()->getArrayElementType());
+					const auto arrayType = GetType(constantComposite->getType()->getArrayElementType());
 					if (arrayStrideMultiplier.find(arrayType) != arrayStrideMultiplier.end())
 					{
 						// TODO: Support stride
@@ -1039,7 +1152,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 
 			case OpTypeMatrix:
 			case OpTypeStruct:
-				return LLVMConstNamedStruct(ConvertType(constantComposite->getType()), constants.data(), static_cast<uint32_t>(constants.size()));
+				return LLVMConstNamedStruct(GetType(constantComposite->getType()), constants.data(), static_cast<uint32_t>(constants.size()));
 
 			default:
 				TODO_ERROR();
@@ -1064,7 +1177,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 		return HandleSpecConstantOperation(static_cast<const SPIRV::SPIRVSpecConstantOp*>(spirvValue));
 
 	case OpUndef:
-		return LLVMGetUndef(ConvertType(spirvValue->getType()));
+		return LLVMGetUndef(GetType(spirvValue->getType()));
 
 	case OpVariable:
 		{
@@ -1073,7 +1186,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 					variable->getStorageClass() == StorageClassUniformConstant || 
 					variable->getStorageClass() == StorageClassStorageBuffer) &&
 				!IsOpaqueType(variable->getType()->getPointerElementType());
-			auto llvmType = ConvertType(variable->getType()->getPointerElementType());
+			auto llvmType = GetType(variable->getType()->getPointerElementType());
 			const auto linkage = ConvertLinkage(variable);
 			const auto name = MangleName(variable);
 
@@ -1245,7 +1358,7 @@ bool SPIRVCompiledModuleBuilder::NeedsPointer(const SPIRV::SPIRVType* type)
 LLVMValueRef SPIRVCompiledModuleBuilder::GetInbuiltFunction(const std::string& functionNamePrefix, SPIRV::SPIRVType* returnType,
                                                             const std::vector<std::pair<const char*, const SPIRV::SPIRVType*>>& arguments, bool hasUserData)
 {
-	auto functionName = functionNamePrefix + "." + GetTypeName(returnType);
+	auto functionName = functionNamePrefix + (returnType->isTypeVoid() ? "" : ("." + GetTypeName(returnType)));
 	for (const auto& argument : arguments)
 	{
 		functionName += '.';
@@ -1264,7 +1377,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::GetInbuiltFunction(const std::string& f
 	}
 
 	const auto returnNeedsPointer = NeedsPointer(returnType);
-	const auto llvmReturnType = returnNeedsPointer ? LLVMVoidTypeInContext(context) : ConvertType(returnType);
+	const auto llvmReturnType = returnNeedsPointer ? LLVMVoidTypeInContext(context) : GetType(returnType);
 
 	std::vector<LLVMTypeRef> params{arguments.size() + hasUserData + returnNeedsPointer};
 	auto i = 0u;
@@ -1276,12 +1389,12 @@ LLVMValueRef SPIRVCompiledModuleBuilder::GetInbuiltFunction(const std::string& f
 
 	if (returnNeedsPointer)
 	{
-		params[i++] = LLVMPointerType(ConvertType(returnType), 0);
+		params[i++] = LLVMPointerType(GetType(returnType), 0);
 	}
 
 	for (const auto& argument : arguments)
 	{
-		auto type = ConvertType(argument.second);
+		auto type = GetType(argument.second);
 		if (NeedsPointer(argument.second))
 		{
 			type = LLVMPointerType(type, 0);
@@ -1310,14 +1423,14 @@ LLVMValueRef SPIRVCompiledModuleBuilder::CallInbuiltFunction(LLVMValueRef functi
 
 	if (returnNeedsPointer)
 	{
-		params[i++] = LLVMBuildAlloca(builder, ConvertType(returnType), "");
+		params[i++] = LLVMBuildAlloca(builder, GetType(returnType), "");
 	}
 
 	for (const auto& argument : arguments)
 	{
 		if (NeedsPointer(argument.first))
 		{
-			params[i] = LLVMBuildAlloca(builder, ConvertType(argument.first), "");
+			params[i] = LLVMBuildAlloca(builder, GetType(argument.first), "");
 			LLVMBuildStore(builder, argument.second, params[i]);
 		}
 		else
@@ -1521,6 +1634,31 @@ LLVMValueRef SPIRVCompiledModuleBuilder::CallInbuiltFunction(SPIRV::SPIRVImageRe
 	return CallInbuiltFunction(function, imageRead->getType(), {
 		                           {spirvImageType, ConvertValue(imageRead->getOpValue(0), currentFunction)},
 		                           {coordinateType, ConvertValue(imageRead->getOpValue(1), currentFunction)},
+	                           }, true);
+}
+
+LLVMValueRef SPIRVCompiledModuleBuilder::CallInbuiltFunction(SPIRV::SPIRVImageWrite* imageWrite, LLVMValueRef currentFunction)
+{
+	const auto spirvImageType = imageWrite->getOpValue(0)->getType();
+	const auto coordinateType = imageWrite->getOpValue(1)->getType();
+	const auto texelType = imageWrite->getOpValue(2)->getType();
+
+	if (imageWrite->getOpWords().size() > 3)
+	{
+		TODO_ERROR();
+	}
+
+	SPIRV::SPIRVTypeVoid voidType{};
+	const auto function = GetInbuiltFunction("@Image.Write", &voidType, {
+		                                         {nullptr, spirvImageType},
+		                                         {nullptr, coordinateType},
+		                                         {nullptr, texelType},
+	                                         }, true);
+
+	return CallInbuiltFunction(function, &voidType, {
+		                           {spirvImageType, ConvertValue(imageWrite->getOpValue(0), currentFunction)},
+		                           {coordinateType, ConvertValue(imageWrite->getOpValue(1), currentFunction)},
+		                           {texelType, ConvertValue(imageWrite->getOpValue(2), currentFunction)},
 	                           }, true);
 }
 
@@ -2045,7 +2183,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 			switch (compositeConstruct->getType()->getOpCode())
 			{
 			case OpTypeVector:
-				llvmValue = LLVMGetUndef(ConvertType(compositeConstruct->getType()));
+				llvmValue = LLVMGetUndef(GetType(compositeConstruct->getType()));
 				for (auto j = 0u, k = 0u; j < compositeConstruct->getConstituents().size(); j++)
 				{
 					const auto element = ConvertValue(compositeConstruct->getConstituents()[j], currentFunction);
@@ -2065,7 +2203,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 				break;
 
 			case OpTypeMatrix:
-				llvmValue = CreateAlloca(ConvertType(compositeConstruct->getType()));
+				llvmValue = CreateAlloca(GetType(compositeConstruct->getType()));
 				for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
 				{
 					auto destination = CreateGEP(llvmValue, 0, j);
@@ -2077,7 +2215,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 
 			case OpTypeArray:
 				{
-					const auto arrayType = ConvertType(compositeConstruct->getType());
+					const auto arrayType = GetType(compositeConstruct->getType());
 					if (arrayStrideMultiplier.find(arrayType) != arrayStrideMultiplier.end())
 					{
 						// TODO: Support stride
@@ -2097,7 +2235,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 
 			case OpTypeStruct:
 				{
-					auto structType = ConvertType(compositeConstruct->getType());
+					auto structType = GetType(compositeConstruct->getType());
 					llvmValue = CreateAlloca(structType);
 					for (auto j = 0u; j < compositeConstruct->getConstituents().size(); j++)
 					{
@@ -2283,7 +2421,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 				           storage,
 			           });
 
-			storage = CreateBitCast(storage, ConvertType(sampledImage->getType()));
+			storage = CreateBitCast(storage, GetType(sampledImage->getType()));
 			return storage;
 		}
 
@@ -2321,7 +2459,11 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 			return CallInbuiltFunction(imageRead, currentFunction);
 		}
 
-		// case OpImageWrite: break;
+	case OpImageWrite:
+		{
+			const auto imageWrite = reinterpret_cast<SPIRV::SPIRVImageWrite*>(instruction);
+			return CallInbuiltFunction(imageWrite, currentFunction);
+		}
 
 	case OpImage:
 		{
@@ -2358,7 +2500,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 				           CreateBitCast(sampledImage, LLVMPointerType(LLVMInt8TypeInContext(context), 0)),
 				           storage,
 			           });
-			storage = CreateBitCast(storage, ConvertType(image->getType()));
+			storage = CreateBitCast(storage, GetType(image->getType()));
 			return storage;
 		}
 
@@ -2388,35 +2530,35 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			return CreateFPToUI(ConvertValue(op->getOperand(0), currentFunction),
-			                    ConvertType(op->getType()));
+			                    GetType(op->getType()));
 		}
 
 	case OpConvertFToS:
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			return CreateFPToSI(ConvertValue(op->getOperand(0), currentFunction),
-			                    ConvertType(op->getType()));
+			                    GetType(op->getType()));
 		}
 
 	case OpConvertSToF:
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			return CreateSIToFP(ConvertValue(op->getOperand(0), currentFunction),
-			                    ConvertType(op->getType()));
+			                    GetType(op->getType()));
 		}
 
 	case OpConvertUToF:
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			return CreateUIToFP(ConvertValue(op->getOperand(0), currentFunction),
-			                    ConvertType(op->getType()));
+			                    GetType(op->getType()));
 		}
 
 	case OpUConvert:
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			const auto value = ConvertValue(op->getOperand(0), currentFunction);
-			const auto type = ConvertType(op->getType());
+			const auto type = GetType(op->getType());
 			return CreateZExtOrTrunc(value, type);
 		}
 
@@ -2424,7 +2566,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			const auto value = ConvertValue(op->getOperand(0), currentFunction);
-			const auto type = ConvertType(op->getType());
+			const auto type = GetType(op->getType());
 			return CreateSExtOrTrunc(value, type);
 		}
 
@@ -2432,7 +2574,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			const auto value = ConvertValue(op->getOperand(0), currentFunction);
-			const auto type = ConvertType(op->getType());
+			const auto type = GetType(op->getType());
 			return CreateFPExtOrTrunc(value, type);
 		}
 
@@ -2440,7 +2582,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
 			auto value = ConvertValue(op->getOperand(0), currentFunction);
-			const auto type = ConvertType(op->getType());
+			const auto type = GetType(op->getType());
 			value = CreateFPTrunc(value, LLVMGetTypeKind(type) == LLVMVectorTypeKind
 				                             ? LLVMVectorType(LLVMHalfTypeInContext(context), LLVMGetVectorSize(type))
 				                             : LLVMHalfTypeInContext(context));
@@ -2458,7 +2600,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 	case OpBitcast:
 		{
 			const auto op = static_cast<SPIRV::SPIRVUnary*>(instruction);
-			return CreateBitCast(ConvertValue(op->getOperand(0), currentFunction), ConvertType(op->getType()));
+			return CreateBitCast(ConvertValue(op->getOperand(0), currentFunction), GetType(op->getType()));
 		}
 
 	case OpSNegate:
@@ -3101,7 +3243,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 	case OpPhi:
 		{
 			auto phi = static_cast<SPIRV::SPIRVPhi*>(instruction);
-			return CreatePhi(ConvertType(phi->getType()));
+			return CreatePhi(GetType(phi->getType()));
 		}
 
 	case OpBranch:
@@ -3428,7 +3570,7 @@ void SPIRVCompiledModuleBuilder::CompileBasicBlock(const SPIRV::SPIRVBasicBlock*
 		if (instruction->hasType())
 		{
 			assert(llvmValue);
-			assert(ConvertType(instruction->getType()) == LLVMTypeOf(llvmValue));
+			assert(GetType(instruction->getType()) == LLVMTypeOf(llvmValue));
 		}
 
 		if (llvmValue && instruction->hasId())
@@ -3454,7 +3596,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertFunction(const SPIRV::SPIRVFunct
 		TODO_ERROR();
 	}
 
-	auto returnType = ConvertType(spirvFunction->getType());
+	auto returnType = GetType(spirvFunction->getType());
 
 	if (spirvFunction == entryPoint && executionModel == ExecutionModelFragment)
 	{
@@ -3466,7 +3608,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertFunction(const SPIRV::SPIRVFunct
 	for (auto i = 0u; i < spirvFunction->getNumArguments(); i++)
 	{
 		assert(spirvFunction->getArgument(i)->getArgNo() == i);
-		parameters[i] = ConvertType(spirvFunction->getArgument(i)->getType());
+		parameters[i] = GetType(spirvFunction->getArgument(i)->getType());
 	}
 
 	// TODO: Disable external linkage when no longer using directly

@@ -8,6 +8,9 @@ struct DeviceState;
 template<typename ResultType, typename RangeType, typename CoordinateType>
 ResultType GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates, ResultType borderColour);
 
+template<typename TexelType, typename RangeType, typename CoordinateType>
+void SetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates, TexelType texel);
+
 template<typename ResultType, typename RangeType, typename CoordinateType>
 ResultType SampleImage(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, RangeType range, CoordinateType coordinates, VkFilter filter);
 

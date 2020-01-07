@@ -742,6 +742,73 @@ static void ImageRead(DeviceState* deviceState, ReturnType* result, ImageDescrip
 	return ImageFetch<ReturnType, CoordinateType, Array, Cube>(deviceState, result, descriptor, coordinates);
 }
 
+template<typename CoordinateType, typename TexelType, bool Array = false, bool Cube = false>
+static void ImageWrite(DeviceState* deviceState, ImageDescriptor* descriptor, typename VectorPointer<CoordinateType>::type coordinates, typename VectorPointer<TexelType>::type texel)
+{
+	constexpr auto finalLength = VectorPointer<CoordinateType>::length + (Array ? -1 : 0) + (Cube ? -1 : 0);
+
+	VkFormat format;
+	gsl::span<uint8_t> data[MAX_MIP_LEVELS];
+	glm::vec<finalLength, uint32_t> range[MAX_MIP_LEVELS];
+	uint32_t baseLevel;
+	uint32_t levels;
+	if constexpr (Cube)
+	{
+		// GetImageDataCube<Array>(descriptor, format, VectorPointer<CoordinateType>::get(coordinates), data, range, baseLevel, levels, realCoordinates);
+		// static_assert(false);
+		TODO_ERROR();
+	}
+	else if constexpr (Array)
+	{
+		GetImageDataArray(descriptor, format, VectorPointer<CoordinateType>::get(coordinates), data, range, baseLevel, levels);
+	}
+	else
+	{
+		GetImageData(descriptor, format, data, range, baseLevel, levels);
+	}
+
+	auto realTexel = VectorPointer<TexelType>::get(texel);
+	
+	if (descriptor->Type == ImageDescriptorType::Image)
+	{
+		const auto imageView = descriptor->Data.Image;
+		if ((imageView->getComponents().r != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().r != VK_COMPONENT_SWIZZLE_R) ||
+			(imageView->getComponents().g != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().g != VK_COMPONENT_SWIZZLE_G) ||
+			(imageView->getComponents().b != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().b != VK_COMPONENT_SWIZZLE_B) ||
+			(imageView->getComponents().a != VK_COMPONENT_SWIZZLE_IDENTITY && imageView->getComponents().a != VK_COMPONENT_SWIZZLE_A))
+		{
+			const auto oldTexel = realTexel;
+			realTexel.r = Swizzle(oldTexel, imageView->getComponents().r, 0);
+			realTexel.g = Swizzle(oldTexel, imageView->getComponents().g, 1);
+			realTexel.b = Swizzle(oldTexel, imageView->getComponents().b, 2);
+			realTexel.a = Swizzle(oldTexel, imageView->getComponents().a, 3);
+		}
+	}
+	
+	if constexpr (Cube)
+	{
+		TODO_ERROR();
+	}
+	else if constexpr (Array)
+	{
+		SetPixel(deviceState,
+		         format,
+		         data[0],
+		         range[0],
+		         ReduceDimension(VectorPointer<CoordinateType>::get(coordinates)),
+		         realTexel);
+	}
+	else
+	{
+		SetPixel(deviceState,
+		         format,
+		         data[0],
+		         range[0],
+		         VectorPointer<CoordinateType>::get(coordinates),
+		         realTexel);
+	}
+}
+
 static void ImageCombine(ImageDescriptor* image, ImageDescriptor* sampler, ImageDescriptor* result)
 {
 	assert(image->Data.Image != nullptr);
@@ -1389,6 +1456,12 @@ void AddGlslFunctions(DeviceState* deviceState)
 	jit->AddFunction("@Image.Read.F32[4].Image[F32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::fvec4, glm::ivec3>));
 	jit->AddFunction("@Image.Read.I32[4].Image[I32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::ivec4, glm::ivec3>));
 	jit->AddFunction("@Image.Read.U32[4].Image[U32,3D].I32[3]", reinterpret_cast<FunctionPointer>(ImageRead<glm::uvec4, glm::ivec3>));
+
+	// Image writing
+
+	jit->AddFunction("@Image.Write.Image[F32,2D].I32[2].F32[4]", reinterpret_cast<FunctionPointer>(ImageWrite<glm::ivec2, glm::fvec4>));
+	jit->AddFunction("@Image.Write.Image[U32,2D].I32[2].U32[4]", reinterpret_cast<FunctionPointer>(ImageWrite<glm::ivec2, glm::uvec4>));
+	jit->AddFunction("@Image.Write.Image[I32,2D].I32[2].I32[4]", reinterpret_cast<FunctionPointer>(ImageWrite<glm::ivec2, glm::ivec4>));
 
 	// Hacks until pipeline supports getting the correct methods
 	jit->AddFunction("@setPixelF32", reinterpret_cast<FunctionPointer>(SetPixelF32XXX));

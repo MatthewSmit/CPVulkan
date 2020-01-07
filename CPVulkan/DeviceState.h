@@ -9,7 +9,7 @@ struct SubpassDescription;
 class ImageFunctions
 {
 public:
-	ImageFunctions(CPJit* jit);
+	explicit ImageFunctions(CPJit* jit);
 	~ImageFunctions();
 
 	float (*GetPixelDepth)(const void* ptr){};

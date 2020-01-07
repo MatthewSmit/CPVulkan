@@ -45,11 +45,15 @@ VkResult DescriptorSetLayout::Create(const VkDescriptorSetLayoutCreateInfo* pCre
 	descriptorSetLayout->bindings = ArrayToVector(pCreateInfo->bindingCount, pCreateInfo->pBindings);
 	for (auto& binding : descriptorSetLayout->bindings)
 	{
-		if (binding.pImmutableSamplers)
+		if ((binding.descriptorType == VK_DESCRIPTOR_TYPE_SAMPLER || binding.descriptorType == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER) && binding.pImmutableSamplers)
 		{
 			const auto newSamplers = new VkSampler[binding.descriptorCount];
 			memcpy(newSamplers, binding.pImmutableSamplers, sizeof(VkSampler) * binding.descriptorCount);
 			binding.pImmutableSamplers = newSamplers;
+		}
+		else
+		{
+			binding.pImmutableSamplers = nullptr;
 		}
 	}
 

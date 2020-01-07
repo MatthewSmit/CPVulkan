@@ -322,5 +322,19 @@ namespace SPIRV
 		const auto Decoder = getDecoder(I);
 		SPIRVId PointerId;
 		Decoder >> PointerId >> SC;
+		if (Module->exist(PointerId))
+		{
+			const auto entry = Module->getEntry(PointerId);
+			assert(entry->getOpCode() == OpTypePointer);
+			Pointer = static_cast<SPIRVTypePointer*>(entry);
+		}
+		else
+		{
+			Pointer = new SPIRVTypePointer();
+			Pointer->setModule(Module);
+			Pointer->setId(PointerId);
+			Pointer->setStorageClass(SC);
+			Module->addEntry(Pointer);
+		}
 	}
-} // namespace SPIRV
+}

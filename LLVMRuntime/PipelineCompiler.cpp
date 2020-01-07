@@ -595,7 +595,7 @@ private:
 					continue;
 				}
 
-				outputMembers.push_back(shaderModuleBuilder->ConvertType(variable->getType()->getPointerElementType()));
+				outputMembers.push_back(shaderModuleBuilder->GetType(variable->getType()->getPointerElementType()));
 			}
 		}
 	}
@@ -820,7 +820,7 @@ private:
 
 	void EmitCopyInput(uint32_t location, LLVMValueRef vertexId, LLVMValueRef instanceId, LLVMValueRef shaderAddress, const SPIRV::SPIRVType* spirvType)
 	{
-		const auto llvmType = shaderModuleBuilder->ConvertType(spirvType);
+		const auto llvmType = shaderModuleBuilder->GetType(spirvType);
 		const auto& attribute = FindAttribute(location);
 		const auto& binding = FindBinding(attribute.binding);
 
@@ -923,7 +923,7 @@ private:
 				
 				if (spirvType->isTypeArray())
 				{
-					const auto llvmType = shaderModuleBuilder->ConvertType(spirvType);
+					const auto llvmType = shaderModuleBuilder->GetType(spirvType);
 					const auto elementSize = GetVariableSize(spirvType->getArrayElementType());
 					const auto multiplier = elementSize > 16 ? 2 : 1;
 					for (auto j = 0u; j < LLVMGetArrayLength(llvmType); j++)

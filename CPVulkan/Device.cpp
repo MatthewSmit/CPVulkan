@@ -135,7 +135,12 @@ VkResult Device::AllocateMemory(const VkMemoryAllocateInfo* pAllocateInfo, const
 			TODO_ERROR();
 
 		case VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_FLAGS_INFO:
-			TODO_ERROR();
+			{
+				// We don't use these flags as we only have a single device and all memory can already be accessed from shaders
+				const auto allocateFlags = reinterpret_cast<const VkMemoryAllocateFlagsInfo*>(next);
+				(void)allocateFlags;
+				break;
+			}
 
 		case VK_STRUCTURE_TYPE_MEMORY_DEDICATED_ALLOCATE_INFO:
 			{

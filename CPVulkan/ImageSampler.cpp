@@ -298,6 +298,68 @@ glm::uvec4 GetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t
 	return glm::uvec4(values[0], values[1], values[2], values[3]);
 }
 
+
+template<>
+void SetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec2 range, glm::ivec2 coordinates, glm::fvec4 texel)
+{
+	if (coordinates.x < 0 || coordinates.x >= range.x || coordinates.y < 0 || coordinates.y >= range.y)
+	{
+		return;
+	}
+
+	const auto& information = GetFormatInformation(format);
+	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
+	auto functions = deviceState->getImageFunctions(format);
+
+	if (!functions->SetPixelF32)
+	{
+		functions->SetPixelF32 = reinterpret_cast<decltype(functions->SetPixelF32)>(CompileSetPixelF32(deviceState->jit, &information));
+	}
+
+	functions->SetPixelF32(data.subspan(offset, information.TotalSize).data(), &texel.r);
+}
+
+template<>
+void SetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec2 range, glm::ivec2 coordinates, glm::ivec4 texel)
+{
+	if (coordinates.x < 0 || coordinates.x >= range.x || coordinates.y < 0 || coordinates.y >= range.y)
+	{
+		return;
+	}
+
+	const auto& information = GetFormatInformation(format);
+	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
+	auto functions = deviceState->getImageFunctions(format);
+
+	if (!functions->SetPixelI32)
+	{
+		functions->SetPixelI32 = reinterpret_cast<decltype(functions->SetPixelI32)>(CompileSetPixelI32(deviceState->jit, &information));
+	}
+
+	functions->SetPixelI32(data.subspan(offset, information.TotalSize).data(), &texel.r);
+}
+
+template<>
+void SetPixel(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, glm::uvec2 range, glm::ivec2 coordinates, glm::uvec4 texel)
+{
+	if (coordinates.x < 0 || coordinates.x >= range.x || coordinates.y < 0 || coordinates.y >= range.y)
+	{
+		return;
+	}
+
+	const auto& information = GetFormatInformation(format);
+	const auto offset = GetImagePixelOffset(GetImageSize(information, range.x, range.y, 1, 1, 1), coordinates.x, coordinates.y, 0, 0, 0);
+	auto functions = deviceState->getImageFunctions(format);
+
+	if (!functions->SetPixelU32)
+	{
+		functions->SetPixelU32 = reinterpret_cast<decltype(functions->SetPixelU32)>(CompileSetPixelU32(deviceState->jit, &information));
+	}
+
+	functions->SetPixelU32(data.subspan(offset, information.TotalSize).data(), &texel.r);
+}
+
+
 template<typename ResultType, int length>
 ResultType GetPixelLinear(DeviceState* deviceState, VkFormat format, gsl::span<uint8_t> data, 
                           glm::vec<length, uint32_t> range, glm::vec<length, int32_t> newCoordinates0, glm::vec<length, int32_t> newCoordinates1, glm::vec<length, float> interpolation, ResultType borderColour)

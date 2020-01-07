@@ -67,8 +67,8 @@ VkResult ShaderModule::Create(const VkShaderModuleCreateInfo* pCreateInfo, const
 	stream >> *shaderModule->module;
 	if (!shaderModule->module->isModuleValid())
 	{
-		// BM->getError(ErrMsg);
-		// return nullptr;
+		std::string errorMessage;
+		const auto code = shaderModule->module->getError(errorMessage);
 		TODO_ERROR();
 	}
 

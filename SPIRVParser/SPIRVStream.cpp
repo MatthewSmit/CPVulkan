@@ -255,7 +255,23 @@ namespace SPIRV
 		if (Entry->isEndOfBlock() || OpCode == OpNoLine)
 			M.setCurrentLine(nullptr);
 
-		if (OpExtension == OpCode)
+		// Replaces the forward pointer entry with correct values
+		if (OpCode == OpTypePointer)
+		{
+			SPIRVEntry* forwardEntry;
+			if (M.exist(Entry->getId(), &forwardEntry))
+			{
+				assert(forwardEntry->getOpCode() == OpTypePointer);
+				const auto pointerEntry = static_cast<SPIRVTypePointer*>(Entry);
+				auto forwardPointerEntry = static_cast<SPIRVTypePointer*>(forwardEntry);
+				assert(pointerEntry->getStorageClass() == forwardPointerEntry->getStorageClass());
+				assert(forwardPointerEntry->getElementTypeId() == 0);
+				forwardPointerEntry->setElementType(pointerEntry->getElementType());
+				return nullptr;
+			}
+		}
+
+		if (OpCode == OpExtension)
 		{
 			auto* OpExt = static_cast<SPIRVExtension*>(Entry);
 			ExtensionID ExtID;

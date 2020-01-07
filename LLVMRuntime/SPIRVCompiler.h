@@ -16,7 +16,7 @@ public:
 	SPIRVCompiledModuleBuilder(const SPIRV::SPIRVModule* spirvModule, spv::ExecutionModel executionModel, const SPIRV::SPIRVFunction* entryPoint,
 	                           const VkSpecializationInfo* specializationInfo);
 
-	LLVMTypeRef ConvertType(const SPIRV::SPIRVType* spirvType, bool isClassMember = false);
+	LLVMTypeRef GetType(const SPIRV::SPIRVType* spirvType);
 
 	LLVMValueRef ConvertValue(const SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction);
 
@@ -60,6 +60,14 @@ private:
 	spv::ExecutionModel executionModel;
 	const SPIRV::SPIRVFunction* entryPoint;
 	const VkSpecializationInfo* specializationInfo;
+
+	std::unordered_set<uint32_t> scannedIds{};
+
+	void CompileTypes();
+
+	void FinaliseStructs();
+
+	void AddType(const SPIRV::SPIRVType* spirvType);
 	
 	template<typename T>
 	T GetConstant(LLVMValueRef value);
@@ -118,6 +126,8 @@ private:
 	LLVMValueRef CallInbuiltFunction(SPIRV::SPIRVImageFetch* imageFetch, LLVMValueRef currentFunction);
 
 	LLVMValueRef CallInbuiltFunction(SPIRV::SPIRVImageRead* imageRead, LLVMValueRef currentFunction);
+	
+	LLVMValueRef CallInbuiltFunction(SPIRV::SPIRVImageWrite* imageWrite, LLVMValueRef currentFunction);
 
 	std::vector<LLVMValueRef> MapBuiltin(spv::BuiltIn builtin, const std::vector<std::pair<spv::BuiltIn, uint32_t>>& builtinMapping);
 

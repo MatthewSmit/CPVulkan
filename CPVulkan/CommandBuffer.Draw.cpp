@@ -369,6 +369,7 @@ static void LoadUniforms(DeviceState* deviceState, const std::vector<VariableUni
 		case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
 		case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
 		case VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER:
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
 			for (auto j = 0u; j < value->count; j++)
 			{
 				static_cast<const ImageDescriptor**>(data.pointer)[j] = &value->values[j].Image;
@@ -393,9 +394,6 @@ static void LoadUniforms(DeviceState* deviceState, const std::vector<VariableUni
 				static_cast<const void**>(data.pointer)[j] = UnwrapVulkan<Buffer>(bufferInfo.buffer)->getDataPtr(bufferInfo.offset + dynamicOffset, bufferInfo.range);
 			}
 			break;
-			
-		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-			TODO_ERROR();
 			
 		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
 			TODO_ERROR();

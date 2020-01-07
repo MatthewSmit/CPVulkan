@@ -270,10 +270,18 @@ namespace SPIRV
 			: SPIRVType(OpTypePointer), ElemStorageClass(StorageClassFunction),
 			  ElemTypeId(0) {}
 
+		uint32_t getElementTypeId() const {
+			return ElemTypeId;
+		}
 		SPIRVType* getElementType() const {
 			return static_cast<SPIRVType*>(getEntry(ElemTypeId));
 		}
+		void setElementType(SPIRVType* type)
+		{
+			this->ElemTypeId = type->getId();
+		}
 		SPIRVStorageClassKind getStorageClass() const { return ElemStorageClass; }
+		void setStorageClass(SPIRVStorageClassKind storageClass) { ElemStorageClass = storageClass; }
 		SPIRVCapVec getRequiredCapability() const override {
 			auto Cap = getVec(CapabilityAddresses);
 			if (getElementType()->isTypeFloat(16))

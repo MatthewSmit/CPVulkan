@@ -87,6 +87,7 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 			break;
 						
 		case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
 			value.Image.Type = ImageDescriptorType::Image;
 			value.Image.Data.Image = UnwrapVulkan<ImageView>(descriptorWrite.pImageInfo[i].imageView);
 			if (!bindingValues[targetBinding].immutable)
@@ -124,9 +125,6 @@ void DescriptorSet::Update(const VkWriteDescriptorSet& descriptorWrite)
 				value.Buffer.range = UnwrapVulkan<Buffer>(value.Buffer.buffer)->getSize() - value.Buffer.offset;
 			}
 			break;
-			
-		case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT:
-			TODO_ERROR();
 			
 		case VK_DESCRIPTOR_TYPE_INLINE_UNIFORM_BLOCK_EXT:
 			TODO_ERROR();
