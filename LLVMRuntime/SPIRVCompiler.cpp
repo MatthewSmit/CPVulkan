@@ -1069,8 +1069,9 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 	case OpVariable:
 		{
 			const auto variable = static_cast<const SPIRV::SPIRVVariable*>(spirvValue);
-			const auto isPointer = (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant || variable
-					->getStorageClass() == StorageClassStorageBuffer) &&
+			const auto isPointer = (variable->getStorageClass() == StorageClassUniform ||
+					variable->getStorageClass() == StorageClassUniformConstant || 
+					variable->getStorageClass() == StorageClassStorageBuffer) &&
 				!IsOpaqueType(variable->getType()->getPointerElementType());
 			auto llvmType = ConvertType(variable->getType()->getPointerElementType());
 			const auto linkage = ConvertLinkage(variable);

@@ -42,7 +42,8 @@ class CommonPipelineState
 public:
 	std::array<DescriptorSet*, MAX_BOUND_DESCRIPTOR_SETS> descriptorSets{};
 	std::array<DescriptorSet*, MAX_BOUND_DESCRIPTOR_SETS> pushDescriptorSets{};
-	std::array<std::array<uint32_t, MAX_PER_STAGE_RESOURCES * 5>, MAX_BOUND_DESCRIPTOR_SETS> descriptorSetDynamicOffset{};
+	// TODO: turn this into a lookup table
+	std::array<std::array<std::array<uint32_t, MAX_PER_STAGE_RESOURCES * 5>, MAX_PER_STAGE_RESOURCES * 5>, MAX_BOUND_DESCRIPTOR_SETS> descriptorSetDynamicOffset{};
 };
 
 struct GraphicsNativeState

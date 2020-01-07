@@ -69,8 +69,11 @@ public:
 				if (descriptorType == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC || descriptorType == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC)
 				{
 					assert(dynamic < dynamicOffsets.size());
-					pipelineState.descriptorSetDynamicOffset[i + firstSet][j] = dynamicOffsets[dynamic];
-					dynamic++;
+					for (auto k = 0u; k < value->count; k++)
+					{
+						pipelineState.descriptorSetDynamicOffset[i + firstSet][j][k] = dynamicOffsets[dynamic];
+						dynamic++;
+					}
 				}
 			}
 		}
