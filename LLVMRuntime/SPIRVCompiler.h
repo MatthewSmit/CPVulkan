@@ -91,6 +91,10 @@ private:
 	template<typename T>
 	T GetSpecOverride(const SPIRV::SPIRVValue* spirvValue);
 
+	LLVMMetadataRef GetMetadataFromName(const std::string& name);
+	
+	LLVMMetadataRef GetMetadataFromNameAndParameter(const std::string& name, uint32_t parameter);
+
 	LLVMValueRef HandleSpecConstantOperation(const SPIRV::SPIRVSpecConstantOp* spirvValue);
 
 	LLVMValueRef ConvertValueNoDecoration(const SPIRV::SPIRVValue* spirvValue, LLVMValueRef currentFunction);
