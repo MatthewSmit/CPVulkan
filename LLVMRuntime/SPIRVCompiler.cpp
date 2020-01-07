@@ -1072,11 +1072,25 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 			const auto isPointer = (variable->getStorageClass() == StorageClassUniform || variable->getStorageClass() == StorageClassUniformConstant || variable
 					->getStorageClass() == StorageClassStorageBuffer) &&
 				!IsOpaqueType(variable->getType()->getPointerElementType());
-			const auto llvmType = isPointer
-				                      ? ConvertType(variable->getType())
-				                      : ConvertType(variable->getType()->getPointerElementType());
+			auto llvmType = ConvertType(variable->getType()->getPointerElementType());
 			const auto linkage = ConvertLinkage(variable);
 			const auto name = MangleName(variable);
+
+			if (isPointer)
+			{
+				if (LLVMGetTypeKind(llvmType) == LLVMArrayTypeKind)
+				{
+					const auto size = LLVMGetArrayLength(llvmType);
+					llvmType = LLVMArrayType(LLVMPointerType(LLVMGetElementType(llvmType), 0), size);
+				}
+				else
+				{
+					llvmType = LLVMPointerType(llvmType, 0);
+				}
+				
+				variablePointers.insert(variable->getId());
+			}
+			
 			LLVMValueRef initialiser = nullptr;
 			const auto spirvInitialiser = variable->getInitializer();
 			if (spirvInitialiser)
@@ -1090,11 +1104,6 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertValueNoDecoration(const SPIRV::S
 			else
 			{
 				initialiser = LLVMConstNull(llvmType);
-			}
-
-			if (isPointer)
-			{
-				variablePointers.insert(variable->getId());
 			}
 
 			const auto llvmVariable = GlobalVariable(llvmType,
@@ -1813,7 +1822,8 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 	case OpLoad:
 		{
 			const auto load = reinterpret_cast<SPIRV::SPIRVLoad*>(instruction);
-			const auto llvmValue = CreateLoad(ConvertValue(load->getSrc(), currentFunction), load->SPIRVMemoryAccess::isVolatile(), load->getName());
+			const auto pointer = ConvertValue(load->getSrc(), currentFunction);
+			const auto llvmValue = CreateLoad(pointer, load->SPIRVMemoryAccess::isVolatile(), load->getName());
 			if (load->isNonTemporal())
 			{
 				TranslateNonTemporalMetadata(llvmValue);
@@ -1824,9 +1834,9 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 	case OpStore:
 		{
 			const auto store = reinterpret_cast<SPIRV::SPIRVStore*>(instruction);
-			const auto llvmValue = CreateStore(ConvertValue(store->getSrc(), currentFunction),
-			                                   ConvertValue(store->getDst(), currentFunction),
-			                                   store->SPIRVMemoryAccess::isVolatile());
+			const auto pointer = ConvertValue(store->getDst(), currentFunction);
+			const auto value = ConvertValue(store->getSrc(), currentFunction);
+			const auto llvmValue = CreateStore(value, pointer, store->SPIRVMemoryAccess::isVolatile());
 			if (store->isNonTemporal())
 			{
 				TranslateNonTemporalMetadata(llvmValue);
@@ -1855,7 +1865,7 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 	case OpInBoundsPtrAccessChain:
 		{
 			const auto accessChain = reinterpret_cast<SPIRV::SPIRVAccessChainBase*>(instruction);
-			const auto base = ConvertValue(accessChain->getBase(), currentFunction);
+			auto base = ConvertValue(accessChain->getBase(), currentFunction);
 			auto indices = ConvertValue(accessChain->getIndices(), currentFunction);
 
 			if (LLVMTypeOf(base) == LLVMTypeOf(builtinInputVariable))
@@ -1868,7 +1878,17 @@ LLVMValueRef SPIRVCompiledModuleBuilder::ConvertInstruction(SPIRV::SPIRVInstruct
 				indices = MapBuiltin(indices, accessChain->getBase()->getType(), builtinOutputMapping);
 			}
 
-			if (!accessChain->hasPtrIndex())
+			// Rewrite access chain to use pointer for arrays of uniform buffers
+			if (variablePointers.find(accessChain->getBase()->getId()) != variablePointers.end() &&
+				LLVMGetTypeKind(LLVMTypeOf(base)) == LLVMArrayTypeKind)
+			{
+				assert(!accessChain->hasPtrIndex());
+
+				const auto index = LLVMConstIntGetZExtValue(indices[0]);
+				base = CreateExtractValue(base, index);
+				indices[0] = LLVMConstInt(LLVMInt32TypeInContext(context), 0, false);
+			}
+			else if (!accessChain->hasPtrIndex())
 			{
 				indices.insert(indices.begin(), LLVMConstInt(LLVMInt32TypeInContext(context), 0, false));
 			}
